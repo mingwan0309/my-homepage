@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>김민관 수학강사</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --primary: #e07b39;
+    --primary-light: #f5a96a;
+    --bg: #fdf8f3;
+    --bg2: #fff7ee;
+    --text: #2d2016;
+    --text-sub: #7a6045;
+    --card-bg: #ffffff;
+    --border: #f0e0cc;
+  }
+
+  body {
+    font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* NAV */
+  nav {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-logo {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: 1px;
+  }
+  .nav-links {
+    display: flex;
+    gap: 32px;
+    list-style: none;
+  }
+  .nav-links a {
+    text-decoration: none;
+    color: var(--text-sub);
+    font-size: 15px;
+    font-weight: 600;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--primary); }
+
+  /* HERO */
+  .hero {
+    background: linear-gradient(135deg, #fff7ee 0%, #fdecd8 100%);
+    padding: 80px 40px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-avatar {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    margin: 0 auto 24px;
+    box-shadow: 0 8px 32px rgba(224,123,57,0.25);
+  }
+  .hero h1 {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--text);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: var(--primary);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+  }
+  .hero-slogan {
+    font-size: 18px;
+    color: var(--text-sub);
+    font-style: italic;
+    margin-bottom: 32px;
+  }
+  .hero-slogan span {
+    color: var(--primary);
+    font-weight: 700;
+  }
+  .hero-contact {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 2px solid var(--primary);
+    border-radius: 12px;
+    padding: 10px 24px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--primary);
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+  }
+  .hero-contact:hover {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  /* SECTION COMMON */
+  section {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 64px 24px;
+  }
+  .section-title {
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .section-title::after {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: var(--primary);
+    border-radius: 2px;
+    margin-top: 8px;
+    margin-bottom: 32px;
+  }
+
+  /* ABOUT */
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .about-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .about-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+  .about-card h3 {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .about-card p {
+    font-size: 14px;
+    color: var(--text-sub);
+  }
+
+  /* LECTURES */
+  #lectures { background: var(--bg2); padding: 64px 24px; }
+  #lectures > div {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .lecture-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .lecture-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px 22px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .lecture-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 36px rgba(224,123,57,0.13);
+  }
+  .lecture-tag {
+    display: inline-block;
+    background: #fff3e8;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+  .lecture-card h3 {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  .lecture-card p {
+    font-size: 13.5px;
+    color: var(--text-sub);
+    line-height: 1.6;
+  }
+  .lecture-emoji {
+    font-size: 36px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  /* CONTACT */
+  .contact-box {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    border-radius: 24px;
+    padding: 48px;
+    text-align: center;
+    color: #fff;
+  }
+  .contact-box h2 {
+    font-size: 26px;
+    font-weight: 900;
+    margin-bottom: 12px;
+  }
+  .contact-box p {
+    font-size: 15px;
+    opacity: 0.85;
+    margin-bottom: 28px;
+  }
+  .contact-phone {
+    display: inline-block;
+    background: #fff;
+    color: var(--primary);
+    font-size: 22px;
+    font-weight: 900;
+    padding: 14px 40px;
+    border-radius: 14px;
+    letter-spacing: 2px;
+    text-decoration: none;
+  }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 28px;
+    font-size: 13px;
+    color: var(--text-sub);
+    border-top: 1px solid var(--border);
+    background: #fff;
+  }
+
+  @media (max-width: 640px) {
+    .about-grid { grid-template-columns: 1fr; }
+    .lecture-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 28px; }
+    nav { padding: 0 20px; }
+    .nav-links { gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">김민관 수학</div>
+  <ul class="nav-links">
+    <li><a href="#about">소개</a></li>
+    <li><a href="#lectures">강의</a></li>
+    <li><a href="#contact">상담</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-avatar">📐</div>
+  <h1>김민관</h1>
+  <div class="hero-badge">수학강사</div>
+  <p class="hero-slogan">" 못하는 건 <span>키즈모델뿐</span> "</p>
+  <a href="tel:010-6251-9244" class="hero-contact">📞 &nbsp;010-6251-9244</a>
+</div>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="section-title">강사 소개</div>
+  <div class="about-grid">
+    <div class="about-card">
+      <div class="about-icon">🎯</div>
+      <div>
+        <h3>맞춤형 1:1 지도</h3>
+        <p>학생 개개인의 수준과 속도에 맞춰 개념부터 심화까지 체계적으로 지도합니다.</p>
+      </div>
+    </div>
+    <div class="about-card">
+      <div class="about-icon">💡</div>
+      <div>
+        <h3>개념 중심 수업</h3>
+        <p>암기가 아닌 이해 중심으로, 왜 그런지를 알면 어떤 문제도 풀립니다.</p>
+      </div>
+    </div>
+    <div class="about-card">
+      <div class="about-icon">📈</div>
+      <div>
+        <h3>성적 향상 보장</h3>
+        <p>포기했던 학생도 함께라면 달라집니다. 못하는 건 키즈모델뿐입니다.</p>
+      </div>
+    </div>
+    <div class="about-card">
+      <div class="about-icon">🤝</div>
+      <div>
+        <h3>학부모 소통</h3>
+        <p>수업 후 피드백을 꼼꼼하게 전달하여 학부모님과 함께 성장을 만들어갑니다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LECTURES -->
+<div id="lectures">
+  <div>
+    <div class="section-title">강의 안내</div>
+    <div class="lecture-grid">
+      <div class="lecture-card">
+        <span class="lecture-emoji">🔢</span>
+        <div class="lecture-tag">초등</div>
+        <h3>초등 수학 기초</h3>
+        <p>연산부터 도형까지, 수학을 좋아하게 만드는 재미있는 수업</p>
+      </div>
+      <div class="lecture-card">
+        <span class="lecture-emoji">📊</span>
+        <div class="lecture-tag">중등</div>
+        <h3>중학 수학 완성</h3>
+        <p>방정식, 함수, 확률까지 중학 전 과정을 탄탄하게 다집니다</p>
+      </div>
+      <div class="lecture-card">
+        <span class="lecture-emoji">🧮</span>
+        <div class="lecture-tag">고등</div>
+        <h3>고등 수학 심화</h3>
+        <p>수능을 겨냥한 고난도 문제 풀이와 개념 심화 과정</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="contact-box">
+    <h2>📬 수업 문의</h2>
+    <p>언제든 편하게 연락주세요. 첫 상담은 무료입니다.</p>
+    <a href="tel:010-6251-9244" class="contact-phone">010-6251-9244</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  © 2026 김민관 수학강사 · 010-6251-9244
+</footer>
+
+</body>
+</html>
