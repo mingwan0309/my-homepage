@@ -7,129 +7,72 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: '맑은 고딕', sans-serif; background: #f8fafc; color: #1e293b; }
-
   .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
-
   h1 { font-size: 24px; font-weight: 900; margin-bottom: 8px; }
   .sub { color: #64748b; font-size: 14px; margin-bottom: 32px; }
-
-  .card {
-    background: #fff;
-    border-radius: 16px;
-    padding: 32px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-    margin-bottom: 20px;
-  }
-
+  .card { background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
   label { display: block; font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 6px; }
   input, select, textarea {
     width: 100%; padding: 12px 14px;
     border: 1.5px solid #e2e8f0; border-radius: 10px;
-    font-size: 15px; outline: none;
-    transition: border 0.2s;
-    margin-bottom: 16px;
+    font-size: 15px; outline: none; transition: border 0.2s; margin-bottom: 16px;
   }
   input:focus, select:focus, textarea:focus { border-color: #2563eb; }
-
   .btn {
-    width: 100%; padding: 14px;
-    background: #2563eb; color: #fff;
-    border: none; border-radius: 10px;
-    font-size: 16px; font-weight: 700;
+    width: 100%; padding: 14px; background: #2563eb; color: #fff;
+    border: none; border-radius: 10px; font-size: 16px; font-weight: 700;
     cursor: pointer; transition: background 0.2s;
   }
   .btn:hover { background: #1d4ed8; }
-  .btn.secondary {
-    background: #f1f5f9; color: #1e293b;
-    margin-top: 10px;
-  }
+  .btn:disabled { background: #94a3b8; cursor: not-allowed; }
+  .btn.secondary { background: #f1f5f9; color: #1e293b; margin-top: 10px; }
   .btn.secondary:hover { background: #e2e8f0; }
   .btn.danger { background: #dc2626; margin-top: 10px; }
-  .btn.danger:hover { background: #b91c1c; }
-
+  .btn.sm { padding: 8px 16px; width: auto; font-size: 13px; margin-top: 0; }
   .msg { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
   .msg.error { background: #fef2f2; color: #dc2626; }
   .msg.success { background: #f0fdf4; color: #16a34a; }
-
-  canvas {
-    width: 100%; border: 2px solid #e2e8f0;
-    border-radius: 10px; cursor: crosshair;
-    touch-action: none; background: #fff;
-    display: block;
-  }
-
+  canvas { width: 100%; border: 2px solid #e2e8f0; border-radius: 10px; cursor: crosshair; touch-action: none; background: #fff; display: block; }
   .canvas-btns { display: flex; gap: 10px; margin-top: 10px; margin-bottom: 16px; }
-  .canvas-btns button {
-    flex: 1; padding: 10px;
-    border: 1.5px solid #e2e8f0; border-radius: 8px;
-    background: #fff; cursor: pointer; font-size: 14px;
-  }
+  .canvas-btns button { flex: 1; padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; font-size: 14px; }
   .canvas-btns button:hover { background: #f1f5f9; }
-
-  .problem-box {
-    background: #f8fafc; border-radius: 10px;
-    padding: 20px; margin-bottom: 20px;
-    font-size: 15px; line-height: 1.8;
-    white-space: pre-wrap;
-  }
-
-  .score-box {
-    text-align: center; padding: 24px;
-    background: #eff6ff; border-radius: 12px;
-    margin-bottom: 16px;
-  }
+  .problem-box { background: #f8fafc; border-radius: 10px; padding: 20px; margin-bottom: 20px; font-size: 15px; line-height: 1.8; white-space: pre-wrap; }
+  .score-box { text-align: center; padding: 24px; background: #eff6ff; border-radius: 12px; margin-bottom: 16px; }
   .score-box .score { font-size: 48px; font-weight: 900; color: #2563eb; }
   .score-box .label { font-size: 14px; color: #64748b; margin-top: 4px; }
-
   .feedback { background: #f8fafc; border-radius: 10px; padding: 16px; font-size: 14px; line-height: 1.8; white-space: pre-wrap; }
-
-  .tab-btns { display: flex; gap: 8px; margin-bottom: 24px; }
-  .tab-btn {
-    flex: 1; padding: 10px;
-    border: 1.5px solid #e2e8f0; border-radius: 8px;
-    background: #fff; cursor: pointer; font-size: 14px; font-weight: 600;
-  }
-  .tab-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
-
-  #page-login, #page-teacher, #page-student, #page-result { display: none; }
-  #page-login { display: block; }
-
   .section-title { font-size: 18px; font-weight: 800; margin-bottom: 20px; }
   .problem-list { list-style: none; }
-  .problem-list li {
-    padding: 14px 16px; background: #f8fafc;
-    border-radius: 8px; margin-bottom: 8px;
-    font-size: 14px; cursor: pointer;
-    border: 1.5px solid transparent;
-    transition: border 0.2s;
-  }
+  .problem-list li { padding: 14px 16px; background: #f8fafc; border-radius: 8px; margin-bottom: 8px; font-size: 14px; cursor: pointer; border: 1.5px solid transparent; transition: border 0.2s; }
   .problem-list li:hover { border-color: #2563eb; }
   .problem-list li.selected { border-color: #2563eb; background: #eff6ff; }
-
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .nav-bar span { font-size: 14px; color: #64748b; }
+  .nav-back { color: #2563eb; font-size: 14px; font-weight: 600; cursor: pointer; background: none; border: none; }
+  .student-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: #f8fafc; border-radius: 8px; margin-bottom: 8px; font-size: 14px; }
+  .student-row .id { color: #64748b; font-size: 12px; }
+  .scores-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .scores-table th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-weight: 700; }
+  .scores-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+  .tab-btns { display: flex; gap: 8px; margin-bottom: 24px; }
+  .tab-btn { flex: 1; padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; font-size: 14px; font-weight: 600; }
+  .tab-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
   .spinner { text-align: center; padding: 20px; color: #64748b; font-size: 14px; }
-
-  .nav-back {
-    display: inline-flex; align-items: center; gap: 6px;
-    color: #2563eb; font-size: 14px; font-weight: 600;
-    text-decoration: none; margin-bottom: 24px;
-    cursor: pointer; background: none; border: none;
-  }
+  .page { display: none; }
+  #page-login { display: block; }
 </style>
 </head>
 <body>
-
 <div class="container">
 
   <!-- 로그인 -->
-  <div id="page-login">
+  <div id="page-login" class="page" style="display:block">
     <h1>김민관 수학</h1>
     <p class="sub">숙제 시스템에 로그인하세요</p>
     <div class="card">
       <div id="login-msg"></div>
-      <div class="tab-btns">
-        <button class="tab-btn active" onclick="setRole('student')">학생</button>
-        <button class="tab-btn" onclick="setRole('teacher')">선생님</button>
-      </div>
+      <label>아이디</label>
+      <input type="text" id="login-id" placeholder="아이디 입력">
       <label>비밀번호</label>
       <input type="password" id="login-pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')login()">
       <button class="btn" onclick="login()">로그인</button>
@@ -137,76 +80,122 @@
   </div>
 
   <!-- 선생님 페이지 -->
-  <div id="page-teacher">
-    <button class="nav-back" onclick="logout()">← 로그아웃</button>
-    <h1>선생님 페이지</h1>
-    <p class="sub">문제를 등록하고 관리하세요</p>
+  <div id="page-teacher" class="page">
+    <div class="nav-bar">
+      <h1>선생님 페이지</h1>
+      <button class="nav-back" onclick="logout()">로그아웃</button>
+    </div>
 
-    <div class="card">
+    <div class="tab-btns">
+      <button class="tab-btn active" onclick="teacherTab('problems')">문제 등록</button>
+      <button class="tab-btn" onclick="teacherTab('students')">학생 관리</button>
+      <button class="tab-btn" onclick="teacherTab('scores')">점수 현황</button>
+      <button class="tab-btn" onclick="teacherTab('settings')">설정</button>
+    </div>
+
+    <!-- 문제 등록 -->
+    <div id="t-tab-problems" class="card">
       <p class="section-title">문제 등록</p>
       <label>문제 제목</label>
       <input type="text" id="t-title" placeholder="예: 6월 2주차 숙제">
       <label>문제 내용</label>
-      <textarea id="t-content" rows="6" placeholder="문제 내용을 입력하세요&#10;(여러 문제는 번호를 붙여 구분하세요)"></textarea>
+      <textarea id="t-content" rows="6" placeholder="문제 내용을 입력하세요"></textarea>
       <label>총 문항 수</label>
       <input type="number" id="t-total" placeholder="예: 5" min="1">
       <button class="btn" onclick="saveProblems()">저장</button>
       <div id="teacher-msg" style="margin-top:12px"></div>
+      <div id="t-problem-list" style="margin-top:20px"></div>
     </div>
 
-    <div class="card">
+    <!-- 학생 관리 -->
+    <div id="t-tab-students" class="card" style="display:none">
+      <p class="section-title">학생 추가</p>
+      <label>이름</label>
+      <input type="text" id="new-sname" placeholder="홍길동">
+      <label>아이디</label>
+      <input type="text" id="new-sid" placeholder="hong123">
+      <label>초기 비밀번호</label>
+      <input type="text" id="new-spw" placeholder="1234">
+      <button class="btn" onclick="addStudent()">추가</button>
+      <div id="add-student-msg" style="margin-top:12px"></div>
+      <div style="margin-top:24px">
+        <p class="section-title">학생 목록</p>
+        <div id="student-list-area"><p class="spinner">불러오는 중...</p></div>
+      </div>
+    </div>
+
+    <!-- 점수 현황 -->
+    <div id="t-tab-scores" class="card" style="display:none">
+      <p class="section-title">점수 현황</p>
+      <div id="scores-area"><p class="spinner">불러오는 중...</p></div>
+    </div>
+
+    <!-- 설정 -->
+    <div id="t-tab-settings" class="card" style="display:none">
       <p class="section-title">비밀번호 변경</p>
       <label>현재 비밀번호</label>
       <input type="password" id="t-old-pw" placeholder="현재 비밀번호">
       <label>새 비밀번호</label>
       <input type="password" id="t-new-pw" placeholder="새 비밀번호">
-      <button class="btn" onclick="changePassword('teacher')">변경</button>
+      <button class="btn" onclick="changePassword()">변경</button>
       <div id="teacher-pw-msg" style="margin-top:12px"></div>
     </div>
   </div>
 
   <!-- 학생 페이지 -->
-  <div id="page-student">
-    <button class="nav-back" onclick="logout()">← 로그아웃</button>
-    <h1>숙제 풀기</h1>
-    <p class="sub">문제를 선택하고 손으로 풀어주세요</p>
-
-    <div class="card">
-      <label>이름</label>
-      <input type="text" id="s-name" placeholder="이름을 입력하세요">
-      <p class="section-title" style="margin-top:8px">문제 선택</p>
-      <div id="problem-list-area"><p class="spinner">불러오는 중...</p></div>
+  <div id="page-student" class="page">
+    <div class="nav-bar">
+      <div>
+        <h1 id="student-greeting"></h1>
+        <p class="sub" style="margin-bottom:0">숙제를 풀고 제출하세요</p>
+      </div>
+      <button class="nav-back" onclick="logout()">로그아웃</button>
     </div>
 
-    <div id="solve-area" style="display:none">
+    <div class="tab-btns">
+      <button class="tab-btn active" onclick="studentTab('homework')">숙제 풀기</button>
+      <button class="tab-btn" onclick="studentTab('settings')">설정</button>
+    </div>
+
+    <!-- 숙제 풀기 -->
+    <div id="s-tab-homework">
       <div class="card">
-        <p class="section-title" id="solve-title"></p>
-        <div class="problem-box" id="solve-content"></div>
-        <label>손글씨로 풀기 (Apple Pencil 또는 손가락)</label>
-        <canvas id="draw-canvas" height="400"></canvas>
-        <div class="canvas-btns">
-          <button onclick="clearCanvas()">지우기</button>
-          <button onclick="undoCanvas()">되돌리기</button>
+        <p class="section-title">문제 선택</p>
+        <div id="problem-list-area"><p class="spinner">문제를 불러오는 중...</p></div>
+      </div>
+      <div id="solve-area" style="display:none">
+        <div class="card">
+          <p class="section-title" id="solve-title"></p>
+          <div class="problem-box" id="solve-content"></div>
+          <label>손글씨로 풀기</label>
+          <canvas id="draw-canvas" height="400"></canvas>
+          <div class="canvas-btns">
+            <button onclick="clearCanvas()">🗑 지우기</button>
+            <button onclick="undoCanvas()">↩ 되돌리기</button>
+          </div>
+          <button class="btn" id="submit-btn" onclick="submitAnswer()">제출 & AI 채점</button>
         </div>
-        <button class="btn" onclick="submitAnswer()">제출 & AI 채점</button>
       </div>
     </div>
 
-    <div class="card">
+    <!-- 설정 -->
+    <div id="s-tab-settings" class="card" style="display:none">
       <p class="section-title">비밀번호 변경</p>
       <label>현재 비밀번호</label>
       <input type="password" id="s-old-pw" placeholder="현재 비밀번호">
       <label>새 비밀번호</label>
       <input type="password" id="s-new-pw" placeholder="새 비밀번호">
-      <button class="btn" onclick="changePassword('student')">변경</button>
+      <button class="btn" onclick="changePassword()">변경</button>
       <div id="student-pw-msg" style="margin-top:12px"></div>
     </div>
   </div>
 
   <!-- 결과 페이지 -->
-  <div id="page-result">
-    <button class="nav-back" onclick="backToStudent()">← 다시 풀기</button>
-    <h1>채점 결과</h1>
+  <div id="page-result" class="page">
+    <div class="nav-bar">
+      <h1>채점 결과</h1>
+      <button class="nav-back" onclick="backToStudent()">← 돌아가기</button>
+    </div>
     <div class="card">
       <div class="score-box">
         <div class="score" id="result-score"></div>
@@ -223,31 +212,33 @@
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 const GEMINI_KEY = 'AQ.Ab8RN6LVfn-MmMP7-TbtXpZxEs7seO59LUMMLJOt2bOg3rsYKg';
 
-let currentRole = 'student';
+let currentUser = null;
 let problems = JSON.parse(localStorage.getItem('mkmath-problems') || '[]');
 let selectedProblem = null;
 let canvasHistory = [];
-
-function setRole(role) {
-  currentRole = role;
-  document.querySelectorAll('.tab-btn').forEach((b,i) => {
-    b.classList.toggle('active', (i===0 && role==='student') || (i===1 && role==='teacher'));
-  });
-}
+let canvas, ctx, drawing = false;
 
 async function login() {
+  const id = document.getElementById('login-id').value.trim();
   const pw = document.getElementById('login-pw').value;
   const msgEl = document.getElementById('login-msg');
-  if (!pw) { showMsg(msgEl, '비밀번호를 입력하세요', 'error'); return; }
+  if (!id || !pw) { showMsg(msgEl, '아이디와 비밀번호를 입력하세요', 'error'); return; }
 
   try {
-    const res = await fetch(`${SCRIPT_URL}?action=login&role=${currentRole}&password=${encodeURIComponent(pw)}`);
+    const res = await fetch(`${SCRIPT_URL}?action=login&id=${encodeURIComponent(id)}&password=${encodeURIComponent(pw)}`);
     const data = await res.json();
     if (data.success) {
-      show(currentRole === 'teacher' ? 'page-teacher' : 'page-student');
-      if (currentRole === 'student') loadProblems();
+      currentUser = { id, role: data.role, name: data.name };
+      if (data.role === 'teacher') {
+        show('page-teacher');
+        loadProblemList();
+      } else {
+        document.getElementById('student-greeting').textContent = data.name + ' 학생';
+        show('page-student');
+        loadProblems();
+      }
     } else {
-      showMsg(msgEl, '비밀번호가 틀렸습니다', 'error');
+      showMsg(msgEl, '아이디 또는 비밀번호가 틀렸습니다', 'error');
     }
   } catch(e) {
     showMsg(msgEl, '연결 오류가 발생했습니다', 'error');
@@ -255,30 +246,70 @@ async function login() {
 }
 
 function logout() {
-  show('page-login');
+  currentUser = null;
+  selectedProblem = null;
+  document.getElementById('login-id').value = '';
   document.getElementById('login-pw').value = '';
+  show('page-login');
 }
 
 function show(pageId) {
-  ['page-login','page-teacher','page-student','page-result'].forEach(id => {
-    document.getElementById(id).style.display = id === pageId ? 'block' : 'none';
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  document.getElementById(pageId).style.display = 'block';
+}
+
+// 선생님 탭
+function teacherTab(tab) {
+  ['problems','students','scores','settings'].forEach(t => {
+    document.getElementById('t-tab-' + t).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('#page-teacher .tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['problems','students','scores','settings'][i] === tab);
+  });
+  if (tab === 'students') loadStudentList();
+  if (tab === 'scores') loadScores();
+}
+
+// 학생 탭
+function studentTab(tab) {
+  document.getElementById('s-tab-homework').style.display = tab === 'homework' ? 'block' : 'none';
+  document.getElementById('s-tab-settings').style.display = tab === 'settings' ? 'block' : 'none';
+  document.querySelectorAll('#page-student .tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', (i===0 && tab==='homework') || (i===1 && tab==='settings'));
   });
 }
 
+// 문제 저장/불러오기
 function saveProblems() {
   const title = document.getElementById('t-title').value.trim();
   const content = document.getElementById('t-content').value.trim();
   const total = parseInt(document.getElementById('t-total').value);
   const msgEl = document.getElementById('teacher-msg');
-
   if (!title || !content || !total) { showMsg(msgEl, '모두 입력해주세요', 'error'); return; }
-
   problems.push({ id: Date.now(), title, content, total });
   localStorage.setItem('mkmath-problems', JSON.stringify(problems));
   document.getElementById('t-title').value = '';
   document.getElementById('t-content').value = '';
   document.getElementById('t-total').value = '';
   showMsg(msgEl, '저장되었습니다!', 'success');
+  loadProblemList();
+}
+
+function loadProblemList() {
+  const area = document.getElementById('t-problem-list');
+  if (problems.length === 0) { area.innerHTML = ''; return; }
+  area.innerHTML = '<p style="font-weight:700;margin-bottom:12px">등록된 문제</p>' +
+    problems.map((p,i) => `
+      <div class="student-row">
+        <span>${p.title} (${p.total}문항)</span>
+        <button class="btn danger sm" onclick="deleteProblem(${i})">삭제</button>
+      </div>`).join('');
+}
+
+function deleteProblem(idx) {
+  problems.splice(idx, 1);
+  localStorage.setItem('mkmath-problems', JSON.stringify(problems));
+  loadProblemList();
 }
 
 function loadProblems() {
@@ -289,8 +320,7 @@ function loadProblems() {
     return;
   }
   area.innerHTML = '<ul class="problem-list">' +
-    problems.map(p => `<li onclick="selectProblem(${p.id})" id="prob-${p.id}">${p.title}</li>`).join('') +
-    '</ul>';
+    problems.map(p => `<li onclick="selectProblem(${p.id})" id="prob-${p.id}">${p.title}</li>`).join('') + '</ul>';
 }
 
 function selectProblem(id) {
@@ -304,9 +334,75 @@ function selectProblem(id) {
   window.scrollTo(0, document.getElementById('solve-area').offsetTop - 20);
 }
 
-// Canvas
-let canvas, ctx, drawing = false;
+// 학생 관리
+async function addStudent() {
+  const name = document.getElementById('new-sname').value.trim();
+  const sid = document.getElementById('new-sid').value.trim();
+  const spw = document.getElementById('new-spw').value.trim();
+  const msgEl = document.getElementById('add-student-msg');
+  if (!name || !sid || !spw) { showMsg(msgEl, '모두 입력해주세요', 'error'); return; }
+  try {
+    const res = await fetch(`${SCRIPT_URL}?action=addStudent&teacherId=${encodeURIComponent(currentUser.id)}&sname=${encodeURIComponent(name)}&sid=${encodeURIComponent(sid)}&spw=${encodeURIComponent(spw)}`);
+    const data = await res.json();
+    if (data.success) {
+      showMsg(msgEl, '추가되었습니다!', 'success');
+      document.getElementById('new-sname').value = '';
+      document.getElementById('new-sid').value = '';
+      document.getElementById('new-spw').value = '';
+      loadStudentList();
+    } else {
+      showMsg(msgEl, '오류가 발생했습니다', 'error');
+    }
+  } catch(e) {
+    showMsg(msgEl, '연결 오류', 'error');
+  }
+}
 
+async function loadStudentList() {
+  const area = document.getElementById('student-list-area');
+  try {
+    const res = await fetch(`${SCRIPT_URL}?action=getStudents`);
+    const data = await res.json();
+    if (data.students.length === 0) { area.innerHTML = '<p style="color:#64748b;font-size:14px">학생이 없습니다</p>'; return; }
+    area.innerHTML = data.students.map(s =>
+      `<div class="student-row"><div><div>${s.name}</div><div class="id">@${s.id}</div></div></div>`
+    ).join('');
+  } catch(e) {
+    area.innerHTML = '<p style="color:#dc2626;font-size:14px">불러오기 실패</p>';
+  }
+}
+
+async function loadScores() {
+  const area = document.getElementById('scores-area');
+  try {
+    const res = await fetch(`${SCRIPT_URL}?action=getScores`);
+    const data = await res.json();
+    if (!data.scores || data.scores.length === 0) { area.innerHTML = '<p style="color:#64748b;font-size:14px">제출된 숙제가 없습니다</p>'; return; }
+    area.innerHTML = '<table class="scores-table"><thead><tr><th>이름</th><th>문제</th><th>점수</th><th>날짜</th></tr></thead><tbody>' +
+      data.scores.map(s => `<tr><td>${s.name}</td><td>${s.title||''}</td><td>${s.score}/${s.total}</td><td>${s.date}</td></tr>`).join('') +
+      '</tbody></table>';
+  } catch(e) {
+    area.innerHTML = '<p style="color:#dc2626;font-size:14px">불러오기 실패</p>';
+  }
+}
+
+// 비밀번호 변경
+async function changePassword() {
+  const isTeacher = currentUser.role === 'teacher';
+  const oldPw = document.getElementById(isTeacher ? 't-old-pw' : 's-old-pw').value;
+  const newPw = document.getElementById(isTeacher ? 't-new-pw' : 's-new-pw').value;
+  const msgEl = document.getElementById(isTeacher ? 'teacher-pw-msg' : 'student-pw-msg');
+  if (!oldPw || !newPw) { showMsg(msgEl, '모두 입력해주세요', 'error'); return; }
+  try {
+    const res = await fetch(`${SCRIPT_URL}?action=changePassword&id=${encodeURIComponent(currentUser.id)}&oldPassword=${encodeURIComponent(oldPw)}&newPassword=${encodeURIComponent(newPw)}`);
+    const data = await res.json();
+    showMsg(msgEl, data.success ? '변경되었습니다!' : '현재 비밀번호가 틀렸습니다', data.success ? 'success' : 'error');
+  } catch(e) {
+    showMsg(msgEl, '오류가 발생했습니다', 'error');
+  }
+}
+
+// 캔버스
 function initCanvas() {
   canvas = document.getElementById('draw-canvas');
   canvas.width = canvas.offsetWidth * window.devicePixelRatio;
@@ -318,11 +414,10 @@ function initCanvas() {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   canvasHistory = [];
-
-  canvas.addEventListener('pointerdown', startDraw);
-  canvas.addEventListener('pointermove', draw);
-  canvas.addEventListener('pointerup', endDraw);
-  canvas.addEventListener('pointerleave', endDraw);
+  canvas.onpointerdown = startDraw;
+  canvas.onpointermove = draw;
+  canvas.onpointerup = endDraw;
+  canvas.onpointerleave = endDraw;
 }
 
 function getPos(e) {
@@ -330,28 +425,9 @@ function getPos(e) {
   return { x: e.clientX - rect.left, y: e.clientY - rect.top };
 }
 
-function startDraw(e) {
-  drawing = true;
-  const p = getPos(e);
-  ctx.beginPath();
-  ctx.moveTo(p.x, p.y);
-  e.preventDefault();
-}
-
-function draw(e) {
-  if (!drawing) return;
-  const p = getPos(e);
-  ctx.lineTo(p.x, p.y);
-  ctx.stroke();
-  e.preventDefault();
-}
-
-function endDraw() {
-  if (drawing) {
-    canvasHistory.push(canvas.toDataURL());
-    drawing = false;
-  }
-}
+function startDraw(e) { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+function draw(e) { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
+function endDraw() { if (drawing) { canvasHistory.push(canvas.toDataURL()); drawing = false; } }
 
 function clearCanvas() {
   ctx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
@@ -369,17 +445,14 @@ function undoCanvas() {
   img.src = canvasHistory[canvasHistory.length - 1];
 }
 
+// 제출
 async function submitAnswer() {
-  const name = document.getElementById('s-name').value.trim();
-  if (!name) { alert('이름을 입력해주세요'); return; }
   if (!selectedProblem) { alert('문제를 선택해주세요'); return; }
-
-  const btn = document.querySelector('#solve-area .btn');
+  const btn = document.getElementById('submit-btn');
   btn.textContent = 'AI 채점 중...';
   btn.disabled = true;
 
   const imageData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-
   const prompt = `다음은 수학 문제와 학생의 손글씨 답안입니다.
 
 문제:
@@ -402,31 +475,22 @@ ${selectedProblem.content}
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: 'image/jpeg', data: imageData } }
-          ]
-        }]
+        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: imageData } }] }]
       })
     });
-
     const data = await res.json();
     const text = data.candidates[0].content.parts[0].text;
-
     const scoreMatch = text.match(/점수:\s*(\d+)\s*\/\s*(\d+)/);
     const score = scoreMatch ? scoreMatch[1] : '?';
     const total = scoreMatch ? scoreMatch[2] : selectedProblem.total;
     const feedback = text.replace(/점수:.*\n?/, '').trim();
 
-    // 점수 저장
-    await fetch(`${SCRIPT_URL}?action=saveScore&name=${encodeURIComponent(name)}&date=${new Date().toLocaleDateString('ko-KR')}&score=${score}&total=${total}`);
+    await fetch(`${SCRIPT_URL}?action=saveScore&name=${encodeURIComponent(currentUser.name)}&id=${encodeURIComponent(currentUser.id)}&date=${new Date().toLocaleDateString('ko-KR')}&score=${score}&total=${total}&title=${encodeURIComponent(selectedProblem.title)}`);
 
     document.getElementById('result-score').textContent = `${score} / ${total}`;
-    document.getElementById('result-label').textContent = `${name} 학생`;
+    document.getElementById('result-label').textContent = `${currentUser.name} 학생`;
     document.getElementById('result-feedback').textContent = feedback;
     show('page-result');
-
   } catch(e) {
     alert('채점 중 오류가 발생했습니다: ' + e.message);
   } finally {
@@ -437,26 +501,7 @@ ${selectedProblem.content}
 
 function backToStudent() {
   show('page-student');
-}
-
-async function changePassword(role) {
-  const oldPw = document.getElementById(role === 'teacher' ? 't-old-pw' : 's-old-pw').value;
-  const newPw = document.getElementById(role === 'teacher' ? 't-new-pw' : 's-new-pw').value;
-  const msgEl = document.getElementById(role === 'teacher' ? 'teacher-pw-msg' : 'student-pw-msg');
-
-  if (!oldPw || !newPw) { showMsg(msgEl, '모두 입력해주세요', 'error'); return; }
-
-  try {
-    const res = await fetch(`${SCRIPT_URL}?action=changePassword&role=${role}&oldPassword=${encodeURIComponent(oldPw)}&newPassword=${encodeURIComponent(newPw)}`);
-    const data = await res.json();
-    if (data.success) {
-      showMsg(msgEl, '변경되었습니다!', 'success');
-    } else {
-      showMsg(msgEl, '현재 비밀번호가 틀렸습니다', 'error');
-    }
-  } catch(e) {
-    showMsg(msgEl, '오류가 발생했습니다', 'error');
-  }
+  studentTab('homework');
 }
 
 function showMsg(el, text, type) {
