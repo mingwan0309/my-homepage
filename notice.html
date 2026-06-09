@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공지사항 | 김민관 수학</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --text: #1e293b;
+    --text-sub: #64748b;
+    --border: #e2e8f0;
+    --bg: #f8fafc;
+  }
+  body { font-family: 'Nanum Gothic', '맑은 고딕', sans-serif; color: var(--text); background: var(--bg); }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+    background: #fff; border-bottom: 1px solid var(--border);
+    height: 62px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 56px;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+  }
+  .nav-logo { font-size: 20px; font-weight: 900; color: var(--primary); text-decoration: none; }
+  .nav-logo span { color: #dc2626; }
+  .nav-menu { display: flex; gap: 36px; list-style: none; }
+  .nav-menu a { text-decoration: none; font-size: 15px; font-weight: 600; color: #475569; transition: color 0.2s; }
+  .nav-menu a:hover, .nav-menu a.active { color: var(--primary); }
+  .nav-cta {
+    background: var(--primary); color: #fff;
+    padding: 9px 22px; border-radius: 8px;
+    font-size: 14px; font-weight: 700; text-decoration: none;
+  }
+
+  /* PAGE HEADER */
+  .page-header {
+    margin-top: 62px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    padding: 56px 56px 48px;
+  }
+  .page-header h1 { font-size: 32px; font-weight: 900; color: #fff; margin-bottom: 8px; }
+  .page-header p { font-size: 15px; color: rgba(255,255,255,0.6); }
+
+  /* CONTENT */
+  .content { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 8px; margin-bottom: 32px; border-bottom: 2px solid var(--border); }
+  .tab {
+    padding: 12px 24px; font-size: 15px; font-weight: 700;
+    color: var(--text-sub); cursor: pointer;
+    border-bottom: 3px solid transparent; margin-bottom: -2px;
+    transition: color 0.2s, border-color 0.2s;
+    background: none; border-top: none; border-left: none; border-right: none;
+  }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab:hover { color: var(--primary); }
+
+  /* NOTICE LIST */
+  .notice-list { display: none; }
+  .notice-list.active { display: block; }
+  .notice-item {
+    display: flex; align-items: center; gap: 16px;
+    padding: 22px 0; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background 0.15s;
+    text-decoration: none; color: var(--text);
+  }
+  .notice-item:hover { background: #f1f5f9; margin: 0 -16px; padding-left: 16px; padding-right: 16px; border-radius: 8px; }
+  .notice-badge {
+    font-size: 11px; font-weight: 800; padding: 3px 10px;
+    border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+  }
+  .badge-notice { background: #dbeafe; color: var(--primary); }
+  .badge-faq { background: #dcfce7; color: #16a34a; }
+  .badge-new { background: #fee2e2; color: #dc2626; }
+  .notice-title { font-size: 15px; font-weight: 700; flex: 1; }
+  .notice-date { font-size: 13px; color: #94a3b8; white-space: nowrap; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 16px;
+    width: 90%; max-width: 640px;
+    max-height: 80vh; overflow-y: auto;
+    padding: 40px; position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 20px; right: 24px;
+    font-size: 24px; cursor: pointer; color: #94a3b8;
+    background: none; border: none;
+  }
+  .modal-badge { margin-bottom: 14px; }
+  .modal h2 { font-size: 22px; font-weight: 900; margin-bottom: 8px; }
+  .modal-date { font-size: 13px; color: #94a3b8; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .modal-body { font-size: 15px; line-height: 1.9; color: var(--text-sub); white-space: pre-line; }
+
+  /* EMPTY */
+  .empty { text-align: center; padding: 64px 0; color: #94a3b8; font-size: 15px; }
+
+  @media (max-width: 768px) {
+    nav { padding: 0 20px; }
+    .nav-menu { display: none; }
+    .page-header { padding: 40px 24px 32px; }
+    .page-header h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">김민관 <span>수학</span></a>
+  <ul class="nav-menu">
+    <li><a href="index.html#intro">강사소개</a></li>
+    <li><a href="index.html#curriculum">커리큘럼</a></li>
+    <li><a href="index.html#management">관리시스템</a></li>
+    <li><a href="index.html#materials">제공자료</a></li>
+    <li><a href="index.html#reviews">수강후기</a></li>
+    <li><a href="notice.html" class="active">공지사항</a></li>
+  </ul>
+  <a href="tel:010-6251-9244" class="nav-cta">📞 수업 문의</a>
+</nav>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <h1>공지사항</h1>
+  <p>김민관 수학의 최신 공지와 자주 묻는 질문을 확인하세요.</p>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('notice')">공지사항</button>
+    <button class="tab" onclick="showTab('faq')">자주 묻는 질문</button>
+  </div>
+
+  <!-- 공지사항 -->
+  <div class="notice-list active" id="tab-notice">
+    <div class="notice-item" onclick="openModal('n1')">
+      <span class="notice-badge badge-new">NEW</span>
+      <span class="notice-title">2026년 하반기 수업 일정 안내</span>
+      <span class="notice-date">2026-06-01</span>
+    </div>
+    <div class="notice-item" onclick="openModal('n2')">
+      <span class="notice-badge badge-notice">공지</span>
+      <span class="notice-title">여름방학 특강 신청 안내</span>
+      <span class="notice-date">2026-05-20</span>
+    </div>
+    <div class="notice-item" onclick="openModal('n3')">
+      <span class="notice-badge badge-notice">공지</span>
+      <span class="notice-title">6월 클리닉 시간표 변경 안내</span>
+      <span class="notice-date">2026-05-15</span>
+    </div>
+    <div class="notice-item" onclick="openModal('n4')">
+      <span class="notice-badge badge-notice">공지</span>
+      <span class="notice-title">2026 수능 대비 커리큘럼 공개</span>
+      <span class="notice-date">2026-03-10</span>
+    </div>
+    <div class="notice-item" onclick="openModal('n5')">
+      <span class="notice-badge badge-notice">공지</span>
+      <span class="notice-title">줌 독서실 운영 안내</span>
+      <span class="notice-date">2026-02-01</span>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="notice-list" id="tab-faq">
+    <div class="notice-item" onclick="openModal('f1')">
+      <span class="notice-badge badge-faq">FAQ</span>
+      <span class="notice-title">수업은 어떤 방식으로 진행되나요?</span>
+      <span class="notice-date">FAQ</span>
+    </div>
+    <div class="notice-item" onclick="openModal('f2')">
+      <span class="notice-badge badge-faq">FAQ</span>
+      <span class="notice-title">클리닉 시간은 언제 이용할 수 있나요?</span>
+      <span class="notice-date">FAQ</span>
+    </div>
+    <div class="notice-item" onclick="openModal('f3')">
+      <span class="notice-badge badge-faq">FAQ</span>
+      <span class="notice-title">고등학생이면 누구나 수강할 수 있나요?</span>
+      <span class="notice-date">FAQ</span>
+    </div>
+    <div class="notice-item" onclick="openModal('f4')">
+      <span class="notice-badge badge-faq">FAQ</span>
+      <span class="notice-title">교재는 별도로 구매해야 하나요?</span>
+      <span class="notice-date">FAQ</span>
+    </div>
+    <div class="notice-item" onclick="openModal('f5')">
+      <span class="notice-badge badge-faq">FAQ</span>
+      <span class="notice-title">첫 상담은 어떻게 신청하나요?</span>
+      <span class="notice-date">FAQ</span>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    <div class="modal-badge" id="modal-badge"></div>
+    <h2 id="modal-title"></h2>
+    <p class="modal-date" id="modal-date"></p>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+  const contents = {
+    n1: {
+      badge: '<span class="notice-badge badge-new">NEW</span>',
+      title: '2026년 하반기 수업 일정 안내',
+      date: '2026-06-01',
+      body: '2026년 하반기 수업 일정을 안내드립니다.\n\n자세한 내용은 카카오톡 채널 또는 전화(010-6251-9244)로 문의해 주세요.'
+    },
+    n2: {
+      badge: '<span class="notice-badge badge-notice">공지</span>',
+      title: '여름방학 특강 신청 안내',
+      date: '2026-05-20',
+      body: '여름방학 특강 신청을 받습니다.\n\n자세한 내용은 카카오톡 채널 또는 전화(010-6251-9244)로 문의해 주세요.'
+    },
+    n3: {
+      badge: '<span class="notice-badge badge-notice">공지</span>',
+      title: '6월 클리닉 시간표 변경 안내',
+      date: '2026-05-15',
+      body: '6월 클리닉 시간표가 변경됩니다.\n\n자세한 내용은 카카오톡 채널 또는 전화(010-6251-9244)로 문의해 주세요.'
+    },
+    n4: {
+      badge: '<span class="notice-badge badge-notice">공지</span>',
+      title: '2026 수능 대비 커리큘럼 공개',
+      date: '2026-03-10',
+      body: '2026 수능 대비 커리큘럼을 공개합니다.\n\n자세한 내용은 카카오톡 채널 또는 전화(010-6251-9244)로 문의해 주세요.'
+    },
+    n5: {
+      badge: '<span class="notice-badge badge-notice">공지</span>',
+      title: '줌 독서실 운영 안내',
+      date: '2026-02-01',
+      body: '시험기간 줌 독서실을 운영합니다. 혼자 공부할 때 집중이 어렵다면 활용해 보세요.\n\n자세한 내용은 카카오톡 채널 또는 전화(010-6251-9244)로 문의해 주세요.'
+    },
+    f1: {
+      badge: '<span class="notice-badge badge-faq">FAQ</span>',
+      title: '수업은 어떤 방식으로 진행되나요?',
+      date: '자주 묻는 질문',
+      body: '감잡기 → 적용하기 → 타임어택 → 실전 모의고사 순서로 진행됩니다.\n\n시험 두 달 전부터 시즌 1(감잡기), 시험 한 달 전부터 시즌 2(적용하기)로 나뉘어 체계적으로 준비합니다.'
+    },
+    f2: {
+      badge: '<span class="notice-badge badge-faq">FAQ</span>',
+      title: '클리닉 시간은 언제 이용할 수 있나요?',
+      date: '자주 묻는 질문',
+      body: '클리닉은 시간표에 따라 수업 전 혹은 후에 필수로 1시간 진행됩니다.\n\n과제 미흡·미제출자는 추가 클리닉이 필수이며, 원하는 학생은 언제든지 추가 신청이 가능합니다.'
+    },
+    f3: {
+      badge: '<span class="notice-badge badge-faq">FAQ</span>',
+      title: '고등학생이면 누구나 수강할 수 있나요?',
+      date: '자주 묻는 질문',
+      body: '네, 고등학교 1~3학년 누구든 수강 가능합니다.\n\n첫 상담을 통해 현재 수준을 파악하고 적합한 반을 안내해 드립니다. 전화(010-6251-9244)로 문의해 주세요.'
+    },
+    f4: {
+      badge: '<span class="notice-badge badge-faq">FAQ</span>',
+      title: '교재는 별도로 구매해야 하나요?',
+      date: '자주 묻는 질문',
+      body: '별도 구매 없이 모든 자료가 제공됩니다.\n\n레벨별 개별 워크북, 전개념 손글씨 정리, 부교재 손글씨 해설, FINAL 자료, 실전 모의고사(OMR), 개인 숙제 피드백 자료 등 필요한 모든 자료를 챙겨드립니다.'
+    },
+    f5: {
+      badge: '<span class="notice-badge badge-faq">FAQ</span>',
+      title: '첫 상담은 어떻게 신청하나요?',
+      date: '자주 묻는 질문',
+      body: '전화(010-6251-9244) 또는 카카오톡 채널로 연락주시면 됩니다.\n\n첫 상담은 무료이며, 현재 수준과 목표를 함께 이야기하며 맞춤 방향을 안내해 드립니다.'
+    },
+  };
+
+  function showTab(tab) {
+    document.querySelectorAll('.notice-list').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  function openModal(id) {
+    const c = contents[id];
+    document.getElementById('modal-badge').innerHTML = c.badge;
+    document.getElementById('modal-title').textContent = c.title;
+    document.getElementById('modal-date').textContent = c.date;
+    document.getElementById('modal-body').textContent = c.body;
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById('modal-overlay')) {
+      document.getElementById('modal-overlay').classList.remove('open');
+    }
+  }
+
+  function closeModalDirect() {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+</script>
+</body>
+</html>
