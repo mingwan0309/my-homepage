@@ -46,18 +46,30 @@
   /* ─── HERO ─── */
   .hero {
     margin-top: 62px;
-    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #0f172a 100%);
     min-height: 600px;
     display: flex; align-items: center;
     padding: 100px 56px;
     position: relative; overflow: hidden;
   }
-  .hero::after {
-    content: '';
-    position: absolute; right: 0; top: 0; bottom: 0;
-    width: 45%;
-    background: radial-gradient(ellipse at right center, rgba(37,99,235,0.15) 0%, transparent 70%);
+  .hero-video-bg {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 0;
   }
+  .hero-video-bg iframe {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100vw; height: 56.25vw;
+    min-height: 600px; min-width: calc(600px * 16/9);
+    border: none;
+  }
+  .hero-overlay {
+    position: absolute; inset: 0;
+    background: rgba(10, 20, 60, 0.65);
+    z-index: 1;
+  }
+  .hero > div { position: relative; z-index: 2; }
   .hero-label {
     display: inline-block;
     font-size: 13px; font-weight: 700; color: #93c5fd;
@@ -300,6 +312,10 @@
 
 <!-- HERO -->
 <section class="hero">
+  <div class="hero-video-bg">
+    <iframe src="https://www.youtube.com/embed/rHrwcu-x7Jk?autoplay=1&mute=1&loop=1&playlist=rHrwcu-x7Jk&controls=0&showinfo=0&rel=0&modestbranding=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
+  <div class="hero-overlay"></div>
   <div>
     <span class="hero-label">저, 김민관 T 는</span>
     <h1>
