@@ -182,6 +182,26 @@
   .digital-card h3 { font-size: 16px; font-weight: 800; margin-bottom: 8px; color: var(--primary); }
   .digital-card p { font-size: 13.5px; color: var(--text-sub); line-height: 1.7; }
 
+  /* ─── SCHEDULE ─── */
+  .schedule-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+  .sch-tab {
+    padding: 10px 36px; font-size: 15px; font-weight: 800;
+    border: 2px solid var(--border); border-radius: 30px;
+    background: #fff; color: var(--text-sub); cursor: pointer;
+    transition: all 0.2s; font-family: 'Nanum Gothic', sans-serif;
+  }
+  .sch-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .sch-tab:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
+  .sch-content { display: none; }
+  .sch-content.active { display: block; }
+  .sch-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .sch-table th, .sch-table td { border: 1px solid var(--border); padding: 14px 16px; vertical-align: middle; line-height: 1.8; word-break: keep-all; }
+  .sch-table th { background: #eff6ff; color: var(--primary); font-weight: 800; text-align: center; white-space: nowrap; }
+  .sch-table td:first-child { font-weight: 800; text-align: center; background: #f8fafc; white-space: nowrap; }
+  .sch-table td:nth-child(2), .sch-table td:nth-child(3), .sch-table td:nth-child(4) { text-align: center; white-space: nowrap; }
+  .sch-table ul { padding-left: 18px; margin: 0; }
+  .sch-table li { margin-bottom: 4px; }
+
   /* ─── MATERIALS ─── */
   #materials { background: #fff; }
   .materials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
@@ -270,6 +290,7 @@
     <li><a href="#intro">강사소개</a></li>
     <li><a href="#curriculum">커리큘럼</a></li>
     <li><a href="#management">관리시스템</a></li>
+    <li><a href="#schedule">시간표</a></li>
     <li><a href="#materials">제공자료</a></li>
     <li><a href="#reviews">수강후기</a></li>
     <li><a href="notice.html">공지사항</a></li>
@@ -445,6 +466,95 @@
   </div>
 </section>
 
+<!-- SCHEDULE -->
+<section class="section" id="schedule" style="background: var(--bg);">
+  <div class="section-inner">
+    <p class="section-label">Schedule</p>
+    <div class="divider"></div>
+    <h2 class="section-title">시간표</h2>
+    <p class="section-desc">수준별 수업 진행 — TEST 후 입반 가능, TEST 예약 필수</p>
+    <div class="schedule-tabs">
+      <button class="sch-tab active" onclick="switchSchTab(this,'s1')">고1</button>
+      <button class="sch-tab" onclick="switchSchTab(this,'s2')">고2</button>
+    </div>
+
+    <!-- 고1 -->
+    <div class="sch-content active" id="sch-s1">
+      <table class="sch-table">
+        <thead><tr><th>반</th><th>요일</th><th>시간</th><th>수업 내용</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>SA</td><td>월·금</td><td>7:00~</td>
+            <td><ul>
+              <li>공통수학1 / 기말고사 시험 대비</li>
+              <li>교재 : [감잡기] 선배들이 검증한 압도적인 내신 분석 자체 교재</li>
+              <li>수준별 [5단계] 개별 워크북 — 모든 유형 + 취약 유형 집중</li>
+              <li>'김민관수학 주간지' — 매 주 최신경향반영 내신자료 배포</li>
+              <li>모든 학교 부교재 올인원 (All-in-One) · 1.ALL 변형 문항 2.손글씨 해설 3.해설 강의</li>
+              <li>실전 모의고사 10회 + 타임어택 25회</li>
+            </ul></td>
+          </tr>
+          <tr>
+            <td>A1</td><td>수·토</td><td>4:00~ / 4:30~</td>
+            <td><ul>
+              <li>공통수학1 / 기말고사 시험대비</li>
+              <li>교재 : 오직 명덕여고 내신에만 최적화된 자체교재</li>
+              <li>명덕여고 부교재 올인원 (All-in-One) · 1.ALL 변형 문항 2.손글씨 해설 3.해설 강의</li>
+              <li>수준별 [5단계] 개별 워크북 — 모든 유형 + 취약 유형 집중</li>
+              <li>'김민관 수학 주간지' — 매주 최신경향 반영 내신자료 배포</li>
+              <li>실전 모의고사 10회 + 타임어택 25회</li>
+            </ul></td>
+          </tr>
+          <tr>
+            <td>명덕여고</td><td>월·금</td><td>4:00~</td>
+            <td><ul>
+              <li>공통수학1 / 기말고사 시험대비</li>
+              <li>교재 : 오직 명덕여고 내신에만 최적화된 자체교재</li>
+              <li>명덕여고 부교재 올인원 (All-in-One) · 1.ALL 변형 문항 2.손글씨 해설 3.해설 강의</li>
+              <li>수준별 [5단계] 개별 워크북 — 모든 유형 + 취약 유형 집중</li>
+              <li>'김민관 수학 주간지' — 매주 최신경향 반영 내신자료 배포</li>
+              <li>실전 모의고사 10회 + 타임어택 25회</li>
+            </ul></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 고2 -->
+    <div class="sch-content" id="sch-s2">
+      <table class="sch-table">
+        <thead><tr><th>과목</th><th>과정</th><th>요일</th><th>시간</th><th>수업 내용</th></tr></thead>
+        <tbody>
+          <tr>
+            <td rowspan="2">대수</td>
+            <td>SA</td><td>수·일</td><td>7:00~ / 6:00~</td>
+            <td rowspan="2"><ul>
+              <li>대수 / 기말고사 시험 대비</li>
+              <li>[감잡기] 선배들이 검증한 압도적인 내신 분석 자체 교재</li>
+              <li>수준별 [5단계] 개별 워크북 — 모든 유형 + 취약 유형 집중</li>
+              <li>'김민관수학 주간지' — 매 주 최신경향반영 내신자료 배포</li>
+              <li>모든 학교 부교재 올인원 (All-in-One) · 1.ALL 변형 문항 2.손글씨 해설 3.해설 강의</li>
+              <li>실전 모의고사 10회 + 타임어택 25회</li>
+            </ul></td>
+          </tr>
+          <tr>
+            <td>A2</td><td>목·토</td><td>7:30~ / 1:00~</td>
+          </tr>
+          <tr>
+            <td>기하</td><td>김민관</td><td>목</td><td>5:30~</td>
+            <td><ul>
+              <li>기하 / 기말고사 시험 대비</li>
+              <li>교재 : 자체 개념 교재 + RPM</li>
+              <li>수준별 [5단계] 개별 워크북 — 모든 유형 + 취약 유형 집중</li>
+              <li>실전 모의고사 10회 + 타임어택 25회</li>
+            </ul></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 <!-- MATERIALS -->
 <section class="section" id="materials">
   <div class="section-inner">
@@ -569,5 +679,13 @@
   <div>© 2026 김민관 수학. All rights reserved.</div>
 </footer>
 
+<script>
+  function switchSchTab(btn, id) {
+    document.querySelectorAll('.sch-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.sch-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('sch-' + id).classList.add('active');
+  }
+</script>
 </body>
 </html>
