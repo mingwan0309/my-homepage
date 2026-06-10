@@ -82,7 +82,7 @@
   <!-- 선생님 페이지 -->
   <div id="page-teacher" class="page">
     <div class="nav-bar">
-      <h1>선생님 페이지</h1>
+      <h1>데일리 퀴즈</h1>
       <button class="nav-back" onclick="logout()">로그아웃</button>
     </div>
 
@@ -100,6 +100,9 @@
       <input type="text" id="t-title" placeholder="예: 6월 2주차 숙제">
       <label>문제 내용</label>
       <textarea id="t-content" rows="6" placeholder="문제 내용을 입력하세요"></textarea>
+      <label>문제 사진 첨부 (선택)</label>
+      <input type="file" id="t-image" accept="image/*" style="padding:8px; cursor:pointer;">
+      <div id="t-image-preview" style="margin-bottom:16px;"></div>
       <label>총 문항 수</label>
       <input type="number" id="t-total" placeholder="예: 5" min="1">
       <button class="btn" onclick="saveProblems()">저장</button>
@@ -279,6 +282,26 @@ function studentTab(tab) {
   });
 }
 
+// 이미지 미리보기
+document.addEventListener('DOMContentLoaded', function() {
+  const imgInput = document.getElementById('t-image');
+  if (imgInput) {
+    imgInput.addEventListener('change', function() {
+      const file = this.files[0];
+      const preview = document.getElementById('t-image-preview');
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%; border-radius:8px; border:1.5px solid #e2e8f0;">`;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        preview.innerHTML = '';
+      }
+    });
+  }
+});
+
 // 문제 저장/불러오기
 function saveProblems() {
   const title = document.getElementById('t-title').value.trim();
@@ -286,11 +309,30 @@ function saveProblems() {
   const total = parseInt(document.getElementById('t-total').value);
   const msgEl = document.getElementById('teacher-msg');
   if (!title || !content || !total) { showMsg(msgEl, '모두 입력해주세요', 'error'); return; }
-  problems.push({ id: Date.now(), title, content, total });
-  localStorage.setItem('mkmath-problems', JSON.stringify(problems));
+
+  const imgInput = document.getElementById('t-image');
+  const file = imgInput && imgInput.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      problems.push({ id: Date.now(), title, content, total, image: e.target.result });
+      localStorage.setItem('mkmath-problems', JSON.stringify(problems));
+      resetProblemForm(msgEl);
+    };
+    reader.readAsDataURL(file);
+  } else {
+    problems.push({ id: Date.now(), title, content, total, image: null });
+    localStorage.setItem('mkmath-problems', JSON.stringify(problems));
+    resetProblemForm(msgEl);
+  }
+}
+
+function resetProblemForm(msgEl) {
   document.getElementById('t-title').value = '';
   document.getElementById('t-content').value = '';
   document.getElementById('t-total').value = '';
+  document.getElementById('t-image').value = '';
+  document.getElementById('t-image-preview').innerHTML = '';
   showMsg(msgEl, '저장되었습니다!', 'success');
   loadProblemList();
 }
