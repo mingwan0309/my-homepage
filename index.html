@@ -370,7 +370,7 @@
     <li><a href="notice.html">공지사항</a></li>
     <li><a href="#reviews">수강후기</a></li>
   </ul>
-  <a href="tel:010-6251-9244" class="nav-cta">📞 수업 문의</a>
+  <button onclick="document.getElementById('contact-modal').style.display='flex'" class="nav-cta" style="border:none; cursor:pointer;">📞 수업 문의</button>
   <button class="hamburger" id="hamburger" onclick="toggleMenu()">
     <span></span><span></span><span></span>
   </button>
@@ -385,7 +385,7 @@
   <a href="#materials" onclick="closeMenu()">📚 학습자료</a>
   <a href="#reviews" onclick="closeMenu()">⭐ 수강후기</a>
   <a href="notice.html" onclick="closeMenu()">📢 공지사항</a>
-  <a href="tel:010-6251-9244" style="color:#2563eb;">📞 수업 문의</a>
+  <button onclick="document.getElementById('contact-modal').style.display='flex'; closeMenu();" style="background:none; border:none; color:#2563eb; cursor:pointer; font-size:15px; font-weight:700; text-align:left; padding:16px 20px; width:100%;">📞 수업 문의</button>
 </div>
 
 <!-- HERO -->
@@ -818,9 +818,9 @@
   <div style="background:#fff; border-radius:20px; padding:36px 32px; max-width:360px; width:90%; text-align:center; position:relative;">
     <button onclick="document.getElementById('contact-modal').style.display='none'" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">✕</button>
     <h3 style="font-size:20px; font-weight:900; margin-bottom:24px; color:#1e293b;">상담 신청</h3>
-    <a href="tel:010-6251-9244" style="display:flex; align-items:center; gap:12px; padding:16px 20px; background:#f8fafc; border-radius:12px; border:1.5px solid #e2e8f0; text-decoration:none; color:#1e293b; font-weight:700; font-size:15px; margin-bottom:12px;">
-      <span style="font-size:22px;">📞</span> 010-6251-9244 <span style="font-size:12px; color:#64748b; font-weight:400;">(문자 상담)</span>
-    </a>
+    <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; background:#f8fafc; border-radius:12px; border:1.5px solid #e2e8f0; color:#1e293b; font-weight:700; font-size:15px; margin-bottom:12px;">
+      <span style="font-size:22px;">📞</span> 문자 상담 문의 주세요
+    </div>
     <a href="https://open.kakao.com/o/mingwan0309" target="_blank" style="display:flex; align-items:center; gap:12px; padding:16px 20px; background:#FEE500; border-radius:12px; border:1.5px solid #FEE500; text-decoration:none; color:#1e293b; font-weight:700; font-size:15px; margin-bottom:12px;">
       <span style="font-size:22px;">💬</span> 카카오톡 mingwan0309
     </a>
@@ -837,7 +837,6 @@
 <footer style="flex-direction:column; gap:16px; text-align:center;">
   <div style="font-size:15px;"><strong style="font-size:17px;">김민관 수학</strong></div>
   <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:20px; font-size:13px; color:#94a3b8;">
-    <span>📞 010-6251-9244</span>
     <span>📧 <a href="mailto:mingwan0309@naver.com" style="color:#94a3b8; text-decoration:none;">mingwan0309@naver.com</a></span>
     <span>💬 카카오톡 mingwan0309</span>
     <span>📸 Instagram <a href="https://instagram.com/giyomingani" target="_blank" style="color:#94a3b8; text-decoration:none;">@giyomingani</a></span>
