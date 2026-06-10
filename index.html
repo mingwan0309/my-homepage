@@ -286,13 +286,73 @@
   }
   footer strong { color: #e2e8f0; }
 
+  /* ─── HAMBURGER ─── */
+  .hamburger {
+    display: none; flex-direction: column; gap: 5px;
+    background: none; border: none; cursor: pointer; padding: 4px;
+  }
+  .hamburger span {
+    display: block; width: 24px; height: 2px;
+    background: #1e293b; border-radius: 2px;
+    transition: all 0.3s;
+  }
+  .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .hamburger.open span:nth-child(2) { opacity: 0; }
+  .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  .mobile-menu {
+    display: none;
+    position: fixed; top: 62px; left: 0; right: 0;
+    background: #fff; border-bottom: 1px solid var(--border);
+    z-index: 998; padding: 16px 0;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+  .mobile-menu.open { display: block; }
+  .mobile-menu a {
+    display: block; padding: 14px 24px;
+    font-size: 16px; font-weight: 700; color: #475569;
+    text-decoration: none; border-bottom: 1px solid var(--border);
+  }
+  .mobile-menu a:last-child { border-bottom: none; }
+  .mobile-menu a:hover { color: var(--primary); background: #f8fafc; }
+
   @media (max-width: 768px) {
     nav { padding: 0 20px; }
     .nav-menu { display: none; }
-    .hero { padding: 60px 24px; }
-    .hero h1 { font-size: 38px; }
-    .section { padding: 72px 24px; }
+    .nav-cta { display: none; }
+    .hamburger { display: flex; }
+
+    .hero { padding: 60px 20px; min-height: 500px; }
+    .hero h1 { font-size: 34px; letter-spacing: -0.5px; white-space: normal; }
+    .hero h1 .blue { font-size: 32px; padding: 2px 12px; }
+    .hero-btns { flex-direction: column; gap: 10px; }
+    .btn-primary, .btn-outline { padding: 14px 24px; font-size: 15px; text-align: center; }
+
+    /* 퀵링크 */
+    section[style*="padding:32px 56px"] { padding: 24px 16px !important; }
+
+    .section { padding: 56px 20px; }
+    .section-title { font-size: 26px; }
+
     .intro-grid, .digital-grid, .materials-grid, .notice-grid { grid-template-columns: 1fr; }
+
+    /* 시간표 테이블 */
+    .sch-table { font-size: 12px; }
+    .sch-table th, .sch-table td { padding: 10px 8px; }
+    .schedule-tabs { flex-wrap: wrap; }
+    .sch-tab { padding: 8px 20px; font-size: 14px; }
+
+    /* 수강후기 카드 */
+    .review-card { width: 280px; }
+
+    /* 연락처 */
+    .contact-phone { font-size: 20px; padding: 14px 32px; }
+
+    /* 푸터 */
+    footer { flex-direction: column; gap: 8px; text-align: center; padding: 24px 20px; }
+
+    /* 관리시스템 */
+    .mgmt-item { flex-direction: column; gap: 10px; }
   }
 </style>
 </head>
@@ -309,16 +369,30 @@
     <li><a href="#reviews">수강후기</a></li>
   </ul>
   <a href="tel:010-6251-9244" class="nav-cta">📞 수업 문의</a>
+  <button class="hamburger" id="hamburger" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#intro" onclick="closeMenu()">👨‍🏫 강사소개</a>
+  <a href="#curriculum" onclick="closeMenu()">📖 커리큘럼</a>
+  <a href="#management" onclick="closeMenu()">📋 수업시스템</a>
+  <a href="#schedule" onclick="closeMenu()">📅 시간표</a>
+  <a href="#materials" onclick="closeMenu()">📚 제공자료</a>
+  <a href="#reviews" onclick="closeMenu()">⭐ 수강후기</a>
+  <a href="notice.html" onclick="closeMenu()">📢 공지사항</a>
+  <a href="tel:010-6251-9244" style="color:#2563eb;">📞 수업 문의</a>
+</div>
 
 <!-- HERO -->
 <section class="hero">
   <div class="hero-video-bg">
-    <iframe src="https://www.youtube.com/embed/6kz2AGGS0q4?autoplay=1&mute=1&loop=1&playlist=6kz2AGGS0q4&controls=0&showinfo=0&rel=0&modestbranding=1&start=1890&end=1950" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    <iframe src="https://www.youtube.com/embed/6kz2AGGS0q4?autoplay=1&mute=1&loop=1&playlist=6kz2AGGS0q4&controls=0&showinfo=0&rel=0&modestbranding=1&start=1890&end=1920" allow="autoplay; encrypted-media" allowfullscreen></iframe>
   </div>
   <div class="hero-overlay"></div>
   <div>
-    <span class="hero-label">저, 김민관 T 는</span>
     <h1>
       고등학교를 위한<br>
       수준 높은 <span class="blue">강의</span><br>
@@ -341,7 +415,7 @@
       <span style="font-size:22px">📖</span> 커리큘럼
     </a>
     <a href="#management" style="display:flex; align-items:center; gap:12px; padding:18px 20px; background:#f8fafc; border-radius:12px; border:1.5px solid #e2e8f0; text-decoration:none; color:#1e293b; font-weight:700; font-size:14px; transition:border 0.2s;" onmouseover="this.style.borderColor='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0'">
-      <span style="font-size:22px">📋</span> 수업진행시스템
+      <span style="font-size:22px">📋</span> 수업시스템
     </a>
     <a href="#schedule" style="display:flex; align-items:center; gap:12px; padding:18px 20px; background:#f8fafc; border-radius:12px; border:1.5px solid #e2e8f0; text-decoration:none; color:#1e293b; font-weight:700; font-size:14px; transition:border 0.2s;" onmouseover="this.style.borderColor='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0'">
       <span style="font-size:22px">📅</span> 시간표
@@ -354,9 +428,6 @@
     </a>
     <a href="notice.html" style="display:flex; align-items:center; gap:12px; padding:18px 20px; background:#f8fafc; border-radius:12px; border:1.5px solid #e2e8f0; text-decoration:none; color:#1e293b; font-weight:700; font-size:14px; transition:border 0.2s;" onmouseover="this.style.borderColor='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0'">
       <span style="font-size:22px">📢</span> 공지사항
-    </a>
-    <a href="homework.html" style="display:flex; align-items:center; gap:12px; padding:18px 20px; background:#eff6ff; border-radius:12px; border:1.5px solid #2563eb; text-decoration:none; color:#2563eb; font-weight:700; font-size:14px; transition:border 0.2s;">
-      <span style="font-size:22px">✏️</span> 학생 숙제
     </a>
   </div>
 </section>
@@ -766,6 +837,18 @@
     document.querySelectorAll('.sch-content').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('sch-' + id).classList.add('active');
+  }
+
+  function toggleMenu() {
+    const menu = document.getElementById('mobileMenu');
+    const btn = document.getElementById('hamburger');
+    menu.classList.toggle('open');
+    btn.classList.toggle('open');
+  }
+
+  function closeMenu() {
+    document.getElementById('mobileMenu').classList.remove('open');
+    document.getElementById('hamburger').classList.remove('open');
   }
 </script>
 </body>
