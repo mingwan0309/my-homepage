@@ -401,7 +401,7 @@
       완벽한 <span class="blue">관리</span>
     </h1>
     <div class="hero-btns">
-      <a href="tel:010-6251-9244" class="btn-primary">📞 무료 상담 신청</a>
+      <button onclick="document.getElementById('contact-modal').style.display='flex'" class="btn-primary" style="border:none; cursor:pointer;">📞 상담 신청</button>
       <a href="#curriculum" class="btn-outline">커리큘럼 보기</a>
     </div>
   </div>
@@ -812,6 +812,23 @@
 </section>
 
 <!-- CONTACT -->
+
+<!-- CONTACT MODAL -->
+<div id="contact-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:20px; padding:36px 32px; max-width:360px; width:90%; text-align:center; position:relative;">
+    <button onclick="document.getElementById('contact-modal').style.display='none'" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">✕</button>
+    <h3 style="font-size:20px; font-weight:900; margin-bottom:24px; color:#1e293b;">상담 신청</h3>
+    <a href="tel:010-6251-9244" style="display:flex; align-items:center; gap:12px; padding:16px 20px; background:#f8fafc; border-radius:12px; border:1.5px solid #e2e8f0; text-decoration:none; color:#1e293b; font-weight:700; font-size:15px; margin-bottom:12px;">
+      <span style="font-size:22px;">📞</span> 010-6251-9244
+    </a>
+    <a href="https://open.kakao.com/o/mingwan0309" target="_blank" style="display:flex; align-items:center; gap:12px; padding:16px 20px; background:#FEE500; border-radius:12px; border:1.5px solid #FEE500; text-decoration:none; color:#1e293b; font-weight:700; font-size:15px; margin-bottom:12px;">
+      <span style="font-size:22px;">💬</span> 카카오톡 mingwan0309
+    </a>
+    <a href="mailto:mingwan0309@naver.com" style="display:flex; align-items:center; gap:12px; padding:16px 20px; background:#f8fafc; border-radius:12px; border:1.5px solid #e2e8f0; text-decoration:none; color:#1e293b; font-weight:700; font-size:15px;">
+      <span style="font-size:22px;">✉️</span> mingwan0309@naver.com
+    </a>
+  </div>
+</div>
 
 <!-- FOOTER -->
 <footer style="flex-direction:column; gap:16px; text-align:center;">
