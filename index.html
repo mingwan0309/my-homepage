@@ -903,7 +903,10 @@
   <div class="section-inner" style="max-width:1040px; margin:0 auto; padding:0 56px;">
     <p class="section-label">Review</p>
     <div class="divider"></div>
-    <h2 class="section-title" style="margin-bottom:8px;">수강생 생생 후기</h2>
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:8px;">
+      <h2 class="section-title" style="margin-bottom:0;">수강생 생생 후기</h2>
+      <button onclick="openReviewLogin()" style="background:#2563eb; color:#fff; border:none; border-radius:10px; padding:12px 24px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Nanum Gothic',sans-serif;">✏️ 후기 남기기</button>
+    </div>
     <p class="section-desc">직접 다닌 학생들이 남긴 진짜 후기입니다. 마우스를 올리면 멈춥니다.</p>
   </div>
   <div class="review-track-wrap">
@@ -976,6 +979,43 @@
   </div>
 </div>
 
+<!-- 후기 모달 -->
+<div id="review-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:20px; padding:36px; width:90%; max-width:440px; position:relative;">
+    <button onclick="closeReviewModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">✕</button>
+
+    <!-- 로그인 단계 -->
+    <div id="review-step-login">
+      <h3 style="font-size:20px; font-weight:900; margin-bottom:6px;">후기 남기기</h3>
+      <p style="font-size:13px; color:#64748b; margin-bottom:24px;">학생 계정으로 로그인하세요</p>
+      <div id="review-login-msg"></div>
+      <label style="font-size:13px; font-weight:700; color:#475569; display:block; margin-bottom:6px;">아이디</label>
+      <input id="review-id" type="text" placeholder="아이디 입력" style="width:100%; padding:12px 14px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:15px; margin-bottom:14px; box-sizing:border-box; outline:none;">
+      <label style="font-size:13px; font-weight:700; color:#475569; display:block; margin-bottom:6px;">비밀번호</label>
+      <input id="review-pw" type="password" placeholder="비밀번호 입력" style="width:100%; padding:12px 14px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:15px; margin-bottom:20px; box-sizing:border-box; outline:none;" onkeydown="if(event.key==='Enter')reviewLogin()">
+      <button onclick="reviewLogin()" style="width:100%; padding:14px; background:#2563eb; color:#fff; border:none; border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; font-family:'Nanum Gothic',sans-serif;">로그인</button>
+    </div>
+
+    <!-- 후기 작성 단계 -->
+    <div id="review-step-write" style="display:none;">
+      <h3 style="font-size:20px; font-weight:900; margin-bottom:6px;">후기 작성</h3>
+      <p id="review-username" style="font-size:13px; color:#2563eb; font-weight:700; margin-bottom:20px;"></p>
+      <div id="review-write-msg"></div>
+      <label style="font-size:13px; font-weight:700; color:#475569; display:block; margin-bottom:6px;">후기 내용</label>
+      <textarea id="review-text" rows="5" placeholder="수업 후기를 자유롭게 작성해주세요 :)" style="width:100%; padding:12px 14px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:14px; margin-bottom:20px; box-sizing:border-box; outline:none; resize:none; font-family:'Nanum Gothic',sans-serif; line-height:1.7;"></textarea>
+      <button onclick="submitReview()" style="width:100%; padding:14px; background:#2563eb; color:#fff; border:none; border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; font-family:'Nanum Gothic',sans-serif;">후기 제출</button>
+    </div>
+
+    <!-- 완료 단계 -->
+    <div id="review-step-done" style="display:none; text-align:center; padding:20px 0;">
+      <div style="font-size:48px; margin-bottom:16px;">🎉</div>
+      <h3 style="font-size:20px; font-weight:900; margin-bottom:8px;">후기가 등록되었어요!</h3>
+      <p style="font-size:14px; color:#64748b; margin-bottom:24px;">소중한 후기 감사합니다.</p>
+      <button onclick="closeReviewModal()" style="padding:12px 32px; background:#2563eb; color:#fff; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; font-family:'Nanum Gothic',sans-serif;">확인</button>
+    </div>
+  </div>
+</div>
+
 <!-- FOOTER -->
 <footer style="flex-direction:column; gap:16px; text-align:center;">
   <div style="font-size:15px;"><strong style="font-size:17px;">김민관 수학</strong></div>
@@ -993,6 +1033,64 @@
     document.querySelectorAll('.sch-content').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('sch-' + id).classList.add('active');
+  }
+
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+  let reviewUser = null;
+
+  function openReviewLogin() {
+    document.getElementById('review-modal').style.display = 'flex';
+    document.getElementById('review-step-login').style.display = 'block';
+    document.getElementById('review-step-write').style.display = 'none';
+    document.getElementById('review-step-done').style.display = 'none';
+    document.getElementById('review-login-msg').innerHTML = '';
+    document.getElementById('review-id').value = '';
+    document.getElementById('review-pw').value = '';
+  }
+
+  function closeReviewModal() {
+    document.getElementById('review-modal').style.display = 'none';
+    reviewUser = null;
+  }
+
+  async function reviewLogin() {
+    const id = document.getElementById('review-id').value.trim();
+    const pw = document.getElementById('review-pw').value;
+    const msgEl = document.getElementById('review-login-msg');
+    if (!id || !pw) { msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">아이디와 비밀번호를 입력하세요</p>'; return; }
+    msgEl.innerHTML = '<p style="color:#64748b;font-size:13px;margin-bottom:12px;">로그인 중...</p>';
+    try {
+      const res = await fetch(`${SCRIPT_URL}?action=login&id=${encodeURIComponent(id)}&password=${encodeURIComponent(pw)}`);
+      const data = await res.json();
+      if (data.success && data.role === 'student') {
+        reviewUser = { id, name: data.name };
+        document.getElementById('review-step-login').style.display = 'none';
+        document.getElementById('review-step-write').style.display = 'block';
+        document.getElementById('review-username').textContent = data.name + ' 학생 안녕하세요 👋';
+        document.getElementById('review-text').value = '';
+        document.getElementById('review-write-msg').innerHTML = '';
+      } else if (data.role === 'teacher') {
+        msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">학생 계정으로 로그인해주세요</p>';
+      } else {
+        msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">아이디 또는 비밀번호가 틀렸습니다</p>';
+      }
+    } catch(e) {
+      msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">연결 오류가 발생했습니다</p>';
+    }
+  }
+
+  async function submitReview() {
+    const text = document.getElementById('review-text').value.trim();
+    const msgEl = document.getElementById('review-write-msg');
+    if (!text) { msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">후기 내용을 입력해주세요</p>'; return; }
+    msgEl.innerHTML = '<p style="color:#64748b;font-size:13px;margin-bottom:12px;">제출 중...</p>';
+    try {
+      await fetch(`${SCRIPT_URL}?action=submitReview&id=${encodeURIComponent(reviewUser.id)}&name=${encodeURIComponent(reviewUser.name)}&text=${encodeURIComponent(text)}`);
+      document.getElementById('review-step-write').style.display = 'none';
+      document.getElementById('review-step-done').style.display = 'block';
+    } catch(e) {
+      msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">오류가 발생했습니다. 다시 시도해주세요</p>';
+    }
   }
 
   function toggleMenu() {
