@@ -905,7 +905,10 @@
     <div class="divider"></div>
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:8px;">
       <h2 class="section-title" style="margin-bottom:0;">수강생 생생 후기</h2>
-      <button onclick="openReviewLogin()" style="background:#2563eb; color:#fff; border:none; border-radius:10px; padding:12px 24px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Nanum Gothic',sans-serif;">✏️ 후기 남기기</button>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button id="review-manage-btn" onclick="location.href='homework.html'" style="display:none; background:#f1f5f9; color:#1e293b; border:1.5px solid #e2e8f0; border-radius:10px; padding:12px 20px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Nanum Gothic',sans-serif;">⚙️ 후기 관리</button>
+        <button onclick="openReviewLogin()" style="background:#2563eb; color:#fff; border:none; border-radius:10px; padding:12px 24px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Nanum Gothic',sans-serif;">✏️ 후기 남기기</button>
+      </div>
     </div>
     <p class="section-desc">직접 다닌 학생들이 남긴 진짜 후기입니다. 마우스를 올리면 멈춥니다.</p>
   </div>
@@ -1036,6 +1039,14 @@
   }
 
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+
+  // 선생님 로그인 상태면 관리 버튼 표시
+  (function() {
+    const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+    if (session && session.role === 'teacher') {
+      document.getElementById('review-manage-btn').style.display = 'block';
+    }
+  })();
   let reviewUser = null;
 
   function openReviewLogin() {
