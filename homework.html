@@ -93,11 +93,10 @@
     </div>
 
     <div class="tab-btns">
-      <button class="tab-btn active" onclick="teacherTab('problems')">문제 등록</button>
-      <button class="tab-btn" onclick="teacherTab('students')">학생 관리</button>
-      <button class="tab-btn" onclick="teacherTab('scores')">점수 현황</button>
-      <button class="tab-btn" onclick="teacherTab('settings')">설정</button>
-      <button class="tab-btn" onclick="previewStudent()" style="background:#f0fdf4; color:#16a34a; border:1.5px solid #bbf7d0;">👁 학생 화면 보기</button>
+      <button class="tab-btn active" id="tab-btn-problems" onclick="teacherTab('problems')">문제 등록</button>
+      <button class="tab-btn" id="tab-btn-students" onclick="teacherTab('students')" style="display:none">학생 관리</button>
+      <button class="tab-btn" id="tab-btn-scores" onclick="teacherTab('scores')">점수 현황</button>
+      <button class="tab-btn" id="tab-btn-settings" onclick="teacherTab('settings')" style="display:none">비밀번호 변경</button>
     </div>
 
     <!-- 문제 등록 -->
@@ -258,6 +257,7 @@ window.addEventListener('DOMContentLoaded', function() {
     if (session.role === 'teacher') {
       show('page-teacher');
       loadProblemList();
+      checkTabParam();
     } else {
       document.getElementById('student-greeting').textContent = session.name + ' 학생';
       show('page-student');
@@ -319,12 +319,19 @@ function teacherTab(tab) {
   ['problems','students','scores','reviews','settings'].forEach(t => {
     document.getElementById('t-tab-' + t).style.display = t === tab ? 'block' : 'none';
   });
-  document.querySelectorAll('#page-teacher .tab-btn').forEach((b,i) => {
-    b.classList.toggle('active', ['problems','students','scores','reviews','settings'][i] === tab);
-  });
-  if (tab === 'students') loadStudentList();
+  document.querySelectorAll('#page-teacher .tab-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById('tab-btn-' + tab);
+  if (activeBtn) activeBtn.classList.add('active');
+  if (tab === 'students') { document.getElementById('tab-btn-students').style.display='flex'; loadStudentList(); }
   if (tab === 'scores') loadScores();
-  if (tab === 'reviews') loadReviews();
+  if (tab === 'settings') document.getElementById('tab-btn-settings').style.display='flex';
+}
+
+// URL 파라미터로 탭 바로 열기
+function checkTabParam() {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab');
+  if (tab) teacherTab(tab);
 }
 
 async function loadReviews() {
