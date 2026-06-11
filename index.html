@@ -513,7 +513,7 @@
     <li><a href="notice.html">공지사항</a></li>
     <li><a href="#reviews">수강후기</a></li>
   </ul>
-  <a href="homework.html" class="nav-cta" style="text-decoration:none; font-size:14px; font-weight:700;">🔐 로그인</a>
+  <a id="nav-login-btn" href="homework.html" class="nav-cta" style="text-decoration:none; font-size:14px; font-weight:700;">🔐 로그인</a>
   <button class="hamburger" id="hamburger" onclick="toggleMenu()">
     <span></span><span></span><span></span>
   </button>
@@ -1024,6 +1024,27 @@
   })();
 </script>
 <script>
+  // 로그인 상태에 따라 버튼 변경
+  (function() {
+    const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+    const btn = document.getElementById('nav-login-btn');
+    if (session) {
+      btn.textContent = '🔓 로그아웃';
+      btn.style.background = '#f1f5f9';
+      btn.style.color = '#1e293b';
+      btn.href = '#';
+      btn.onclick = function(e) {
+        e.preventDefault();
+        localStorage.removeItem('mkmath_session');
+        btn.textContent = '🔐 로그인';
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.href = 'homework.html';
+        btn.onclick = null;
+      };
+    }
+  })();
+
   // 학생 드롭다운
   function toggleStudentDropdown(e) {
     e.stopPropagation();
