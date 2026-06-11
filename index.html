@@ -1062,15 +1062,14 @@
     try {
       const res = await fetch(`${SCRIPT_URL}?action=login&id=${encodeURIComponent(id)}&password=${encodeURIComponent(pw)}`);
       const data = await res.json();
-      if (data.success && data.role === 'student') {
+      if (data.success) {
         reviewUser = { id, name: data.name };
         document.getElementById('review-step-login').style.display = 'none';
         document.getElementById('review-step-write').style.display = 'block';
-        document.getElementById('review-username').textContent = data.name + ' 학생 안녕하세요 👋';
+        const greeting = data.role === 'teacher' ? data.name + ' 선생님 안녕하세요 👋' : data.name + ' 학생 안녕하세요 👋';
+        document.getElementById('review-username').textContent = greeting;
         document.getElementById('review-text').value = '';
         document.getElementById('review-write-msg').innerHTML = '';
-      } else if (data.role === 'teacher') {
-        msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">학생 계정으로 로그인해주세요</p>';
       } else {
         msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">아이디 또는 비밀번호가 틀렸습니다</p>';
       }
