@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학생 관리 | 김민관 수학</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: '맑은 고딕', sans-serif; background: #f8fafc; color: #1e293b; }
+  .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+  h1 { font-size: 24px; font-weight: 900; }
+  .btn-back { background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; text-decoration: none; }
+  .card { background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
+  label { display: block; font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 6px; }
+  input { width: 100%; padding: 12px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 15px; outline: none; margin-bottom: 14px; }
+  input:focus { border-color: #2563eb; }
+  .btn { width: 100%; padding: 14px; background: #2563eb; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .btn:hover { background: #1d4ed8; }
+  .msg { padding: 10px 14px; border-radius: 8px; font-size: 14px; margin-top: 10px; }
+  .msg.error { background: #fef2f2; color: #dc2626; }
+  .msg.success { background: #f0fdf4; color: #16a34a; }
+  .section-title { font-size: 17px; font-weight: 800; margin-bottom: 16px; }
+  .student-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: #f8fafc; border-radius: 8px; margin-bottom: 8px; font-size: 14px; }
+  .student-row .id { color: #64748b; font-size: 12px; }
+  .denied { text-align: center; padding: 80px 0; }
+  .denied h2 { font-size: 20px; font-weight: 800; color: #dc2626; margin-bottom: 10px; }
+  .denied p { font-size: 14px; color: #64748b; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div id="page-denied" style="display:none;" class="denied">
+    <h2>접근 권한이 없습니다</h2>
+    <p>선생님 계정으로 로그인 후 이용해주세요.</p>
+    <a href="homework.html" style="background:#2563eb;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">로그인하러 가기</a>
+  </div>
+
+  <div id="page-main" style="display:none;">
+    <div class="nav-bar">
+      <h1>👨‍🎓 학생 관리</h1>
+      <a href="admin.html" class="btn-back">← 관리 페이지</a>
+    </div>
+
+    <div class="card">
+      <p class="section-title">학생 추가</p>
+      <label>이름</label>
+      <input type="text" id="new-sname" placeholder="홍길동">
+      <label>아이디</label>
+      <input type="text" id="new-sid" placeholder="hong123">
+      <label>초기 비밀번호</label>
+      <input type="text" id="new-spw" placeholder="1234">
+      <button class="btn" onclick="addStudent()">추가</button>
+      <div id="add-student-msg"></div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">학생 목록</p>
+      <div id="student-list-area"><p style="color:#64748b;font-size:14px;">불러오는 중...</p></div>
+    </div>
+  </div>
+
+</div>
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+let currentUser = null;
+
+window.addEventListener('DOMContentLoaded', function() {
+  const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+  if (!session || session.role !== 'teacher') {
+    document.getElementById('page-denied').style.display = 'block';
+  } else {
+    currentUser = session;
+    document.getElementById('page-main').style.display = 'block';
+    loadStudentList();
+  }
+});
+
+async function addStudent() {
+  const name = document.getElementById('new-sname').value.trim();
+  const sid = document.getElementById('new-sid').value.trim();
+  const spw = document.getElementById('new-spw').value.trim();
+  const msgEl = document.getElementById('add-student-msg');
+  if (!name || !sid || !spw) { showMsg(msgEl, '모두 입력해주세요', 'error'); return; }
+  try {
+    const res = await fetch(`${SCRIPT_URL}?action=addStudent&teacherId=${encodeURIComponent(currentUser.id)}&sname=${encodeURIComponent(name)}&sid=${encodeURIComponent(sid)}&spw=${encodeURIComponent(spw)}`);
+    const data = await res.json();
+    if (data.success) {
+      showMsg(msgEl, '추가되었습니다!', 'success');
+      document.getElementById('new-sname').value = '';
+      document.getElementById('new-sid').value = '';
+      document.getElementById('new-spw').value = '';
+      loadStudentList();
+    } else {
+      showMsg(msgEl, '오류가 발생했습니다', 'error');
+    }
+  } catch(e) { showMsg(msgEl, '연결 오류', 'error'); }
+}
+
+async function loadStudentList() {
+  const area = document.getElementById('student-list-area');
+  try {
+    const res = await fetch(`${SCRIPT_URL}?action=getStudents`);
+    const data = await res.json();
+    if (!data.students || data.students.length === 0) { area.innerHTML = '<p style="color:#64748b;font-size:14px">학생이 없습니다</p>'; return; }
+    area.innerHTML = data.students.map(s =>
+      `<div class="student-row"><div><div style="font-weight:700;">${s.name}</div><div class="id">@${s.id}</div></div></div>`
+    ).join('');
+  } catch(e) { area.innerHTML = '<p style="color:#dc2626;font-size:14px">불러오기 실패</p>'; }
+}
+
+function showMsg(el, text, type) {
+  el.innerHTML = `<div class="msg ${type}">${text}</div>`;
+}
+</script>
+</body>
+</html>
