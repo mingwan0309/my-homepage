@@ -330,7 +330,11 @@ function teacherTab(tab) {
 function checkTabParam() {
   const params = new URLSearchParams(window.location.search);
   const tab = params.get('tab');
-  if (tab) teacherTab(tab);
+  if (tab === 'preview') {
+    previewStudent();
+  } else if (tab) {
+    teacherTab(tab);
+  }
 }
 
 async function loadReviews() {
