@@ -497,6 +497,15 @@
   </div>
 </div>
 
+<!-- ADMIN BAR (선생님만 보임) -->
+<div id="admin-bar" style="display:none; background:#1e293b; color:#fff; padding:10px 56px; font-size:13px; display:none; justify-content:space-between; align-items:center;">
+  <span>👨‍🏫 선생님 모드</span>
+  <div style="display:flex; gap:10px;">
+    <a href="homework.html" style="background:#2563eb; color:#fff; padding:6px 16px; border-radius:6px; font-size:13px; font-weight:700; text-decoration:none;">📋 데일리퀴즈 관리</a>
+    <a href="review-admin.html" style="background:#475569; color:#fff; padding:6px 16px; border-radius:6px; font-size:13px; font-weight:700; text-decoration:none;">⭐ 후기 관리</a>
+  </div>
+</div>
+
 <!-- NAV -->
 <nav>
   <a href="#" class="nav-logo"><img src="logo.png" alt="로고" style="height:36px; width:auto;"></a>
@@ -1040,10 +1049,11 @@
 
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 
-  // 선생님 로그인 상태면 관리 버튼 표시
+  // 선생님 로그인 상태면 어드민바 + 후기관리 버튼 표시
   (function() {
     const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
     if (session && session.role === 'teacher') {
+      document.getElementById('admin-bar').style.display = 'flex';
       document.getElementById('review-manage-btn').style.display = 'block';
     }
   })();
