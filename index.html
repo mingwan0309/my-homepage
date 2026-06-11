@@ -35,6 +35,39 @@
   .nav-menu { display: flex; gap: 36px; list-style: none; position: absolute; left: 50%; transform: translateX(-50%); }
   .nav-menu a { text-decoration: none; font-size: 15px; font-weight: 600; color: #475569; transition: color 0.2s; }
   .nav-menu a:hover { color: var(--primary); }
+  .nav-menu li { position: relative; }
+  .nav-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f1f5f9;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+    min-width: 140px;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    z-index: 999;
+  }
+  .nav-dropdown.open {
+    display: block;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .nav-dropdown a {
+    display: block;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    text-decoration: none;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .nav-dropdown a:hover { background: #e2e8f0; color: var(--primary); }
   .nav-cta {
     background: var(--primary); color: #fff;
     padding: 9px 22px; border-radius: 8px;
@@ -469,7 +502,13 @@
   <a href="#" class="nav-logo"><img src="logo.png" alt="로고" style="height:36px; width:auto;"></a>
   <ul class="nav-menu">
     <li><a href="#intro">강사소개</a></li>
-    <li><a href="homework.html">학생</a></li>
+    <li id="nav-student" onclick="toggleStudentDropdown(event)">
+      <a href="#" onclick="return false;">학생 ▾</a>
+      <div class="nav-dropdown" id="student-dropdown">
+        <a href="homework.html">📝 데일리 퀴즈</a>
+        <a href="library.html">📂 자료실</a>
+      </div>
+    </li>
     <li><a href="#curriculum">커리큘럼</a></li>
     <li><a href="notice.html">공지사항</a></li>
     <li><a href="#reviews">수강후기</a></li>
@@ -985,6 +1024,16 @@
   })();
 </script>
 <script>
+  // 학생 드롭다운
+  function toggleStudentDropdown(e) {
+    e.stopPropagation();
+    const dd = document.getElementById('student-dropdown');
+    dd.classList.toggle('open');
+  }
+  document.addEventListener('click', function() {
+    document.getElementById('student-dropdown').classList.remove('open');
+  });
+
   // 시간표 팝업
   (function() {
     var today = new Date().toDateString();
