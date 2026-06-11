@@ -96,6 +96,7 @@
       <button class="tab-btn active" onclick="teacherTab('problems')">문제 등록</button>
       <button class="tab-btn" onclick="teacherTab('students')">학생 관리</button>
       <button class="tab-btn" onclick="teacherTab('scores')">점수 현황</button>
+      <button class="tab-btn" onclick="teacherTab('reviews')">⭐ 후기 관리</button>
       <button class="tab-btn" onclick="teacherTab('settings')">설정</button>
       <button class="tab-btn" onclick="previewStudent()" style="background:#f0fdf4; color:#16a34a; border:1.5px solid #bbf7d0;">👁 학생 화면 보기</button>
     </div>
@@ -141,6 +142,13 @@
     <div id="t-tab-scores" class="card" style="display:none">
       <p class="section-title">점수 현황</p>
       <div id="scores-area"><p class="spinner">불러오는 중...</p></div>
+    </div>
+
+    <!-- 후기 관리 -->
+    <div id="t-tab-reviews" class="card" style="display:none">
+      <p class="section-title">후기 관리</p>
+      <p style="font-size:13px; color:#64748b; margin-bottom:20px;">학생들이 제출한 후기를 확인하고 홈페이지 노출 여부를 관리하세요.</p>
+      <div id="reviews-area"><p class="spinner">불러오는 중...</p></div>
     </div>
 
     <!-- 설정 -->
@@ -309,14 +317,52 @@ function show(pageId) {
 
 // 선생님 탭
 function teacherTab(tab) {
-  ['problems','students','scores','settings'].forEach(t => {
+  ['problems','students','scores','reviews','settings'].forEach(t => {
     document.getElementById('t-tab-' + t).style.display = t === tab ? 'block' : 'none';
   });
   document.querySelectorAll('#page-teacher .tab-btn').forEach((b,i) => {
-    b.classList.toggle('active', ['problems','students','scores','settings'][i] === tab);
+    b.classList.toggle('active', ['problems','students','scores','reviews','settings'][i] === tab);
   });
   if (tab === 'students') loadStudentList();
   if (tab === 'scores') loadScores();
+  if (tab === 'reviews') loadReviews();
+}
+
+async function loadReviews() {
+  const area = document.getElementById('reviews-area');
+  area.innerHTML = '<p class="spinner">불러오는 중...</p>';
+  try {
+    const res = await fetch(`${SCRIPT_URL}?action=getReviews`);
+    const data = await res.json();
+    if (!data.reviews || data.reviews.length === 0) {
+      area.innerHTML = '<p style="color:#94a3b8; font-size:14px;">아직 제출된 후기가 없습니다.</p>';
+      return;
+    }
+    area.innerHTML = data.reviews.map((r, i) => `
+      <div style="padding:16px; background:#f8fafc; border-radius:10px; margin-bottom:10px; border:1.5px solid #e2e8f0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-weight:800; font-size:14px;">${r.name} <span style="color:#94a3b8; font-weight:400; font-size:12px;">(${r.id})</span></span>
+          <span style="font-size:12px; color:#94a3b8;">${r.date || ''}</span>
+        </div>
+        <p style="font-size:14px; color:#1e293b; line-height:1.7; margin-bottom:12px;">${r.text}</p>
+        <div style="display:flex; gap:8px;">
+          <button onclick="deleteReview(${i})" style="padding:6px 14px; border:1.5px solid #fecaca; border-radius:6px; background:#fff; color:#dc2626; font-size:12px; font-weight:700; cursor:pointer;">삭제</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    area.innerHTML = '<p style="color:#dc2626; font-size:14px;">불러오기 실패. 다시 시도해주세요.</p>';
+  }
+}
+
+async function deleteReview(index) {
+  if (!confirm('이 후기를 삭제하시겠습니까?')) return;
+  try {
+    await fetch(`${SCRIPT_URL}?action=deleteReview&index=${index}`);
+    loadReviews();
+  } catch(e) {
+    alert('삭제 실패. 다시 시도해주세요.');
+  }
 }
 
 // 학생 탭
