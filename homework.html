@@ -447,7 +447,20 @@ function selectProblem(id) {
   document.querySelectorAll('.problem-list li').forEach(li => li.classList.remove('selected'));
   document.getElementById('prob-' + id).classList.add('selected');
   document.getElementById('solve-title').textContent = selectedProblem.title;
-  document.getElementById('solve-content').textContent = selectedProblem.content;
+  const contentEl = document.getElementById('solve-content');
+  contentEl.innerHTML = '';
+  if (selectedProblem.image) {
+    const img = document.createElement('img');
+    img.src = selectedProblem.image;
+    img.style.cssText = 'width:100%; border-radius:8px; margin-bottom:8px;';
+    contentEl.appendChild(img);
+  }
+  if (selectedProblem.content) {
+    const txt = document.createElement('p');
+    txt.style.cssText = 'white-space:pre-wrap; font-size:15px; color:#1e293b;';
+    txt.textContent = selectedProblem.content;
+    contentEl.appendChild(txt);
+  }
   document.getElementById('solve-area').style.display = 'block';
   initCanvas();
   window.scrollTo(0, document.getElementById('solve-area').offsetTop - 20);
