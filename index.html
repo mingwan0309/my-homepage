@@ -360,6 +360,110 @@
 </head>
 <body>
 
+<!-- 시간표 팝업 -->
+<div id="schedule-popup" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:99999; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:20px; padding:32px 28px; max-width:680px; width:93%; max-height:85vh; overflow-y:auto; position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <button onclick="closeSchedulePopup()" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:20px; cursor:pointer; color:#94a3b8;">✕</button>
+    <p style="font-size:11px; font-weight:700; letter-spacing:2px; color:#2563eb; margin-bottom:6px;">SCHEDULE</p>
+    <h2 style="font-size:26px; font-weight:900; margin-bottom:4px;">시간표</h2>
+    <p style="font-size:14px; color:#64748b; margin-bottom:20px;">수준별 수업 진행 — TEST 후 입반 가능, TEST 예약 필수</p>
+
+    <!-- 탭 -->
+    <div style="display:flex; gap:8px; margin-bottom:20px;">
+      <button onclick="popupTab(this,'p1')" class="popup-sch-tab active-pop" style="padding:8px 22px; border-radius:20px; border:1.5px solid #2563eb; background:#2563eb; color:#fff; font-weight:700; cursor:pointer; font-size:14px;">고1</button>
+      <button onclick="popupTab(this,'p2')" class="popup-sch-tab" style="padding:8px 22px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; color:#475569; font-weight:700; cursor:pointer; font-size:14px;">고2</button>
+      <button onclick="popupTab(this,'p3')" class="popup-sch-tab" style="padding:8px 22px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; color:#475569; font-weight:700; cursor:pointer; font-size:14px;">고3</button>
+    </div>
+
+    <!-- 고1 -->
+    <div class="popup-tab-content" id="pop-p1">
+      <table class="sch-table">
+        <thead><tr><th>반</th><th>요일</th><th>시간</th><th>수업 내용</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>SA</td><td>월·금</td><td>7:00~</td>
+            <td rowspan="2" style="text-align:left; white-space:normal;"><ul>
+              <li>공통수학1 / 기말고사 시험 대비</li>
+              <li>교재 : [감잡기] 선배들이 검증한 압도적인 내신 분석 자체 교재</li>
+              <li>수준별 [5단계] 개별 워크북 — 모든 유형 + 취약 유형 집중</li>
+              <li>'김민관수학 주간지' — 매 주 최신경향반영 내신자료 배포</li>
+              <li>모든 학교 부교재 올인원 (All-in-One) · 1.ALL 변형 문항 2.손글씨 해설 3.해설 강의</li>
+              <li>실전 모의고사 10회 + 타임어택 25회</li>
+            </ul></td>
+          </tr>
+          <tr><td>A1</td><td>수·토</td><td>4:00~ / 4:30~</td></tr>
+          <tr>
+            <td>명덕여고</td><td>월·금</td><td>4:00~</td>
+            <td style="text-align:left; white-space:normal;"><ul>
+              <li>공통수학1 / 기말고사 시험대비</li>
+              <li>교재 : 오직 명덕여고 내신에만 최적화된 자체교재</li>
+              <li>명덕여고 부교재 올인원 (All-in-One) · 1.ALL 변형 문항 2.손글씨 해설 3.해설 강의</li>
+              <li>수준별 [5단계] 개별 워크북 — 모든 유형 + 취약 유형 집중</li>
+              <li>'김민관 수학 주간지' — 매주 최신경향 반영 내신자료 배포</li>
+              <li>실전 모의고사 10회 + 타임어택 25회</li>
+            </ul></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- 고2 -->
+    <div class="popup-tab-content" id="pop-p2" style="display:none;">
+      <table class="sch-table">
+        <thead><tr><th>과목</th><th>과정</th><th>요일</th><th>시간</th><th>수업 내용</th></tr></thead>
+        <tbody>
+          <tr>
+            <td rowspan="2">대수</td>
+            <td>SA</td><td>수·일</td><td>7:00~ / 6:00~</td>
+            <td rowspan="2"><ul>
+              <li>대수 / 기말고사 시험 대비</li>
+              <li>[감잡기] 선배들이 검증한 압도적인 내신 분석 자체 교재</li>
+              <li>수준별 [5단계] 개별 워크북 — 모든 유형 + 취약 유형 집중</li>
+              <li>'김민관수학 주간지' — 매 주 최신경향반영 내신자료 배포</li>
+              <li>모든 학교 부교재 올인원 (All-in-One) · 1.ALL 변형 문항 2.손글씨 해설 3.해설 강의</li>
+              <li>실전 모의고사 10회 + 타임어택 25회</li>
+            </ul></td>
+          </tr>
+          <tr><td style="font-weight:400">A2</td><td>목·토</td><td>7:30~ / 1:00~</td></tr>
+          <tr>
+            <td>기하</td><td>김민관</td><td>목</td><td>5:30~</td>
+            <td><ul>
+              <li>기하 / 기말고사 시험 대비</li>
+              <li>교재 : 자체 개념 교재 + RPM</li>
+              <li>수준별 [5단계] 개별 워크북 — 모든 유형 + 취약 유형 집중</li>
+              <li>실전 모의고사 10회 + 타임어택 25회</li>
+            </ul></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- 고3 -->
+    <div class="popup-tab-content" id="pop-p3" style="display:none;">
+      <table class="sch-table">
+        <thead><tr><th>강사</th><th>과목</th><th>요일</th><th>시간</th><th>수업 내용</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>김민관</td><td>확통</td><td>토</td><td>10:00~</td>
+            <td><ul>
+              <li>STEP 2 실전 개념 / 교재 : 자체 교재</li>
+              <li>단순 유형 암기가 아닌 실전 개념으로 문항 [해석 방법론] 제시</li>
+              <li>현 트렌드에 맞는 평가원, 수능, 수특 변형 문항 및 자체 제작 문항</li>
+              <li>실전 모의고사 격주 1회 시행</li>
+            </ul></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 하단 버튼 -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:24px; border-top:1px solid #f1f5f9; padding-top:20px;">
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#64748b; cursor:pointer;">
+        <input type="checkbox" id="popup-no-today" style="width:auto; cursor:pointer;"> 오늘 하루 다시보지 않기
+      </label>
+      <button onclick="closeSchedulePopup()" style="background:#2563eb; color:#fff; border:none; padding:10px 28px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer;">확인</button>
+    </div>
+  </div>
+</div>
+
 <!-- NAV -->
 <nav>
   <a href="#" class="nav-logo"><img src="logo.png" alt="로고" style="height:36px; width:auto;"></a>
@@ -882,6 +986,31 @@
   })();
 </script>
 <script>
+  // 시간표 팝업
+  (function() {
+    var today = new Date().toDateString();
+    var hidden = localStorage.getItem('schedule-popup-hide');
+    if (hidden !== today) {
+      document.getElementById('schedule-popup').style.display = 'flex';
+    }
+  })();
+
+  function closeSchedulePopup() {
+    if (document.getElementById('popup-no-today').checked) {
+      localStorage.setItem('schedule-popup-hide', new Date().toDateString());
+    }
+    document.getElementById('schedule-popup').style.display = 'none';
+  }
+
+  function popupTab(btn, id) {
+    document.querySelectorAll('.popup-tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.popup-sch-tab').forEach(el => {
+      el.style.background = '#fff'; el.style.color = '#475569'; el.style.borderColor = '#e2e8f0';
+    });
+    document.getElementById('pop-' + id).style.display = 'block';
+    btn.style.background = '#2563eb'; btn.style.color = '#fff'; btn.style.borderColor = '#2563eb';
+  }
+
   // YouTube 0~30초 구간 반복
   var tag = document.createElement('script');
   tag.src = "https://www.youtube.com/iframe_api";
