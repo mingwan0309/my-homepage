@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>관리 페이지 | 김민관 수학</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: '맑은 고딕', sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .container { width: 90%; max-width: 520px; padding: 40px 0; }
+  .header { text-align: center; margin-bottom: 40px; }
+  .header h1 { font-size: 26px; font-weight: 900; margin-bottom: 8px; }
+  .header p { font-size: 14px; color: #64748b; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card {
+    background: #fff; border: 1.5px solid #e2e8f0; border-radius: 18px;
+    padding: 36px 24px; text-align: center; text-decoration: none; color: #1e293b;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+  }
+  .card:hover { box-shadow: 0 8px 28px rgba(37,99,235,0.12); transform: translateY(-3px); border-color: #2563eb; }
+  .card .icon { font-size: 44px; margin-bottom: 16px; }
+  .card h2 { font-size: 17px; font-weight: 800; margin-bottom: 6px; }
+  .card p { font-size: 13px; color: #64748b; line-height: 1.6; }
+  .back { display: block; text-align: center; margin-top: 32px; font-size: 13px; color: #94a3b8; text-decoration: none; }
+  .back:hover { color: #2563eb; }
+  .denied { text-align: center; }
+  .denied h2 { font-size: 20px; font-weight: 800; color: #dc2626; margin-bottom: 10px; }
+  .denied p { font-size: 14px; color: #64748b; margin-bottom: 20px; }
+  .denied a { background: #2563eb; color: #fff; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div id="page-denied" style="display:none;" class="denied">
+    <h2>접근 권한이 없습니다</h2>
+    <p>선생님 계정으로 로그인 후 이용해주세요.</p>
+    <a href="homework.html">로그인하러 가기</a>
+  </div>
+
+  <div id="page-main" style="display:none;">
+    <div class="header">
+      <h1>관리 페이지</h1>
+      <p>관리할 항목을 선택하세요</p>
+    </div>
+    <div class="cards">
+      <a href="homework.html" class="card">
+        <div class="icon">📋</div>
+        <h2>데일리퀴즈</h2>
+        <p>문제 등록, 학생 관리, 점수 현황</p>
+      </a>
+      <a href="review-admin.html" class="card">
+        <div class="icon">⭐</div>
+        <h2>후기 관리</h2>
+        <p>학생 후기 확인 및 삭제</p>
+      </a>
+    </div>
+    <a href="index.html" class="back">← 홈으로</a>
+  </div>
+
+</div>
+<script>
+  const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+  if (!session || session.role !== 'teacher') {
+    document.getElementById('page-denied').style.display = 'block';
+  } else {
+    document.getElementById('page-main').style.display = 'block';
+  }
+</script>
+</body>
+</html>
