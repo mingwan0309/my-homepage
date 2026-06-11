@@ -801,10 +801,7 @@
       </div>
       <div class="notice-block">
         <h3>자주 묻는 질문 <a href="notice.html">더보기 ›</a></h3>
-        <a class="notice-item" href="notice.html"><div>숙제 확인은 어디서 해요? 수업 영상은 어디서 봐요? 추가클리닉은 어디서 신청해요?</div> <span>FAQ</span></a>
-        <a class="notice-item" href="notice.html"><div>질의응답 올릴 때는 나처럼 해 보아요</div> <span>FAQ</span></a>
-        <a class="notice-item" href="notice.html"><div>클리닉에 대한</div> <span>FAQ</span></a>
-        <a class="notice-item" href="notice.html"><div>숙제에 대한</div> <span>FAQ</span></a>
+        <div id="index-faq-list"></div>
       </div>
     </div>
   </div>
@@ -859,6 +856,22 @@
     document.getElementById('mobileMenu').classList.remove('open');
     document.getElementById('hamburger').classList.remove('open');
   }
+</script>
+<script src="faq-data.js"></script>
+<script>
+  (function renderIndexFaq() {
+    const container = document.getElementById('index-faq-list');
+    if (!container) return;
+    ['f1','f2','f3','f4'].forEach(function(id) {
+      const d = faqData[id];
+      if (!d) return;
+      const a = document.createElement('a');
+      a.className = 'notice-item';
+      a.href = 'notice.html';
+      a.innerHTML = '<div>' + d.title + '</div><span>FAQ</span>';
+      container.appendChild(a);
+    });
+  })();
 </script>
 </body>
 </html>
