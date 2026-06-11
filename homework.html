@@ -230,13 +230,28 @@ let selectedProblem = null;
 let canvasHistory = [];
 let canvas, ctx, drawing = false;
 
-// 저장된 로그인 정보 불러오기
+// 저장된 로그인 정보 불러오기 + 세션 복원
 window.addEventListener('DOMContentLoaded', function() {
+  // 로그인 정보 자동입력
   const saved = JSON.parse(localStorage.getItem('saved_login') || 'null');
   if (saved) {
     document.getElementById('login-id').value = saved.id || '';
     document.getElementById('login-pw').value = saved.pw || '';
     document.getElementById('remember-me').checked = true;
+  }
+
+  // 세션 복원 (새로고침해도 로그인 유지)
+  const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+  if (session) {
+    currentUser = session;
+    if (session.role === 'teacher') {
+      show('page-teacher');
+      loadProblemList();
+    } else {
+      document.getElementById('student-greeting').textContent = session.name + ' 학생';
+      show('page-student');
+      loadProblems();
+    }
   }
 });
 
@@ -257,6 +272,7 @@ async function login() {
         localStorage.removeItem('saved_login');
       }
       currentUser = { id, role: data.role, name: data.name };
+      localStorage.setItem('mkmath_session', JSON.stringify(currentUser));
       if (data.role === 'teacher') {
         show('page-teacher');
         loadProblemList();
@@ -276,6 +292,7 @@ async function login() {
 function logout() {
   currentUser = null;
   selectedProblem = null;
+  localStorage.removeItem('mkmath_session');
   document.getElementById('login-id').value = '';
   document.getElementById('login-pw').value = '';
   show('page-login');
