@@ -97,6 +97,7 @@
       <button class="tab-btn" onclick="teacherTab('students')">학생 관리</button>
       <button class="tab-btn" onclick="teacherTab('scores')">점수 현황</button>
       <button class="tab-btn" onclick="teacherTab('settings')">설정</button>
+      <button class="tab-btn" onclick="previewStudent()" style="background:#f0fdf4; color:#16a34a; border:1.5px solid #bbf7d0;">👁 학생 화면 보기</button>
     </div>
 
     <!-- 문제 등록 -->
@@ -161,7 +162,10 @@
         <h1 id="student-greeting"></h1>
         <p class="sub" style="margin-bottom:0">숙제를 풀고 제출하세요</p>
       </div>
-      <button class="nav-back" onclick="logout()">로그아웃</button>
+      <div style="display:flex; gap:8px;">
+        <button id="btn-back-to-teacher" onclick="backToTeacher()" style="display:none; background:#f0fdf4; color:#16a34a; border:1.5px solid #bbf7d0; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:700;">← 관리자로</button>
+        <button class="nav-back" onclick="logout()">로그아웃</button>
+      </div>
     </div>
 
     <div class="tab-btns">
@@ -617,6 +621,20 @@ ${selectedProblem.content}
 function backToStudent() {
   show('page-student');
   studentTab('homework');
+}
+
+function previewStudent() {
+  // 선생님이 학생 화면 미리보기
+  document.getElementById('student-greeting').textContent = '(미리보기)';
+  loadProblems();
+  show('page-student');
+  studentTab('homework');
+  document.getElementById('btn-back-to-teacher').style.display = 'block';
+}
+
+function backToTeacher() {
+  show('page-teacher');
+  document.getElementById('btn-back-to-teacher').style.display = 'none';
 }
 
 function showMsg(el, text, type) {
