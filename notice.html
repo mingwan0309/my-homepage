@@ -314,6 +314,14 @@
     });
   })();
 
+  // URL에 ?tab=faq 있으면 FAQ 탭 자동 활성화
+  if (new URLSearchParams(window.location.search).get('tab') === 'faq') {
+    document.querySelectorAll('.notice-list').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-faq').classList.add('active');
+    document.querySelectorAll('.tab')[1].classList.add('active');
+  }
+
   function showTab(tab) {
     document.querySelectorAll('.notice-list').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
