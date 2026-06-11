@@ -391,7 +391,7 @@
 <!-- HERO -->
 <section class="hero">
   <div class="hero-video-bg">
-    <iframe src="https://www.youtube.com/embed/6kz2AGGS0q4?autoplay=1&mute=1&loop=1&playlist=6kz2AGGS0q4&controls=0&showinfo=0&rel=0&modestbranding=1&start=1890&end=1920&disablekb=1&iv_load_policy=3" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    <iframe id="yt-bg" src="https://www.youtube.com/embed/6kz2AGGS0q4?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&modestbranding=1&start=0&disablekb=1&iv_load_policy=3&enablejsapi=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
   </div>
   <div class="hero-overlay"></div>
   <div>
@@ -880,6 +880,38 @@
       container.appendChild(a);
     });
   })();
+</script>
+<script>
+  // YouTube 0~30초 구간 반복
+  var tag = document.createElement('script');
+  tag.src = "https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+
+  var ytPlayer;
+  var START_SEC = 0;
+  var END_SEC = 30;
+
+  function onYouTubeIframeAPIReady() {
+    ytPlayer = new YT.Player('yt-bg', {
+      events: {
+        'onReady': function(e) { e.target.mute(); e.target.playVideo(); },
+        'onStateChange': function(e) {
+          if (e.data === YT.PlayerState.PLAYING) {
+            checkLoop();
+          }
+        }
+      }
+    });
+  }
+
+  function checkLoop() {
+    if (!ytPlayer) return;
+    var t = ytPlayer.getCurrentTime();
+    if (t >= END_SEC) {
+      ytPlayer.seekTo(START_SEC, true);
+    }
+    setTimeout(checkLoop, 500);
+  }
 </script>
 </body>
 </html>
