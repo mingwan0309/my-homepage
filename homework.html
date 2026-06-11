@@ -107,7 +107,10 @@
       <label>문제 내용</label>
       <textarea id="t-content" rows="6" placeholder="문제 내용을 입력하세요"></textarea>
       <label>문제 사진 첨부 (선택)</label>
-      <input type="file" id="t-image" accept="image/*" style="padding:8px; cursor:pointer;">
+      <div id="t-drop-zone" style="border:2px dashed #cbd5e1; border-radius:12px; padding:24px; text-align:center; color:#94a3b8; font-size:14px; cursor:pointer; transition:all 0.2s; margin-bottom:8px;">
+        🖼️ 이미지를 여기에 드래그하거나 클릭해서 선택
+        <input type="file" id="t-image" accept="image/*" style="display:none;">
+      </div>
       <div id="t-image-preview" style="margin-bottom:16px;"></div>
       <label>총 문항 수</label>
       <input type="number" id="t-total" placeholder="예: 5" min="1">
@@ -304,9 +307,40 @@ function studentTab(tab) {
   });
 }
 
-// 이미지 미리보기
+// 이미지 미리보기 + 드래그 앤 드롭
 document.addEventListener('DOMContentLoaded', function() {
   const imgInput = document.getElementById('t-image');
+  const dropZone = document.getElementById('t-drop-zone');
+
+  function showPreview(file) {
+    const preview = document.getElementById('t-image-preview');
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%; border-radius:8px; border:1.5px solid #e2e8f0;">`;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      preview.innerHTML = '';
+    }
+  }
+
+  if (dropZone) {
+    dropZone.addEventListener('click', () => imgInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor='#2563eb'; dropZone.style.background='#eff6ff'; });
+    dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor='#cbd5e1'; dropZone.style.background=''; });
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.style.borderColor='#cbd5e1'; dropZone.style.background='';
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) {
+        const dt = new DataTransfer(); dt.items.add(file); imgInput.files = dt.files;
+        showPreview(file);
+        dropZone.querySelector('span') && (dropZone.querySelector('span').textContent = file.name);
+      }
+    });
+  }
+
   if (imgInput) {
     imgInput.addEventListener('change', function() {
       const file = this.files[0];
