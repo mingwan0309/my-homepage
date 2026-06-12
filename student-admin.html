@@ -1,28 +1,37 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>학생 관리 | 김민관 수학</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: '맑은 고딕', sans-serif; background: #f8fafc; color: #1e293b; }
-  .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
+  body { font-family: "맑은 고딕", sans-serif; background: #f8fafc; color: #1e293b; }
+  .container { max-width: 640px; margin: 0 auto; padding: 40px 20px; }
   .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
   h1 { font-size: 24px; font-weight: 900; }
   .btn-back { background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; text-decoration: none; }
   .card { background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
+  .section-title { font-size: 17px; font-weight: 800; margin-bottom: 18px; }
   label { display: block; font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 6px; }
-  input { width: 100%; padding: 12px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 15px; outline: none; margin-bottom: 14px; }
+  input[type=text], input[type=tel] { width: 100%; padding: 12px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 15px; outline: none; margin-bottom: 14px; font-family: inherit; }
   input:focus { border-color: #2563eb; }
   .btn { width: 100%; padding: 14px; background: #2563eb; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; }
   .btn:hover { background: #1d4ed8; }
+  .btn-sm { padding: 10px 16px; font-size: 13px; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+  .btn-green { background: #16a34a; color: #fff; }
+  .btn-green:hover { background: #15803d; }
+  .btn-outline { background: #fff; color: #2563eb; border: 1.5px solid #2563eb; }
+  .btn-outline:hover { background: #eff6ff; }
+  .excel-row { display: flex; gap: 10px; margin-bottom: 10px; }
+  .excel-row > * { flex: 1; display: flex; align-items: center; justify-content: center; }
   .msg { padding: 10px 14px; border-radius: 8px; font-size: 14px; margin-top: 10px; }
   .msg.error { background: #fef2f2; color: #dc2626; }
   .msg.success { background: #f0fdf4; color: #16a34a; }
-  .section-title { font-size: 17px; font-weight: 800; margin-bottom: 16px; }
+  .msg.info { background: #eff6ff; color: #2563eb; }
   .student-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: #f8fafc; border-radius: 8px; margin-bottom: 8px; font-size: 14px; }
-  .student-row .id { color: #64748b; font-size: 12px; }
+  .student-row .sub { color: #64748b; font-size: 12px; margin-top: 2px; }
   .denied { text-align: center; padding: 80px 0; }
   .denied h2 { font-size: 20px; font-weight: 800; color: #dc2626; margin-bottom: 10px; }
   .denied p { font-size: 14px; color: #64748b; margin-bottom: 20px; }
@@ -39,20 +48,33 @@
 
   <div id="page-main" style="display:none;">
     <div class="nav-bar">
-      <h1>👨‍🎓 학생 관리</h1>
+      <h1>학생 관리</h1>
       <a href="admin.html" class="btn-back">← 관리 페이지</a>
     </div>
 
     <div class="card">
-      <p class="section-title">학생 추가</p>
-      <label>이름</label>
-      <input type="text" id="new-sname" placeholder="홍길동">
-      <label>아이디</label>
-      <input type="text" id="new-sid" placeholder="hong123">
+      <p class="section-title">학생 개별 추가</p>
+      <label>학생 전화번호</label>
+      <input type="tel" id="new-student-phone" placeholder="010-0000-0000">
+      <label>학부모 전화번호</label>
+      <input type="tel" id="new-parent-phone" placeholder="010-0000-0000">
       <label>초기 비밀번호</label>
-      <input type="text" id="new-spw" placeholder="1234">
-      <button class="btn" onclick="addStudent()">추가</button>
+      <input type="text" id="new-spw" value="1234">
+      <button class="btn" onclick="addStudentSingle()">추가</button>
       <div id="add-student-msg"></div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">엑셀로 일괄 추가</p>
+      <div class="excel-row">
+        <button class="btn-sm btn-green" onclick="downloadTemplate()">📥 양식 다운로드</button>
+        <label class="btn-sm btn-outline" style="cursor:pointer; margin:0;">
+          📤 엑셀 업로드
+          <input type="file" id="excel-upload" accept=".xlsx,.xls" style="display:none;" onchange="uploadExcel(this)">
+        </label>
+      </div>
+      <p style="font-size:12px; color:#94a3b8; margin-top:8px;">양식을 받아 번호를 기입한 뒤 업로드하세요. 비밀번호는 1234로 자동 설정됩니다.</p>
+      <div id="upload-msg"></div>
     </div>
 
     <div class="card">
@@ -63,11 +85,11 @@
 
 </div>
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
-let currentUser = null;
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+var currentUser = null;
 
 window.addEventListener('DOMContentLoaded', function() {
-  const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+  var session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
   if (!session || session.role !== 'teacher') {
     document.getElementById('page-denied').style.display = 'block';
   } else {
@@ -77,41 +99,90 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-async function addStudent() {
-  const name = document.getElementById('new-sname').value.trim();
-  const sid = document.getElementById('new-sid').value.trim();
-  const spw = document.getElementById('new-spw').value.trim();
-  const msgEl = document.getElementById('add-student-msg');
-  if (!name || !sid || !spw) { showMsg(msgEl, '모두 입력해주세요', 'error'); return; }
+async function addStudentSingle() {
+  var sp = document.getElementById('new-student-phone').value.trim();
+  var pp = document.getElementById('new-parent-phone').value.trim();
+  var pw = document.getElementById('new-spw').value.trim() || '1234';
+  var msgEl = document.getElementById('add-student-msg');
+  if (!sp || !pp) { showMsg(msgEl, '학생 전화번호와 학부모 전화번호를 모두 입력해주세요', 'error'); return; }
+  var ok = await callAddStudent(sp, pp, pw);
+  if (ok) {
+    showMsg(msgEl, '추가되었습니다!', 'success');
+    document.getElementById('new-student-phone').value = '';
+    document.getElementById('new-parent-phone').value = '';
+    document.getElementById('new-spw').value = '1234';
+    loadStudentList();
+  } else {
+    showMsg(msgEl, '오류가 발생했습니다', 'error');
+  }
+}
+
+async function callAddStudent(studentPhone, parentPhone, spw) {
   try {
-    const res = await fetch(`${SCRIPT_URL}?action=addStudent&teacherId=${encodeURIComponent(currentUser.id)}&sname=${encodeURIComponent(name)}&sid=${encodeURIComponent(sid)}&spw=${encodeURIComponent(spw)}`);
-    const data = await res.json();
-    if (data.success) {
-      showMsg(msgEl, '추가되었습니다!', 'success');
-      document.getElementById('new-sname').value = '';
-      document.getElementById('new-sid').value = '';
-      document.getElementById('new-spw').value = '';
+    var res = await fetch(SCRIPT_URL + '?action=addStudent&teacherId=' + encodeURIComponent(currentUser.id) + '&studentPhone=' + encodeURIComponent(studentPhone) + '&parentPhone=' + encodeURIComponent(parentPhone) + '&spw=' + encodeURIComponent(spw));
+    var data = await res.json();
+    return data.success;
+  } catch(e) { return false; }
+}
+
+function downloadTemplate() {
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet([
+    ['학생 전화번호', '학부모 전화번호', '초기 비밀번호'],
+    ['010-0000-0000', '010-0000-0000', '1234'],
+    ['010-0000-0000', '010-0000-0000', '1234']
+  ]);
+  ws['!cols'] = [{wch:18},{wch:18},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws, '학생목록');
+  XLSX.writeFile(wb, '학생추가_양식.xlsx');
+}
+
+async function uploadExcel(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var msgEl = document.getElementById('upload-msg');
+  showMsg(msgEl, '업로드 중...', 'info');
+  var reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      var wb = XLSX.read(e.target.result, {type:'array'});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, {header:1});
+      var dataRows = rows.slice(1).filter(function(r){ return r[0] && r[1]; });
+      if (dataRows.length === 0) { showMsg(msgEl, '데이터가 없습니다. 양식을 확인해주세요.', 'error'); return; }
+      var success = 0, fail = 0;
+      for (var i = 0; i < dataRows.length; i++) {
+        var row = dataRows[i];
+        var sp = String(row[0]).trim();
+        var pp = String(row[1]).trim();
+        var pw = row[2] ? String(row[2]).trim() : '1234';
+        var ok = await callAddStudent(sp, pp, pw);
+        ok ? success++ : fail++;
+      }
       loadStudentList();
-    } else {
-      showMsg(msgEl, '오류가 발생했습니다', 'error');
+      showMsg(msgEl, '완료! 성공 ' + success + '명' + (fail > 0 ? ', 실패 ' + fail + '명' : ''), success > 0 ? 'success' : 'error');
+    } catch(err) {
+      showMsg(msgEl, '파일을 읽는 중 오류가 발생했습니다', 'error');
     }
-  } catch(e) { showMsg(msgEl, '연결 오류', 'error'); }
+    input.value = '';
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 async function loadStudentList() {
-  const area = document.getElementById('student-list-area');
+  var area = document.getElementById('student-list-area');
   try {
-    const res = await fetch(`${SCRIPT_URL}?action=getStudents`);
-    const data = await res.json();
-    if (!data.students || data.students.length === 0) { area.innerHTML = '<p style="color:#64748b;font-size:14px">학생이 없습니다</p>'; return; }
-    area.innerHTML = data.students.map(s =>
-      `<div class="student-row"><div><div style="font-weight:700;">${s.name}</div><div class="id">@${s.id}</div></div></div>`
-    ).join('');
+    var res = await fetch(SCRIPT_URL + '?action=getStudents');
+    var data = await res.json();
+    if (!data.students || data.students.length === 0) { area.innerHTML = '<p style="color:#64748b;font-size:14px">등록된 학생이 없습니다</p>'; return; }
+    area.innerHTML = data.students.map(function(s) {
+      return '<div class="student-row"><div><div style="font-weight:700;">📱 ' + (s.studentPhone || s.id || '-') + '</div><div class="sub">학부모: ' + (s.parentPhone || '-') + '</div></div></div>';
+    }).join('');
   } catch(e) { area.innerHTML = '<p style="color:#dc2626;font-size:14px">불러오기 실패</p>'; }
 }
 
 function showMsg(el, text, type) {
-  el.innerHTML = `<div class="msg ${type}">${text}</div>`;
+  el.innerHTML = '<div class="msg ' + type + '">' + text + '</div>';
 }
 </script>
 </body>
