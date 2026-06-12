@@ -60,10 +60,47 @@
   .spinner { text-align: center; padding: 20px; color: #64748b; font-size: 14px; }
   .page { display: none; }
   #page-login { display: block; }
+
+  /* 자동 로그아웃 팝업 */
+  #timeout-modal {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 9999;
+    align-items: center; justify-content: center;
+  }
+  #timeout-modal.show { display: flex; }
+  .timeout-box {
+    background: #fff; border-radius: 18px; padding: 36px 32px;
+    text-align: center; max-width: 320px; width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  }
+  .timeout-box h3 { font-size: 18px; font-weight: 900; margin-bottom: 10px; }
+  .timeout-box p { font-size: 14px; color: #64748b; margin-bottom: 6px; }
+  .timeout-count { font-size: 36px; font-weight: 900; color: #dc2626; margin: 16px 0; }
+  .timeout-btns { display: flex; gap: 10px; margin-top: 20px; }
+  .timeout-btns button { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .btn-keep { background: #2563eb; color: #fff; }
+  .btn-keep:hover { background: #1d4ed8; }
+  .btn-logout-now { background: #f1f5f9; color: #64748b; }
+  .btn-logout-now:hover { background: #e2e8f0; }
 </style>
 </head>
 <body>
 <div class="container">
+
+  <!-- 자동 로그아웃 팝업 -->
+  <div id="timeout-modal">
+    <div class="timeout-box">
+      <h3>⏰ 로그인 유지</h3>
+      <p>오랫동안 활동이 없었어요.</p>
+      <p>계속 로그인 상태를 유지하시겠습니까?</p>
+      <div class="timeout-count" id="timeout-count">60</div>
+      <p style="font-size:12px; color:#94a3b8;">초 후 자동 로그아웃됩니다</p>
+      <div class="timeout-btns">
+        <button class="btn-keep" onclick="keepLogin()">유지</button>
+        <button class="btn-logout-now" onclick="logout()">로그아웃</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 로그인 -->
   <div id="page-login" class="page" style="display:block">
@@ -262,6 +299,7 @@ window.addEventListener('DOMContentLoaded', function() {
       show('page-student');
       loadProblems();
     }
+    startIdleWatcher();
   }
 });
 
@@ -291,6 +329,7 @@ async function login() {
         show('page-student');
         loadProblems();
       }
+      startIdleWatcher();
     } else {
       showMsg(msgEl, '아이디 또는 비밀번호가 틀렸습니다', 'error');
     }
@@ -300,6 +339,8 @@ async function login() {
 }
 
 function logout() {
+  stopIdleWatcher();
+  document.getElementById('timeout-modal').classList.remove('show');
   currentUser = null;
   selectedProblem = null;
   localStorage.removeItem('mkmath_session');
@@ -708,6 +749,60 @@ function backToTeacher() {
 function showMsg(el, text, type) {
   el.innerHTML = `<div class="msg ${type}">${text}</div>`;
   setTimeout(() => el.innerHTML = '', 3000);
+}
+
+// ── 자동 로그아웃 ──
+const TIMEOUT_TEACHER = 60 * 60 * 1000; // 1시간
+const TIMEOUT_STUDENT = 30 * 60 * 1000; // 30분
+const WARN_DURATION   = 60 * 1000;       // 경고 후 1분
+
+let idleTimer = null;
+let countdownTimer = null;
+let countdownLeft = 60;
+
+function getIdleLimit() {
+  return currentUser && currentUser.role === 'teacher' ? TIMEOUT_TEACHER : TIMEOUT_STUDENT;
+}
+
+function resetIdleTimer() {
+  if (!currentUser) return;
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(showTimeoutWarning, getIdleLimit());
+}
+
+function startIdleWatcher() {
+  ['mousemove','mousedown','keydown','touchstart','scroll'].forEach(ev => {
+    document.addEventListener(ev, resetIdleTimer, true);
+  });
+  resetIdleTimer();
+}
+
+function stopIdleWatcher() {
+  ['mousemove','mousedown','keydown','touchstart','scroll'].forEach(ev => {
+    document.removeEventListener(ev, resetIdleTimer, true);
+  });
+  clearTimeout(idleTimer);
+  clearInterval(countdownTimer);
+}
+
+function showTimeoutWarning() {
+  document.getElementById('timeout-modal').classList.add('show');
+  countdownLeft = 60;
+  document.getElementById('timeout-count').textContent = countdownLeft;
+  countdownTimer = setInterval(() => {
+    countdownLeft--;
+    document.getElementById('timeout-count').textContent = countdownLeft;
+    if (countdownLeft <= 0) {
+      clearInterval(countdownTimer);
+      logout();
+    }
+  }, 1000);
+}
+
+function keepLogin() {
+  document.getElementById('timeout-modal').classList.remove('show');
+  clearInterval(countdownTimer);
+  resetIdleTimer();
 }
 </script>
 </body>
