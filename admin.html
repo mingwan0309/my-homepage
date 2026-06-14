@@ -515,8 +515,12 @@ async function delRv(i){
 function showMsg(el,text,type){el.innerHTML='<div class="msg '+type+'">'+text+'</div>';}
 
 // ── 클리닉 관리 ──
-var clinicDateSlots = {}; // { "2026-06-18": ["15:00","15:30",...], ... }
-var calYear, calMonth, calSelectedDate, calTempSlots;
+var clinicDateSlots = {};
+var calYear, calMonth, calTempSlots = [];
+var calSelectedDates = []; // 다중 날짜 선택
+
+// 날짜 드래그 상태
+var calDragStart = null, calDragMode = 'add', calDragging = false;
 
 function openClinicModal() {
   clinicDateSlots = {};
@@ -530,7 +534,7 @@ function closeClinicModal() { document.getElementById('clinic-modal').classList.
 function openClinicCal() {
   var now = new Date();
   calYear = now.getFullYear(); calMonth = now.getMonth();
-  calSelectedDate = null; calTempSlots = [];
+  calSelectedDates = []; calTempSlots = [];
   document.getElementById('time-slot-section').style.display = 'none';
   document.getElementById('time-slot-hint').style.display = 'block';
   document.getElementById('clinic-cal-modal').classList.add('show');
@@ -539,6 +543,8 @@ function openClinicCal() {
 function closeClinicCal() { document.getElementById('clinic-cal-modal').classList.remove('show'); }
 
 function calMove(dir) { calMonth += dir; if(calMonth>11){calMonth=0;calYear++;}else if(calMonth<0){calMonth=11;calYear--;} renderCal(); }
+
+function dateStr(y,m,d) { return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
 
 function renderCal() {
   var label = calYear+'년 '+(calMonth+1)+'월';
@@ -549,82 +555,120 @@ function renderCal() {
   var html = '';
   for(var i=0;i<first;i++) html += '<div></div>';
   for(var d=1;d<=days;d++) {
+    var ds = dateStr(calYear, calMonth, d);
     var dt = new Date(calYear, calMonth, d);
-    var dateStr = calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     var isPast = dt < today;
-    var hasSlots = clinicDateSlots[dateStr] && clinicDateSlots[dateStr].length > 0;
-    var isSelected = calSelectedDate === dateStr;
-    var style = 'padding:8px 4px;border-radius:8px;font-size:13px;cursor:'+(isPast?'default':'pointer')+';font-weight:600;';
-    if(isPast) style += 'color:#cbd5e1;';
-    else if(isSelected) style += 'background:#2563eb;color:#fff;';
-    else if(hasSlots) style += 'background:#dbeafe;color:#2563eb;';
-    else style += 'color:#1e293b;';
-    html += '<div style="'+style+'"'+(isPast?'':' onclick="selectCalDate(\''+dateStr+'\')"')+'>'+d+(hasSlots?'<div style="width:5px;height:5px;background:#2563eb;border-radius:50%;margin:2px auto 0;"></div>':'')+'</div>';
+    var hasSlots = clinicDateSlots[ds] && clinicDateSlots[ds].length > 0;
+    var isSelected = calSelectedDates.indexOf(ds) >= 0;
+    var style = 'padding:8px 4px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;';
+    if(isPast) { style += 'color:#cbd5e1;cursor:default;'; }
+    else if(isSelected) { style += 'background:#2563eb;color:#fff;cursor:pointer;'; }
+    else if(hasSlots) { style += 'background:#dbeafe;color:#2563eb;cursor:pointer;'; }
+    else { style += 'color:#1e293b;cursor:pointer;'; }
+    var dot = hasSlots && !isSelected ? '<div style="width:5px;height:5px;background:#2563eb;border-radius:50%;margin:2px auto 0;"></div>' : '';
+    var evts = isPast ? '' : ' onmousedown="calDragStart(event,\''+ds+'\')" onmouseover="calDragOver(\''+ds+'\')"';
+    html += '<div style="'+style+'"'+evts+' data-date="'+ds+'">'+d+dot+'</div>';
   }
   document.getElementById('cal-grid').innerHTML = html;
 }
 
-function selectCalDate(dateStr) {
-  calSelectedDate = dateStr;
-  calTempSlots = (clinicDateSlots[dateStr] || []).slice();
-  document.getElementById('sel-date-label').textContent = dateStr;
+function calDragStart(e, ds) {
+  e.preventDefault();
+  calDragging = true;
+  calDragStart = ds;
+  calDragMode = calSelectedDates.indexOf(ds) >= 0 ? 'remove' : 'add';
+  applyCalDrag(ds, ds);
+  document.addEventListener('mouseup', calDragEnd, {once:true});
+}
+
+function calDragOver(ds) {
+  if(!calDragging) return;
+  applyCalDrag(calDragStart, ds);
+}
+
+function applyCalDrag(fromDs, toDs) {
+  var a = new Date(fromDs), b = new Date(toDs);
+  if(a > b) { var tmp=a; a=b; b=tmp; }
+  var cur = new Date(a);
+  var today = new Date(); today.setHours(0,0,0,0);
+  while(cur <= b) {
+    var y=cur.getFullYear(), m=cur.getMonth(), d=cur.getDate();
+    if(cur >= today) {
+      var ds2 = dateStr(y,m,d);
+      var idx = calSelectedDates.indexOf(ds2);
+      if(calDragMode==='add' && idx<0) calSelectedDates.push(ds2);
+      if(calDragMode==='remove' && idx>=0) calSelectedDates.splice(idx,1);
+    }
+    cur.setDate(cur.getDate()+1);
+  }
+  renderCal();
+  updateTimeSection();
+}
+
+function calDragEnd() {
+  calDragging = false;
+}
+
+function updateTimeSection() {
+  if(calSelectedDates.length === 0) {
+    document.getElementById('time-slot-section').style.display = 'none';
+    document.getElementById('time-slot-hint').style.display = 'block';
+    return;
+  }
+  var sorted = calSelectedDates.slice().sort();
+  document.getElementById('sel-date-label').textContent = sorted.length===1 ? sorted[0] : sorted[0]+' 외 '+(sorted.length-1)+'일';
   document.getElementById('time-slot-section').style.display = 'block';
   document.getElementById('time-slot-hint').style.display = 'none';
+  // 첫 선택 날짜의 기존 슬롯 불러오기 (없으면 빈 배열)
+  if(calTempSlots.length === 0) calTempSlots = (clinicDateSlots[sorted[0]] || []).slice();
   renderTimeSlots();
-  renderCal();
 }
 
 var allTimeSlots = (function(){
   var s=[]; for(var h=9;h<=21;h++){s.push(String(h).padStart(2,'0')+':00');s.push(String(h).padStart(2,'0')+':30');} s.push('22:00'); return s;
 })();
-var dragStartIdx = -1, dragMode = 'add'; // add or remove
+var slotDragStartIdx = -1, slotDragMode = 'add';
 
 function renderTimeSlots() {
   document.getElementById('time-slots').innerHTML = allTimeSlots.map(function(s,i) {
     var sel = calTempSlots.indexOf(s) >= 0;
-    return '<div data-idx="'+i+'" data-slot="'+s+'" '
-      +'onmousedown="slotDragStart(event,'+i+')" '
-      +'onmouseover="slotDragOver(event,'+i+')" '
+    return '<div onmousedown="slotDragStart(event,'+i+')" onmouseover="slotDragOver(event,'+i+')" '
       +'style="padding:8px 4px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;cursor:pointer;border:1.5px solid '+(sel?'#2563eb':'#e2e8f0')+';background:'+(sel?'#2563eb':'#fff')+';color:'+(sel?'#fff':'#475569')+';">'+s+'</div>';
   }).join('');
 }
 
 function slotDragStart(e, idx) {
   e.preventDefault();
-  dragStartIdx = idx;
-  var s = allTimeSlots[idx];
-  dragMode = calTempSlots.indexOf(s) >= 0 ? 'remove' : 'add';
-  applyDrag(idx, idx);
-  document.addEventListener('mouseup', slotDragEnd, {once:true});
+  slotDragStartIdx = idx;
+  slotDragMode = calTempSlots.indexOf(allTimeSlots[idx]) >= 0 ? 'remove' : 'add';
+  applySlotDrag(idx, idx);
+  document.addEventListener('mouseup', function(){ slotDragStartIdx = -1; }, {once:true});
 }
 
 function slotDragOver(e, idx) {
-  if(dragStartIdx < 0) return;
-  applyDrag(dragStartIdx, idx);
+  if(slotDragStartIdx < 0) return;
+  applySlotDrag(slotDragStartIdx, idx);
 }
 
-function applyDrag(from, to) {
+function applySlotDrag(from, to) {
   var a = Math.min(from,to), b = Math.max(from,to);
-  var base = calTempSlots.slice();
-  // restore to pre-drag state isn't tracked, so just apply range
   for(var i=a;i<=b;i++){
     var s = allTimeSlots[i];
     var idx2 = calTempSlots.indexOf(s);
-    if(dragMode==='add' && idx2<0) calTempSlots.push(s);
-    if(dragMode==='remove' && idx2>=0) calTempSlots.splice(idx2,1);
+    if(slotDragMode==='add' && idx2<0) calTempSlots.push(s);
+    if(slotDragMode==='remove' && idx2>=0) calTempSlots.splice(idx2,1);
   }
   calTempSlots.sort();
   renderTimeSlots();
 }
 
-function slotDragEnd() {
-  dragStartIdx = -1;
-}
-
 function confirmDateSlots() {
-  if(!calSelectedDate) return;
-  if(calTempSlots.length === 0) { delete clinicDateSlots[calSelectedDate]; }
-  else { clinicDateSlots[calSelectedDate] = calTempSlots.slice(); }
+  if(!calSelectedDates.length) return;
+  calSelectedDates.forEach(function(ds) {
+    if(calTempSlots.length === 0) delete clinicDateSlots[ds];
+    else clinicDateSlots[ds] = calTempSlots.slice();
+  });
+  calSelectedDates = []; calTempSlots = [];
   closeClinicCal();
   renderClinicDatesList();
 }
@@ -642,12 +686,12 @@ function renderClinicDatesList() {
   }).join('');
 }
 
-function editDate(dateStr) {
-  var dt = new Date(dateStr);
+function editDate(ds) {
+  var dt = new Date(ds);
   calYear = dt.getFullYear(); calMonth = dt.getMonth();
-  calSelectedDate = dateStr;
-  calTempSlots = (clinicDateSlots[dateStr]||[]).slice();
-  document.getElementById('sel-date-label').textContent = dateStr;
+  calSelectedDates = [ds];
+  calTempSlots = (clinicDateSlots[ds]||[]).slice();
+  document.getElementById('sel-date-label').textContent = ds;
   document.getElementById('time-slot-section').style.display = 'block';
   document.getElementById('time-slot-hint').style.display = 'none';
   document.getElementById('clinic-cal-modal').classList.add('show');
