@@ -121,6 +121,9 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('settings',this)"><span class="ni">⚙️</span> 관리자</div>
     </nav>
+    <div style="padding:10px 14px; border-top:1px solid #334155;">
+      <a href="index.html" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:8px; background:#334155; color:#94a3b8; font-size:13px; font-weight:600; text-decoration:none; transition:all 0.15s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'"><span style="font-size:15px;">🏠</span> 메인화면</a>
+    </div>
     <div class="sidebar-bottom">
       <span id="sb-user"></span>
       <button class="btn-logout-s" onclick="logout()">로그아웃</button>
@@ -235,6 +238,17 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     </div>
 
   </main>
+</div>
+
+<!-- 예약 현황 모달 -->
+<div id="bookings-modal" class="modal-bg">
+  <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <h3 id="bm-title" style="font-size:17px;font-weight:900;"></h3>
+      <button onclick="document.getElementById('bookings-modal').classList.remove('show')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
+    </div>
+    <div id="bm-body"></div>
+  </div>
 </div>
 
 <!-- 반 추가 모달 -->
@@ -634,7 +648,7 @@ async function loadClinics() {
       var slots = {}; try{ slots=JSON.parse(c.slots||'{}'); }catch(e){}
       var dateCount = Object.keys(slots).length;
       return '<tr><td style="font-weight:700;">'+c.name+'</td><td>'+(c.location||'-')+'</td><td>'+dateCount+'일</td><td>'+c.maxPeople+'명</td><td><span style="background:#f0fdf4;color:#16a34a;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">진행중</span></td>'
-        +'<td style="text-align:right;"><button class="btn-sm btn-red" onclick="deleteClinic(\''+c.id+'\')">삭제</button></td></tr>';
+        +'<td style="text-align:right;display:flex;gap:6px;justify-content:flex-end;"><button class="btn-sm btn-blue" onclick="openBookingsModal(\''+c.id+'\',\''+c.name.replace(/'/g,"\\'")+'\')" >예약현황</button><button class="btn-sm btn-red" onclick="deleteClinic(\''+c.id+'\')">삭제</button></td></tr>';
     }).join('');
   } catch(e) { tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:#dc2626;">불러오기 실패</td></tr>'; }
 }
@@ -643,6 +657,44 @@ async function deleteClinic(id) {
   if(!confirm('삭제하시겠습니까?')) return;
   await fetch(SU+'?action=deleteClinic&id='+encodeURIComponent(id));
   loadClinics();
+}
+
+async function openBookingsModal(clinicId, clinicName) {
+  document.getElementById('bm-title').textContent = clinicName + ' 예약 현황';
+  document.getElementById('bm-body').innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;">불러오는 중...</div>';
+  document.getElementById('bookings-modal').classList.add('show');
+  try {
+    var res = await fetch(SU+'?action=getAllBookings&clinicId='+encodeURIComponent(clinicId));
+    var data = await res.json();
+    var bookings = (data.bookings||[]).filter(function(b){ return b.status!=='취소'; });
+    if(!bookings.length) {
+      document.getElementById('bm-body').innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;">예약자가 없습니다.</div>';
+      return;
+    }
+    // 날짜+시간별 그룹핑
+    var grouped = {};
+    bookings.forEach(function(b) {
+      var key = b.date + ' ' + b.time;
+      if(!grouped[key]) grouped[key] = [];
+      grouped[key].push(b);
+    });
+    var keys = Object.keys(grouped).sort();
+    var html = keys.map(function(key) {
+      var list = grouped[key];
+      return '<div style="margin-bottom:14px;">'
+        +'<div style="font-size:13px;font-weight:800;color:#475569;background:#f1f5f9;padding:6px 12px;border-radius:7px;margin-bottom:6px;">📅 '+key+' · '+list.length+'명</div>'
+        +list.map(function(b,i){
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid #f1f5f9;">'
+            +'<span style="font-size:14px;font-weight:700;">'+(i+1)+'. '+b.studentName+'</span>'
+            +'<span style="font-size:12px;color:#94a3b8;">'+b.studentId+'</span>'
+            +'</div>';
+        }).join('')
+        +'</div>';
+    }).join('');
+    document.getElementById('bm-body').innerHTML = html;
+  } catch(e) {
+    document.getElementById('bm-body').innerHTML = '<div style="text-align:center;padding:30px;color:#dc2626;">불러오기 실패</div>';
+  }
 }
 </script>
 </body>

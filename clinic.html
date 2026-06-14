@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>클리닉 신청 | 김민관 수학</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:"맑은 고딕",sans-serif; background:#f1f5f9; color:#1e293b; min-height:100vh; }
+.topbar { background:#1e293b; color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
+.topbar-logo { font-size:15px; font-weight:900; }
+.topbar-logo span { color:#60a5fa; }
+.topbar-right { display:flex; align-items:center; gap:12px; }
+.topbar-user { font-size:13px; color:#94a3b8; }
+.btn-home { background:#334155; color:#fff; border:none; padding:7px 14px; border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; }
+.btn-logout-t { background:none; border:none; color:#64748b; font-size:12px; cursor:pointer; }
+.btn-logout-t:hover { color:#ef4444; }
+.container { max-width:760px; margin:0 auto; padding:32px 20px; }
+.section-title { font-size:20px; font-weight:900; margin-bottom:6px; }
+.section-sub { font-size:13px; color:#64748b; margin-bottom:24px; }
+.clinic-card { background:#fff; border-radius:14px; box-shadow:0 1px 6px rgba(0,0,0,0.07); padding:22px 24px; margin-bottom:14px; cursor:pointer; border:2px solid transparent; transition:all 0.15s; }
+.clinic-card:hover { border-color:#3b82f6; box-shadow:0 4px 16px rgba(59,130,246,0.12); }
+.clinic-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.clinic-card-name { font-size:16px; font-weight:800; margin-bottom:4px; }
+.clinic-card-loc { font-size:13px; color:#64748b; }
+.clinic-card-desc { font-size:13px; color:#475569; margin-top:8px; line-height:1.5; }
+.clinic-badge { background:#f0fdf4; color:#16a34a; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:700; white-space:nowrap; }
+.empty { text-align:center; padding:80px 20px; color:#94a3b8; font-size:15px; }
+.spinner { text-align:center; padding:60px; color:#64748b; font-size:14px; }
+
+/* 예약 탭 */
+.tabs { display:flex; gap:0; border-bottom:2px solid #e2e8f0; margin-bottom:24px; }
+.tab { padding:10px 20px; font-size:14px; font-weight:700; color:#94a3b8; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; }
+.tab.active { color:#2563eb; border-bottom-color:#2563eb; }
+
+/* 내 예약 */
+.booking-card { background:#fff; border-radius:12px; padding:18px 22px; margin-bottom:12px; box-shadow:0 1px 6px rgba(0,0,0,0.07); display:flex; align-items:center; justify-content:space-between; }
+.booking-info { flex:1; }
+.booking-name { font-size:15px; font-weight:800; margin-bottom:4px; }
+.booking-meta { font-size:13px; color:#64748b; }
+.btn-cancel { background:#fef2f2; color:#dc2626; border:1.5px solid #fecaca; padding:7px 14px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.btn-cancel:hover { background:#fee2e2; }
+
+/* 모달 */
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center; }
+.modal-bg.show { display:flex; }
+.modal { background:#fff; border-radius:18px; padding:28px; width:90%; max-width:500px; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.15); }
+.modal-title { font-size:17px; font-weight:900; margin-bottom:4px; }
+.modal-sub { font-size:13px; color:#64748b; margin-bottom:20px; }
+.step-label { font-size:12px; font-weight:700; color:#475569; margin-bottom:10px; background:#f1f5f9; padding:6px 12px; border-radius:6px; display:inline-block; }
+
+/* 달력 */
+.cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.cal-nav button { background:none; border:none; font-size:20px; cursor:pointer; color:#475569; padding:0 6px; }
+.cal-nav span { font-size:15px; font-weight:800; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center; }
+.cal-dow { font-size:11px; font-weight:700; color:#94a3b8; padding:4px 0; }
+.cal-day { padding:8px 4px; font-size:13px; border-radius:8px; cursor:pointer; font-weight:600; transition:all 0.12s; }
+.cal-day:hover:not(.disabled):not(.empty-day) { background:#eff6ff; color:#2563eb; }
+.cal-day.selected { background:#2563eb; color:#fff !important; }
+.cal-day.disabled { color:#d1d5db; cursor:default; }
+.cal-day.empty-day { visibility:hidden; }
+
+/* 시간 슬롯 */
+.time-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+.time-btn { padding:10px 8px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; background:#fff; text-align:center; transition:all 0.12s; }
+.time-btn:hover:not(.full):not(.selected) { border-color:#3b82f6; color:#2563eb; background:#eff6ff; }
+.time-btn.selected { background:#2563eb; color:#fff; border-color:#2563eb; }
+.time-btn.full { background:#f8fafc; color:#cbd5e1; cursor:default; border-color:#e2e8f0; }
+.time-count { font-size:10px; font-weight:500; display:block; margin-top:2px; }
+.modal-btns { display:flex; gap:10px; margin-top:22px; }
+.modal-btns button { flex:1; padding:12px; border:none; border-radius:9px; font-size:14px; font-weight:700; cursor:pointer; }
+.btn-ok { background:#2563eb; color:#fff; }
+.btn-ok:hover { background:#1d4ed8; }
+.btn-cl { background:#f1f5f9; color:#64748b; }
+.btn-cl:hover { background:#e2e8f0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">김민관 <span>수학</span></div>
+  <div class="topbar-right">
+    <span class="topbar-user" id="topbar-user"></span>
+    <a href="index.html" class="btn-home">🏠 홈</a>
+    <button class="btn-logout-t" onclick="logout()">로그아웃</button>
+  </div>
+</div>
+
+<div id="page-denied" style="display:none;text-align:center;padding:80px 20px;">
+  <div style="font-size:48px;margin-bottom:16px;">🔒</div>
+  <h2 style="font-size:18px;font-weight:800;margin-bottom:8px;">로그인이 필요합니다</h2>
+  <p style="color:#64748b;font-size:14px;margin-bottom:20px;">학생 계정으로 로그인 후 이용해주세요.</p>
+  <a href="homework.html" style="background:#2563eb;color:#fff;padding:10px 24px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;">로그인하러 가기</a>
+</div>
+
+<div id="page-main" style="display:none;">
+  <div class="container">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('list',this)">클리닉 신청</div>
+      <div class="tab" onclick="switchTab('mine',this)">내 예약</div>
+    </div>
+
+    <!-- 클리닉 목록 -->
+    <div id="tab-list">
+      <div class="section-title">클리닉 신청</div>
+      <div class="section-sub">원하는 클리닉을 선택하고 날짜와 시간을 예약하세요.</div>
+      <div id="clinic-list"><div class="spinner">불러오는 중...</div></div>
+    </div>
+
+    <!-- 내 예약 -->
+    <div id="tab-mine" style="display:none;">
+      <div class="section-title">내 예약</div>
+      <div class="section-sub">예약을 취소하려면 취소 버튼을 누르세요.</div>
+      <div id="my-bookings"><div class="spinner">불러오는 중...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 예약 모달 -->
+<div id="book-modal" class="modal-bg">
+  <div class="modal">
+    <div class="modal-title" id="bm-title"></div>
+    <div class="modal-sub" id="bm-sub"></div>
+
+    <div id="step-date">
+      <div class="step-label">1단계 · 날짜 선택</div>
+      <div class="cal-nav">
+        <button onclick="calMove(-1)">‹</button>
+        <span id="cal-label"></span>
+        <button onclick="calMove(1)">›</button>
+      </div>
+      <div class="cal-grid">
+        <div class="cal-dow">일</div><div class="cal-dow">월</div><div class="cal-dow">화</div>
+        <div class="cal-dow">수</div><div class="cal-dow">목</div><div class="cal-dow">금</div><div class="cal-dow">토</div>
+        <div id="cal-days"></div>
+      </div>
+    </div>
+
+    <div id="step-time" style="display:none; margin-top:18px;">
+      <div class="step-label">2단계 · 시간 선택 (<span id="sel-date-label"></span>)</div>
+      <div class="time-grid" id="time-grid"></div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="closeBookModal()">취소</button>
+      <button class="btn-ok" id="btn-confirm" onclick="confirmBooking()" style="display:none;">예약 확정</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+let session = null;
+let clinics = [];
+let currentClinic = null;
+let calYear, calMonth;
+let selectedDate = null;
+let selectedTime = null;
+let availableSlots = {}; // { date: [times] }
+let slotCounts = {}; // { date_time: count }
+
+window.addEventListener('DOMContentLoaded', function() {
+  session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+  if (!session) {
+    document.getElementById('page-denied').style.display = 'block';
+    return;
+  }
+  document.getElementById('page-main').style.display = 'block';
+  document.getElementById('topbar-user').textContent = session.name || session.id;
+  loadClinics();
+});
+
+function logout() {
+  localStorage.removeItem('mkmath_session');
+  location.href = 'homework.html';
+}
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-list').style.display = tab === 'list' ? 'block' : 'none';
+  document.getElementById('tab-mine').style.display = tab === 'mine' ? 'block' : 'none';
+  if (tab === 'mine') loadMyBookings();
+}
+
+async function loadClinics() {
+  const area = document.getElementById('clinic-list');
+  try {
+    const res = await fetch(SU + '?action=getClinics');
+    const data = await res.json();
+    clinics = data.clinics || [];
+    if (!clinics.length) {
+      area.innerHTML = '<div class="empty">현재 진행 중인 클리닉이 없습니다.</div>';
+      return;
+    }
+    area.innerHTML = clinics.map(c => {
+      let slots = {}; try { slots = JSON.parse(c.slots || '{}'); } catch(e) {}
+      const dateCount = Object.keys(slots).length;
+      return `<div class="clinic-card" onclick="openBookModal('${c.id}')">
+        <div class="clinic-card-header">
+          <div>
+            <div class="clinic-card-name">${c.name}</div>
+            <div class="clinic-card-loc">📍 ${c.location || '장소 미정'} &nbsp;·&nbsp; ${dateCount}개 날짜 &nbsp;·&nbsp; 최대 ${c.maxPeople}명/시간</div>
+          </div>
+          <span class="clinic-badge">신청가능</span>
+        </div>
+        ${c.desc ? `<div class="clinic-card-desc">${c.desc}</div>` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    area.innerHTML = '<div class="empty">불러오기 실패. 다시 시도해주세요.</div>';
+  }
+}
+
+async function loadMyBookings() {
+  const area = document.getElementById('my-bookings');
+  area.innerHTML = '<div class="spinner">불러오는 중...</div>';
+  try {
+    const res = await fetch(SU + '?action=getBookings&studentId=' + encodeURIComponent(session.id));
+    const data = await res.json();
+    const bookings = data.bookings || [];
+    if (!bookings.length) {
+      area.innerHTML = '<div class="empty">예약한 클리닉이 없습니다.</div>';
+      return;
+    }
+    area.innerHTML = bookings.map(b => `
+      <div class="booking-card">
+        <div class="booking-info">
+          <div class="booking-name">${b.clinicName}</div>
+          <div class="booking-meta">📅 ${b.date} &nbsp; ⏰ ${b.time} &nbsp; <span style="color:${b.status==='취소'?'#dc2626':'#16a34a'};font-weight:700;">${b.status}</span></div>
+        </div>
+        ${b.status !== '취소' ? `<button class="btn-cancel" onclick="cancelBooking('${b.id}')">취소</button>` : ''}
+      </div>
+    `).join('');
+  } catch(e) {
+    area.innerHTML = '<div class="empty">불러오기 실패.</div>';
+  }
+}
+
+async function cancelBooking(bookingId) {
+  if (!confirm('예약을 취소하시겠습니까?')) return;
+  try {
+    await fetch(SU + '?action=cancelBooking&bookingId=' + encodeURIComponent(bookingId));
+    loadMyBookings();
+  } catch(e) {
+    alert('취소 실패. 다시 시도해주세요.');
+  }
+}
+
+// --- 예약 모달 ---
+async function openBookModal(clinicId) {
+  currentClinic = clinics.find(c => c.id === clinicId);
+  if (!currentClinic) return;
+  availableSlots = {};
+  try { availableSlots = JSON.parse(currentClinic.slots || '{}'); } catch(e) {}
+  slotCounts = {};
+  selectedDate = null;
+  selectedTime = null;
+
+  document.getElementById('bm-title').textContent = currentClinic.name;
+  document.getElementById('bm-sub').textContent = '📍 ' + (currentClinic.location || '') + (currentClinic.desc ? ' · ' + currentClinic.desc : '');
+  document.getElementById('step-time').style.display = 'none';
+  document.getElementById('btn-confirm').style.display = 'none';
+
+  // 달력 초기 월 = 가장 빠른 날짜
+  const dates = Object.keys(availableSlots).sort();
+  if (dates.length) {
+    const first = new Date(dates[0]);
+    calYear = first.getFullYear();
+    calMonth = first.getMonth();
+  } else {
+    const now = new Date();
+    calYear = now.getFullYear();
+    calMonth = now.getMonth();
+  }
+
+  // 예약 인원 미리 불러오기
+  try {
+    const res = await fetch(SU + '?action=getSlotCount&clinicId=' + encodeURIComponent(clinicId));
+    const data = await res.json();
+    slotCounts = data.counts || {};
+  } catch(e) {}
+
+  renderCal();
+  document.getElementById('book-modal').classList.add('show');
+}
+
+function closeBookModal() {
+  document.getElementById('book-modal').classList.remove('show');
+}
+
+function calMove(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCal();
+}
+
+function renderCal() {
+  const label = calYear + '년 ' + (calMonth + 1) + '월';
+  document.getElementById('cal-label').textContent = label;
+
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const days = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let html = '';
+  for (let i = 0; i < first; i++) html += '<div class="cal-day empty-day"></div>';
+  for (let d = 1; d <= days; d++) {
+    const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const dt = new Date(calYear, calMonth, d);
+    const isAvail = !!availableSlots[dateStr];
+    const isPast = dt < today;
+    let cls = 'cal-day';
+    if (!isAvail || isPast) cls += ' disabled';
+    if (dateStr === selectedDate) cls += ' selected';
+    const click = (!isAvail || isPast) ? '' : `onclick="selectDate('${dateStr}')"`;
+    html += `<div class="${cls}" ${click}>${d}</div>`;
+  }
+  document.getElementById('cal-days').innerHTML = html;
+}
+
+function selectDate(dateStr) {
+  selectedDate = dateStr;
+  selectedTime = null;
+  document.getElementById('btn-confirm').style.display = 'none';
+  renderCal();
+  renderTimes();
+  document.getElementById('step-time').style.display = 'block';
+  const [y,m,d] = dateStr.split('-');
+  document.getElementById('sel-date-label').textContent = y+'년 '+parseInt(m)+'월 '+parseInt(d)+'일';
+}
+
+function renderTimes() {
+  const times = availableSlots[selectedDate] || [];
+  const max = parseInt(currentClinic.maxPeople) || 10;
+  document.getElementById('time-grid').innerHTML = times.map(t => {
+    const key = selectedDate + '_' + t;
+    const count = slotCounts[key] || 0;
+    const isFull = count >= max;
+    const isSel = t === selectedTime;
+    let cls = 'time-btn' + (isFull ? ' full' : '') + (isSel ? ' selected' : '');
+    const click = isFull ? '' : `onclick="selectTime('${t}')"`;
+    return `<div class="${cls}" ${click}>${t}<span class="time-count">${isFull ? '마감' : count+'/'+max+'명'}</span></div>`;
+  }).join('');
+}
+
+function selectTime(t) {
+  selectedTime = t;
+  renderTimes();
+  document.getElementById('btn-confirm').style.display = 'block';
+}
+
+async function confirmBooking() {
+  if (!selectedDate || !selectedTime) return;
+  const btn = document.getElementById('btn-confirm');
+  btn.disabled = true; btn.textContent = '예약 중...';
+  try {
+    const params = new URLSearchParams({
+      action: 'bookClinic',
+      clinicId: currentClinic.id,
+      clinicName: currentClinic.name,
+      studentId: session.id,
+      studentName: session.name || session.id,
+      date: selectedDate,
+      time: selectedTime
+    });
+    const res = await fetch(SU + '?' + params.toString());
+    const data = await res.json();
+    if (data.success) {
+      closeBookModal();
+      alert('예약이 완료되었습니다!\n' + selectedDate + ' ' + selectedTime);
+      switchTab('mine', document.querySelectorAll('.tab')[1]);
+    } else {
+      alert(data.message || '예약 실패. 다시 시도해주세요.');
+    }
+  } catch(e) {
+    alert('오류가 발생했습니다.');
+  }
+  btn.disabled = false; btn.textContent = '예약 확정';
+}
+</script>
+</body>
+</html>
