@@ -151,6 +151,29 @@ body { font-family:"맑은 고딕",sans-serif; background:#f1f5f9; color:#1e293b
 <script>
 const SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 let session = null;
+
+function fmtDate(v) {
+  if (!v) return '-';
+  // ISO 형식이면 날짜만 추출
+  const s = String(v);
+  const m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[1] + '년 ' + parseInt(m[2]) + '월 ' + parseInt(m[3]) + '일';
+  return s;
+}
+function fmtTime(v) {
+  if (!v) return '-';
+  const s = String(v);
+  // HH:MM 형식이면 그대로
+  if (/^\d{2}:\d{2}$/.test(s)) return s;
+  // ISO 형식이면 시간 추출 후 KST 변환
+  const m = s.match(/T(\d{2}):(\d{2})/);
+  if (m) {
+    let h = parseInt(m[1]) + 9; // UTC→KST
+    if (h >= 24) h -= 24;
+    return String(h).padStart(2,'0') + ':' + m[2];
+  }
+  return s;
+}
 let clinics = [];
 let currentClinic = null;
 let calYear, calMonth;
@@ -226,8 +249,8 @@ async function loadMyBookings() {
     area.innerHTML = bookings.map(b => `
       <div class="booking-card">
         <div class="booking-info">
-          <div class="booking-name">${b.clinicName}</div>
-          <div class="booking-meta">📅 ${b.date} &nbsp; ⏰ ${b.time} &nbsp; <span style="color:${b.status==='취소'?'#dc2626':'#16a34a'};font-weight:700;">${b.status}</span></div>
+          <div class="booking-name">${b.clinicName || '클리닉'}</div>
+          <div class="booking-meta">📅 ${fmtDate(b.date)} &nbsp; ⏰ ${fmtTime(b.time)} &nbsp; <span style="color:${b.status==='취소'?'#dc2626':'#16a34a'};font-weight:700;">${b.status==='confirmed'?'예약완료':b.status==='취소'?'취소됨':'예약완료'}</span></div>
         </div>
         ${b.status !== '취소' ? `<button class="btn-cancel" onclick="cancelBooking('${b.id}')">취소</button>` : ''}
       </div>
