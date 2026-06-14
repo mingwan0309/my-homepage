@@ -989,6 +989,21 @@
   </div>
 </div>
 
+<!-- 로그인 모달 -->
+<div id="login-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:20px; padding:36px; width:90%; max-width:400px; position:relative;">
+    <button onclick="closeLoginModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">✕</button>
+    <h3 style="font-size:20px; font-weight:900; margin-bottom:6px;">로그인</h3>
+    <p style="font-size:13px; color:#64748b; margin-bottom:24px;">김민관 수학 계정으로 로그인하세요</p>
+    <div id="login-modal-msg"></div>
+    <label style="font-size:13px; font-weight:700; color:#475569; display:block; margin-bottom:6px;">아이디</label>
+    <input id="login-modal-id" type="text" placeholder="아이디 입력" style="width:100%; padding:12px 14px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:15px; margin-bottom:14px; box-sizing:border-box; outline:none;">
+    <label style="font-size:13px; font-weight:700; color:#475569; display:block; margin-bottom:6px;">비밀번호</label>
+    <input id="login-modal-pw" type="password" placeholder="비밀번호 입력" style="width:100%; padding:12px 14px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:15px; margin-bottom:20px; box-sizing:border-box; outline:none;" onkeydown="if(event.key==='Enter')doLoginModal()">
+    <button onclick="doLoginModal()" style="width:100%; padding:14px; background:#2563eb; color:#fff; border:none; border-radius:10px; font-size:16px; font-weight:700; cursor:pointer;">로그인</button>
+  </div>
+</div>
+
 <!-- 후기 모달 -->
 <div id="review-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
   <div style="background:#fff; border-radius:20px; padding:36px; width:90%; max-width:440px; position:relative;">
@@ -1140,25 +1155,75 @@
   })();
 </script>
 <script>
-  // 로그인 상태에 따라 버튼 변경
-  (function() {
+  function openLoginModal() {
+    document.getElementById('login-modal').style.display = 'flex';
+    document.getElementById('login-modal-msg').innerHTML = '';
+    document.getElementById('login-modal-id').value = '';
+    document.getElementById('login-modal-pw').value = '';
+    setTimeout(function(){ document.getElementById('login-modal-id').focus(); }, 100);
+  }
+  function closeLoginModal() {
+    document.getElementById('login-modal').style.display = 'none';
+  }
+  async function doLoginModal() {
+    const id = document.getElementById('login-modal-id').value.trim();
+    const pw = document.getElementById('login-modal-pw').value;
+    const msg = document.getElementById('login-modal-msg');
+    if (!id || !pw) { msg.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">아이디와 비밀번호를 입력하세요</p>'; return; }
+    msg.innerHTML = '<p style="color:#64748b;font-size:13px;margin-bottom:12px;">로그인 중...</p>';
+    try {
+      const res = await fetch(SCRIPT_URL + '?action=login&id=' + encodeURIComponent(id) + '&password=' + encodeURIComponent(pw));
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('mkmath_session', JSON.stringify({ id, role: data.role, name: data.name }));
+        closeLoginModal();
+        if (data.role === 'teacher') {
+          location.href = 'admin.html';
+        } else {
+          // 학생: 메인화면 그대로, 버튼만 업데이트
+          updateLoginBtn();
+        }
+      } else {
+        msg.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">아이디 또는 비밀번호가 틀렸습니다</p>';
+      }
+    } catch(e) {
+      msg.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">연결 오류가 발생했습니다</p>';
+    }
+  }
+
+  function updateLoginBtn() {
     const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
     const btn = document.getElementById('nav-login-btn');
     if (session) {
-      btn.textContent = '🔓 로그아웃';
+      btn.textContent = '🔓 ' + (session.name || session.id);
       btn.style.background = '#f1f5f9';
       btn.style.color = '#1e293b';
       btn.href = '#';
       btn.onclick = function(e) {
         e.preventDefault();
         localStorage.removeItem('mkmath_session');
-        btn.textContent = '🔐 로그인';
-        btn.style.background = '';
-        btn.style.color = '';
-        btn.href = 'homework.html';
-        btn.onclick = null;
+        updateLoginBtn();
       };
+      if (session.role === 'teacher') {
+        document.getElementById('admin-bar').style.display = 'flex';
+        document.getElementById('review-manage-btn').style.display = 'block';
+      }
+    } else {
+      btn.textContent = '🔐 로그인';
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.href = '#';
+      btn.onclick = function(e) { e.preventDefault(); openLoginModal(); };
+      document.getElementById('admin-bar').style.display = 'none';
     }
+  }
+
+  // 로그인 상태에 따라 버튼 변경
+  (function() {
+    const btn = document.getElementById('nav-login-btn');
+    btn.href = '#';
+    btn.onclick = function(e) { e.preventDefault(); openLoginModal(); };
+    updateLoginBtn();
   })();
 
   // 학생 드롭다운
