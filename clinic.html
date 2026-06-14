@@ -130,12 +130,9 @@ body { font-family:"맑은 고딕",sans-serif; background:#f1f5f9; color:#1e293b
         <span id="cal-label"></span>
         <button onclick="calMove(1)">›</button>
       </div>
-      <div id="cal-grid-wrap">
-        <div class="cal-grid">
-          <div class="cal-dow">일</div><div class="cal-dow">월</div><div class="cal-dow">화</div>
-          <div class="cal-dow">수</div><div class="cal-dow">목</div><div class="cal-dow">금</div><div class="cal-dow">토</div>
-        </div>
-        <div id="cal-days" class="cal-grid"></div>
+      <div id="cal-days" class="cal-grid">
+        <div class="cal-dow">일</div><div class="cal-dow">월</div><div class="cal-dow">화</div>
+        <div class="cal-dow">수</div><div class="cal-dow">목</div><div class="cal-dow">금</div><div class="cal-dow">토</div>
       </div>
     </div>
 
@@ -320,7 +317,10 @@ function renderCal() {
     const click = (!isAvail || isPast) ? '' : `onclick="selectDate('${dateStr}')"`;
     html += `<div class="${cls}" ${click}>${d}</div>`;
   }
-  document.getElementById('cal-days').innerHTML = html;
+  const grid = document.getElementById('cal-days');
+  // 요일 헤더(첫 7개 자식) 유지하고 날짜만 교체
+  while (grid.children.length > 7) grid.removeChild(grid.lastChild);
+  grid.insertAdjacentHTML('beforeend', html);
 }
 
 function selectDate(dateStr) {
