@@ -306,12 +306,13 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div style="font-size:12px;font-weight:700;color:#94a3b8;">금</div>
       <div style="font-size:12px;font-weight:700;color:#94a3b8;">토</div>
     </div>
+    <div id="cal-click-hint" style="font-size:11px;color:#f59e0b;font-weight:700;text-align:center;margin-bottom:6px;">시작 날짜를 클릭하세요</div>
     <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:20px;"></div>
     <!-- 시간 슬롯 -->
     <div id="time-slot-section" style="display:none;">
-      <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:#475569;">시간 선택 <span id="sel-date-label" style="color:#2563eb;"></span></div>
-      <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">드래그로 범위 선택 · 다시 드래그하면 해제</div>
-      <div id="time-slots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:220px;overflow-y:auto;user-select:none;"></div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:#475569;">시간 선택 <span id="sel-date-label" style="color:#2563eb;"></span></div>
+      <div id="slot-click-hint" style="font-size:11px;color:#f59e0b;font-weight:700;margin-bottom:8px;">시작 시간을 클릭하세요</div>
+      <div id="time-slots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:220px;overflow-y:auto;"></div>
       <div class="modal-btns" style="margin-top:16px;">
         <button class="btn-cl" onclick="closeClinicCal()">취소</button>
         <button class="btn-ok" onclick="confirmDateSlots()">확인</button>
@@ -517,10 +518,13 @@ function showMsg(el,text,type){el.innerHTML='<div class="msg '+type+'">'+text+'<
 // ── 클리닉 관리 ──
 var clinicDateSlots = {};
 var calYear, calMonth, calTempSlots = [];
-var calSelectedDates = []; // 다중 날짜 선택
+var calSelectedDates = [];
+var calClickFirst = null; // 날짜 첫 번째 클릭
 
-// 날짜 드래그 상태
-var calDragStart = null, calDragMode = 'add', calDragging = false;
+var allTimeSlots = (function(){
+  var s=[]; for(var h=9;h<=21;h++){s.push(String(h).padStart(2,'0')+':00');s.push(String(h).padStart(2,'0')+':30');} s.push('22:00'); return s;
+})();
+var slotClickFirst = null; // 시간 첫 번째 클릭
 
 function openClinicModal() {
   clinicDateSlots = {};
@@ -534,7 +538,7 @@ function closeClinicModal() { document.getElementById('clinic-modal').classList.
 function openClinicCal() {
   var now = new Date();
   calYear = now.getFullYear(); calMonth = now.getMonth();
-  calSelectedDates = []; calTempSlots = [];
+  calSelectedDates = []; calTempSlots = []; calClickFirst = null; slotClickFirst = null;
   document.getElementById('time-slot-section').style.display = 'none';
   document.getElementById('time-slot-hint').style.display = 'block';
   document.getElementById('clinic-cal-modal').classList.add('show');
@@ -544,7 +548,7 @@ function closeClinicCal() { document.getElementById('clinic-cal-modal').classLis
 
 function calMove(dir) { calMonth += dir; if(calMonth>11){calMonth=0;calYear++;}else if(calMonth<0){calMonth=11;calYear--;} renderCal(); }
 
-function dateStr(y,m,d) { return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
+function toDateStr(y,m,d) { return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
 
 function renderCal() {
   var label = calYear+'년 '+(calMonth+1)+'월';
@@ -555,58 +559,62 @@ function renderCal() {
   var html = '';
   for(var i=0;i<first;i++) html += '<div></div>';
   for(var d=1;d<=days;d++) {
-    var ds = dateStr(calYear, calMonth, d);
+    var ds = toDateStr(calYear, calMonth, d);
     var dt = new Date(calYear, calMonth, d);
     var isPast = dt < today;
     var hasSlots = clinicDateSlots[ds] && clinicDateSlots[ds].length > 0;
     var isSelected = calSelectedDates.indexOf(ds) >= 0;
-    var style = 'padding:8px 4px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;';
+    var isFirst = calClickFirst === ds;
+    var style = 'padding:8px 4px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;transition:all 0.1s;';
     if(isPast) { style += 'color:#cbd5e1;cursor:default;'; }
+    else if(isFirst) { style += 'background:#f59e0b;color:#fff;cursor:pointer;'; }
     else if(isSelected) { style += 'background:#2563eb;color:#fff;cursor:pointer;'; }
     else if(hasSlots) { style += 'background:#dbeafe;color:#2563eb;cursor:pointer;'; }
     else { style += 'color:#1e293b;cursor:pointer;'; }
     var dot = hasSlots && !isSelected ? '<div style="width:5px;height:5px;background:#2563eb;border-radius:50%;margin:2px auto 0;"></div>' : '';
-    var evts = isPast ? '' : ' onmousedown="calDragStart(event,\''+ds+'\')" onmouseover="calDragOver(\''+ds+'\')"';
-    html += '<div style="'+style+'"'+evts+' data-date="'+ds+'">'+d+dot+'</div>';
+    var onclick = isPast ? '' : ' onclick="clickCalDate(\''+ds+'\')"';
+    html += '<div style="'+style+'"'+onclick+'>'+d+dot+'</div>';
   }
   document.getElementById('cal-grid').innerHTML = html;
+
+  // 힌트 표시
+  var hint = document.getElementById('cal-click-hint');
+  if(hint) hint.textContent = calClickFirst ? '두 번째 날짜를 클릭하세요 (범위 선택)' : '시작 날짜를 클릭하세요';
 }
 
-function calDragStart(e, ds) {
-  e.preventDefault();
-  calDragging = true;
-  calDragStart = ds;
-  calDragMode = calSelectedDates.indexOf(ds) >= 0 ? 'remove' : 'add';
-  applyCalDrag(ds, ds);
-  document.addEventListener('mouseup', calDragEnd, {once:true});
-}
-
-function calDragOver(ds) {
-  if(!calDragging) return;
-  applyCalDrag(calDragStart, ds);
-}
-
-function applyCalDrag(fromDs, toDs) {
-  var a = new Date(fromDs), b = new Date(toDs);
-  if(a > b) { var tmp=a; a=b; b=tmp; }
-  var cur = new Date(a);
-  var today = new Date(); today.setHours(0,0,0,0);
-  while(cur <= b) {
-    var y=cur.getFullYear(), m=cur.getMonth(), d=cur.getDate();
-    if(cur >= today) {
-      var ds2 = dateStr(y,m,d);
-      var idx = calSelectedDates.indexOf(ds2);
-      if(calDragMode==='add' && idx<0) calSelectedDates.push(ds2);
-      if(calDragMode==='remove' && idx>=0) calSelectedDates.splice(idx,1);
+function clickCalDate(ds) {
+  if(!calClickFirst) {
+    // 첫 번째 클릭: 시작점 지정
+    calClickFirst = ds;
+    renderCal();
+  } else if(calClickFirst === ds) {
+    // 같은 날짜 다시 클릭: 단일 토글
+    calClickFirst = null;
+    var idx = calSelectedDates.indexOf(ds);
+    if(idx >= 0) calSelectedDates.splice(idx, 1);
+    else calSelectedDates.push(ds);
+    renderCal();
+    updateTimeSection();
+  } else {
+    // 두 번째 클릭: 범위 적용
+    var a = new Date(calClickFirst), b = new Date(ds);
+    if(a > b) { var tmp=a; a=b; b=tmp; }
+    var today = new Date(); today.setHours(0,0,0,0);
+    var mode = calSelectedDates.indexOf(calClickFirst) >= 0 ? 'remove' : 'add';
+    var cur = new Date(a);
+    while(cur <= b) {
+      if(cur >= today) {
+        var ds2 = toDateStr(cur.getFullYear(), cur.getMonth(), cur.getDate());
+        var idx2 = calSelectedDates.indexOf(ds2);
+        if(mode==='add' && idx2<0) calSelectedDates.push(ds2);
+        if(mode==='remove' && idx2>=0) calSelectedDates.splice(idx2,1);
+      }
+      cur.setDate(cur.getDate()+1);
     }
-    cur.setDate(cur.getDate()+1);
+    calClickFirst = null;
+    renderCal();
+    updateTimeSection();
   }
-  renderCal();
-  updateTimeSection();
-}
-
-function calDragEnd() {
-  calDragging = false;
 }
 
 function updateTimeSection() {
@@ -619,47 +627,52 @@ function updateTimeSection() {
   document.getElementById('sel-date-label').textContent = sorted.length===1 ? sorted[0] : sorted[0]+' 외 '+(sorted.length-1)+'일';
   document.getElementById('time-slot-section').style.display = 'block';
   document.getElementById('time-slot-hint').style.display = 'none';
-  // 첫 선택 날짜의 기존 슬롯 불러오기 (없으면 빈 배열)
   if(calTempSlots.length === 0) calTempSlots = (clinicDateSlots[sorted[0]] || []).slice();
   renderTimeSlots();
 }
 
-var allTimeSlots = (function(){
-  var s=[]; for(var h=9;h<=21;h++){s.push(String(h).padStart(2,'0')+':00');s.push(String(h).padStart(2,'0')+':30');} s.push('22:00'); return s;
-})();
-var slotDragStartIdx = -1, slotDragMode = 'add';
-
 function renderTimeSlots() {
   document.getElementById('time-slots').innerHTML = allTimeSlots.map(function(s,i) {
     var sel = calTempSlots.indexOf(s) >= 0;
-    return '<div onmousedown="slotDragStart(event,'+i+')" onmouseover="slotDragOver(event,'+i+')" '
-      +'style="padding:8px 4px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;cursor:pointer;border:1.5px solid '+(sel?'#2563eb':'#e2e8f0')+';background:'+(sel?'#2563eb':'#fff')+';color:'+(sel?'#fff':'#475569')+';">'+s+'</div>';
+    var isFirst = slotClickFirst === i;
+    var bg = isFirst ? '#f59e0b' : (sel ? '#2563eb' : '#fff');
+    var border = isFirst ? '#f59e0b' : (sel ? '#2563eb' : '#e2e8f0');
+    var color = (isFirst || sel) ? '#fff' : '#475569';
+    return '<div onclick="clickSlot('+i+')" '
+      +'style="padding:8px 4px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;cursor:pointer;border:1.5px solid '+border+';background:'+bg+';color:'+color+';transition:all 0.1s;">'+s+'</div>';
   }).join('');
+
+  var hint = document.getElementById('slot-click-hint');
+  if(hint) hint.textContent = slotClickFirst !== null ? '끝 시간을 클릭하세요' : '시작 시간을 클릭하세요';
 }
 
-function slotDragStart(e, idx) {
-  e.preventDefault();
-  slotDragStartIdx = idx;
-  slotDragMode = calTempSlots.indexOf(allTimeSlots[idx]) >= 0 ? 'remove' : 'add';
-  applySlotDrag(idx, idx);
-  document.addEventListener('mouseup', function(){ slotDragStartIdx = -1; }, {once:true});
-}
-
-function slotDragOver(e, idx) {
-  if(slotDragStartIdx < 0) return;
-  applySlotDrag(slotDragStartIdx, idx);
-}
-
-function applySlotDrag(from, to) {
-  var a = Math.min(from,to), b = Math.max(from,to);
-  for(var i=a;i<=b;i++){
-    var s = allTimeSlots[i];
-    var idx2 = calTempSlots.indexOf(s);
-    if(slotDragMode==='add' && idx2<0) calTempSlots.push(s);
-    if(slotDragMode==='remove' && idx2>=0) calTempSlots.splice(idx2,1);
+function clickSlot(idx) {
+  if(slotClickFirst === null) {
+    // 첫 번째 클릭
+    slotClickFirst = idx;
+    renderTimeSlots();
+  } else if(slotClickFirst === idx) {
+    // 같은 거 다시: 단일 토글
+    var s = allTimeSlots[idx];
+    var i2 = calTempSlots.indexOf(s);
+    if(i2>=0) calTempSlots.splice(i2,1); else calTempSlots.push(s);
+    calTempSlots.sort();
+    slotClickFirst = null;
+    renderTimeSlots();
+  } else {
+    // 두 번째 클릭: 범위 적용
+    var a = Math.min(slotClickFirst, idx), b = Math.max(slotClickFirst, idx);
+    var mode = calTempSlots.indexOf(allTimeSlots[slotClickFirst]) >= 0 ? 'remove' : 'add';
+    for(var i=a;i<=b;i++) {
+      var s2 = allTimeSlots[i];
+      var i3 = calTempSlots.indexOf(s2);
+      if(mode==='add' && i3<0) calTempSlots.push(s2);
+      if(mode==='remove' && i3>=0) calTempSlots.splice(i3,1);
+    }
+    calTempSlots.sort();
+    slotClickFirst = null;
+    renderTimeSlots();
   }
-  calTempSlots.sort();
-  renderTimeSlots();
 }
 
 function confirmDateSlots() {
@@ -668,7 +681,7 @@ function confirmDateSlots() {
     if(calTempSlots.length === 0) delete clinicDateSlots[ds];
     else clinicDateSlots[ds] = calTempSlots.slice();
   });
-  calSelectedDates = []; calTempSlots = [];
+  calSelectedDates = []; calTempSlots = []; calClickFirst = null; slotClickFirst = null;
   closeClinicCal();
   renderClinicDatesList();
 }
