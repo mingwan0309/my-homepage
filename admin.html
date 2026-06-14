@@ -310,7 +310,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <!-- 시간 슬롯 -->
     <div id="time-slot-section" style="display:none;">
       <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:#475569;">시간 선택 <span id="sel-date-label" style="color:#2563eb;"></span></div>
-      <div id="time-slots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:200px;overflow-y:auto;"></div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">드래그로 범위 선택 · 다시 드래그하면 해제</div>
+      <div id="time-slots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:220px;overflow-y:auto;user-select:none;"></div>
       <div class="modal-btns" style="margin-top:16px;">
         <button class="btn-cl" onclick="closeClinicCal()">취소</button>
         <button class="btn-ok" onclick="confirmDateSlots()">확인</button>
@@ -573,21 +574,51 @@ function selectCalDate(dateStr) {
   renderCal();
 }
 
+var allTimeSlots = (function(){
+  var s=[]; for(var h=9;h<=21;h++){s.push(String(h).padStart(2,'0')+':00');s.push(String(h).padStart(2,'0')+':30');} s.push('22:00'); return s;
+})();
+var dragStartIdx = -1, dragMode = 'add'; // add or remove
+
 function renderTimeSlots() {
-  var slots = [];
-  for(var h=9;h<=21;h++) { slots.push(String(h).padStart(2,'0')+':00'); slots.push(String(h).padStart(2,'0')+':30'); }
-  slots.push('22:00');
-  document.getElementById('time-slots').innerHTML = slots.map(function(s) {
+  document.getElementById('time-slots').innerHTML = allTimeSlots.map(function(s,i) {
     var sel = calTempSlots.indexOf(s) >= 0;
-    return '<div onclick="toggleSlot(\''+s+'\')" style="padding:8px 4px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;cursor:pointer;border:1.5px solid '+(sel?'#2563eb':'#e2e8f0')+';background:'+(sel?'#2563eb':'#fff')+';color:'+(sel?'#fff':'#475569')+';">'+s+'</div>';
+    return '<div data-idx="'+i+'" data-slot="'+s+'" '
+      +'onmousedown="slotDragStart(event,'+i+')" '
+      +'onmouseover="slotDragOver(event,'+i+')" '
+      +'style="padding:8px 4px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;cursor:pointer;border:1.5px solid '+(sel?'#2563eb':'#e2e8f0')+';background:'+(sel?'#2563eb':'#fff')+';color:'+(sel?'#fff':'#475569')+';">'+s+'</div>';
   }).join('');
 }
 
-function toggleSlot(s) {
-  var idx = calTempSlots.indexOf(s);
-  if(idx>=0) calTempSlots.splice(idx,1); else calTempSlots.push(s);
+function slotDragStart(e, idx) {
+  e.preventDefault();
+  dragStartIdx = idx;
+  var s = allTimeSlots[idx];
+  dragMode = calTempSlots.indexOf(s) >= 0 ? 'remove' : 'add';
+  applyDrag(idx, idx);
+  document.addEventListener('mouseup', slotDragEnd, {once:true});
+}
+
+function slotDragOver(e, idx) {
+  if(dragStartIdx < 0) return;
+  applyDrag(dragStartIdx, idx);
+}
+
+function applyDrag(from, to) {
+  var a = Math.min(from,to), b = Math.max(from,to);
+  var base = calTempSlots.slice();
+  // restore to pre-drag state isn't tracked, so just apply range
+  for(var i=a;i<=b;i++){
+    var s = allTimeSlots[i];
+    var idx2 = calTempSlots.indexOf(s);
+    if(dragMode==='add' && idx2<0) calTempSlots.push(s);
+    if(dragMode==='remove' && idx2>=0) calTempSlots.splice(idx2,1);
+  }
   calTempSlots.sort();
   renderTimeSlots();
+}
+
+function slotDragEnd() {
+  dragStartIdx = -1;
 }
 
 function confirmDateSlots() {
