@@ -1,82 +1,443 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: '맑은 고딕', sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .container { width: 90%; max-width: 520px; padding: 40px 0; }
-  .header { text-align: center; margin-bottom: 40px; }
-  .header h1 { font-size: 26px; font-weight: 900; margin-bottom: 8px; }
-  .header p { font-size: 14px; color: #64748b; }
-  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .card {
-    background: #fff; border: 1.5px solid #e2e8f0; border-radius: 18px;
-    padding: 36px 24px; text-align: center; text-decoration: none; color: #1e293b;
-    transition: box-shadow 0.2s, transform 0.2s;
-    cursor: pointer;
-  }
-  .card:hover { box-shadow: 0 8px 28px rgba(37,99,235,0.12); transform: translateY(-3px); border-color: #2563eb; }
-  .card .icon { font-size: 44px; margin-bottom: 16px; }
-  .card h2 { font-size: 17px; font-weight: 800; margin-bottom: 6px; }
-  .card p { font-size: 13px; color: #64748b; line-height: 1.6; }
-  .back { display: block; text-align: center; margin-top: 32px; font-size: 13px; color: #94a3b8; text-decoration: none; }
-  .back:hover { color: #2563eb; }
-  .denied { text-align: center; }
-  .denied h2 { font-size: 20px; font-weight: 800; color: #dc2626; margin-bottom: 10px; }
-  .denied p { font-size: 14px; color: #64748b; margin-bottom: 20px; }
-  .denied a { background: #2563eb; color: #fff; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:"맑은 고딕",sans-serif; background:#f1f5f9; color:#1e293b; display:flex; min-height:100vh; }
+.sidebar { width:210px; min-height:100vh; background:#1e293b; color:#fff; display:flex; flex-direction:column; position:fixed; left:0; top:0; bottom:0; z-index:100; }
+.sidebar-logo { padding:22px 20px; font-size:16px; font-weight:900; border-bottom:1px solid #334155; }
+.sidebar-logo span { color:#60a5fa; }
+.sidebar-nav { flex:1; padding:10px 0; }
+.nav-item { display:flex; align-items:center; gap:12px; padding:12px 20px; cursor:pointer; font-size:14px; font-weight:600; color:#94a3b8; transition:all 0.15s; border-left:3px solid transparent; user-select:none; }
+.nav-item:hover { background:#334155; color:#fff; }
+.nav-item.active { background:#334155; color:#fff; border-left-color:#60a5fa; }
+.nav-item .ni { font-size:17px; width:22px; text-align:center; }
+.sidebar-bottom { padding:14px 20px; border-top:1px solid #334155; display:flex; align-items:center; justify-content:space-between; }
+.sidebar-bottom span { font-size:13px; color:#94a3b8; }
+.btn-logout-s { background:none; border:none; color:#64748b; font-size:12px; cursor:pointer; }
+.btn-logout-s:hover { color:#ef4444; }
+.main { margin-left:210px; flex:1; padding:36px 40px; }
+.page { display:none; }
+.page.active { display:block; }
+.page-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:24px; }
+.page-title { font-size:22px; font-weight:900; }
+.tabs { display:flex; gap:0; border-bottom:2px solid #e2e8f0; margin-top:10px; }
+.tab { padding:8px 16px; font-size:13px; font-weight:700; color:#94a3b8; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; }
+.tab.active { color:#2563eb; border-bottom-color:#2563eb; }
+.table-wrap { background:#fff; border-radius:12px; box-shadow:0 1px 6px rgba(0,0,0,0.07); overflow:hidden; }
+table { width:100%; border-collapse:collapse; }
+th { padding:11px 16px; text-align:left; font-size:12px; font-weight:700; color:#64748b; background:#f8fafc; border-bottom:1px solid #e2e8f0; }
+td { padding:13px 16px; font-size:14px; border-bottom:1px solid #f1f5f9; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:#f8fafc; }
+.badge { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:9px; font-size:11px; font-weight:800; color:#fff; margin-right:10px; flex-shrink:0; }
+.class-cell { display:flex; align-items:center; }
+.btn-primary { background:#2563eb; color:#fff; border:none; padding:10px 18px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.btn-primary:hover { background:#1d4ed8; }
+.btn-sm { padding:5px 12px; font-size:12px; font-weight:700; border-radius:6px; cursor:pointer; border:none; }
+.btn-red { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+.btn-red:hover { background:#fee2e2; }
+.btn-blue { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+.btn-blue:hover { background:#dbeafe; }
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:999; align-items:center; justify-content:center; }
+.modal-bg.show { display:flex; }
+.modal { background:#fff; border-radius:18px; padding:32px; width:90%; max-width:420px; box-shadow:0 8px 32px rgba(0,0,0,0.15); }
+.modal h3 { font-size:17px; font-weight:900; margin-bottom:22px; }
+.fg { margin-bottom:14px; }
+.fg label { display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:5px; }
+.fg input, .fg textarea, .fg select { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9px; font-size:14px; outline:none; font-family:inherit; }
+.fg input:focus, .fg textarea:focus { border-color:#2563eb; }
+.fg-row { display:flex; gap:10px; }
+.fg-row .fg { flex:1; }
+.modal-btns { display:flex; gap:10px; margin-top:20px; }
+.modal-btns button { flex:1; padding:11px; border:none; border-radius:9px; font-size:14px; font-weight:700; cursor:pointer; }
+.btn-ok { background:#2563eb; color:#fff; }
+.btn-ok:hover { background:#1d4ed8; }
+.btn-cl { background:#f1f5f9; color:#64748b; }
+.btn-cl:hover { background:#e2e8f0; }
+.card { background:#fff; border-radius:12px; padding:24px 28px; box-shadow:0 1px 6px rgba(0,0,0,0.07); margin-bottom:18px; }
+.card-title { font-size:15px; font-weight:800; margin-bottom:16px; }
+.fr { display:flex; gap:12px; }
+.fr .fg { flex:1; }
+inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9px; font-size:14px; outline:none; font-family:inherit; }
+.msg { padding:9px 13px; border-radius:8px; font-size:13px; margin-top:8px; }
+.msg.error { background:#fef2f2; color:#dc2626; }
+.msg.success { background:#f0fdf4; color:#16a34a; }
+.msg.info { background:#eff6ff; color:#2563eb; }
+.excel-row { display:flex; gap:10px; margin-bottom:8px; }
+.excel-row > * { flex:1; display:flex; align-items:center; justify-content:center; }
+.btn-green { background:#16a34a; color:#fff; border:none; padding:10px 14px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; }
+.btn-green:hover { background:#15803d; }
+.btn-ob { background:#fff; color:#2563eb; border:1.5px solid #2563eb; padding:10px 14px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; }
+.btn-ob:hover { background:#eff6ff; }
+.srow { display:flex; justify-content:space-between; align-items:center; padding:11px 13px; background:#f8fafc; border-radius:8px; margin-bottom:7px; font-size:14px; }
+.srow .sub { color:#64748b; font-size:12px; margin-top:2px; }
+.placeholder { text-align:center; padding:80px 20px; color:#94a3b8; }
+.placeholder .pi { font-size:48px; margin-bottom:14px; }
+.placeholder h3 { font-size:17px; font-weight:800; color:#64748b; margin-bottom:8px; }
+.link-cards { display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:540px; }
+.lcard { background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; padding:28px 20px; text-align:center; text-decoration:none; color:#1e293b; transition:all 0.2s; cursor:pointer; display:block; }
+.lcard:hover { border-color:#2563eb; box-shadow:0 4px 16px rgba(37,99,235,0.1); transform:translateY(-2px); }
+.lcard .li { font-size:34px; margin-bottom:10px; }
+.lcard h3 { font-size:15px; font-weight:800; margin-bottom:5px; }
+.lcard p { font-size:12px; color:#64748b; }
+.nitem { background:#fff; border-radius:10px; border:1.5px solid #e2e8f0; padding:14px 18px; margin-bottom:9px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.nitem-body { flex:1; }
+.nitem-title { font-size:14px; font-weight:700; margin-bottom:4px; }
+.nitem-date { font-size:11px; color:#94a3b8; margin-bottom:6px; }
+.nitem-content { font-size:13px; color:#475569; line-height:1.6; }
+.rcard { background:#fff; border:1.5px solid #e2e8f0; border-radius:11px; padding:16px 18px; margin-bottom:9px; }
+.rcard-meta { display:flex; justify-content:space-between; margin-bottom:7px; }
+.rcard-name { font-size:14px; font-weight:800; }
+.rcard-date { font-size:11px; color:#94a3b8; }
+.rcard-text { font-size:13px; color:#334155; line-height:1.7; margin-bottom:10px; }
+.denied { text-align:center; padding:80px 20px; }
+.denied h2 { font-size:20px; font-weight:800; color:#dc2626; margin-bottom:10px; }
 </style>
 </head>
 <body>
-<div class="container">
 
-  <div id="page-denied" style="display:none;" class="denied">
+<div id="access-denied" style="display:none;width:100%;align-items:center;justify-content:center;min-height:100vh;">
+  <div class="denied">
     <h2>접근 권한이 없습니다</h2>
-    <p>선생님 계정으로 로그인 후 이용해주세요.</p>
-    <a href="homework.html">로그인하러 가기</a>
+    <p style="color:#64748b;margin-bottom:20px;">선생님 계정으로 로그인 후 이용해주세요.</p>
+    <a href="homework.html" style="background:#2563eb;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">로그인하러 가기</a>
   </div>
-
-  <div id="page-main" style="display:none;">
-    <div class="header">
-      <h1>관리 페이지</h1>
-      <p>관리할 항목을 선택하세요</p>
-    </div>
-    <div class="cards">
-      <a href="homework.html" class="card">
-        <div class="icon">📋</div>
-        <h2>데일리퀴즈</h2>
-        <p>문제 등록, 점수 현황</p>
-      </a>
-      <a href="review-admin.html" class="card">
-        <div class="icon">⭐</div>
-        <h2>후기 관리</h2>
-        <p>학생 후기 확인 및 삭제</p>
-      </a>
-      <a href="student-admin.html" class="card">
-        <div class="icon">👨‍🎓</div>
-        <h2>학생 관리</h2>
-        <p>학생 추가 및 계정 관리</p>
-      </a>
-      <a href="password-change.html" class="card">
-        <div class="icon">🔑</div>
-        <h2>비밀번호 변경</h2>
-        <p>선생님 비밀번호 변경</p>
-      </a>
-    </div>
-    <a href="index.html" class="back">← 홈으로</a>
-  </div>
-
 </div>
+
+<div id="dashboard" style="display:none;width:100%;">
+  <aside class="sidebar">
+    <div class="sidebar-logo">김민관 <span>수학</span></div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" onclick="showPage('classes',this)"><span class="ni">📚</span> 반</div>
+      <div class="nav-item" onclick="showPage('students',this)"><span class="ni">👨‍🎓</span> 학생</div>
+      <div class="nav-item" onclick="showPage('quiz',this)"><span class="ni">📋</span> 데일리퀴즈</div>
+      <div class="nav-item" onclick="showPage('clinic',this)"><span class="ni">🏥</span> 클리닉</div>
+      <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
+      <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
+      <div class="nav-item" onclick="showPage('settings',this)"><span class="ni">⚙️</span> 관리자</div>
+    </nav>
+    <div class="sidebar-bottom">
+      <span id="sb-user"></span>
+      <button class="btn-logout-s" onclick="logout()">로그아웃</button>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- 반 -->
+    <div id="page-classes" class="page active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">반 목록</div>
+          <div class="tabs">
+            <div class="tab active" id="tab-active" onclick="classTab('active',this)">진행 중 <span id="cnt-active">0개</span></div>
+            <div class="tab" id="tab-past" onclick="classTab('past',this)">지난 강의 <span id="cnt-past">0개</span></div>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="openClassModal()" style="margin-top:6px;">+ 반 추가</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>반 이름</th><th>수강생 수</th><th>강의 시간</th><th>기간</th><th></th></tr></thead>
+          <tbody id="class-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 학생 -->
+    <div id="page-students" class="page">
+      <div class="page-header"><div class="page-title">학생 관리</div></div>
+      <div class="card">
+        <div class="card-title">학생 개별 추가</div>
+        <div class="fr">
+          <div class="fg"><label>학생 전화번호</label><input type="tel" id="sp" placeholder="010-0000-0000" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+          <div class="fg"><label>학부모 전화번호</label><input type="tel" id="pp" placeholder="010-0000-0000" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+          <div class="fg" style="max-width:130px;"><label>초기 비밀번호</label><input type="text" id="npw" value="1234" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        </div>
+        <button class="btn-primary" style="margin-top:12px;" onclick="addSingle()">추가</button>
+        <div id="add-msg"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">엑셀로 일괄 추가</div>
+        <div class="excel-row">
+          <button class="btn-green" onclick="dlTemplate()">📥 양식 다운로드</button>
+          <label class="btn-ob" style="cursor:pointer;margin:0;">📤 엑셀 업로드<input type="file" id="xl" accept=".xlsx,.xls" style="display:none;" onchange="uploadXl(this)"></label>
+        </div>
+        <p style="font-size:12px;color:#94a3b8;margin-top:6px;">양식에 번호 기입 후 업로드하세요. 비밀번호는 1234로 설정됩니다.</p>
+        <div id="ul-msg"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">학생 목록</div>
+        <div id="stu-list">불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- 데일리퀴즈 -->
+    <div id="page-quiz" class="page">
+      <div class="page-header"><div class="page-title">데일리퀴즈</div></div>
+      <div class="link-cards">
+        <a href="homework.html" class="lcard"><div class="li">✏️</div><h3>문제 등록</h3><p>새 문제를 등록하고 관리하세요</p></a>
+        <a href="homework.html?tab=scores" class="lcard"><div class="li">📊</div><h3>점수 현황</h3><p>학생별 점수 및 제출 현황 확인</p></a>
+      </div>
+    </div>
+
+    <!-- 클리닉 -->
+    <div id="page-clinic" class="page">
+      <div class="page-header"><div class="page-title">클리닉</div></div>
+      <div class="placeholder"><div class="pi">🏥</div><h3>클리닉 예약 시스템</h3><p>준비 중입니다</p></div>
+    </div>
+
+    <!-- 공지 -->
+    <div id="page-notice" class="page">
+      <div class="page-header">
+        <div class="page-title">공지사항</div>
+        <button class="btn-primary" onclick="openNoticeModal()">+ 공지 작성</button>
+      </div>
+      <div id="notice-list"></div>
+    </div>
+
+    <!-- 질의응답 -->
+    <div id="page-qna" class="page">
+      <div class="page-header"><div class="page-title">질의응답</div></div>
+      <div class="placeholder"><div class="pi">💬</div><h3>질의응답</h3><p>준비 중입니다</p></div>
+    </div>
+
+    <!-- 관리자 -->
+    <div id="page-settings" class="page">
+      <div class="page-header"><div class="page-title">관리자 설정</div></div>
+      <div class="card">
+        <div class="card-title">🔑 비밀번호 변경</div>
+        <div class="fg"><label>현재 비밀번호</label><input type="password" id="opw" placeholder="현재 비밀번호" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;margin-bottom:10px;"></div>
+        <div class="fg"><label>새 비밀번호</label><input type="password" id="newpw" placeholder="새 비밀번호" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <button class="btn-primary" style="margin-top:12px;" onclick="chgPw()">변경</button>
+        <div id="pw-msg"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">⭐ 후기 관리</div>
+        <div id="rv-area"><p style="color:#64748b;font-size:14px;">불러오는 중...</p></div>
+      </div>
+      <div style="text-align:center;margin-top:10px;">
+        <a href="index.html" style="color:#2563eb;font-size:14px;font-weight:700;text-decoration:none;">← 홈페이지로</a>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- 반 추가 모달 -->
+<div id="cm" class="modal-bg">
+  <div class="modal">
+    <h3>반 추가</h3>
+    <div class="fg"><label>반 이름</label><input type="text" id="cn" placeholder="예: 확통, 기하, 명덕여고"></div>
+    <div class="fg"><label>강의 시간</label><input type="text" id="ct" placeholder="예: 월수 오후 4시"></div>
+    <div class="fg-row">
+      <div class="fg"><label>시작일</label><input type="date" id="cs"></div>
+      <div class="fg"><label>종료일 (선택)</label><input type="date" id="ce"></div>
+    </div>
+    <div class="fg"><label>수강생 수</label><input type="text" id="cc" placeholder="예: 10"></div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="closeClassModal()">취소</button>
+      <button class="btn-ok" onclick="saveClass()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공지 모달 -->
+<div id="nm" class="modal-bg">
+  <div class="modal">
+    <h3>공지 작성</h3>
+    <div class="fg"><label>제목</label><input type="text" id="nt" placeholder="공지 제목"></div>
+    <div class="fg"><label>내용</label><textarea id="nc" rows="4" placeholder="공지 내용을 입력하세요" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;resize:vertical;"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="closeNoticeModal()">취소</button>
+      <button class="btn-ok" onclick="saveNotice()">저장</button>
+    </div>
+  </div>
+</div>
+
 <script>
-  const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
-  if (!session || session.role !== 'teacher') {
-    document.getElementById('page-denied').style.display = 'block';
+var SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+var cu = null;
+var curClassTab = 'active';
+var BC = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+
+function bc(n) { var c=0; for(var i=0;i<n.length;i++)c+=n.charCodeAt(i); return BC[c%BC.length]; }
+
+window.addEventListener('DOMContentLoaded',function(){
+  var s = JSON.parse(localStorage.getItem('mkmath_session')||'null');
+  if(!s||s.role!=='teacher'){
+    document.getElementById('access-denied').style.display='flex';
   } else {
-    document.getElementById('page-main').style.display = 'block';
+    cu=s;
+    document.getElementById('dashboard').style.display='flex';
+    document.getElementById('sb-user').textContent=s.name||s.id;
+    loadClasses();
   }
+});
+
+function showPage(page,el){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  document.getElementById('page-'+page).classList.add('active');
+  if(el) el.classList.add('active');
+  if(page==='students') loadStu();
+  if(page==='settings') loadRv();
+  if(page==='notice') loadNotices();
+}
+
+function logout(){
+  cu=null; localStorage.removeItem('mkmath_session'); location.href='homework.html';
+}
+
+// 반
+function loadClasses(){
+  var cls=JSON.parse(localStorage.getItem('mkmath_classes')||'[]');
+  var act=cls.filter(function(c){return c.status!=='past';});
+  var past=cls.filter(function(c){return c.status==='past';});
+  document.getElementById('cnt-active').textContent=act.length+'개';
+  document.getElementById('cnt-past').textContent=past.length+'개';
+  renderClasses(curClassTab==='active'?act:past);
+}
+function renderClasses(list){
+  var tb=document.getElementById('class-tbody');
+  if(!list.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:36px;">반이 없습니다</td></tr>';return;}
+  tb.innerHTML=list.map(function(c){
+    var color=bc(c.name);
+    return '<tr><td><div class="class-cell"><div class="badge" style="background:'+color+'">'+c.name.substring(0,2)+'</div><span style="font-weight:700;">'+c.name+'</span></div></td><td>'+(c.count?c.count+'명':'-')+'</td><td>'+(c.time||'-')+'</td><td>'+(c.start||'-')+(c.end?' ~ '+c.end:'')+'</td><td style="text-align:right;white-space:nowrap;"><button class="btn-sm btn-blue" onclick="toggleCls('+c.id+')" style="margin-right:6px;">'+(c.status==='past'?'진행중':'종료')+'</button><button class="btn-sm btn-red" onclick="deleteCls('+c.id+')">삭제</button></td></tr>';
+  }).join('');
+}
+function classTab(t,el){
+  curClassTab=t;
+  document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
+  el.classList.add('active');
+  loadClasses();
+}
+function openClassModal(){document.getElementById('cm').classList.add('show');}
+function closeClassModal(){
+  document.getElementById('cm').classList.remove('show');
+  ['cn','ct','cs','ce','cc'].forEach(function(id){document.getElementById(id).value='';});
+}
+function saveClass(){
+  var n=document.getElementById('cn').value.trim();
+  if(!n){alert('반 이름을 입력해주세요');return;}
+  var cls=JSON.parse(localStorage.getItem('mkmath_classes')||'[]');
+  cls.push({id:Date.now(),name:n,time:document.getElementById('ct').value.trim(),start:document.getElementById('cs').value,end:document.getElementById('ce').value,count:document.getElementById('cc').value.trim(),status:'active'});
+  localStorage.setItem('mkmath_classes',JSON.stringify(cls));
+  closeClassModal(); loadClasses();
+}
+function deleteCls(id){
+  if(!confirm('삭제하시겠습니까?'))return;
+  var cls=JSON.parse(localStorage.getItem('mkmath_classes')||'[]').filter(function(c){return c.id!==id;});
+  localStorage.setItem('mkmath_classes',JSON.stringify(cls)); loadClasses();
+}
+function toggleCls(id){
+  var cls=JSON.parse(localStorage.getItem('mkmath_classes')||'[]').map(function(c){if(c.id===id)c.status=c.status==='past'?'active':'past';return c;});
+  localStorage.setItem('mkmath_classes',JSON.stringify(cls)); loadClasses();
+}
+
+// 학생
+async function addSingle(){
+  var sp=document.getElementById('sp').value.trim();
+  var pp=document.getElementById('pp').value.trim();
+  var pw=document.getElementById('npw').value.trim()||'1234';
+  var m=document.getElementById('add-msg');
+  if(!sp||!pp){showMsg(m,'학생/학부모 번호를 모두 입력해주세요','error');return;}
+  var ok=await callAdd(sp,pp,pw);
+  if(ok){showMsg(m,'추가되었습니다!','success');document.getElementById('sp').value='';document.getElementById('pp').value='';loadStu();}
+  else showMsg(m,'오류가 발생했습니다','error');
+}
+async function callAdd(sp,pp,pw){
+  try{var r=await fetch(SU+'?action=addStudent&teacherId='+encodeURIComponent(cu.id)+'&studentPhone='+encodeURIComponent(sp)+'&parentPhone='+encodeURIComponent(pp)+'&spw='+encodeURIComponent(pw));var d=await r.json();return d.success;}catch(e){return false;}
+}
+function dlTemplate(){
+  var wb=XLSX.utils.book_new();
+  var ws=XLSX.utils.aoa_to_sheet([['학생 전화번호','학부모 전화번호','초기 비밀번호'],['010-0000-0000','010-0000-0000','1234'],['010-0000-0000','010-0000-0000','1234']]);
+  ws['!cols']=[{wch:18},{wch:18},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws,'학생목록');
+  XLSX.writeFile(wb,'학생추가_양식.xlsx');
+}
+async function uploadXl(input){
+  var file=input.files[0]; if(!file)return;
+  var m=document.getElementById('ul-msg'); showMsg(m,'업로드 중...','info');
+  var reader=new FileReader();
+  reader.onload=async function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'array'});
+      var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});
+      var dr=rows.slice(1).filter(function(r){return r[0]&&r[1];});
+      if(!dr.length){showMsg(m,'데이터가 없습니다','error');return;}
+      var ok=0,fail=0;
+      for(var i=0;i<dr.length;i++){var r=dr[i];var res=await callAdd(String(r[0]).trim(),String(r[1]).trim(),r[2]?String(r[2]).trim():'1234');res?ok++:fail++;}
+      loadStu(); showMsg(m,'완료! 성공 '+ok+'명'+(fail?', 실패 '+fail+'명':''),ok>0?'success':'error');
+    }catch(err){showMsg(m,'파일 오류','error');}
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+async function loadStu(){
+  var a=document.getElementById('stu-list'); a.innerHTML='불러오는 중...';
+  try{
+    var r=await fetch(SU+'?action=getStudents');
+    var d=await r.json();
+    if(!d.students||!d.students.length){a.innerHTML='<p style="color:#64748b;font-size:14px;">등록된 학생이 없습니다</p>';return;}
+    a.innerHTML=d.students.map(function(s){return '<div class="srow"><div><div style="font-weight:700;">📱 '+(s.studentPhone||s.id||'-')+'</div><div class="sub">학부모: '+(s.parentPhone||'-')+'</div></div></div>';}).join('');
+  }catch(e){a.innerHTML='<p style="color:#dc2626;font-size:14px;">불러오기 실패</p>';}
+}
+
+// 공지
+function loadNotices(){
+  var ns=JSON.parse(localStorage.getItem('mkmath_notices')||'[]');
+  var a=document.getElementById('notice-list');
+  if(!ns.length){a.innerHTML='<p style="color:#94a3b8;text-align:center;padding:60px 0;">공지사항이 없습니다</p>';return;}
+  a.innerHTML=ns.map(function(n,i){return '<div class="nitem"><div class="nitem-body"><div class="nitem-title">'+n.title+'</div><div class="nitem-date">'+n.date+'</div><div class="nitem-content">'+n.content+'</div></div><button class="btn-sm btn-red" onclick="delNotice('+i+')">삭제</button></div>';}).join('');
+}
+function openNoticeModal(){document.getElementById('nm').classList.add('show');}
+function closeNoticeModal(){document.getElementById('nm').classList.remove('show');document.getElementById('nt').value='';document.getElementById('nc').value='';}
+function saveNotice(){
+  var t=document.getElementById('nt').value.trim();
+  if(!t){alert('제목을 입력해주세요');return;}
+  var ns=JSON.parse(localStorage.getItem('mkmath_notices')||'[]');
+  ns.unshift({title:t,content:document.getElementById('nc').value.trim(),date:new Date().toLocaleDateString('ko-KR')});
+  localStorage.setItem('mkmath_notices',JSON.stringify(ns));
+  closeNoticeModal(); loadNotices();
+}
+function delNotice(i){
+  if(!confirm('삭제하시겠습니까?'))return;
+  var ns=JSON.parse(localStorage.getItem('mkmath_notices')||'[]');
+  ns.splice(i,1); localStorage.setItem('mkmath_notices',JSON.stringify(ns)); loadNotices();
+}
+
+// 비밀번호
+async function chgPw(){
+  var o=document.getElementById('opw').value;
+  var n=document.getElementById('newpw').value;
+  var m=document.getElementById('pw-msg');
+  if(!o||!n){showMsg(m,'모두 입력해주세요','error');return;}
+  try{var r=await fetch(SU+'?action=changePassword&id='+encodeURIComponent(cu.id)+'&oldPassword='+encodeURIComponent(o)+'&newPassword='+encodeURIComponent(n));var d=await r.json();showMsg(m,d.success?'변경되었습니다!':'현재 비밀번호가 틀렸습니다',d.success?'success':'error');if(d.success){document.getElementById('opw').value='';document.getElementById('newpw').value='';}}
+  catch(e){showMsg(m,'오류가 발생했습니다','error');}
+}
+
+// 후기
+async function loadRv(){
+  var a=document.getElementById('rv-area');
+  try{
+    var r=await fetch(SU+'?action=getReviews');
+    var d=await r.json();
+    if(!d.reviews||!d.reviews.length){a.innerHTML='<p style="color:#94a3b8;font-size:14px;">아직 후기가 없습니다.</p>';return;}
+    a.innerHTML=d.reviews.map(function(r,i){return '<div class="rcard"><div class="rcard-meta"><span class="rcard-name">'+r.name+' <span style="color:#94a3b8;font-weight:400;font-size:12px;">('+r.id+')</span></span><span class="rcard-date">'+(r.date||'')+'</span></div><div class="rcard-text">'+r.text+'</div><button class="btn-sm btn-red" onclick="delRv('+i+')">삭제</button></div>';}).join('');
+  }catch(e){a.innerHTML='<p style="color:#dc2626;font-size:14px;">불러오기 실패</p>';}
+}
+async function delRv(i){
+  if(!confirm('삭제하시겠습니까?'))return;
+  try{await fetch(SU+'?action=deleteReview&index='+i);loadRv();}catch(e){alert('삭제 실패');}
+}
+
+function showMsg(el,text,type){el.innerHTML='<div class="msg '+type+'">'+text+'</div>';}
 </script>
 </body>
 </html>
