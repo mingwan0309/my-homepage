@@ -193,13 +193,9 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <div id="page-clinic" class="page">
       <div class="page-header">
         <div class="page-title">클리닉 관리</div>
+        <button class="btn-primary" onclick="openClinicModal(null)">+ 새 클리닉 추가</button>
       </div>
-      <div style="background:#fff;border-radius:14px;padding:32px;text-align:center;box-shadow:0 1px 6px rgba(0,0,0,0.07);">
-        <div style="font-size:40px;margin-bottom:16px;">📅</div>
-        <div style="font-size:16px;font-weight:800;margin-bottom:8px;">클리닉 요일 설정 페이지로 이동</div>
-        <div style="font-size:13px;color:#64748b;margin-bottom:24px;">요일별 가능 시간을 설정하면 학생 화면에 날짜 캘린더가 자동 생성됩니다.</div>
-        <a href="admin-clinic.html" style="background:#2563eb;color:#fff;padding:12px 28px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;">클리닉 설정하러 가기 →</a>
-      </div>
+      <div id="clinic-list-area"><div style="text-align:center;padding:40px;color:#94a3b8;">불러오는 중...</div></div>
     </div>
 
     <!-- 공지 -->
@@ -268,56 +264,30 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
   </div>
 </div>
 
-<!-- 클리닉 모달 -->
+<!-- 클리닉 모달 (요일별 설정) -->
 <div id="clinic-modal" class="modal-bg">
-  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
-    <h3>클리닉 만들기</h3>
-    <div class="fg"><label>클리닉 이름</label><input type="text" id="cl-name" placeholder="예: [수1수2] 클리닉신청"></div>
-    <div class="fg"><label>장소</label><input type="text" id="cl-loc" placeholder="예: 4층 클리닉실"></div>
-    <div class="fg"><label>설명 (선택)</label><input type="text" id="cl-desc" placeholder="간단한 안내사항"></div>
-    <div class="fg"><label>시간당 최대 인원</label><input type="number" id="cl-max" value="10" min="1" max="50"></div>
-    <div style="margin-bottom:14px;">
-      <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;">날짜 및 시간 설정</label>
-      <button type="button" onclick="openClinicCal()" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;">📅 날짜 추가</button>
-      <div id="cl-dates-list" style="margin-top:12px;"></div>
+  <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto;">
+    <h3 id="cl-modal-title">새 클리닉 추가</h3>
+    <div class="fg"><label>클리닉 이름</label><input type="text" id="cl-name" placeholder="예: 추가 클리닉"></div>
+    <div class="fg"><label>장소</label><input type="text" id="cl-loc" placeholder="예: 강의실 1"></div>
+    <div class="fg"><label>최대 인원 / 시간대</label><input type="number" id="cl-max" value="10" min="1" max="50"></div>
+    <div class="fg">
+      <label>시간 단위</label>
+      <select id="cl-interval" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;">
+        <option value="30">30분</option>
+        <option value="60" selected>1시간</option>
+        <option value="90">1시간 30분</option>
+        <option value="120">2시간</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>요일별 가능 시간</label>
+      <div id="cl-day-rows" style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;"></div>
     </div>
     <div class="modal-btns">
       <button class="btn-cl" onclick="closeClinicModal()">취소</button>
       <button class="btn-ok" onclick="saveClinic()">저장</button>
     </div>
-  </div>
-</div>
-
-<!-- 클리닉 달력 팝업 -->
-<div id="clinic-cal-modal" class="modal-bg" style="z-index:1100;">
-  <div class="modal" style="max-width:480px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-      <button onclick="calMove(-1)" style="background:none;border:none;font-size:20px;cursor:pointer;">‹</button>
-      <span id="cal-month-label" style="font-size:16px;font-weight:800;"></span>
-      <button onclick="calMove(1)" style="background:none;border:none;font-size:20px;cursor:pointer;">›</button>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:8px;">
-      <div style="font-size:12px;font-weight:700;color:#94a3b8;">일</div>
-      <div style="font-size:12px;font-weight:700;color:#94a3b8;">월</div>
-      <div style="font-size:12px;font-weight:700;color:#94a3b8;">화</div>
-      <div style="font-size:12px;font-weight:700;color:#94a3b8;">수</div>
-      <div style="font-size:12px;font-weight:700;color:#94a3b8;">목</div>
-      <div style="font-size:12px;font-weight:700;color:#94a3b8;">금</div>
-      <div style="font-size:12px;font-weight:700;color:#94a3b8;">토</div>
-    </div>
-    <div id="cal-click-hint" style="font-size:11px;color:#f59e0b;font-weight:700;text-align:center;margin-bottom:6px;">시작 날짜를 클릭하세요</div>
-    <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:20px;"></div>
-    <!-- 시간 슬롯 -->
-    <div id="time-slot-section" style="display:none;">
-      <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:#475569;">시간 선택 <span id="sel-date-label" style="color:#2563eb;"></span></div>
-      <div id="slot-click-hint" style="font-size:11px;color:#f59e0b;font-weight:700;margin-bottom:8px;">시작 시간을 클릭하세요</div>
-      <div id="time-slots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:220px;overflow-y:auto;"></div>
-      <div class="modal-btns" style="margin-top:16px;">
-        <button class="btn-cl" onclick="closeClinicCal()">취소</button>
-        <button class="btn-ok" onclick="confirmDateSlots()">확인</button>
-      </div>
-    </div>
-    <div id="time-slot-hint" style="text-align:center;color:#94a3b8;font-size:13px;padding:10px 0;">날짜를 선택하세요</div>
   </div>
 </div>
 
@@ -710,38 +680,134 @@ function editDate(ds) {
   renderCal(); renderTimeSlots();
 }
 
+// ── 클리닉 요일 설정 ──
+var DAY_NAMES = ['일','월','화','수','목','금','토'];
+var editingClinicId = null;
+
+function buildTimeOpts(sel) {
+  var h=''; for(var i=0;i<24;i++) for(var m of [0,30]) {
+    var v=String(i).padStart(2,'0')+':'+String(m).padStart(2,'0');
+    h+=`<option value="${v}"${v===sel?' selected':''}>${v}</option>`;
+  } return h;
+}
+
+function buildDayRows(existing) {
+  var defs = {0:{on:false,s:'13:00',e:'21:00'},1:{on:true,s:'14:00',e:'21:00'},
+    2:{on:false,s:'14:00',e:'21:00'},3:{on:true,s:'14:00',e:'21:00'},
+    4:{on:true,s:'16:00',e:'22:00'},5:{on:true,s:'14:00',e:'21:00'},6:{on:false,s:'10:00',e:'17:00'}};
+  var h='';
+  for(var i=0;i<7;i++){
+    var on=defs[i].on, s=defs[i].s, e=defs[i].e;
+    if(existing&&existing.days){
+      var ds=existing.days[String(i)];
+      if(!ds){on=false;}else{on=true;s=ds.start;e=ds.end;}
+    }
+    h+=`<div style="display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid #f1f5f9;gap:12px;" id="cldr-${i}">
+      <label style="position:relative;width:36px;height:20px;flex-shrink:0;">
+        <input type="checkbox" id="clchk-${i}" ${on?'checked':''} onchange="clToggle(${i})" style="opacity:0;width:0;height:0;">
+        <span onclick="document.getElementById('clchk-${i}').click()" style="position:absolute;inset:0;background:${on?'#2563eb':'#e2e8f0'};border-radius:10px;cursor:pointer;transition:.2s;" id="cltrack-${i}">
+          <span style="position:absolute;top:2px;left:${on?'18':'2'}px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;" id="clthumb-${i}"></span>
+        </span>
+      </label>
+      <span style="font-size:14px;font-weight:700;width:24px;">${DAY_NAMES[i]}</span>
+      <div id="clti-${i}" style="display:flex;align-items:center;gap:6px;flex:1;${on?'':'opacity:.35;pointer-events:none;'}">
+        <select id="cls-${i}" style="border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 8px;font-size:12px;">${buildTimeOpts(s)}</select>
+        <span style="color:#94a3b8;font-size:12px;">~</span>
+        <select id="cle-${i}" style="border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 8px;font-size:12px;">${buildTimeOpts(e)}</select>
+      </div>
+      ${on?'':'<span style="font-size:12px;color:#94a3b8;" id="clno-'+i+'">가능한 시간 없음</span>'}
+    </div>`;
+  }
+  return h;
+}
+
+function clToggle(i){
+  var chk=document.getElementById('clchk-'+i);
+  var on=chk.checked;
+  var track=document.getElementById('cltrack-'+i);
+  var thumb=document.getElementById('clthumb-'+i);
+  var ti=document.getElementById('clti-'+i);
+  var row=document.getElementById('cldr-'+i);
+  track.style.background=on?'#2563eb':'#e2e8f0';
+  thumb.style.left=on?'18px':'2px';
+  ti.style.opacity=on?'1':'0.35';
+  ti.style.pointerEvents=on?'auto':'none';
+  var no=document.getElementById('clno-'+i);
+  if(on&&no)no.remove();
+  if(!on&&!document.getElementById('clno-'+i)){
+    var sp=document.createElement('span');
+    sp.id='clno-'+i; sp.style.cssText='font-size:12px;color:#94a3b8;';
+    sp.textContent='가능한 시간 없음'; row.appendChild(sp);
+  }
+}
+
+function openClinicModal(clinic){
+  editingClinicId = clinic ? clinic.id : null;
+  document.getElementById('cl-modal-title').textContent = clinic ? '클리닉 수정' : '새 클리닉 추가';
+  document.getElementById('cl-name').value = clinic ? clinic.name : '';
+  document.getElementById('cl-loc').value = clinic ? (clinic.location||'') : '';
+  document.getElementById('cl-max').value = clinic ? (clinic.maxPeople||10) : 10;
+  var existing=null;
+  if(clinic&&clinic.slots){try{var p=JSON.parse(clinic.slots);if(p.weekly)existing=p;}catch(e){}}
+  if(existing) document.getElementById('cl-interval').value=existing.interval||60;
+  document.getElementById('cl-day-rows').innerHTML=buildDayRows(existing);
+  document.getElementById('clinic-modal').classList.add('show');
+}
+function closeClinicModal(){ document.getElementById('clinic-modal').classList.remove('show'); }
+
 async function saveClinic() {
-  var name = document.getElementById('cl-name').value.trim();
-  var loc = document.getElementById('cl-loc').value.trim();
-  var desc = document.getElementById('cl-desc').value.trim();
-  var max = document.getElementById('cl-max').value || '10';
-  if(!name) { alert('클리닉 이름을 입력해주세요'); return; }
-  if(!Object.keys(clinicDateSlots).length) { alert('날짜와 시간을 최소 1개 추가해주세요'); return; }
+  var name=document.getElementById('cl-name').value.trim();
+  if(!name){alert('클리닉 이름을 입력해주세요');return;}
+  var days={};
+  for(var i=0;i<7;i++){
+    var chk=document.getElementById('clchk-'+i);
+    days[String(i)]=chk.checked?{start:document.getElementById('cls-'+i).value,end:document.getElementById('cle-'+i).value}:null;
+  }
+  if(!Object.values(days).some(function(v){return v!==null;})){alert('가능한 요일을 최소 1개 선택해주세요');return;}
+  var schedule={weekly:true,interval:parseInt(document.getElementById('cl-interval').value),days:days};
   try {
-    var res = await fetch(SU+'?action=createClinic&name='+encodeURIComponent(name)+'&location='+encodeURIComponent(loc)+'&desc='+encodeURIComponent(desc)+'&slots='+encodeURIComponent(JSON.stringify(clinicDateSlots))+'&maxPeople='+encodeURIComponent(max));
-    var data = await res.json();
-    if(data.success) { closeClinicModal(); loadClinics(); }
-    else alert('저장 실패');
-  } catch(e) { alert('오류가 발생했습니다'); }
+    if(editingClinicId) await fetch(SU+'?action=deleteClinic&id='+encodeURIComponent(editingClinicId));
+    var p={action:'createClinic',name:name,location:document.getElementById('cl-loc').value.trim(),
+      desc:'',slots:JSON.stringify(schedule),maxPeople:document.getElementById('cl-max').value};
+    await fetch(SU+'?'+Object.entries(p).map(function(kv){return kv[0]+'='+encodeURIComponent(kv[1]);}).join('&'));
+    closeClinicModal(); loadClinics();
+  } catch(e){alert('오류가 발생했습니다');}
 }
 
 async function loadClinics() {
-  var tb = document.getElementById('clinic-tbody');
+  var area=document.getElementById('clinic-list-area');
+  area.innerHTML='<div style="text-align:center;padding:40px;color:#94a3b8;">불러오는 중...</div>';
   try {
-    var res = await fetch(SU+'?action=getClinics');
-    var data = await res.json();
-    if(!data.clinics||!data.clinics.length) { tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:36px;">클리닉이 없습니다</td></tr>'; return; }
-    tb.innerHTML = data.clinics.map(function(c) {
-      var slots = {}; try{ slots=JSON.parse(c.slots||'{}'); }catch(e){}
-      var dateCount = Object.keys(slots).length;
-      return '<tr><td style="font-weight:700;">'+c.name+'</td><td>'+(c.location||'-')+'</td><td>'+dateCount+'일</td><td>'+c.maxPeople+'명</td><td><span style="background:#f0fdf4;color:#16a34a;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">진행중</span></td>'
-        +'<td style="text-align:right;display:flex;gap:6px;justify-content:flex-end;"><button class="btn-sm btn-blue" onclick="openBookingsModal(\''+c.id+'\',\''+c.name.replace(/'/g,"\\'")+'\')" >예약현황</button><button class="btn-sm btn-red" onclick="deleteClinic(\''+c.id+'\')">삭제</button></td></tr>';
+    var res=await fetch(SU+'?action=getClinics');
+    var data=await res.json();
+    var cs=data.clinics||[];
+    if(!cs.length){area.innerHTML='<div style="text-align:center;padding:40px;color:#94a3b8;font-size:14px;">등록된 클리닉이 없습니다.</div>';return;}
+    area.innerHTML=cs.map(function(c){
+      var chips='';
+      try{var s=JSON.parse(c.slots||'{}');
+        if(s.weekly) chips=DAY_NAMES.map(function(n,i){var d=s.days[String(i)];
+          return d?`<span style="background:#eff6ff;color:#2563eb;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;">${n} ${d.start}~${d.end}</span>`
+            :`<span style="background:#f1f5f9;color:#94a3b8;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;">${n} ✕</span>`;}).join('');
+        else chips='<span style="font-size:12px;color:#94a3b8;">기존 형식</span>';
+      }catch(e){}
+      var cJson=JSON.stringify(c).replace(/"/g,'&quot;');
+      return `<div style="background:#fff;border-radius:12px;padding:18px 20px;margin-bottom:12px;box-shadow:0 1px 6px rgba(0,0,0,0.07);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:15px;font-weight:800;">${c.name}</span>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-sm btn-blue" onclick="openClinicModal(${cJson})">수정</button>
+            <button class="btn-sm btn-red" onclick="deleteClinic('${c.id}','${c.name}')">삭제</button>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:10px;">📍 ${c.location||'장소 미정'} · 최대 ${c.maxPeople}명/시간</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">${chips}</div>
+      </div>`;
     }).join('');
-  } catch(e) { tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:#dc2626;">불러오기 실패</td></tr>'; }
+  }catch(e){area.innerHTML='<div style="text-align:center;padding:40px;color:#dc2626;">불러오기 실패</div>';}
 }
 
-async function deleteClinic(id) {
-  if(!confirm('삭제하시겠습니까?')) return;
+async function deleteClinic(id, name) {
+  if(!confirm((name||'이 클리닉')+'을 삭제하시겠습니까?')) return;
   await fetch(SU+'?action=deleteClinic&id='+encodeURIComponent(id));
   loadClinics();
 }
