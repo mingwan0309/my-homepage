@@ -688,6 +688,7 @@ function editDate(ds) {
 // ── 클리닉 요일 설정 ──
 var DAY_NAMES = ['일','월','화','수','목','금','토'];
 var editingClinicId = null;
+var clDayOn = {};
 
 function buildTimeOpts(sel) {
   var h=''; for(var i=0;i<24;i++) for(var m of [0,30]) {
@@ -700,6 +701,7 @@ function buildDayRows(existing) {
   var defs = {0:{on:false,s:'13:00',e:'21:00'},1:{on:true,s:'14:00',e:'21:00'},
     2:{on:false,s:'14:00',e:'21:00'},3:{on:true,s:'14:00',e:'21:00'},
     4:{on:true,s:'16:00',e:'22:00'},5:{on:true,s:'14:00',e:'21:00'},6:{on:false,s:'10:00',e:'17:00'}};
+  clDayOn = {};
   var h='';
   for(var i=0;i<7;i++){
     var on=defs[i].on, s=defs[i].s, e=defs[i].e;
@@ -707,13 +709,11 @@ function buildDayRows(existing) {
       var ds=existing.days[String(i)];
       if(!ds){on=false;}else{on=true;s=ds.start;e=ds.end;}
     }
+    clDayOn[i]=on;
     h+=`<div style="display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid #f1f5f9;gap:12px;" id="cldr-${i}">
-      <label style="position:relative;width:36px;height:20px;flex-shrink:0;">
-        <input type="checkbox" id="clchk-${i}" ${on?'checked':''} onchange="clToggle(${i})" style="opacity:0;width:0;height:0;">
-        <span onclick="document.getElementById('clchk-${i}').click()" style="position:absolute;inset:0;background:${on?'#2563eb':'#e2e8f0'};border-radius:10px;cursor:pointer;transition:.2s;" id="cltrack-${i}">
-          <span style="position:absolute;top:2px;left:${on?'18':'2'}px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;" id="clthumb-${i}"></span>
-        </span>
-      </label>
+      <div onclick="clToggle(${i})" id="cltrack-${i}" style="position:relative;width:36px;height:20px;flex-shrink:0;background:${on?'#2563eb':'#e2e8f0'};border-radius:10px;cursor:pointer;transition:.2s;">
+        <div id="clthumb-${i}" style="position:absolute;top:2px;left:${on?'18':'2'}px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;"></div>
+      </div>
       <span style="font-size:14px;font-weight:700;width:24px;">${DAY_NAMES[i]}</span>
       <div id="clti-${i}" style="display:flex;align-items:center;gap:6px;flex:1;${on?'':'opacity:.35;pointer-events:none;'}">
         <select id="cls-${i}" style="border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 8px;font-size:12px;">${buildTimeOpts(s)}</select>
@@ -726,9 +726,10 @@ function buildDayRows(existing) {
   return h;
 }
 
+var clDayOn = {};
 function clToggle(i){
-  var chk=document.getElementById('clchk-'+i);
-  var on=chk.checked;
+  clDayOn[i] = !clDayOn[i];
+  var on = clDayOn[i];
   var track=document.getElementById('cltrack-'+i);
   var thumb=document.getElementById('clthumb-'+i);
   var ti=document.getElementById('clti-'+i);
@@ -765,8 +766,7 @@ async function saveClinic() {
   if(!name){alert('클리닉 이름을 입력해주세요');return;}
   var days={};
   for(var i=0;i<7;i++){
-    var chk=document.getElementById('clchk-'+i);
-    days[String(i)]=chk.checked?{start:document.getElementById('cls-'+i).value,end:document.getElementById('cle-'+i).value}:null;
+    days[String(i)]=clDayOn[i]?{start:document.getElementById('cls-'+i).value,end:document.getElementById('cle-'+i).value}:null;
   }
   if(!Object.values(days).some(function(v){return v!==null;})){alert('가능한 요일을 최소 1개 선택해주세요');return;}
   var schedule={weekly:true,interval:parseInt(document.getElementById('cl-interval').value),days:days};
