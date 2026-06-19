@@ -240,7 +240,7 @@ async function loadClinics() {
   try {
     const res = await fetch(SU + '?action=getClinics');
     const data = await res.json();
-    clinics = data.clinics || [];
+    clinics = (data.clinics || []).filter(c => c.status !== 'deleted');
     if (!clinics.length) {
       area.innerHTML = '<div class="empty">현재 진행 중인 클리닉이 없습니다.</div>';
       return;
