@@ -320,7 +320,10 @@ window.addEventListener('DOMContentLoaded',function(){
     cu=s;
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
-    loadClasses();
+    var hash = location.hash.replace('#','');
+    var validPages = ['classes','students','quiz','clinic','notice','qna','settings'];
+    if(hash && validPages.includes(hash)) { showPage(hash); }
+    else { loadClasses(); }
   }
 });
 
@@ -328,11 +331,13 @@ function showPage(page,el){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   document.getElementById('page-'+page).classList.add('active');
-  if(el) el.classList.add('active');
+  if(el){el.classList.add('active');}
+  else{document.querySelector('.nav-item[onclick*="\''+page+'\'"]')?.classList.add('active');}
   if(page==='students') loadStu();
   if(page==='settings') loadRv();
   if(page==='notice') loadNotices();
   if(page==='clinic') loadClinics();
+  location.hash = page;
 }
 
 function logout(){
