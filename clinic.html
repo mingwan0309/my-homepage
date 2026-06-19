@@ -182,6 +182,35 @@ let selectedTime = null;
 let availableSlots = {}; // { date: [times] }
 let slotCounts = {}; // { date_time: count }
 
+// 요일별 스케줄 → 날짜별 슬롯 자동 생성 (8주치)
+function generateWeeklySlots(schedule) {
+  const slots = {};
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = new Date(today);
+  end.setDate(end.getDate() + 8 * 7);
+
+  for (let d = new Date(today); d <= end; d.setDate(d.getDate() + 1)) {
+    const dow = d.getDay();
+    const dayConf = schedule.days[String(dow)];
+    if (!dayConf) continue;
+    const dateStr = d.getFullYear() + '-' +
+      String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
+    const times = [];
+    const [sh, sm] = dayConf.start.split(':').map(Number);
+    const [eh, em] = dayConf.end.split(':').map(Number);
+    let cur = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+    const interval = schedule.interval || 60;
+    while (cur < endMin) {
+      times.push(String(Math.floor(cur/60)).padStart(2,'0') + ':' + String(cur%60).padStart(2,'0'));
+      cur += interval;
+    }
+    if (times.length) slots[dateStr] = times;
+  }
+  return slots;
+}
+
 window.addEventListener('DOMContentLoaded', function() {
   session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
   if (!session) {
@@ -275,7 +304,14 @@ async function openBookModal(clinicId) {
   currentClinic = clinics.find(c => c.id === clinicId);
   if (!currentClinic) return;
   availableSlots = {};
-  try { availableSlots = JSON.parse(currentClinic.slots || '{}'); } catch(e) {}
+  try {
+    const parsed = JSON.parse(currentClinic.slots || '{}');
+    if (parsed.weekly) {
+      availableSlots = generateWeeklySlots(parsed);
+    } else {
+      availableSlots = parsed;
+    }
+  } catch(e) {}
   slotCounts = {};
   selectedDate = null;
   selectedTime = null;
