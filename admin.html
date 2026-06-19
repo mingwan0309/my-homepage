@@ -193,13 +193,12 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <div id="page-clinic" class="page">
       <div class="page-header">
         <div class="page-title">클리닉 관리</div>
-        <button class="btn-primary" onclick="openClinicModal()">+ 클리닉 만들기</button>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>클리닉 이름</th><th>장소</th><th>날짜 수</th><th>최대인원</th><th>상태</th><th></th></tr></thead>
-          <tbody id="clinic-tbody"><tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:36px;">클리닉이 없습니다</td></tr></tbody>
-        </table>
+      <div style="background:#fff;border-radius:14px;padding:32px;text-align:center;box-shadow:0 1px 6px rgba(0,0,0,0.07);">
+        <div style="font-size:40px;margin-bottom:16px;">📅</div>
+        <div style="font-size:16px;font-weight:800;margin-bottom:8px;">클리닉 요일 설정 페이지로 이동</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:24px;">요일별 가능 시간을 설정하면 학생 화면에 날짜 캘린더가 자동 생성됩니다.</div>
+        <a href="admin-clinic.html" style="background:#2563eb;color:#fff;padding:12px 28px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;">클리닉 설정하러 가기 →</a>
       </div>
     </div>
 
