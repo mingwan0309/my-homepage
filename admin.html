@@ -785,7 +785,7 @@ async function loadClinics() {
   try {
     var res=await fetch(SU+'?action=getClinics');
     var data=await res.json();
-    var cs=data.clinics||[];
+    var cs=(data.clinics||[]).filter(function(c){return c.status!=='deleted';});
     if(!cs.length){area.innerHTML='<div style="text-align:center;padding:40px;color:#94a3b8;font-size:14px;">등록된 클리닉이 없습니다.</div>';return;}
     area.innerHTML=cs.map(function(c){
       var chips='';
