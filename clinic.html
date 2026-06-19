@@ -270,7 +270,8 @@ async function loadMyBookings() {
   try {
     const res = await fetch(SU + '?action=getBookings&studentId=' + encodeURIComponent(session.id));
     const data = await res.json();
-    const bookings = data.bookings || [];
+    // 취소된 항목 제외
+    const bookings = (data.bookings || []).filter(b => b.status !== '취소' && b.status !== 'cancelled');
     if (!bookings.length) {
       area.innerHTML = '<div class="empty">예약한 클리닉이 없습니다.</div>';
       return;
@@ -279,9 +280,9 @@ async function loadMyBookings() {
       <div class="booking-card">
         <div class="booking-info">
           <div class="booking-name">${b.clinicName || '클리닉'}</div>
-          <div class="booking-meta">📅 ${fmtDate(b.date)} &nbsp; ⏰ ${fmtTime(b.time)} &nbsp; <span style="color:${b.status==='취소'?'#dc2626':'#16a34a'};font-weight:700;">${b.status==='confirmed'?'예약완료':b.status==='취소'?'취소됨':'예약완료'}</span></div>
+          <div class="booking-meta">📅 ${fmtDate(b.date)} &nbsp; ⏰ ${fmtTime(b.time)} &nbsp; <span style="color:#16a34a;font-weight:700;">예약완료</span></div>
         </div>
-        ${b.status !== '취소' ? `<button class="btn-cancel" onclick="cancelBooking('${b.id}')">취소</button>` : ''}
+        <button class="btn-cancel" onclick="cancelBooking('${b.id}')">취소</button>
       </div>
     `).join('');
   } catch(e) {
