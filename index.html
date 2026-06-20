@@ -37,24 +37,23 @@
   .nav-menu a:hover { color: var(--primary); }
   .nav-menu li { position: relative; }
   .nav-dropdown {
-    display: none;
     position: absolute;
     top: calc(100% + 12px);
     left: 50%;
-    transform: translateX(-50%);
     background: #f1f5f9;
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.10);
     min-width: 140px;
     overflow: hidden;
     opacity: 0;
+    visibility: hidden;
     transform: translateX(-50%) translateY(-8px);
-    transition: opacity 0.22s ease, transform 0.22s ease;
+    transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
     z-index: 999;
   }
   .nav-dropdown.open {
-    display: block;
     opacity: 1;
+    visibility: visible;
     transform: translateX(-50%) translateY(0);
   }
   .nav-dropdown a {
