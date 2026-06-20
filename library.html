@@ -7,17 +7,11 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif; background:#f8fafc; color:#1e293b; }
-  nav {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 56px; height: 64px; background: #fff;
-    border-bottom: 1px solid #e2e8f0; position: sticky; top:0; z-index:100;
-  }
-  .nav-logo img { height: 36px; }
-  .nav-back {
-    background: #f1f5f9; color: #1e293b; border: 1.5px solid #e2e8f0;
-    padding: 8px 16px; border-radius: 8px; cursor: pointer;
-    font-size: 13px; font-weight: 700; text-decoration: none;
-  }
+  .topbar { background:#1e293b; color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
+  .topbar-logo { font-size:15px; font-weight:900; }
+  .topbar-logo span { color:#60a5fa; }
+  .topbar-right { display:flex; align-items:center; gap:12px; }
+  .btn-topbar-home { background:#334155; color:#fff; border:none; padding:7px 14px; border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; }
   .page-header {
     background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
     color: #fff; padding: 48px 56px 40px;
@@ -30,10 +24,12 @@
 </head>
 <body>
 
-<nav>
-  <a href="index.html" class="nav-logo"><img src="logo.png" alt="로고"></a>
-  <a href="index.html" class="nav-back">← 홈으로</a>
-</nav>
+<div class="topbar">
+  <div class="topbar-logo">김민관 <span>수학</span></div>
+  <div class="topbar-right">
+    <a href="index.html" class="btn-topbar-home">🏠 홈</a>
+  </div>
+</div>
 
 <div class="page-header">
   <h1>📂 자료실</h1>
