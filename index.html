@@ -1264,5 +1264,50 @@
     setTimeout(checkLoop, 500);
   }
 </script>
+<style>
+.reveal {
+  opacity: 0;
+  transform: translateY(48px);
+  transition: opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+</style>
+<script>
+(function() {
+  // 애니메이션 적용할 요소들 선택
+  const targets = document.querySelectorAll(
+    '.section, section, .card-grid > *, .review-card, .notice-item, .faq-item, .curriculum-item, .schedule-card'
+  );
+  targets.forEach(function(el, i) {
+    el.classList.add('reveal');
+    // 자식 요소들에 딜레이 적용
+  });
+
+  // 섹션 안 개별 카드/아이템에도 딜레이 적용
+  document.querySelectorAll('.card-grid > *, .review-grid > *').forEach(function(el, i) {
+    el.classList.add('reveal', 'reveal-delay-' + Math.min((i % 4) + 1, 4));
+  });
+
+  const observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.08 });
+
+  document.querySelectorAll('.reveal').forEach(function(el) {
+    observer.observe(el);
+  });
+})();
+</script>
 </body>
 </html>
