@@ -334,15 +334,14 @@ async function openBookModal(clinicId) {
     calMonth = now.getMonth();
   }
 
-  // 예약 인원 미리 불러오기
-  try {
-    const res = await fetch(SU + '?action=getSlotCount&clinicId=' + encodeURIComponent(clinicId));
-    const data = await res.json();
-    slotCounts = data.counts || {};
-  } catch(e) {}
-
   renderCal();
   document.getElementById('book-modal').classList.add('show');
+
+  // 예약 인원 백그라운드 로드
+  fetch(SU + '?action=getSlotCount&clinicId=' + encodeURIComponent(clinicId))
+    .then(r => r.json())
+    .then(data => { slotCounts = data.counts || {}; if (selectedDate) renderTimes(); })
+    .catch(() => {});
 }
 
 function closeBookModal() {
