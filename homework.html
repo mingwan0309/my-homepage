@@ -781,11 +781,25 @@ function getIdleLimit() {
 
 function resetIdleTimer() {
   if (!currentUser) return;
+  localStorage.setItem('mkmath_last_active', Date.now());
   clearTimeout(idleTimer);
   idleTimer = setTimeout(showTimeoutWarning, getIdleLimit());
 }
 
+function checkSessionExpiry() {
+  const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+  if (!session) return;
+  const last = parseInt(localStorage.getItem('mkmath_last_active') || '0');
+  const limit = session.role === 'teacher' ? TIMEOUT_TEACHER : TIMEOUT_STUDENT;
+  if (last && Date.now() - last > limit) {
+    localStorage.removeItem('mkmath_session');
+    localStorage.removeItem('mkmath_last_active');
+    location.reload();
+  }
+}
+
 function startIdleWatcher() {
+  checkSessionExpiry();
   ['mousemove','mousedown','keydown','touchstart','scroll'].forEach(ev => {
     document.addEventListener(ev, resetIdleTimer, true);
   });

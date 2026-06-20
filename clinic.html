@@ -221,6 +221,17 @@ function generateWeeklySlots(schedule) {
 
 window.addEventListener('DOMContentLoaded', function() {
   session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+  if (session) {
+    var last = parseInt(localStorage.getItem('mkmath_last_active') || '0');
+    var limit = session.role === 'teacher' ? 60*60*1000 : 30*60*1000;
+    if (last && Date.now() - last > limit) {
+      localStorage.removeItem('mkmath_session');
+      localStorage.removeItem('mkmath_last_active');
+      session = null;
+    } else {
+      localStorage.setItem('mkmath_last_active', Date.now());
+    }
+  }
   if (!session) {
     document.getElementById('page-denied').style.display = 'block';
     return;

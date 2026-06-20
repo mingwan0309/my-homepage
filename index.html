@@ -1034,6 +1034,21 @@
 
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 
+  // 세션 만료 체크
+  (function() {
+    const s = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+    if (s) {
+      const last = parseInt(localStorage.getItem('mkmath_last_active') || '0');
+      const limit = s.role === 'teacher' ? 60*60*1000 : 30*60*1000;
+      if (last && Date.now() - last > limit) {
+        localStorage.removeItem('mkmath_session');
+        localStorage.removeItem('mkmath_last_active');
+      } else {
+        localStorage.setItem('mkmath_last_active', Date.now());
+      }
+    }
+  })();
+
   // 선생님 로그인 상태면 어드민바 + 후기관리 버튼 표시
   (function() {
     const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
