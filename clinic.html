@@ -27,6 +27,11 @@ body { font-family:"맑은 고딕",sans-serif; background:#f1f5f9; color:#1e293b
 .clinic-badge { background:#f0fdf4; color:#16a34a; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:700; white-space:nowrap; }
 .empty { text-align:center; padding:80px 20px; color:#94a3b8; font-size:15px; }
 .spinner { text-align:center; padding:60px; color:#64748b; font-size:14px; }
+.skeleton { background:#fff; border-radius:14px; padding:22px 24px; margin-bottom:14px; }
+.skel-line { background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; }
+.skel-title { height:18px; width:40%; margin-bottom:10px; }
+.skel-sub { height:13px; width:65%; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
 /* 예약 탭 */
 .tabs { display:flex; gap:0; border-bottom:2px solid #e2e8f0; margin-bottom:24px; }
@@ -105,7 +110,10 @@ body { font-family:"맑은 고딕",sans-serif; background:#f1f5f9; color:#1e293b
     <div id="tab-list">
       <div class="section-title">클리닉 신청</div>
       <div class="section-sub">원하는 클리닉을 선택하고 날짜와 시간을 예약하세요.</div>
-      <div id="clinic-list"><div class="spinner">불러오는 중...</div></div>
+      <div id="clinic-list">
+        <div class="skeleton"><div class="skel-line skel-title"></div><div class="skel-line skel-sub"></div></div>
+        <div class="skeleton"><div class="skel-line skel-title"></div><div class="skel-line skel-sub"></div></div>
+      </div>
     </div>
 
     <!-- 내 예약 -->
