@@ -317,6 +317,20 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 
 <script>
 var SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+function fmtDate(v) {
+  if (!v) return '-';
+  var s = String(v), m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[1] + '년 ' + parseInt(m[2]) + '월 ' + parseInt(m[3]) + '일';
+  return s;
+}
+function fmtTime(v) {
+  if (!v) return '-';
+  var s = String(v);
+  if (/^\d{2}:\d{2}$/.test(s)) return s;
+  var m = s.match(/T(\d{2}):(\d{2})/);
+  if (m) { var h = parseInt(m[1]) + 9; if (h >= 24) h -= 24; return String(h).padStart(2,'0') + ':' + m[2]; }
+  return s;
+}
 var cu = null;
 var curClassTab = 'active';
 var BC = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
@@ -856,7 +870,7 @@ async function openHistoryModal(clinicId, clinicName) {
           ? '<span style="background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">취소</span>'
           : '<span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">예약</span>';
         return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;">'
-          +'<span style="color:#475569;">📅 '+b.date+' '+b.time+'</span>'
+          +'<span style="color:#475569;">📅 '+fmtDate(b.date)+'&nbsp; ⏰ '+fmtTime(b.time)+'</span>'
           +statusBadge
           +'</div>';
       }).join('');
