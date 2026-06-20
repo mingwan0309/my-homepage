@@ -301,7 +301,7 @@ async function loadMyBookings() {
 async function cancelBooking(bookingId) {
   if (!confirm('예약을 취소하시겠습니까?')) return;
   try {
-    await fetch(SU + '?action=cancelBooking&bookingId=' + encodeURIComponent(bookingId));
+    await fetch(SU + '?action=cancelBooking&bookId=' + encodeURIComponent(bookingId));
     loadMyBookings();
   } catch(e) {
     alert('취소 실패. 다시 시도해주세요.');
