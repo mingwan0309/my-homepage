@@ -85,9 +85,10 @@
     display: flex; align-items: center;
   }
   .hero-photo {
-    position: absolute; right: 0; bottom: 0;
+    position: absolute; right: -60px; bottom: 0;
     height: 100%;
     display: flex; align-items: flex-end;
+    transform: translateX(-18%);
   }
   .hero-photo img {
     height: 100%;
@@ -99,7 +100,7 @@
   .hero-photo::before {
     content: '';
     position: absolute; inset: 0; z-index: 1;
-    background: linear-gradient(to right, #0f1f3d 0%, rgba(15,31,61,0.4) 45%, transparent 75%);
+    background: linear-gradient(to right, #0f1f3d 0%, rgba(15,31,61,0.55) 35%, rgba(15,31,61,0.1) 60%, transparent 80%);
   }
   .hero-left {
     position: relative; z-index: 2;
