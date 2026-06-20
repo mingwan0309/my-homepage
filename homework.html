@@ -60,7 +60,7 @@
   .spinner { text-align: center; padding: 20px; color: #64748b; font-size: 14px; }
   .page { display: none; }
   #page-login { display: block; }
-  .topbar { background:#1e293b; color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; margin:-40px -20px 28px; }
+  .topbar { position:fixed; top:0; left:0; right:0; z-index:100; background:#1e293b; color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
   .topbar-logo { font-size:15px; font-weight:900; }
   .topbar-logo span { color:#60a5fa; }
   .topbar-right { display:flex; align-items:center; gap:12px; }
@@ -217,7 +217,7 @@
         <button class="btn-topbar-logout" onclick="logout()">로그아웃</button>
       </div>
     </div>
-    <div class="container" style="padding-top:28px;">
+    <div class="container" style="padding-top:80px;">
 
     <div class="tab-btns">
       <button class="tab-btn active" onclick="studentTab('homework')">숙제 풀기</button>
