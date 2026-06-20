@@ -236,6 +236,17 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 </div>
 
 <!-- 예약 현황 모달 -->
+<!-- 신청 내역 모달 -->
+<div id="history-modal" class="modal-bg">
+  <div class="modal" style="max-width:520px;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <h3 id="hm-title" style="font-size:17px;font-weight:900;"></h3>
+      <button onclick="document.getElementById('history-modal').classList.remove('show')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
+    </div>
+    <div id="hm-body"></div>
+  </div>
+</div>
+
 <div id="bookings-modal" class="modal-bg">
   <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
@@ -800,6 +811,7 @@ async function loadClinics() {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
           <span style="font-size:15px;font-weight:800;">${c.name}</span>
           <div style="display:flex;gap:8px;">
+            <button class="btn-sm" style="background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;" onclick="openHistoryModal('${c.id}','${c.name}')">신청 내역</button>
             <button class="btn-sm btn-blue" onclick="openClinicModal(${cJson})">수정</button>
             <button class="btn-sm btn-red" onclick="deleteClinic('${c.id}','${c.name}')">삭제</button>
           </div>
@@ -815,6 +827,47 @@ async function deleteClinic(id, name) {
   if(!confirm((name||'이 클리닉')+'을 삭제하시겠습니까?')) return;
   await fetch(SU+'?action=deleteClinic&id='+encodeURIComponent(id));
   loadClinics();
+}
+
+async function openHistoryModal(clinicId, clinicName) {
+  document.getElementById('hm-title').textContent = clinicName + ' 신청 내역';
+  document.getElementById('hm-body').innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;">불러오는 중...</div>';
+  document.getElementById('history-modal').classList.add('show');
+  try {
+    var res = await fetch(SU+'?action=getAllBookings&clinicId='+encodeURIComponent(clinicId));
+    var data = await res.json();
+    var all = (data.bookings||[]);
+    if(!all.length) {
+      document.getElementById('hm-body').innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;">신청 내역이 없습니다.</div>';
+      return;
+    }
+    // 학생별 그룹핑
+    var byStudent = {};
+    all.forEach(function(b) {
+      var key = b.studentName + ' (' + b.studentId + ')';
+      if(!byStudent[key]) byStudent[key] = [];
+      byStudent[key].push(b);
+    });
+    var html = Object.keys(byStudent).map(function(skey) {
+      var logs = byStudent[skey];
+      var rows = logs.map(function(b) {
+        var isCancelled = b.status === '취소' || b.status === 'cancelled';
+        var statusBadge = isCancelled
+          ? '<span style="background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">취소</span>'
+          : '<span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">예약</span>';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;">'
+          +'<span style="color:#475569;">📅 '+b.date+' '+b.time+'</span>'
+          +statusBadge
+          +'</div>';
+      }).join('');
+      return '<div style="margin-bottom:14px;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;">'
+        +'<div style="background:#f8fafc;padding:8px 12px;font-size:13px;font-weight:800;color:#1e293b;">👤 '+skey+'</div>'
+        +rows+'</div>';
+    }).join('');
+    document.getElementById('hm-body').innerHTML = html;
+  } catch(e) {
+    document.getElementById('hm-body').innerHTML = '<div style="text-align:center;padding:30px;color:#dc2626;">불러오기 실패</div>';
+  }
 }
 
 async function openBookingsModal(clinicId, clinicName) {
