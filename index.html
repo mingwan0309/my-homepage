@@ -44,7 +44,6 @@
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.10);
     min-width: 140px;
-    overflow: hidden;
     opacity: 0;
     visibility: hidden;
     transform: translateX(-50%) translateY(-8px);
@@ -516,6 +515,7 @@
         <a href="homework.html">📝 데일리 퀴즈</a>
         <a href="library.html">📂 자료실</a>
         <a href="clinic.html">🏥 클리닉 신청</a>
+        <a href="qna.html">💬 질의응답</a>
       </div>
     </li>
     <li><a href="notice.html">공지사항</a></li>
@@ -892,7 +892,7 @@
     <p class="section-desc">직접 다닌 학생들이 남긴 진짜 후기입니다.</p>
   </div>
   <div class="review-track-wrap">
-    <div class="review-track">
+    <div class="review-track" id="review-track">
       <div class="review-card"><p>고등학교 1학년, 2학년 1학기까지 수학은 혼자 풀면 되겠다 생각했는데 성적이 안나와서 왔습니다. 다니면서 <strong>오기를 잘한거 같다는 생각이 들었습니다.</strong> 항상 수업전에 1시간씩 클리닉 시간도 좋고 감잡기와 적용하기로 다진후에 실모와 타임어택을 반복하는 수업방식이 좋은것 같습니다. <strong>쌤 덕분에 성적이 확 올랐습니다.</strong></p></div>
       <div class="review-card"><p><strong>선생님 덕분에 이번에 또 100점을 받게 되었습니다.</strong> 수강 전에는 고난도 문제를 풀지 못했는데, 감잡기&amp;적용하기로 다양한 문제를 접하고 새로운 풀이를 배우면서 실모나 타임어택을 빠르게 풀어낼 실력을 길렀습니다. <strong>중하위권 학생들에게 성적을 크게 끌어올릴 수 있는 수업이라고 추천하고 싶습니다!</strong> 피스~🕊</p></div>
       <div class="review-card"><p>2학년 2학기 들어서 등급을 올려야 한다는 압박감이 있었는데 쌤께서 기본 문제부터 차근차근 주셔서 <strong>기초부터 탄탄히 쌓을 수 있었고 덕분에 시험에서 덜 틀릴 수 있었어요!</strong> 부교재 손글씨도 다른 풀이와 팁이 있어서 많은 도움이 되었어요. <strong>등급도 하나 더 올랐습니다!</strong></p></div>
@@ -1034,6 +1034,25 @@
 
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 
+  // 구글 시트에서 학생 제출 후기를 캐러셀에 추가
+  (function() {
+    fetch(SCRIPT_URL + '?action=getReviews')
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        var reviews = (data.reviews || []).filter(function(r){ return r.studentId && r.studentId !== ''; });
+        if (!reviews.length) return;
+        var track = document.getElementById('review-track');
+        if (!track) return;
+        reviews.forEach(function(r) {
+          var div = document.createElement('div');
+          div.className = 'review-card';
+          div.innerHTML = '<p>' + r.text + '</p>';
+          track.appendChild(div);
+        });
+      })
+      .catch(function(){});
+  })();
+
   // 세션 만료 체크
   (function() {
     const s = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
@@ -1061,12 +1080,23 @@
 
   function openReviewLogin() {
     document.getElementById('review-modal').style.display = 'flex';
-    document.getElementById('review-step-login').style.display = 'block';
-    document.getElementById('review-step-write').style.display = 'none';
-    document.getElementById('review-step-done').style.display = 'none';
     document.getElementById('review-login-msg').innerHTML = '';
     document.getElementById('review-id').value = '';
     document.getElementById('review-pw').value = '';
+    const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+    if (session && (session.role === 'student' || session.role === 'teacher')) {
+      reviewUser = { id: session.id || session.name, name: session.name };
+      document.getElementById('review-step-login').style.display = 'none';
+      document.getElementById('review-step-write').style.display = 'block';
+      document.getElementById('review-step-done').style.display = 'none';
+      document.getElementById('review-username').textContent = session.name + ' 학생 안녕하세요 👋';
+      document.getElementById('review-text').value = '';
+      document.getElementById('review-write-msg').innerHTML = '';
+      return;
+    }
+    document.getElementById('review-step-login').style.display = 'block';
+    document.getElementById('review-step-write').style.display = 'none';
+    document.getElementById('review-step-done').style.display = 'none';
   }
 
   function closeReviewModal() {
@@ -1197,6 +1227,7 @@
       btn.href = '#';
       btn.onclick = function(e) { e.preventDefault(); openLoginModal(); };
       document.getElementById('admin-bar').style.display = 'none';
+      document.getElementById('review-manage-btn').style.display = 'none';
     }
   }
 
