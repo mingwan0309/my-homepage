@@ -466,13 +466,12 @@ async function saveAnswer() {
   if (!content) { alert('답변 내용을 입력해주세요.'); return; }
   try {
     if (currentAnswer) {
-      await fetch(SU, {method:'POST',body:JSON.stringify({action:'updateAnswer',id:currentAnswer.id,content:content})});
+      await fetch(SU, {method:'POST',mode:'no-cors',body:JSON.stringify({action:'updateAnswer',id:currentAnswer.id,content:content})});
       currentAnswer.content = content;
     } else {
-      const now = new Date().toLocaleString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
-      const res = await fetch(SU, {method:'POST',body:JSON.stringify({action:'submitAnswer',questionId:currentQuestion.id,content:content})});
-      const d = await res.json();
-      currentAnswer = { id: d.id, content: content, createdAt: '방금 전' };
+      const newId = String(Date.now());
+      await fetch(SU, {method:'POST',mode:'no-cors',body:JSON.stringify({action:'submitAnswer',questionId:currentQuestion.id,content:content,id:newId})});
+      currentAnswer = { id: newId, content: content, createdAt: '방금 전' };
       currentQuestion.status = 'answered';
       document.getElementById('detail-badge').innerHTML = '<span class="badge-answered">답변 완료</span>';
     }
@@ -511,7 +510,7 @@ async function submitQuestion() {
   const btn = document.getElementById('write-save-btn');
   btn.disabled = true; btn.textContent = '저장 중...';
   try {
-    await fetch(SU, {method:'POST', body:JSON.stringify({action:'submitQuestion', title:title, content:content, studentId:session.id||'', studentName:session.name||'', secret:secret})});
+    await fetch(SU, {method:'POST', mode:'no-cors', body:JSON.stringify({action:'submitQuestion', title:title, content:content, studentId:session.id||'', studentName:session.name||'', secret:secret})});
     alert('질문이 등록되었습니다!');
     showList();
   } catch(e) {
