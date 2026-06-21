@@ -303,9 +303,6 @@ function renderList() {
   if (keyword) list = list.filter(q => q.title.toLowerCase().includes(keyword) || q.contentPreview.toLowerCase().includes(keyword));
   if (unansweredOnly) list = list.filter(q => q.status === 'pending');
 
-  if (session.role === 'teacher') {
-    document.getElementById('write-btn-wrap').classList.add('hidden');
-  }
 
   if (!list.length) {
     document.getElementById('list-container').innerHTML = '<div class="empty-list">등록된 질문이 없습니다.</div>';
