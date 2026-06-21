@@ -5,52 +5,111 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>후기 관리 | 김민관 수학</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: '맑은 고딕', sans-serif; background: #f8fafc; color: #1e293b; }
-  .container { max-width: 720px; margin: 0 auto; padding: 40px 20px; }
-  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-  h1 { font-size: 24px; font-weight: 900; }
-  .btn-back { background: #f1f5f9; color: #1e293b; border: 1.5px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; text-decoration: none; }
-  .review-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; margin-bottom: 12px; }
-  .review-card .meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  .review-card .name { font-size: 15px; font-weight: 800; }
-  .review-card .id { font-size: 12px; color: #94a3b8; font-weight: 400; margin-left: 6px; }
-  .review-card .date { font-size: 12px; color: #94a3b8; }
-  .review-card .text { font-size: 14px; line-height: 1.8; color: #1e293b; margin-bottom: 14px; }
-  .btn-delete { padding: 6px 14px; border: 1.5px solid #fecaca; border-radius: 6px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; }
-  .btn-delete:hover { background: #fef2f2; }
-  .empty { text-align: center; padding: 60px 0; color: #94a3b8; font-size: 15px; }
-  .spinner { text-align: center; padding: 60px 0; color: #64748b; font-size: 14px; }
-  .access-denied { text-align: center; padding: 80px 20px; }
-  .access-denied h2 { font-size: 20px; font-weight: 800; margin-bottom: 12px; color: #dc2626; }
-  .access-denied p { font-size: 14px; color: #64748b; margin-bottom: 24px; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'맑은 고딕',sans-serif; background:#f1f5f9; color:#1e293b; min-height:100vh; }
+.topbar { background:#1e293b; color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
+.topbar-logo { font-size:15px; font-weight:900; }
+.topbar-logo span { color:#60a5fa; }
+.btn-back { background:#334155; color:#fff; border:none; padding:7px 14px; border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; }
+
+.container { max-width:1100px; margin:0 auto; padding:32px 24px; }
+.page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:12px; }
+.page-title { font-size:22px; font-weight:900; }
+.page-sub { font-size:13px; color:#64748b; margin-top:4px; }
+
+.stats { display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
+.stat-card { background:#fff; border-radius:10px; padding:14px 20px; font-size:13px; font-weight:700; color:#475569; box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+.stat-card span { font-size:22px; font-weight:900; color:#2563eb; display:block; }
+
+/* 포스트잇 그리드 */
+.review-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+.sticky { border-radius:4px; padding:18px 18px 14px; position:relative; box-shadow:2px 4px 12px rgba(0,0,0,0.12); min-height:160px; display:flex; flex-direction:column; transition:transform 0.15s; }
+.sticky:hover { transform:translateY(-3px); }
+.sticky.yellow { background:#fef9c3; }
+.sticky.blue { background:#dbeafe; }
+.sticky.green { background:#dcfce7; }
+.sticky.pink { background:#fce7f3; }
+.sticky.orange { background:#ffedd5; }
+.sticky.purple { background:#ede9fe; }
+
+.sticky-meta { font-size:11px; color:#64748b; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+.sticky-id { font-weight:800; color:#374151; background:rgba(0,0,0,0.07); padding:2px 7px; border-radius:10px; font-size:11px; }
+.sticky-text { font-size:13px; line-height:1.7; color:#1e293b; flex:1; word-break:break-word; }
+.sticky-text strong { color:#1d4ed8; }
+.sticky-btns { display:flex; gap:6px; margin-top:12px; }
+.btn-edit { background:rgba(0,0,0,0.08); color:#374151; border:none; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; }
+.btn-edit:hover { background:rgba(0,0,0,0.15); }
+.btn-del { background:rgba(220,38,38,0.1); color:#dc2626; border:none; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; }
+.btn-del:hover { background:rgba(220,38,38,0.2); }
+.sticky-date { font-size:10px; color:#9ca3af; margin-top:6px; }
+
+.empty { text-align:center; padding:80px 0; color:#94a3b8; font-size:15px; }
+.spinner { text-align:center; padding:60px 0; color:#64748b; }
+
+/* 수정 모달 */
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center; }
+.modal-bg.show { display:flex; }
+.modal { background:#fff; border-radius:16px; padding:28px; width:90%; max-width:480px; }
+.modal h3 { font-size:16px; font-weight:900; margin-bottom:16px; }
+.modal textarea { width:100%; height:150px; border:1.5px solid #e2e8f0; border-radius:8px; padding:12px; font-size:14px; font-family:inherit; resize:vertical; outline:none; line-height:1.7; }
+.modal textarea:focus { border-color:#2563eb; }
+.modal-btns { display:flex; gap:10px; margin-top:16px; }
+.modal-btns button { flex:1; padding:11px; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; }
+.btn-ok { background:#2563eb; color:#fff; }
+.btn-cl { background:#f1f5f9; color:#64748b; }
+
+.access-denied { text-align:center; padding:80px 20px; }
+.access-denied h2 { font-size:20px; font-weight:800; margin-bottom:12px; color:#dc2626; }
 </style>
 </head>
 <body>
-<div class="container">
 
-  <!-- 접근 거부 -->
-  <div id="page-denied" style="display:none;">
-    <div class="access-denied">
-      <h2>접근 권한이 없습니다</h2>
-      <p>선생님 계정으로 로그인 후 이용해주세요.</p>
-      <a href="homework.html" class="btn-back">로그인하러 가기</a>
+<div class="topbar">
+  <div class="topbar-logo">김민관 <span>수학</span></div>
+  <a href="admin.html" class="btn-back">← 관리 페이지</a>
+</div>
+
+<div id="page-denied" style="display:none;">
+  <div class="access-denied">
+    <h2>접근 권한이 없습니다</h2>
+    <p style="color:#64748b;font-size:14px;margin-bottom:20px;">선생님 계정으로 로그인 후 이용해주세요.</p>
+    <a href="homework.html" style="background:#2563eb;color:#fff;padding:10px 24px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;">로그인하러 가기</a>
+  </div>
+</div>
+
+<div id="page-main" style="display:none;">
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <div class="page-title">⭐ 후기 관리</div>
+        <div class="page-sub">후기를 수정하거나 삭제할 수 있습니다. 삭제한 후기는 메인 화면에서 사라집니다.</div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat-card"><span id="stat-total">-</span>전체 후기</div>
+      <div class="stat-card"><span id="stat-student">-</span>학생 제출</div>
+    </div>
+    <div id="reviews-grid" class="review-grid"><div class="spinner">불러오는 중...</div></div>
+  </div>
+</div>
+
+<!-- 수정 모달 -->
+<div id="edit-modal" class="modal-bg">
+  <div class="modal">
+    <h3>✏️ 후기 수정</h3>
+    <textarea id="edit-text" placeholder="후기 내용을 입력하세요"></textarea>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="closeEdit()">취소</button>
+      <button class="btn-ok" onclick="saveEdit()">저장</button>
     </div>
   </div>
-
-  <!-- 후기 관리 -->
-  <div id="page-main" style="display:none;">
-    <div class="nav-bar">
-      <h1>⭐ 후기 관리</h1>
-      <a href="admin.html" class="btn-back" style="background:#2563eb; color:#fff; border-color:#2563eb;">← 관리 페이지</a>
-    </div>
-    <div id="reviews-area"><div class="spinner">불러오는 중...</div></div>
-  </div>
-
 </div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+const SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+const COLORS = ['yellow','blue','green','pink','orange','purple'];
+let allReviews = [];
+let editingId = null;
 
 window.addEventListener('DOMContentLoaded', function() {
   const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
@@ -63,36 +122,77 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 
 async function loadReviews() {
-  const area = document.getElementById('reviews-area');
+  const grid = document.getElementById('reviews-grid');
   try {
-    const res = await fetch(`${SCRIPT_URL}?action=getReviews`);
+    const res = await fetch(SU + '?action=getAllReviews');
     const data = await res.json();
-    if (!data.reviews || data.reviews.length === 0) {
-      area.innerHTML = '<div class="empty">아직 제출된 후기가 없습니다.</div>';
+    allReviews = data.reviews || [];
+
+    const visible = allReviews.filter(r => r.hidden !== 'true');
+    const studentSubmitted = allReviews.filter(r => r.studentId && r.studentId !== '' && r.hidden !== 'true');
+    document.getElementById('stat-total').textContent = visible.length;
+    document.getElementById('stat-student').textContent = studentSubmitted.length;
+
+    if (!visible.length) {
+      grid.innerHTML = '<div class="empty">등록된 후기가 없습니다.<br><small style="font-size:13px;margin-top:8px;display:block;">구글 시트 reviews 탭에 후기를 추가하거나 학생이 후기를 제출하면 여기에 표시됩니다.</small></div>';
       return;
     }
-    area.innerHTML = data.reviews.map((r, i) => `
-      <div class="review-card">
-        <div class="meta">
-          <div><span class="name">${r.name}</span><span class="id">(${r.id})</span></div>
-          <span class="date">${r.date}</span>
-        </div>
-        <div class="text">${r.text}</div>
-        <button class="btn-delete" onclick="deleteReview(${i})">삭제</button>
-      </div>
-    `).join('');
+
+    grid.innerHTML = visible.map(function(r, i) {
+      const color = COLORS[i % COLORS.length];
+      const idBadge = r.studentId ? '<span class="sticky-id">@' + r.studentId + '</span>' : '<span class="sticky-id">익명</span>';
+      const nameStr = r.name || '익명';
+      const dateStr = r.date || '';
+      return '<div class="sticky ' + color + '" id="card-' + r.id + '">'
+        + '<div class="sticky-meta">'
+        + '<span style="font-weight:800;font-size:12px;">' + nameStr + '</span>'
+        + idBadge
+        + '</div>'
+        + '<div class="sticky-text">' + r.text + '</div>'
+        + '<div class="sticky-date">' + dateStr + '</div>'
+        + '<div class="sticky-btns">'
+        + '<button class="btn-edit" onclick="openEdit(\'' + r.id + '\')">✏️ 수정</button>'
+        + '<button class="btn-del" onclick="deleteReview(\'' + r.id + '\')">🗑 삭제</button>'
+        + '</div></div>';
+    }).join('');
   } catch(e) {
-    area.innerHTML = '<div class="empty">불러오기 실패. 다시 시도해주세요.</div>';
+    grid.innerHTML = '<div class="empty">불러오기 실패. 다시 시도해주세요.</div>';
   }
 }
 
-async function deleteReview(index) {
-  if (!confirm('이 후기를 삭제하시겠습니까?')) return;
+function openEdit(id) {
+  const r = allReviews.find(function(x){ return x.id === id; });
+  if (!r) return;
+  editingId = id;
+  document.getElementById('edit-text').value = r.text.replace(/<strong>/g,'**').replace(/<\/strong>/g,'**');
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+function closeEdit() {
+  document.getElementById('edit-modal').classList.remove('show');
+  editingId = null;
+}
+
+async function saveEdit() {
+  if (!editingId) return;
+  let text = document.getElementById('edit-text').value.trim();
+  text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   try {
-    await fetch(`${SCRIPT_URL}?action=deleteReview&index=${index}`);
+    await fetch(SU + '?action=updateReview&id=' + encodeURIComponent(editingId) + '&text=' + encodeURIComponent(text));
+    closeEdit();
     loadReviews();
   } catch(e) {
-    alert('삭제 실패. 다시 시도해주세요.');
+    alert('수정 실패');
+  }
+}
+
+async function deleteReview(id) {
+  if (!confirm('이 후기를 삭제하시겠습니까?\n삭제하면 메인 화면에서도 사라집니다.')) return;
+  try {
+    await fetch(SU + '?action=deleteReview&id=' + encodeURIComponent(id));
+    loadReviews();
+  } catch(e) {
+    alert('삭제 실패');
   }
 }
 </script>
