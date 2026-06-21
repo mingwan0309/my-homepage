@@ -1164,12 +1164,7 @@
       if (data.success) {
         localStorage.setItem('mkmath_session', JSON.stringify({ id, role: data.role, name: data.name }));
         closeLoginModal();
-        if (data.role === 'teacher') {
-          location.href = 'admin.html';
-        } else {
-          // 학생: 메인화면 그대로, 버튼만 업데이트
-          updateLoginBtn();
-        }
+        updateLoginBtn();
       } else {
         msg.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">아이디 또는 비밀번호가 틀렸습니다</p>';
       }
