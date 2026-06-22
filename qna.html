@@ -320,7 +320,7 @@ function renderList() {
   document.getElementById('list-container').innerHTML = list.map(function(q, i) {
     const num = allQuestions.indexOf(q) >= 0 ? allQuestions.length - allQuestions.indexOf(q) : '-';
     const lock = q.secret === 'true' ? ' 🔒' : '';
-    const canView = q.canView === 'true' || session.role === 'teacher';
+    const canView = q.canView === 'true' || session.role === 'teacher' || q.studentId === (session.id || '');
     const badge = q.status === 'answered'
       ? '<span class="badge-answered">답변 완료</span>'
       : '<span class="badge-pending">답변 대기</span>';
