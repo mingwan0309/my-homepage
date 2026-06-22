@@ -156,6 +156,10 @@ body { font-family:'맑은 고딕', sans-serif; background:#f8fafc; color:#1e293
         <label class="toggle"><input type="checkbox" id="toggle-unanswered" onchange="renderList()"><span class="toggle-slider"></span></label>
         답변 필요 질문만 <span class="unanswered-count" id="unanswered-count">0</span>
       </div>
+      <div class="toggle-wrap" id="myquestions-wrap">
+        <label class="toggle"><input type="checkbox" id="toggle-mine" onchange="renderList()"><span class="toggle-slider"></span></label>
+        내 글만 보기
+      </div>
     </div>
     <div id="list-container" class="qna-list"><div class="spinner">불러오는 중...</div></div>
     <div style="margin-top:20px;display:flex;justify-content:flex-end;" id="write-btn-wrap">
@@ -248,6 +252,8 @@ window.addEventListener('DOMContentLoaded', function() {
   }
   if (session.role !== 'teacher') {
     document.getElementById('unanswered-wrap').classList.add('hidden');
+  } else {
+    document.getElementById('myquestions-wrap').classList.add('hidden');
   }
   showList();
 });
@@ -299,9 +305,11 @@ function renderList() {
   const pending = allQuestions.filter(q => q.status === 'pending').length;
   document.getElementById('unanswered-count').textContent = pending;
 
+  const mineOnly = document.getElementById('toggle-mine') && document.getElementById('toggle-mine').checked;
   let list = allQuestions;
   if (keyword) list = list.filter(q => q.title.toLowerCase().includes(keyword) || q.contentPreview.toLowerCase().includes(keyword));
   if (unansweredOnly) list = list.filter(q => q.status === 'pending');
+  if (mineOnly) list = list.filter(q => q.studentId === (session.id || ''));
 
 
   if (!list.length) {
