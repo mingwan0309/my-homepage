@@ -312,14 +312,16 @@ function renderList() {
   document.getElementById('list-container').innerHTML = list.map(function(q, i) {
     const num = allQuestions.indexOf(q) >= 0 ? allQuestions.length - allQuestions.indexOf(q) : '-';
     const lock = q.secret === 'true' ? ' 🔒' : '';
+    const canView = q.canView === 'true' || session.role === 'teacher';
     const badge = q.status === 'answered'
       ? '<span class="badge-answered">답변 완료</span>'
       : '<span class="badge-pending">답변 대기</span>';
-    return '<div class="qna-item" onclick="showDetail(\'' + q.id + '\')">'
+    const clickAttr = canView ? 'onclick="showDetail(\'' + q.id + '\')" style="cursor:pointer;"' : 'style="opacity:0.5;cursor:default;"';
+    return '<div class="qna-item" ' + clickAttr + '>'
       + '<div class="qna-num">' + num + '</div>'
       + '<div class="qna-main">'
       + '<div class="qna-title-row"><span class="qna-title">' + esc(q.title) + lock + '</span></div>'
-      + '<div class="qna-preview">' + esc(q.contentPreview) + '</div>'
+      + (q.contentPreview ? '<div class="qna-preview">' + esc(q.contentPreview) + '</div>' : '')
       + '<div class="qna-meta">' + esc(q.studentName) + ' · ' + q.createdAt + '</div>'
       + '</div>'
       + '<div class="qna-status">' + badge + '</div>'
