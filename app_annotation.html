@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>앱 기능 안내</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f1f5f9;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 20px;
+    font-family: 'Malgun Gothic', sans-serif;
+  }
+
+  .container {
+    display: flex;
+    align-items: flex-start;
+    gap: 60px;
+    max-width: 900px;
+    width: 100%;
+  }
+
+  /* 폰 이미지 + 오버레이 */
+  .phone-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 280px;
+  }
+  .phone-wrap img {
+    width: 100%;
+    display: block;
+    border-radius: 24px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  }
+
+  /* 빨간 박스 오버레이 */
+  .box {
+    position: absolute;
+    border: 2.5px solid #e53e3e;
+    border-radius: 8px;
+    pointer-events: none;
+  }
+  /* 1. 수강이력 (차시 목록) */
+  .box1 { top: 9%; left: 3%; width: 94%; height: 32%; }
+  /* 2. 클리닉 예약하기 */
+  .box2 { top: 46%; left: 3%; width: 46%; height: 11%; }
+  /* 3. 질의응답 아이콘 */
+  .box3 { top: 79%; left: 47%; width: 24%; height: 9%; }
+  /* 4. 다음 시간까지의 과제 */
+  .box4 { top: 90%; left: 3%; width: 94%; height: 8%; }
+
+  /* 번호 뱃지 */
+  .badge {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background: #e53e3e;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translate(-50%, -50%);
+  }
+  .badge1 { top: 9%; left: 3%; }
+  .badge2 { top: 46%; left: 3%; }
+  .badge3 { top: 79%; left: 47%; }
+  .badge4 { top: 90%; left: 3%; }
+
+  /* 오른쪽 레이블 목록 */
+  .labels {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-top: 30px;
+  }
+
+  .label-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .label-num {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    background: #e53e3e;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+  }
+
+  .label-text h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+  .label-text p {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.6;
+  }
+
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: #e2e8f0;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- 폰 스크린샷 + 오버레이 -->
+    <div class="phone-wrap">
+      <img src="app_screen.png" alt="앱 화면">
+
+      <!-- 빨간 박스 -->
+      <div class="box box1"></div>
+      <div class="box box2"></div>
+      <div class="box box3"></div>
+      <div class="box box4"></div>
+
+      <!-- 번호 뱃지 -->
+      <div class="badge badge1">1</div>
+      <div class="badge badge2">2</div>
+      <div class="badge badge3">3</div>
+      <div class="badge badge4">4</div>
+    </div>
+
+    <!-- 오른쪽 설명 -->
+    <div class="labels">
+      <div class="label-item">
+        <div class="label-num">1</div>
+        <div class="label-text">
+          <h3>숙제 및 누적 테스트<br>수업 영상 확인</h3>
+          <p>차시별 수강 이력과 누적성적표를<br>한눈에 확인할 수 있어요.</p>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="label-item">
+        <div class="label-num">2</div>
+        <div class="label-text">
+          <h3>추가 클리닉 신청</h3>
+          <p>원하는 시간에 클리닉을<br>예약하고 신청할 수 있어요.</p>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="label-item">
+        <div class="label-num">3</div>
+        <div class="label-text">
+          <h3>온라인 질문</h3>
+          <p>수업 중 모르는 내용을<br>언제든지 질문할 수 있어요.</p>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="label-item">
+        <div class="label-num">4</div>
+        <div class="label-text">
+          <h3>다음 과제 확인</h3>
+          <p>다음 시간까지 해야 할 과제를<br>앱에서 바로 확인할 수 있어요.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

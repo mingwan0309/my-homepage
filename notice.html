@@ -128,7 +128,7 @@
 <body>
 
 <div class="topbar">
-  <div class="topbar-logo">김민관 <span>수학</span></div>
+  <a href="index.html" style="cursor:pointer;"><img src="logo.png" alt="로고" style="height:32px;width:auto;display:block;"></a>
   <div class="topbar-right">
     <a href="index.html" class="btn-topbar-home">🏠 홈</a>
   </div>
@@ -298,11 +298,14 @@
   })();
 
   // URL에 ?tab=faq 있으면 FAQ 탭 자동 활성화
-  if (new URLSearchParams(window.location.search).get('tab') === 'faq') {
+  var urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('tab') === 'faq') {
     document.querySelectorAll('.notice-list').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
     document.getElementById('tab-faq').classList.add('active');
     document.querySelectorAll('.tab')[1].classList.add('active');
+    var openId = urlParams.get('open');
+    if (openId && faqData[openId]) openFaqModal(openId);
   }
 
   function showTab(tab) {

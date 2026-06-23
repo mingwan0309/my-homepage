@@ -936,7 +936,7 @@
       </div>
       <div class="notice-block">
         <h3>자주 묻는 질문 <a href="notice.html?tab=faq">더보기 ›</a></h3>
-        <div id="index-faq-list"></div>
+        <p style="padding:20px 0; color:#94a3b8; font-size:14px;">자주 묻는 질문은 <a href="notice.html?tab=faq" style="color:#2563eb;font-weight:700;">공지사항 → 자주 묻는 질문</a> 탭에서 확인하세요.</p>
       </div>
     </div>
   </div>
@@ -1177,7 +1177,7 @@
       const a = document.createElement('a');
       a.className = 'notice-item';
       a.href = '#';
-      a.onclick = function(e) { e.preventDefault(); openFaqModal(id); };
+      a.onclick = (function(fid) { return function(e) { e.preventDefault(); location.href = 'notice.html?tab=faq&open=' + fid; }; })(id);
       a.innerHTML = '<div>' + d.title + '</div><span>FAQ</span>';
       container.appendChild(a);
     });
