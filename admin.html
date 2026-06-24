@@ -429,6 +429,7 @@ async function toggleCls(id){
     await fetch(SU+'?action=toggleClassStatus&id='+encodeURIComponent(id));
     loadClasses();
   }catch(e){alert('오류가 발생했습니다.');}
+}
 
 // 학생
 async function addSingle(){
