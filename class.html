@@ -23,8 +23,6 @@ body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);min
 .cls-name{font-size:18px;font-weight:800;color:#1e293b;}
 .cls-time{font-size:13px;color:#64748b;margin-top:2px;}
 .header-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
-.icon-btn{background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;color:#64748b;}
-.icon-btn:hover{background:#f8fafc;}
 .btn-add-session{background:#3b6cf7;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
 
 /* SESSIONS ROW */
@@ -60,9 +58,9 @@ tr:hover td{background:#fafbff;}
 .att-chip{padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700;}
 
 /* STATUS COLORS */
-.s현장{background:#dcfce7;color:#16a34a;}
+.s현장,.s출석{background:#dcfce7;color:#16a34a;}
 .s지각{background:#fef9c3;color:#a16207;}
-.s영상{background:#dbeafe;color:#2563eb;}
+.s영상,.s영상대체{background:#dbeafe;color:#2563eb;}
 .s보강{background:#ede9fe;color:#7c3aed;}
 .s조퇴{background:#fed7aa;color:#c2410c;}
 .s결석{background:#fee2e2;color:#dc2626;}
@@ -70,15 +68,33 @@ tr:hover td{background:#fafbff;}
 .s퇴원{background:#1e293b;color:#fff;}
 .s미정{background:#f1f5f9;color:#cbd5e1;}
 
+/* 자료실 */
+.mat-layout{display:flex;gap:16px;align-items:flex-start;}
+.mat-sidebar{width:180px;flex-shrink:0;background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;}
+.mat-sidebar-title{padding:14px 16px;font-size:13px;font-weight:700;color:#94a3b8;border-bottom:1px solid #f1f5f9;}
+.mat-cat{padding:11px 16px;font-size:14px;font-weight:600;color:#334155;cursor:pointer;border-left:3px solid transparent;transition:.15s;}
+.mat-cat:hover{background:#f8fafc;}
+.mat-cat.active{color:#3b6cf7;background:#eff4ff;border-left-color:#3b6cf7;}
+.mat-main{flex:1;min-width:0;}
+.mat-main .card-header{display:flex;align-items:center;justify-content:space-between;}
+.btn-add-mat{background:#3b6cf7;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
+.mat-table th,.mat-table td{white-space:nowrap;}
+.mat-table .mat-name{font-weight:700;color:#1e293b;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mat-link{color:#3b6cf7;text-decoration:none;font-weight:600;}
+.mat-link:hover{text-decoration:underline;}
+.mat-del-btn{background:none;border:none;color:#dc2626;cursor:pointer;font-size:13px;padding:2px 6px;border-radius:5px;}
+.mat-del-btn:hover{background:#fee2e2;}
+
 /* MODAL */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;}
 .modal-bg.show{display:flex;}
-.modal{background:#fff;border-radius:16px;padding:28px;width:90%;max-width:420px;}
+.modal{background:#fff;border-radius:16px;padding:28px;width:90%;max-width:460px;}
 .modal h3{font-size:18px;font-weight:800;color:#1e293b;margin-bottom:20px;}
 .fg{margin-bottom:14px;}
 .fg label{display:block;font-size:13px;font-weight:600;color:#64748b;margin-bottom:6px;}
-.fg input{width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;}
-.fg input:focus{border-color:#3b6cf7;}
+.fg input,.fg select,.fg textarea{width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:#3b6cf7;}
+.fg textarea{resize:vertical;min-height:60px;}
 .modal-btns{display:flex;gap:10px;margin-top:20px;}
 .btn-cl{flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:9px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:#64748b;}
 .btn-ok{flex:1;padding:11px;background:#3b6cf7;border:none;border-radius:9px;cursor:pointer;font-size:14px;font-weight:700;color:#fff;}
@@ -118,9 +134,10 @@ tr:hover td{background:#fafbff;}
 <!-- TABS -->
 <div class="tabs-bar" id="tabs-bar" style="display:none;">
   <div class="tab-item active" onclick="switchTab('students',this)">수강생 목록 <span id="stu-count-badge"></span></div>
+  <div class="tab-item" onclick="switchTab('materials',this)">강의 자료실</div>
 </div>
 
-<!-- CONTENT -->
+<!-- CONTENT: 수강생 -->
 <div class="content" id="content-students">
   <div class="card">
     <div class="card-header">
@@ -144,6 +161,42 @@ tr:hover td{background:#fafbff;}
   </div>
 </div>
 
+<!-- CONTENT: 자료실 -->
+<div class="content" id="content-materials" style="display:none;">
+  <div class="mat-layout">
+    <div class="mat-sidebar">
+      <div class="mat-sidebar-title">카테고리</div>
+      <div class="mat-cat active" onclick="selectCat('전체',this)">📂 전체</div>
+      <div class="mat-cat" onclick="selectCat('자습용 자료',this)">📖 자습용 자료</div>
+      <div class="mat-cat" onclick="selectCat('손필기 자료',this)">✏️ 손필기 자료</div>
+      <div class="mat-cat" onclick="selectCat('암기자료',this)">🧠 암기자료</div>
+    </div>
+    <div class="mat-main">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title" id="mat-cat-title">전체 자료</div>
+          <button class="btn-add-mat" id="btn-add-mat" onclick="openAddMat()" style="display:none;">+ 자료 추가</button>
+        </div>
+        <table class="mat-table">
+          <thead>
+            <tr>
+              <th>파일명</th>
+              <th>카테고리</th>
+              <th>등록일</th>
+              <th>다운로드</th>
+              <th>메모</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="mat-tbody">
+            <tr><td colspan="6" class="empty">불러오는 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 차시 추가 모달 -->
 <div class="modal-bg" id="add-session-modal">
   <div class="modal">
@@ -152,6 +205,29 @@ tr:hover td{background:#fafbff;}
     <div class="modal-btns">
       <button class="btn-cl" onclick="closeAddSession()">취소</button>
       <button class="btn-ok" onclick="saveSession()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 자료 추가 모달 -->
+<div class="modal-bg" id="add-mat-modal">
+  <div class="modal">
+    <h3>자료 추가</h3>
+    <div class="fg">
+      <label>카테고리</label>
+      <select id="mat-cat-sel">
+        <option>자습용 자료</option>
+        <option>손필기 자료</option>
+        <option>암기자료</option>
+      </select>
+    </div>
+    <div class="fg"><label>파일명 / 제목</label><input type="text" id="mat-name" placeholder="예) 2학년 1학기 수1 개념정리"></div>
+    <div class="fg"><label>Google Drive 링크 (공유 링크 붙여넣기)</label><input type="url" id="mat-url" placeholder="https://drive.google.com/..."></div>
+    <div class="fg"><label>파일 크기 (선택)</label><input type="text" id="mat-size" placeholder="예) 46MB"></div>
+    <div class="fg"><label>메모 (선택)</label><textarea id="mat-memo" placeholder="간단한 설명을 입력하세요"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="closeAddMat()">취소</button>
+      <button class="btn-ok" onclick="saveMat()">추가</button>
     </div>
   </div>
 </div>
@@ -171,9 +247,8 @@ function logout(){localStorage.removeItem('mkmath_session');location.href='index
 const COLORS=['#3b6cf7','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4'];
 function badgeColor(n){var h=0;for(var i=0;i<n.length;i++)h+=n.charCodeAt(i);return COLORS[h%COLORS.length];}
 
-const ATT_STATUS=['현장','지각','영상','보강','조퇴','결석','부재','퇴원','미정'];
-
-var classInfo=null, students=[], sessions=[];
+var classInfo=null, students=[], sessions=[], materials=[];
+var currentCat='전체';
 
 async function init(){
   if(!classId){document.body.innerHTML='<div style="text-align:center;padding:80px;color:#94a3b8;">반 정보를 찾을 수 없습니다.</div>';return;}
@@ -183,7 +258,6 @@ async function init(){
   ]);
   if(!cr.classInfo){document.body.innerHTML='<div style="text-align:center;padding:80px;color:#94a3b8;">반 정보를 찾을 수 없습니다.</div>';return;}
 
-  // 학생이 자기 반 아닌 경우 차단
   if(session.role==='student' && session.classId !== classId){
     document.body.innerHTML='<div style="text-align:center;padding:80px;"><h2>접근 권한이 없습니다</h2></div>';return;
   }
@@ -209,8 +283,8 @@ function renderHeader(){
   document.getElementById('cls-name').textContent=classInfo.name;
   document.getElementById('cls-time').textContent=classInfo.time||'';
   document.title=classInfo.name+' — 김민관 수학';
-  // 학생이면 차시 추가 버튼 숨기기
   if(session.role!=='teacher') document.querySelector('.btn-add-session').style.display='none';
+  if(session.role==='teacher') document.getElementById('btn-add-mat').style.display='';
 }
 
 function renderSessions(){
@@ -237,20 +311,18 @@ async function renderStudents(){
   const tbody=document.getElementById('stu-tbody');
   if(!students.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 수강생이 없습니다</td></tr>';return;}
 
-  // 최근 출결 히스토리 (최근 세션들에서 각 학생 출결)
-  var attMap = {}; // studentId -> [status, ...]
+  var attMap={};
   if(sessions.length){
     try{
-      // 최근 10차시만
-      var recentSes = sessions.slice(0,10);
-      var attPromises = recentSes.map(s=>fetch(SU+'?action=getAttendance&sessionId='+s.id).then(r=>r.json()));
-      var attResults = await Promise.all(attPromises);
-      students.forEach(function(st){ attMap[st.id]=[]; });
+      var recentSes=sessions.slice(0,10);
+      var attPromises=recentSes.map(s=>fetch(SU+'?action=getAttendance&sessionId='+s.id).then(r=>r.json()));
+      var attResults=await Promise.all(attPromises);
+      students.forEach(function(st){attMap[st.id]=[];});
       recentSes.forEach(function(s,i){
-        var att = attResults[i].attendance||[];
+        var att=attResults[i].attendance||[];
         students.forEach(function(st){
           var found=att.find(function(a){return a.studentId===st.id;});
-          if(!attMap[st.id]) attMap[st.id]=[];
+          if(!attMap[st.id])attMap[st.id]=[];
           attMap[st.id].push(found?found.status:'미정');
         });
       });
@@ -270,12 +342,92 @@ async function renderStudents(){
   }).join('');
 }
 
+// ── 탭 전환 ──
 function switchTab(tab,el){
   document.querySelectorAll('.tab-item').forEach(function(t){t.classList.remove('active');});
   el.classList.add('active');
+  document.getElementById('content-students').style.display = tab==='students'?'':'none';
+  document.getElementById('content-materials').style.display = tab==='materials'?'':'none';
+  if(tab==='materials' && !materials.length) loadMaterials();
 }
 
-// 차시 추가
+// ── 자료실 ──
+async function loadMaterials(){
+  var tbody=document.getElementById('mat-tbody');
+  tbody.innerHTML='<tr><td colspan="6" class="empty">불러오는 중...</td></tr>';
+  try{
+    var r=await fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(classId));
+    var d=await r.json();
+    materials=d.materials||[];
+    renderMaterials();
+  }catch(e){tbody.innerHTML='<tr><td colspan="6" class="empty">불러오기 실패</td></tr>';}
+}
+
+function selectCat(cat,el){
+  currentCat=cat;
+  document.querySelectorAll('.mat-cat').forEach(function(c){c.classList.remove('active');});
+  el.classList.add('active');
+  var titles={'전체':'전체 자료','자습용 자료':'자습용 자료','손필기 자료':'손필기 자료','암기자료':'암기자료'};
+  document.getElementById('mat-cat-title').textContent=titles[cat]||cat;
+  renderMaterials();
+}
+
+function renderMaterials(){
+  var tbody=document.getElementById('mat-tbody');
+  var list=currentCat==='전체'?materials:materials.filter(function(m){return m.category===currentCat;});
+  if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 자료가 없습니다</td></tr>';return;}
+  tbody.innerHTML=list.map(function(m){
+    var delBtn=session.role==='teacher'?'<button class="mat-del-btn" onclick="delMat(\''+m.id+'\')">삭제</button>':'';
+    return '<tr>'+
+      '<td><a class="mat-link mat-name" href="'+m.url+'" target="_blank" onclick="countDl(\''+m.id+'\')">'+escHtml(m.name)+'</a></td>'+
+      '<td><span style="font-size:12px;color:#64748b;">'+escHtml(m.category)+'</span></td>'+
+      '<td style="font-size:12px;color:#94a3b8;">'+(m.uploadDate||'').substring(0,10)+'</td>'+
+      '<td style="font-size:12px;color:#64748b;text-align:center;">'+m.downloadCount+'</td>'+
+      '<td style="font-size:12px;color:#64748b;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(m.memo||'')+'</td>'+
+      '<td>'+delBtn+'</td></tr>';
+  }).join('');
+}
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function countDl(id){
+  fetch(SU+'?action=incDownload&id='+encodeURIComponent(id));
+  var m=materials.find(function(x){return x.id===id;});
+  if(m)m.downloadCount=(m.downloadCount||0)+1;
+}
+
+async function delMat(id){
+  if(!confirm('자료를 삭제할까요?'))return;
+  await fetch(SU+'?action=deleteMaterial&id='+encodeURIComponent(id));
+  materials=materials.filter(function(m){return m.id!==id;});
+  renderMaterials();
+}
+
+function openAddMat(){document.getElementById('add-mat-modal').classList.add('show');}
+function closeAddMat(){document.getElementById('add-mat-modal').classList.remove('show');}
+
+async function saveMat(){
+  var cat=document.getElementById('mat-cat-sel').value;
+  var name=document.getElementById('mat-name').value.trim();
+  var url=document.getElementById('mat-url').value.trim();
+  var size=document.getElementById('mat-size').value.trim();
+  var memo=document.getElementById('mat-memo').value.trim();
+  if(!name||!url){alert('파일명과 링크를 입력하세요.');return;}
+  try{
+    var r=await fetch(SU+'?action=addMaterial&classId='+encodeURIComponent(classId)+'&category='+encodeURIComponent(cat)+'&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&size='+encodeURIComponent(size)+'&memo='+encodeURIComponent(memo));
+    var d=await r.json();
+    if(d.success){
+      closeAddMat();
+      document.getElementById('mat-name').value='';
+      document.getElementById('mat-url').value='';
+      document.getElementById('mat-size').value='';
+      document.getElementById('mat-memo').value='';
+      await loadMaterials();
+    }
+  }catch(e){alert('오류가 발생했습니다.');}
+}
+
+// ── 차시 추가 ──
 function openAddSession(){
   var today=new Date().toISOString().substring(0,10);
   document.getElementById('ses-date').value=today;
@@ -289,7 +441,6 @@ async function saveSession(){
     var d=await r.json();
     if(d.success){
       closeAddSession();
-      // 세션 목록 새로고침
       var sr=await fetch(SU+'?action=getSessions&classId='+encodeURIComponent(classId)).then(r=>r.json());
       sessions=sr.sessions||[];
       renderSessions();
