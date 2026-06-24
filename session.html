@@ -50,29 +50,27 @@ tr:hover td{background:#fafbff;}
 .att-btns{display:flex;gap:4px;flex-wrap:wrap;}
 .att-btn{padding:4px 8px;border-radius:6px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:12px;font-weight:700;cursor:pointer;transition:.12s;color:#64748b;white-space:nowrap;}
 .att-btn:hover{border-color:#3b6cf7;color:#3b6cf7;}
-.att-btn.active-현장{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
+.att-btn.active-출석{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
 .att-btn.active-지각{background:#fef9c3;border-color:#a16207;color:#a16207;}
-.att-btn.active-영상{background:#dbeafe;border-color:#2563eb;color:#2563eb;}
+.att-btn.active-영상대체{background:#dbeafe;border-color:#2563eb;color:#2563eb;}
 .att-btn.active-보강{background:#ede9fe;border-color:#7c3aed;color:#7c3aed;}
 .att-btn.active-조퇴{background:#fed7aa;border-color:#c2410c;color:#c2410c;}
-.att-btn.active-출튀{background:#ffedd5;border-color:#ea580c;color:#ea580c;}
 .att-btn.active-결석{background:#fee2e2;border-color:#dc2626;color:#dc2626;}
 .att-btn.active-부재{background:#f1f5f9;border-color:#94a3b8;color:#94a3b8;}
 .att-btn.active-퇴원{background:#1e293b;border-color:#1e293b;color:#fff;}
 
 .status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;}
-.s현장{background:#dcfce7;color:#16a34a;}
+.s출석{background:#dcfce7;color:#16a34a;}
 .s지각{background:#fef9c3;color:#a16207;}
-.s영상{background:#dbeafe;color:#2563eb;}
+.s영상대체{background:#dbeafe;color:#2563eb;}
 .s보강{background:#ede9fe;color:#7c3aed;}
 .s조퇴{background:#fed7aa;color:#c2410c;}
-.s출튀{background:#ffedd5;color:#ea580c;}
 .s결석{background:#fee2e2;color:#dc2626;}
 .s부재{background:#f1f5f9;color:#94a3b8;}
 .s퇴원{background:#1e293b;color:#fff;}
 .s미정{background:#f1f5f9;color:#cbd5e1;}
 
-.memo-input{border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;width:120px;outline:none;}
+.memo-input{border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;width:220px;outline:none;}
 .memo-input:focus{border-color:#3b6cf7;}
 
 /* 성적 */
@@ -233,7 +231,7 @@ const classId=params.get('classId');
 
 if(!session){location.href='homework.html';}
 
-const ATT_TYPES=['현장','지각','영상','보강','조퇴','출튀','결석','부재','퇴원'];
+const ATT_TYPES=['출석','지각','영상대체','보강','조퇴','결석','부재','퇴원'];
 
 var sessionInfo=null, classInfo=null, students=[], attMap={}, exams=[], scoresMap={};
 var panelStudentId='', panelExamId='', panelPass='';
