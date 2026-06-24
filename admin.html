@@ -268,11 +268,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <h3>반 추가</h3>
     <div class="fg"><label>반 이름</label><input type="text" id="cn" placeholder="예: 확통, 기하, 명덕여고"></div>
     <div class="fg"><label>강의 시간</label><input type="text" id="ct" placeholder="예: 월수 오후 4시"></div>
-    <div class="fg-row">
-      <div class="fg"><label>시작일</label><input type="date" id="cs"></div>
-      <div class="fg"><label>종료일 (선택)</label><input type="date" id="ce"></div>
-    </div>
-    <div class="fg"><label>수강생 수</label><input type="text" id="cc" placeholder="예: 10"></div>
+    <input type="hidden" id="cs"><input type="hidden" id="ce"><input type="hidden" id="cc">
     <div class="modal-btns">
       <button class="btn-cl" onclick="closeClassModal()">취소</button>
       <button class="btn-ok" onclick="saveClass()">추가</button>
