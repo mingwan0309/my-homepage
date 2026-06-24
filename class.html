@@ -9,7 +9,6 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);min-height:100vh;}
 
-/* TOPBAR */
 .topbar{background:#1e293b;color:#fff;padding:0 20px;height:48px;display:flex;align-items:center;justify-content:space-between;}
 .topbar-logo{font-size:16px;font-weight:800;cursor:pointer;}
 .topbar-logo span{color:#3b6cf7;}
@@ -17,7 +16,6 @@ body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);min
 .topbar-user{font-size:13px;color:#94a3b8;}
 .topbar-btn{background:#3b6cf7;color:#fff;border:none;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;}
 
-/* CLASS HEADER */
 .class-header{background:#fff;padding:16px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e2e8f0;}
 .cls-badge{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;flex-shrink:0;}
 .cls-name{font-size:18px;font-weight:800;color:#1e293b;}
@@ -25,7 +23,6 @@ body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);min
 .header-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
 .btn-add-session{background:#3b6cf7;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
 
-/* SESSIONS ROW */
 .sessions-wrap{background:#fff;border-bottom:1px solid #e2e8f0;padding:10px 20px;display:flex;align-items:center;gap:8px;}
 .sessions-scroll{display:flex;gap:8px;overflow-x:auto;flex:1;padding-bottom:2px;scrollbar-width:none;}
 .sessions-scroll::-webkit-scrollbar{display:none;}
@@ -35,15 +32,12 @@ body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);min
 .session-chip .sdate{font-size:11px;color:#94a3b8;margin-top:1px;}
 .no-sessions{color:#94a3b8;font-size:13px;padding:4px 0;}
 
-/* TABS */
 .tabs-bar{background:#fff;border-bottom:2px solid #e2e8f0;padding:0 20px;display:flex;gap:0;}
 .tab-item{padding:12px 18px;font-size:14px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;}
 .tab-item.active{color:#3b6cf7;border-bottom-color:#3b6cf7;}
 
-/* CONTENT */
 .content{max-width:1100px;margin:20px auto;padding:0 20px;}
 
-/* STUDENT TABLE */
 .card{background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;}
 .card-header{padding:14px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;}
 .card-title{font-size:15px;font-weight:700;color:#1e293b;}
@@ -57,7 +51,6 @@ tr:hover td{background:#fafbff;}
 .att-chips{display:flex;gap:3px;flex-wrap:wrap;}
 .att-chip{padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700;}
 
-/* STATUS COLORS */
 .s현장,.s출석{background:#dcfce7;color:#16a34a;}
 .s지각{background:#fef9c3;color:#a16207;}
 .s영상,.s영상대체{background:#dbeafe;color:#2563eb;}
@@ -70,22 +63,56 @@ tr:hover td{background:#fafbff;}
 
 /* 자료실 */
 .mat-layout{display:flex;gap:16px;align-items:flex-start;}
-.mat-sidebar{width:180px;flex-shrink:0;background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;}
+.mat-sidebar{width:190px;flex-shrink:0;background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;}
 .mat-sidebar-title{padding:14px 16px;font-size:13px;font-weight:700;color:#94a3b8;border-bottom:1px solid #f1f5f9;}
-.mat-cat{padding:11px 16px;font-size:14px;font-weight:600;color:#334155;cursor:pointer;border-left:3px solid transparent;transition:.15s;}
+.mat-cat{padding:11px 16px;font-size:14px;font-weight:600;color:#334155;cursor:pointer;border-left:3px solid transparent;transition:.15s;display:flex;align-items:center;justify-content:space-between;}
 .mat-cat:hover{background:#f8fafc;}
 .mat-cat.active{color:#3b6cf7;background:#eff4ff;border-left-color:#3b6cf7;}
+.mat-cat-count{font-size:12px;color:#94a3b8;background:#f1f5f9;border-radius:20px;padding:1px 8px;font-weight:600;}
+.mat-cat.active .mat-cat-count{background:#dbeafe;color:#3b6cf7;}
 .mat-main{flex:1;min-width:0;}
-.mat-main .card-header{display:flex;align-items:center;justify-content:space-between;}
 .btn-add-mat{background:#3b6cf7;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
-.mat-table th,.mat-table td{white-space:nowrap;}
 .mat-table .mat-name{font-weight:700;color:#1e293b;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mat-link{color:#3b6cf7;text-decoration:none;font-weight:600;}
 .mat-link:hover{text-decoration:underline;}
 .mat-del-btn{background:none;border:none;color:#dc2626;cursor:pointer;font-size:13px;padding:2px 6px;border-radius:5px;}
 .mat-del-btn:hover{background:#fee2e2;}
 
-/* MODAL */
+/* 영상 카드 그리드 */
+.video-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;gap:14px;}
+.video-empty-icon{font-size:40px;color:#cbd5e1;}
+.video-empty-text{color:#94a3b8;font-size:14px;}
+.btn-add-video-empty{background:#3b6cf7;color:#fff;border:none;padding:10px 22px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;}
+.video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;padding:16px 20px;}
+.video-card{background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;cursor:pointer;transition:.15s;}
+.video-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.10);transform:translateY(-2px);}
+.video-thumb{width:100%;aspect-ratio:16/9;background:#1e293b;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.video-thumb img{width:100%;height:100%;object-fit:cover;}
+.video-play-icon{position:absolute;width:44px;height:44px;background:rgba(0,0,0,0.6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;}
+.video-info{padding:10px 12px;}
+.video-title{font-size:13px;font-weight:700;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.video-meta{font-size:11px;color:#94a3b8;margin-top:4px;display:flex;justify-content:space-between;}
+.video-del-btn{background:none;border:none;color:#dc2626;cursor:pointer;font-size:11px;padding:0;}
+.video-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;margin-top:4px;}
+.badge-yt{background:#fee2e2;color:#dc2626;}
+.badge-drive{background:#dbeafe;color:#2563eb;}
+
+/* 영상 업로드 모달 */
+.vmod{background:#fff;border-radius:16px;padding:0;width:90%;max-width:560px;overflow:hidden;}
+.vmod-head{padding:22px 24px 0;border-bottom:1px solid #e2e8f0;}
+.vmod-head h3{font-size:17px;font-weight:800;color:#1e293b;margin-bottom:16px;}
+.vmod-tabs{display:flex;gap:0;}
+.vmod-tab{padding:10px 18px;font-size:13px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.vmod-tab.active{color:#3b6cf7;border-bottom-color:#3b6cf7;}
+.vmod-body{padding:24px;}
+.drag-area{border:2px dashed #e2e8f0;border-radius:12px;padding:40px 20px;text-align:center;color:#94a3b8;font-size:14px;background:#f8fafc;margin-bottom:14px;}
+.drag-area-icon{font-size:32px;margin-bottom:10px;}
+.drag-area p{margin-bottom:8px;}
+.vmod-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+.vmod-btn-cl{padding:9px 20px;border:1.5px solid #e2e8f0;border-radius:9px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:#64748b;}
+.vmod-btn-ok{padding:9px 20px;background:#3b6cf7;border:none;border-radius:9px;cursor:pointer;font-size:14px;font-weight:700;color:#fff;}
+
+/* 일반 모달 */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;}
 .modal-bg.show{display:flex;}
 .modal{background:#fff;border-radius:16px;padding:28px;width:90%;max-width:460px;}
@@ -112,7 +139,6 @@ tr:hover td{background:#fafbff;}
   </div>
 </div>
 
-<!-- CLASS HEADER -->
 <div class="class-header" id="class-header" style="display:none;">
   <div class="cls-badge" id="cls-badge"></div>
   <div>
@@ -124,73 +150,69 @@ tr:hover td{background:#fafbff;}
   </div>
 </div>
 
-<!-- SESSIONS ROW -->
 <div class="sessions-wrap" id="sessions-wrap" style="display:none;">
   <div class="sessions-scroll" id="sessions-scroll">
     <div class="no-sessions">차시가 없습니다. 차시를 추가해주세요.</div>
   </div>
 </div>
 
-<!-- TABS -->
 <div class="tabs-bar" id="tabs-bar" style="display:none;">
   <div class="tab-item active" onclick="switchTab('students',this)">수강생 목록 <span id="stu-count-badge"></span></div>
   <div class="tab-item" onclick="switchTab('materials',this)">강의 자료실</div>
 </div>
 
-<!-- CONTENT: 수강생 -->
+<!-- 수강생 -->
 <div class="content" id="content-students">
   <div class="card">
-    <div class="card-header">
-      <div class="card-title">수강생 목록</div>
-    </div>
+    <div class="card-header"><div class="card-title">수강생 목록</div></div>
     <table>
-      <thead>
-        <tr>
-          <th style="width:40px;">#</th>
-          <th>이름</th>
-          <th>학생 전화번호</th>
-          <th>학부모 전화번호</th>
-          <th>학교</th>
-          <th>최근 출결</th>
-        </tr>
-      </thead>
-      <tbody id="stu-tbody">
-        <tr><td colspan="6" class="empty">불러오는 중...</td></tr>
-      </tbody>
+      <thead><tr><th style="width:40px;">#</th><th>이름</th><th>학생 전화번호</th><th>학부모 전화번호</th><th>학교</th><th>최근 출결</th></tr></thead>
+      <tbody id="stu-tbody"><tr><td colspan="6" class="empty">불러오는 중...</td></tr></tbody>
     </table>
   </div>
 </div>
 
-<!-- CONTENT: 자료실 -->
+<!-- 자료실 -->
 <div class="content" id="content-materials" style="display:none;">
   <div class="mat-layout">
     <div class="mat-sidebar">
       <div class="mat-sidebar-title">카테고리</div>
-      <div class="mat-cat active" onclick="selectCat('자습용 자료',this)">📖 자습용 자료</div>
-      <div class="mat-cat" onclick="selectCat('손필기 자료',this)">✏️ 손필기 자료</div>
-      <div class="mat-cat" onclick="selectCat('암기자료',this)">🧠 암기자료</div>
+      <div class="mat-cat active" onclick="selectCat('자습용 자료',this)">
+        <span>📖 자습용 자료</span><span class="mat-cat-count" id="cnt-자습용 자료">0</span>
+      </div>
+      <div class="mat-cat" onclick="selectCat('손필기 자료',this)">
+        <span>✏️ 손필기 자료</span><span class="mat-cat-count" id="cnt-손필기 자료">0</span>
+      </div>
+      <div class="mat-cat" onclick="selectCat('암기자료',this)">
+        <span>🧠 암기자료</span><span class="mat-cat-count" id="cnt-암기자료">0</span>
+      </div>
+      <div class="mat-cat" onclick="selectCat('영상 자료',this)">
+        <span>🎬 영상 자료</span><span class="mat-cat-count" id="cnt-영상 자료">0</span>
+      </div>
     </div>
     <div class="mat-main">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title" id="mat-cat-title">자습용 자료</div>
-          <button class="btn-add-mat" id="btn-add-mat" onclick="openAddMat()" style="display:none;">+ 자료 추가</button>
+      <!-- 일반 자료 -->
+      <div id="mat-file-area">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title" id="mat-cat-title">자습용 자료</div>
+            <button class="btn-add-mat" id="btn-add-mat" onclick="openAddMat()" style="display:none;">+ 자료 추가</button>
+          </div>
+          <table class="mat-table">
+            <thead><tr><th>파일명</th><th>등록일</th><th>다운로드</th><th>메모</th><th></th></tr></thead>
+            <tbody id="mat-tbody"><tr><td colspan="5" class="empty">불러오는 중...</td></tr></tbody>
+          </table>
         </div>
-        <table class="mat-table">
-          <thead>
-            <tr>
-              <th>파일명</th>
-              <th>카테고리</th>
-              <th>등록일</th>
-              <th>다운로드</th>
-              <th>메모</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="mat-tbody">
-            <tr><td colspan="6" class="empty">불러오는 중...</td></tr>
-          </tbody>
-        </table>
+      </div>
+      <!-- 영상 자료 -->
+      <div id="mat-video-area" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">영상 자료</div>
+            <button class="btn-add-mat" id="btn-add-video" onclick="openVideoModal()" style="display:none;">+ 영상 추가</button>
+          </div>
+          <div id="video-list-wrap"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -208,7 +230,7 @@ tr:hover td{background:#fafbff;}
   </div>
 </div>
 
-<!-- 자료 추가 모달 -->
+<!-- 일반 자료 추가 모달 -->
 <div class="modal-bg" id="add-mat-modal">
   <div class="modal">
     <h3>자료 추가</h3>
@@ -218,7 +240,6 @@ tr:hover td{background:#fafbff;}
         <option>자습용 자료</option>
         <option>손필기 자료</option>
         <option>암기자료</option>
-
       </select>
     </div>
     <div class="fg"><label>파일명 / 제목</label><input type="text" id="mat-name" placeholder="예) 2학년 1학기 수1 개념정리"></div>
@@ -228,6 +249,54 @@ tr:hover td{background:#fafbff;}
     <div class="modal-btns">
       <button class="btn-cl" onclick="closeAddMat()">취소</button>
       <button class="btn-ok" onclick="saveMat()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 영상 업로드 모달 -->
+<div class="modal-bg" id="video-modal">
+  <div class="vmod">
+    <div class="vmod-head">
+      <h3>영상 업로드</h3>
+      <div class="vmod-tabs">
+        <div class="vmod-tab active" onclick="switchVTab('drive',this)">업로드 (Drive 링크)</div>
+        <div class="vmod-tab" onclick="switchVTab('youtube',this)">유튜브 링크</div>
+        <div class="vmod-tab" onclick="switchVTab('existing',this)">기존 영상에서 가져오기</div>
+      </div>
+    </div>
+    <div class="vmod-body">
+      <!-- Drive 탭 -->
+      <div id="vtab-drive">
+        <div class="drag-area">
+          <div class="drag-area-icon">📎</div>
+          <p>Google Drive에서 영상을 공유 후 링크를 붙여넣으세요</p>
+          <p style="font-size:12px;color:#cbd5e1;">드라이브 파일 → 공유 → 링크 복사</p>
+        </div>
+        <div class="fg"><label>영상 제목</label><input type="text" id="vd-name" placeholder="예) 2차시 개념설명 영상"></div>
+        <div class="fg"><label>Google Drive 링크</label><input type="url" id="vd-url" placeholder="https://drive.google.com/file/d/..."></div>
+        <div class="fg"><label>메모 (선택)</label><input type="text" id="vd-memo" placeholder="간단한 설명"></div>
+        <div class="vmod-btns">
+          <button class="vmod-btn-cl" onclick="closeVideoModal()">취소</button>
+          <button class="vmod-btn-ok" onclick="saveVideo('drive')">등록</button>
+        </div>
+      </div>
+      <!-- YouTube 탭 -->
+      <div id="vtab-youtube" style="display:none;">
+        <div class="fg"><label>영상 이름</label><input type="text" id="vy-name" placeholder="예) 수1 행렬 개념 강의"></div>
+        <div class="fg"><label>영상 링크</label><input type="url" id="vy-url" placeholder="https://www.youtube.com/watch?v=..."></div>
+        <div class="fg"><label>메모 (선택)</label><input type="text" id="vy-memo" placeholder="간단한 설명"></div>
+        <div class="vmod-btns">
+          <button class="vmod-btn-cl" onclick="closeVideoModal()">취소</button>
+          <button class="vmod-btn-ok" onclick="saveVideo('youtube')">등록</button>
+        </div>
+      </div>
+      <!-- 기존 영상 탭 -->
+      <div id="vtab-existing" style="display:none;">
+        <div id="existing-video-list"></div>
+        <div class="vmod-btns">
+          <button class="vmod-btn-cl" onclick="closeVideoModal()">취소</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -257,23 +326,15 @@ async function init(){
     fetch(SU+'?action=getSessions&classId='+encodeURIComponent(classId)).then(r=>r.json())
   ]);
   if(!cr.classInfo){document.body.innerHTML='<div style="text-align:center;padding:80px;color:#94a3b8;">반 정보를 찾을 수 없습니다.</div>';return;}
-
   if(session.role==='student' && session.classId !== classId){
     document.body.innerHTML='<div style="text-align:center;padding:80px;"><h2>접근 권한이 없습니다</h2></div>';return;
   }
-
-  classInfo = cr.classInfo;
-  students = cr.students||[];
-  sessions = sr.sessions||[];
-
-  renderHeader();
-  renderSessions();
-  renderStudents();
-
+  classInfo=cr.classInfo; students=cr.students||[]; sessions=sr.sessions||[];
+  renderHeader(); renderSessions(); renderStudents();
   document.getElementById('class-header').style.display='flex';
   document.getElementById('sessions-wrap').style.display='flex';
   document.getElementById('tabs-bar').style.display='flex';
-  document.getElementById('stu-count-badge').textContent = students.length+'명';
+  document.getElementById('stu-count-badge').textContent=students.length+'명';
 }
 
 function renderHeader(){
@@ -284,7 +345,10 @@ function renderHeader(){
   document.getElementById('cls-time').textContent=classInfo.time||'';
   document.title=classInfo.name+' — 김민관 수학';
   if(session.role!=='teacher') document.querySelector('.btn-add-session').style.display='none';
-  if(session.role==='teacher') document.getElementById('btn-add-mat').style.display='';
+  if(session.role==='teacher'){
+    document.getElementById('btn-add-mat').style.display='';
+    document.getElementById('btn-add-video').style.display='';
+  }
 }
 
 function renderSessions(){
@@ -310,35 +374,24 @@ function goSession(sessionId){
 async function renderStudents(){
   const tbody=document.getElementById('stu-tbody');
   if(!students.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 수강생이 없습니다</td></tr>';return;}
-
   var attMap={};
   if(sessions.length){
     try{
       var recentSes=sessions.slice(0,10);
-      var attPromises=recentSes.map(s=>fetch(SU+'?action=getAttendance&sessionId='+s.id).then(r=>r.json()));
-      var attResults=await Promise.all(attPromises);
+      var attResults=await Promise.all(recentSes.map(s=>fetch(SU+'?action=getAttendance&sessionId='+s.id).then(r=>r.json())));
       students.forEach(function(st){attMap[st.id]=[];});
       recentSes.forEach(function(s,i){
         var att=attResults[i].attendance||[];
         students.forEach(function(st){
           var found=att.find(function(a){return a.studentId===st.id;});
-          if(!attMap[st.id])attMap[st.id]=[];
           attMap[st.id].push(found?found.status:'미정');
         });
       });
     }catch(e){}
   }
-
   tbody.innerHTML=students.map(function(st,idx){
-    var chips=(attMap[st.id]||[]).map(function(s){
-      return '<span class="att-chip s'+s+'">'+s.substring(0,1)+'</span>';
-    }).join('');
-    return '<tr><td style="color:#94a3b8;font-weight:600;">'+(idx+1)+'</td>'+
-      '<td><span class="stu-name">'+st.name+'</span></td>'+
-      '<td class="stu-phone">'+(st.studentPhone||'-')+'</td>'+
-      '<td class="stu-phone">'+(st.parentPhone||'-')+'</td>'+
-      '<td>'+(st.school||'-')+'</td>'+
-      '<td><div class="att-chips">'+chips+'</div></td></tr>';
+    var chips=(attMap[st.id]||[]).map(function(s){return '<span class="att-chip s'+s+'">'+s.substring(0,1)+'</span>';}).join('');
+    return '<tr><td style="color:#94a3b8;font-weight:600;">'+(idx+1)+'</td><td><span class="stu-name">'+st.name+'</span></td><td class="stu-phone">'+(st.studentPhone||'-')+'</td><td class="stu-phone">'+(st.parentPhone||'-')+'</td><td>'+(st.school||'-')+'</td><td><div class="att-chips">'+chips+'</div></td></tr>';
   }).join('');
 }
 
@@ -346,46 +399,96 @@ async function renderStudents(){
 function switchTab(tab,el){
   document.querySelectorAll('.tab-item').forEach(function(t){t.classList.remove('active');});
   el.classList.add('active');
-  document.getElementById('content-students').style.display = tab==='students'?'':'none';
-  document.getElementById('content-materials').style.display = tab==='materials'?'':'none';
+  document.getElementById('content-students').style.display=tab==='students'?'':'none';
+  document.getElementById('content-materials').style.display=tab==='materials'?'':'none';
   if(tab==='materials' && !materials.length) loadMaterials();
 }
 
 // ── 자료실 ──
 async function loadMaterials(){
-  var tbody=document.getElementById('mat-tbody');
-  tbody.innerHTML='<tr><td colspan="6" class="empty">불러오는 중...</td></tr>';
   try{
     var r=await fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(classId));
     var d=await r.json();
     materials=d.materials||[];
-    renderMaterials();
-  }catch(e){tbody.innerHTML='<tr><td colspan="6" class="empty">불러오기 실패</td></tr>';}
+    updateCounts();
+    renderCurrentCat();
+  }catch(e){}
+}
+
+function updateCounts(){
+  ['자습용 자료','손필기 자료','암기자료','영상 자료'].forEach(function(cat){
+    var el=document.getElementById('cnt-'+cat);
+    if(el) el.textContent=materials.filter(function(m){return m.category===cat;}).length;
+  });
 }
 
 function selectCat(cat,el){
   currentCat=cat;
   document.querySelectorAll('.mat-cat').forEach(function(c){c.classList.remove('active');});
   el.classList.add('active');
-  var titles={'전체':'전체 자료','자습용 자료':'자습용 자료','손필기 자료':'손필기 자료','암기자료':'암기자료'};
-  document.getElementById('mat-cat-title').textContent=titles[cat]||cat;
-  renderMaterials();
+  document.getElementById('mat-cat-title').textContent=cat;
+  renderCurrentCat();
+}
+
+function renderCurrentCat(){
+  var isVideo = currentCat==='영상 자료';
+  document.getElementById('mat-file-area').style.display=isVideo?'none':'';
+  document.getElementById('mat-video-area').style.display=isVideo?'':'none';
+  if(isVideo) renderVideos();
+  else renderMaterials();
 }
 
 function renderMaterials(){
   var tbody=document.getElementById('mat-tbody');
+  document.getElementById('mat-cat-title').textContent=currentCat;
   var list=materials.filter(function(m){return m.category===currentCat;});
-  if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 자료가 없습니다</td></tr>';return;}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="5" class="empty">등록된 자료가 없습니다</td></tr>';return;}
   tbody.innerHTML=list.map(function(m){
     var delBtn=session.role==='teacher'?'<button class="mat-del-btn" onclick="delMat(\''+m.id+'\')">삭제</button>':'';
     return '<tr>'+
       '<td><a class="mat-link mat-name" href="'+m.url+'" target="_blank" onclick="countDl(\''+m.id+'\')">'+escHtml(m.name)+'</a></td>'+
-      '<td><span style="font-size:12px;color:#64748b;">'+escHtml(m.category)+'</span></td>'+
       '<td style="font-size:12px;color:#94a3b8;">'+(m.uploadDate||'').substring(0,10)+'</td>'+
       '<td style="font-size:12px;color:#64748b;text-align:center;">'+m.downloadCount+'</td>'+
       '<td style="font-size:12px;color:#64748b;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(m.memo||'')+'</td>'+
       '<td>'+delBtn+'</td></tr>';
   }).join('');
+}
+
+function renderVideos(){
+  var wrap=document.getElementById('video-list-wrap');
+  var list=materials.filter(function(m){return m.category==='영상 자료';});
+  if(!list.length){
+    wrap.innerHTML='<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">영상을 끌어서 업로드해주세요.</div>'+(session.role==='teacher'?'<button class="btn-add-video-empty" onclick="openVideoModal()">영상 추가하기</button>':'')+'</div>';
+    return;
+  }
+  var grid='<div class="video-grid">'+list.map(function(m){
+    var isYt=m.url&&(m.url.includes('youtube.com')||m.url.includes('youtu.be'));
+    var thumb='';
+    if(isYt){
+      var vid=ytId(m.url);
+      if(vid) thumb='<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg" onerror="this.style.display=\'none\'">';
+    }
+    var badge=isYt?'<span class="video-badge badge-yt">YouTube</span>':'<span class="video-badge badge-drive">Drive</span>';
+    var delBtn=session.role==='teacher'?'<button class="video-del-btn" onclick="event.stopPropagation();delMat(\''+m.id+'\')">삭제</button>':'';
+    return '<div class="video-card" onclick="openVideo(\''+m.url+'\',\''+m.id+'\')">'
+      +'<div class="video-thumb">'+thumb+'<div class="video-play-icon">▶</div></div>'
+      +'<div class="video-info"><div class="video-title">'+escHtml(m.name)+'</div>'
+      +'<div class="video-meta"><span>'+badge+'</span>'+delBtn+'</div>'
+      +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+escHtml(m.memo)+'</div>':'')
+      +'</div></div>';
+  }).join('')+'</div>';
+  wrap.innerHTML=grid;
+}
+
+function ytId(url){
+  if(!url)return'';
+  var m=url.match(/[?&]v=([^&]+)/)||url.match(/youtu\.be\/([^?]+)/)||url.match(/embed\/([^?]+)/);
+  return m?m[1]:'';
+}
+
+function openVideo(url,id){
+  countDl(id);
+  window.open(url,'_blank');
 }
 
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -400,10 +503,14 @@ async function delMat(id){
   if(!confirm('자료를 삭제할까요?'))return;
   await fetch(SU+'?action=deleteMaterial&id='+encodeURIComponent(id));
   materials=materials.filter(function(m){return m.id!==id;});
-  renderMaterials();
+  updateCounts();
+  renderCurrentCat();
 }
 
-function openAddMat(){document.getElementById('add-mat-modal').classList.add('show');}
+function openAddMat(){
+  document.getElementById('mat-cat-sel').value=currentCat;
+  document.getElementById('add-mat-modal').classList.add('show');
+}
 function closeAddMat(){document.getElementById('add-mat-modal').classList.remove('show');}
 
 async function saveMat(){
@@ -418,10 +525,65 @@ async function saveMat(){
     var d=await r.json();
     if(d.success){
       closeAddMat();
-      document.getElementById('mat-name').value='';
-      document.getElementById('mat-url').value='';
-      document.getElementById('mat-size').value='';
-      document.getElementById('mat-memo').value='';
+      ['mat-name','mat-url','mat-size','mat-memo'].forEach(function(id){document.getElementById(id).value='';});
+      await loadMaterials();
+    }
+  }catch(e){alert('오류가 발생했습니다.');}
+}
+
+// ── 영상 모달 ──
+var currentVTab='drive';
+function openVideoModal(){
+  document.getElementById('video-modal').classList.add('show');
+  switchVTab('drive',document.querySelector('.vmod-tab'));
+}
+function closeVideoModal(){document.getElementById('video-modal').classList.remove('show');}
+
+function switchVTab(tab,el){
+  currentVTab=tab;
+  document.querySelectorAll('.vmod-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('vtab-drive').style.display=tab==='drive'?'':'none';
+  document.getElementById('vtab-youtube').style.display=tab==='youtube'?'':'none';
+  document.getElementById('vtab-existing').style.display=tab==='existing'?'':'none';
+  if(tab==='existing') renderExistingVideos();
+}
+
+function renderExistingVideos(){
+  var wrap=document.getElementById('existing-video-list');
+  var list=materials.filter(function(m){return m.category==='영상 자료';});
+  if(!list.length){wrap.innerHTML='<div style="text-align:center;padding:30px;color:#94a3b8;font-size:14px;">등록된 영상이 없습니다.</div>';return;}
+  wrap.innerHTML='<div style="max-height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:9px;margin-bottom:12px;">'+
+    list.map(function(m){
+      var isYt=m.url&&(m.url.includes('youtube.com')||m.url.includes('youtu.be'));
+      return '<div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;">'
+        +'<span style="font-size:20px;">'+(isYt?'🎬':'📹')+'</span>'
+        +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(m.name)+'</div>'
+        +'<div style="font-size:11px;color:#94a3b8;">'+(m.uploadDate||'').substring(0,10)+'</div></div>'
+        +'<a href="'+m.url+'" target="_blank" style="font-size:12px;color:#3b6cf7;font-weight:600;white-space:nowrap;">열기</a>'
+        +'</div>';
+    }).join('')
+  +'</div>';
+}
+
+async function saveVideo(type){
+  var name,url,memo;
+  if(type==='drive'){
+    name=document.getElementById('vd-name').value.trim();
+    url=document.getElementById('vd-url').value.trim();
+    memo=document.getElementById('vd-memo').value.trim();
+  }else{
+    name=document.getElementById('vy-name').value.trim();
+    url=document.getElementById('vy-url').value.trim();
+    memo=document.getElementById('vy-memo').value.trim();
+  }
+  if(!name||!url){alert('제목과 링크를 입력하세요.');return;}
+  try{
+    var r=await fetch(SU+'?action=addMaterial&classId='+encodeURIComponent(classId)+'&category='+encodeURIComponent('영상 자료')+'&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&size=&memo='+encodeURIComponent(memo));
+    var d=await r.json();
+    if(d.success){
+      closeVideoModal();
+      ['vd-name','vd-url','vd-memo','vy-name','vy-url','vy-memo'].forEach(function(id){document.getElementById(id).value='';});
       await loadMaterials();
     }
   }catch(e){alert('오류가 발생했습니다.');}
@@ -429,8 +591,7 @@ async function saveMat(){
 
 // ── 차시 추가 ──
 function openAddSession(){
-  var today=new Date().toISOString().substring(0,10);
-  document.getElementById('ses-date').value=today;
+  document.getElementById('ses-date').value=new Date().toISOString().substring(0,10);
   document.getElementById('add-session-modal').classList.add('show');
 }
 function closeAddSession(){document.getElementById('add-session-modal').classList.remove('show');}
