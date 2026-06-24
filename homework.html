@@ -335,6 +335,12 @@ async function login() {
       }
       currentUser = { id, role: data.role, name: data.name };
       localStorage.setItem('mkmath_session', JSON.stringify(currentUser));
+      const returnUrl = localStorage.getItem('mkmath_return');
+      if (returnUrl) {
+        localStorage.removeItem('mkmath_return');
+        location.href = returnUrl;
+        return;
+      }
       if (data.role === 'teacher') {
         show('page-teacher');
         loadProblemList();
