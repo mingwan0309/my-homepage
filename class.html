@@ -166,15 +166,14 @@ tr:hover td{background:#fafbff;}
   <div class="mat-layout">
     <div class="mat-sidebar">
       <div class="mat-sidebar-title">카테고리</div>
-      <div class="mat-cat active" onclick="selectCat('전체',this)">📂 전체</div>
-      <div class="mat-cat" onclick="selectCat('자습용 자료',this)">📖 자습용 자료</div>
+      <div class="mat-cat active" onclick="selectCat('자습용 자료',this)">📖 자습용 자료</div>
       <div class="mat-cat" onclick="selectCat('손필기 자료',this)">✏️ 손필기 자료</div>
       <div class="mat-cat" onclick="selectCat('암기자료',this)">🧠 암기자료</div>
     </div>
     <div class="mat-main">
       <div class="card">
         <div class="card-header">
-          <div class="card-title" id="mat-cat-title">전체 자료</div>
+          <div class="card-title" id="mat-cat-title">자습용 자료</div>
           <button class="btn-add-mat" id="btn-add-mat" onclick="openAddMat()" style="display:none;">+ 자료 추가</button>
         </div>
         <table class="mat-table">
@@ -219,6 +218,7 @@ tr:hover td{background:#fafbff;}
         <option>자습용 자료</option>
         <option>손필기 자료</option>
         <option>암기자료</option>
+
       </select>
     </div>
     <div class="fg"><label>파일명 / 제목</label><input type="text" id="mat-name" placeholder="예) 2학년 1학기 수1 개념정리"></div>
@@ -248,7 +248,7 @@ const COLORS=['#3b6cf7','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6
 function badgeColor(n){var h=0;for(var i=0;i<n.length;i++)h+=n.charCodeAt(i);return COLORS[h%COLORS.length];}
 
 var classInfo=null, students=[], sessions=[], materials=[];
-var currentCat='전체';
+var currentCat='자습용 자료';
 
 async function init(){
   if(!classId){document.body.innerHTML='<div style="text-align:center;padding:80px;color:#94a3b8;">반 정보를 찾을 수 없습니다.</div>';return;}
@@ -374,7 +374,7 @@ function selectCat(cat,el){
 
 function renderMaterials(){
   var tbody=document.getElementById('mat-tbody');
-  var list=currentCat==='전체'?materials:materials.filter(function(m){return m.category===currentCat;});
+  var list=materials.filter(function(m){return m.category===currentCat;});
   if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 자료가 없습니다</td></tr>';return;}
   tbody.innerHTML=list.map(function(m){
     var delBtn=session.role==='teacher'?'<button class="mat-del-btn" onclick="delMat(\''+m.id+'\')">삭제</button>':'';
