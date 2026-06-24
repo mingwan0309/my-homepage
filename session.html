@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>차시 — 김민관 수학</title>
+<style>
+:root{--primary:#3b6cf7;--bg:#f1f5f9;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);min-height:100vh;}
+
+/* HEADER */
+.header{background:#fff;border-bottom:1px solid #e2e8f0;padding:0 20px;height:52px;display:flex;align-items:center;gap:12px;}
+.back-btn{background:none;border:none;font-size:18px;cursor:pointer;color:#64748b;padding:4px 8px;border-radius:6px;}
+.back-btn:hover{background:#f1f5f9;}
+.header-class{font-size:15px;font-weight:700;color:#1e293b;}
+.header-session{display:flex;align-items:center;gap:6px;margin-left:4px;}
+.session-label{font-size:14px;color:#3b6cf7;font-weight:700;background:#eff4ff;padding:4px 10px;border-radius:8px;}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+.stat-box{text-align:center;}
+.stat-label{font-size:11px;color:#94a3b8;margin-bottom:1px;}
+.stat-val{font-size:14px;font-weight:700;color:#1e293b;}
+.stat-val.blue{color:#3b6cf7;}
+.stat-val.green{color:#16a34a;}
+
+/* TABS */
+.tabs-bar{background:#fff;border-bottom:2px solid #e2e8f0;padding:0 20px;display:flex;gap:0;}
+.tab-item{padding:12px 16px;font-size:14px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;}
+.tab-item.active{color:#3b6cf7;border-bottom-color:#3b6cf7;}
+
+/* CONTENT */
+.content{max-width:1200px;margin:20px auto;padding:0 20px;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* CARD */
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;}
+.card-header{padding:14px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.card-title{font-size:15px;font-weight:700;color:#1e293b;}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;}
+th{padding:10px 14px;font-size:12px;color:#94a3b8;text-align:left;border-bottom:1px solid #f1f5f9;font-weight:600;white-space:nowrap;background:#fafbff;}
+td{padding:10px 14px;font-size:13px;color:#334155;border-bottom:1px solid #f8fafc;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#fafbff;}
+.stu-name{font-weight:700;color:#1e293b;}
+
+/* ATTENDANCE BUTTONS */
+.att-btns{display:flex;gap:4px;flex-wrap:wrap;}
+.att-btn{padding:4px 8px;border-radius:6px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:12px;font-weight:700;cursor:pointer;transition:.12s;color:#64748b;white-space:nowrap;}
+.att-btn:hover{border-color:#3b6cf7;color:#3b6cf7;}
+.att-btn.active-현장{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
+.att-btn.active-지각{background:#fef9c3;border-color:#a16207;color:#a16207;}
+.att-btn.active-영상{background:#dbeafe;border-color:#2563eb;color:#2563eb;}
+.att-btn.active-보강{background:#ede9fe;border-color:#7c3aed;color:#7c3aed;}
+.att-btn.active-조퇴{background:#fed7aa;border-color:#c2410c;color:#c2410c;}
+.att-btn.active-출튀{background:#ffedd5;border-color:#ea580c;color:#ea580c;}
+.att-btn.active-결석{background:#fee2e2;border-color:#dc2626;color:#dc2626;}
+.att-btn.active-부재{background:#f1f5f9;border-color:#94a3b8;color:#94a3b8;}
+.att-btn.active-퇴원{background:#1e293b;border-color:#1e293b;color:#fff;}
+
+.status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;}
+.s현장{background:#dcfce7;color:#16a34a;}
+.s지각{background:#fef9c3;color:#a16207;}
+.s영상{background:#dbeafe;color:#2563eb;}
+.s보강{background:#ede9fe;color:#7c3aed;}
+.s조퇴{background:#fed7aa;color:#c2410c;}
+.s출튀{background:#ffedd5;color:#ea580c;}
+.s결석{background:#fee2e2;color:#dc2626;}
+.s부재{background:#f1f5f9;color:#94a3b8;}
+.s퇴원{background:#1e293b;color:#fff;}
+.s미정{background:#f1f5f9;color:#cbd5e1;}
+
+.memo-input{border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;width:120px;outline:none;}
+.memo-input:focus{border-color:#3b6cf7;}
+
+/* 성적 */
+.score-layout{display:flex;gap:16px;}
+.score-table-wrap{flex:1;min-width:0;overflow-x:auto;}
+.score-panel{width:300px;flex-shrink:0;background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.06);padding:20px;position:sticky;top:20px;align-self:flex-start;}
+.score-panel h3{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:4px;}
+.score-panel .sub{font-size:12px;color:#94a3b8;margin-bottom:16px;}
+.score-input-wrap{margin-bottom:12px;}
+.score-input-wrap label{font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;}
+.score-input{width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:20px;font-weight:700;text-align:center;outline:none;font-family:inherit;}
+.score-input:focus{border-color:#3b6cf7;}
+.pass-btns{display:flex;gap:8px;margin-bottom:16px;}
+.pass-btn{flex:1;padding:10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:14px;font-weight:700;cursor:pointer;transition:.12s;}
+.pass-btn.pass-active{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
+.pass-btn.fail-active{background:#fee2e2;border-color:#dc2626;color:#dc2626;}
+.save-score-btn{width:100%;padding:11px;background:#3b6cf7;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;}
+.save-score-btn:hover{background:#2d5ce5;}
+.score-cell{padding:4px 8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center;cursor:pointer;min-width:50px;}
+.score-cell.has-score{background:#eff4ff;color:#3b6cf7;}
+.score-cell.no-score{background:#f1f5f9;color:#cbd5e1;}
+.exam-col-header{display:flex;align-items:center;gap:4px;white-space:nowrap;}
+.del-exam{background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px;padding:0 2px;}
+
+.btn-add-exam{background:#f8fafc;border:1.5px dashed #e2e8f0;border-radius:8px;padding:7px 14px;font-size:13px;color:#94a3b8;cursor:pointer;font-weight:600;}
+.btn-add-exam:hover{border-color:#3b6cf7;color:#3b6cf7;}
+.done-badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;background:#dcfce7;color:#16a34a;}
+
+.empty{text-align:center;padding:48px;color:#94a3b8;font-size:14px;}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;border-radius:16px;padding:28px;width:90%;max-width:380px;}
+.modal h3{font-size:17px;font-weight:800;color:#1e293b;margin-bottom:18px;}
+.fg{margin-bottom:14px;}
+.fg label{display:block;font-size:13px;font-weight:600;color:#64748b;margin-bottom:5px;}
+.fg input{width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;font-family:inherit;}
+.fg input:focus{border-color:#3b6cf7;}
+.modal-btns{display:flex;gap:10px;margin-top:18px;}
+.btn-cl{flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:#64748b;}
+.btn-ok{flex:1;padding:10px;background:#3b6cf7;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;color:#fff;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <button class="back-btn" onclick="goBack()">←</button>
+  <div class="header-class" id="header-class">—</div>
+  <div class="header-session">
+    <span class="session-label" id="header-session">—</span>
+  </div>
+  <div class="header-right" id="header-stats">
+    <div class="stat-box"><div class="stat-label">날짜</div><div class="stat-val" id="stat-date">—</div></div>
+    <div class="stat-box"><div class="stat-label">전체</div><div class="stat-val" id="stat-total">0명</div></div>
+    <div class="stat-box"><div class="stat-label">현장</div><div class="stat-val green" id="stat-present">0명</div></div>
+    <div class="stat-box"><div class="stat-label">미정</div><div class="stat-val blue" id="stat-unknown">0명</div></div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-bar">
+  <div class="tab-item active" onclick="switchTab('attendance',this)">출석</div>
+  <div class="tab-item" onclick="switchTab('scores',this)">성적</div>
+</div>
+
+<!-- 출석 -->
+<div class="content">
+<div id="page-attendance" class="page active">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">출석 관리</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn-add-exam" style="border-style:solid;" onclick="setAllAttendance('현장')">전원 현장</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:36px;">#</th>
+          <th>이름</th>
+          <th>상태</th>
+          <th>학부모 전화번호</th>
+          <th>학생 전화번호</th>
+          <th>출석 상태 변경</th>
+          <th>출결 메모</th>
+        </tr>
+      </thead>
+      <tbody id="att-tbody">
+        <tr><td colspan="7" class="empty">불러오는 중...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 성적 -->
+<div id="page-scores" class="page">
+  <div class="score-layout">
+    <div class="score-table-wrap">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">성적 관리</div>
+          <button class="btn-add-exam" onclick="openAddExam()" id="add-exam-btn">+ 시험 추가</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr id="score-thead-row">
+                <th style="width:36px;">#</th>
+                <th>이름</th>
+                <th>출석</th>
+              </tr>
+            </thead>
+            <tbody id="score-tbody">
+              <tr><td colspan="10" class="empty">불러오는 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="score-panel" id="score-panel" style="display:none;">
+      <h3 id="panel-exam-name">시험명</h3>
+      <div class="sub" id="panel-sub"></div>
+      <div class="score-input-wrap">
+        <label>점수</label>
+        <input class="score-input" type="number" id="panel-score" placeholder="—">
+      </div>
+      <div class="pass-btns">
+        <button class="pass-btn" id="btn-pass" onclick="togglePass('pass')">통과</button>
+        <button class="pass-btn" id="btn-fail" onclick="togglePass('fail')">미통과</button>
+      </div>
+      <button class="save-score-btn" onclick="saveScore()">완료</button>
+      <button style="width:100%;padding:10px;border:none;background:none;color:#94a3b8;font-size:13px;cursor:pointer;" onclick="closePanel()">닫기</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- 시험 추가 모달 -->
+<div class="modal-bg" id="add-exam-modal">
+  <div class="modal">
+    <h3>시험 추가</h3>
+    <div class="fg"><label>시험 이름</label><input type="text" id="exam-name-input" placeholder="예: 실전모의고사 1회"></div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="closeAddExam()">취소</button>
+      <button class="btn-ok" onclick="saveExam()">추가</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SU='https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+const session=JSON.parse(localStorage.getItem('mkmath_session')||'null');
+const params=new URLSearchParams(location.search);
+const sessionId=params.get('id');
+const classId=params.get('classId');
+
+if(!session){location.href='homework.html';}
+
+const ATT_TYPES=['현장','지각','영상','보강','조퇴','출튀','결석','부재','퇴원'];
+
+var sessionInfo=null, classInfo=null, students=[], attMap={}, exams=[], scoresMap={};
+var panelStudentId='', panelExamId='', panelPass='';
+
+function goBack(){location.href='class.html?id='+encodeURIComponent(classId);}
+
+function formatDate(d){
+  if(!d)return'—';
+  var s=String(d),m=s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return m[2]+'/'+m[3];
+  return s;
+}
+
+async function init(){
+  if(!sessionId||!classId){goBack();return;}
+  const [sesr, clsr] = await Promise.all([
+    fetch(SU+'?action=getSession&id='+encodeURIComponent(sessionId)).then(r=>r.json()),
+    fetch(SU+'?action=getClassStudents&classId='+encodeURIComponent(classId)).then(r=>r.json())
+  ]);
+  if(!sesr.success||!clsr.classInfo){goBack();return;}
+  sessionInfo=sesr.session;
+  classInfo=clsr.classInfo;
+  students=clsr.students||[];
+
+  document.getElementById('header-class').textContent=classInfo.name;
+  document.getElementById('header-session').textContent=sessionInfo.sessionNum+'차시';
+  document.getElementById('stat-date').textContent=formatDate(sessionInfo.date);
+  document.getElementById('stat-total').textContent=students.length+'명';
+  document.title=classInfo.name+' '+sessionInfo.sessionNum+'차시 — 김민관 수학';
+
+  // 선생님 아니면 출석/성적 수정 숨김
+  if(session.role!=='teacher'){
+    document.getElementById('add-exam-btn').style.display='none';
+    document.querySelector('.btn-add-exam[onclick*="setAll"]').style.display='none';
+  }
+
+  await loadAttendance();
+  await loadScores();
+}
+
+async function loadAttendance(){
+  const r=await fetch(SU+'?action=getAttendance&sessionId='+encodeURIComponent(sessionId)).then(r=>r.json());
+  attMap={};
+  (r.attendance||[]).forEach(function(a){attMap[a.studentId]={status:a.status,memo:a.memo||''};});
+  renderAttendance();
+  updateStats();
+}
+
+function renderAttendance(){
+  const tbody=document.getElementById('att-tbody');
+  if(!students.length){tbody.innerHTML='<tr><td colspan="7" class="empty">수강생이 없습니다</td></tr>';return;}
+  tbody.innerHTML=students.map(function(st,i){
+    var att=attMap[st.id]||{status:'미정',memo:''};
+    var status=att.status||'미정';
+    var memo=att.memo||'';
+    var btns=ATT_TYPES.map(function(t){
+      var cls=(status===t)?'att-btn active-'+t:'att-btn';
+      return '<button class="'+cls+'" onclick="setAtt(\''+st.id+'\',\''+t+'\')">'+t+'</button>';
+    }).join('');
+    return '<tr id="att-row-'+st.id+'">'+
+      '<td style="color:#94a3b8;font-weight:600;">'+(i+1)+'</td>'+
+      '<td><span class="stu-name">'+st.name+'</span></td>'+
+      '<td><span class="status-badge s'+status+'" id="att-badge-'+st.id+'">'+status+'</span></td>'+
+      '<td style="font-size:12px;color:#64748b;">'+(st.parentPhone||'—')+'</td>'+
+      '<td style="font-size:12px;color:#64748b;">'+(st.studentPhone||'—')+'</td>'+
+      '<td><div class="att-btns" id="att-btns-'+st.id+'">'+btns+'</div></td>'+
+      '<td><input class="memo-input" value="'+memo.replace(/"/g,'&quot;')+'" placeholder="메모 입력" onchange="saveMemo(\''+st.id+'\',this.value)"></td>'+
+      '</tr>';
+  }).join('');
+}
+
+async function setAtt(studentId, status){
+  if(session.role!=='teacher')return;
+  if(!attMap[studentId])attMap[studentId]={status:'미정',memo:''};
+  attMap[studentId].status=status;
+  // 버튼 UI 즉시 반영
+  var btns=document.getElementById('att-btns-'+studentId);
+  if(btns){
+    btns.querySelectorAll('.att-btn').forEach(function(b){
+      var t=b.textContent;
+      b.className='att-btn'+(status===t?' active-'+t:'');
+    });
+  }
+  var badge=document.getElementById('att-badge-'+studentId);
+  if(badge){badge.className='status-badge s'+status;badge.textContent=status;}
+  updateStats();
+  var memo=attMap[studentId].memo||'';
+  fetch(SU+'?action=setAttendance&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(studentId)+'&status='+encodeURIComponent(status)+'&memo='+encodeURIComponent(memo));
+}
+
+async function saveMemo(studentId, memo){
+  if(!attMap[studentId])attMap[studentId]={status:'미정',memo:''};
+  attMap[studentId].memo=memo;
+  var status=attMap[studentId].status||'미정';
+  fetch(SU+'?action=setAttendance&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(studentId)+'&status='+encodeURIComponent(status)+'&memo='+encodeURIComponent(memo));
+}
+
+function setAllAttendance(status){
+  if(session.role!=='teacher')return;
+  students.forEach(function(st){setAtt(st.id,status);});
+}
+
+function updateStats(){
+  var present=Object.values(attMap).filter(function(a){return a.status==='현장';}).length;
+  var unknown=students.filter(function(st){return !attMap[st.id]||!attMap[st.id].status||attMap[st.id].status==='미정';}).length;
+  document.getElementById('stat-present').textContent=present+'명';
+  document.getElementById('stat-unknown').textContent=unknown+'명';
+}
+
+// 성적
+async function loadScores(){
+  const [er, sr] = await Promise.all([
+    fetch(SU+'?action=getExams&sessionId='+encodeURIComponent(sessionId)).then(r=>r.json()),
+    fetch(SU+'?action=getScores&sessionId='+encodeURIComponent(sessionId)).then(r=>r.json())
+  ]);
+  exams=er.exams||[];
+  scoresMap={};
+  (sr.scores||[]).forEach(function(s){
+    if(!scoresMap[s.studentId])scoresMap[s.studentId]={};
+    scoresMap[s.studentId][s.examId]={score:s.score,pass:s.pass,feedback:s.feedback||''};
+  });
+  renderScores();
+}
+
+function renderScores(){
+  // 헤더
+  var theadRow=document.getElementById('score-thead-row');
+  var examCols=exams.map(function(ex){
+    var del=session.role==='teacher'?'<button class="del-exam" onclick="deleteExam(\''+ex.id+'\',event)" title="삭제">✕</button>':'';
+    return '<th><div class="exam-col-header">'+ex.name+del+'</div></th>';
+  }).join('');
+  theadRow.innerHTML='<th style="width:36px;">#</th><th>이름</th><th>출석</th>'+examCols;
+
+  // 바디
+  var tbody=document.getElementById('score-tbody');
+  if(!students.length){tbody.innerHTML='<tr><td colspan="'+(3+exams.length)+'" class="empty">수강생이 없습니다</td></tr>';return;}
+  tbody.innerHTML=students.map(function(st,i){
+    var att=attMap[st.id]||{status:'미정'};
+    var attBadge='<span class="status-badge s'+(att.status||'미정')+'">'+(att.status||'미정')+'</span>';
+    var scoreCols=exams.map(function(ex){
+      var sc=(scoresMap[st.id]||{})[ex.id];
+      if(sc&&sc.score!==''){
+        var passIcon=sc.pass==='pass'?'<span style="color:#16a34a;font-size:10px;"> ✓</span>':sc.pass==='fail'?'<span style="color:#dc2626;font-size:10px;"> ✗</span>':'';
+        return '<td><div class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+sc.score+'점'+passIcon+'</div></td>';
+      }
+      return '<td><div class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')" style="cursor:pointer;">—</div></td>';
+    }).join('');
+    return '<tr><td style="color:#94a3b8;font-weight:600;">'+(i+1)+'</td>'+
+      '<td><span class="stu-name">'+st.name+'</span></td>'+
+      '<td>'+attBadge+'</td>'+scoreCols+'</tr>';
+  }).join('');
+}
+
+function openPanel(studentId, examId){
+  var exam=exams.find(function(e){return e.id===examId;});
+  var st=students.find(function(s){return s.id===studentId;});
+  if(!exam||!st)return;
+  panelStudentId=studentId; panelExamId=examId; panelPass='';
+  document.getElementById('panel-exam-name').textContent=exam.name;
+  document.getElementById('panel-sub').textContent=classInfo.name+' '+sessionInfo.sessionNum+'차시, '+st.name;
+  var sc=(scoresMap[studentId]||{})[examId];
+  document.getElementById('panel-score').value=sc&&sc.score!==''?sc.score:'';
+  panelPass=sc?sc.pass||'':'';
+  updatePassBtns();
+  document.getElementById('score-panel').style.display='block';
+}
+
+function closePanel(){
+  document.getElementById('score-panel').style.display='none';
+  panelStudentId=''; panelExamId=''; panelPass='';
+}
+
+function togglePass(p){
+  panelPass=panelPass===p?'':p;
+  updatePassBtns();
+}
+function updatePassBtns(){
+  document.getElementById('btn-pass').className='pass-btn'+(panelPass==='pass'?' pass-active':'');
+  document.getElementById('btn-fail').className='pass-btn'+(panelPass==='fail'?' fail-active':'');
+}
+
+async function saveScore(){
+  if(!panelStudentId||!panelExamId)return;
+  var score=document.getElementById('panel-score').value;
+  if(!scoresMap[panelStudentId])scoresMap[panelStudentId]={};
+  scoresMap[panelStudentId][panelExamId]={score:score,pass:panelPass,feedback:''};
+  renderScores();
+  closePanel();
+  fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(panelStudentId)+'&examId='+encodeURIComponent(panelExamId)+'&score='+encodeURIComponent(score)+'&pass='+encodeURIComponent(panelPass));
+}
+
+// 시험 추가
+function openAddExam(){document.getElementById('exam-name-input').value='';document.getElementById('add-exam-modal').classList.add('show');}
+function closeAddExam(){document.getElementById('add-exam-modal').classList.remove('show');}
+async function saveExam(){
+  var name=document.getElementById('exam-name-input').value.trim();
+  if(!name){alert('시험 이름을 입력해주세요');return;}
+  var r=await fetch(SU+'?action=addExam&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(name)).then(r=>r.json());
+  if(r.success){closeAddExam();await loadScores();}
+}
+async function deleteExam(examId, e){
+  e.stopPropagation();
+  if(!confirm('시험을 삭제하시겠습니까?'))return;
+  await fetch(SU+'?action=deleteExam&id='+encodeURIComponent(examId));
+  await loadScores();
+}
+
+// 탭 전환
+function switchTab(tab,el){
+  document.querySelectorAll('.tab-item').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('page-'+tab).classList.add('active');
+}
+
+init();
+</script>
+</body>
+</html>

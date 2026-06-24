@@ -5,46 +5,85 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>반 정보 — 김민관 수학</title>
 <style>
-  :root { --primary:#3b6cf7; --bg:#f8fafc; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Pretendard','Noto Sans KR',sans-serif; background:var(--bg); min-height:100vh; }
+:root{--primary:#3b6cf7;--bg:#f1f5f9;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);min-height:100vh;}
 
-  /* TOPBAR */
-  .topbar { background:#1e293b; color:#fff; padding:0 24px; height:52px; display:flex; align-items:center; justify-content:space-between; }
-  .topbar-logo { font-size:17px; font-weight:800; cursor:pointer; }
-  .topbar-logo span { color:#3b6cf7; }
-  .topbar-right { display:flex; align-items:center; gap:12px; }
-  .topbar-user { font-size:13px; color:#94a3b8; }
-  .topbar-btn { background:#3b6cf7; color:#fff; border:none; padding:6px 14px; border-radius:8px; font-size:13px; cursor:pointer; font-weight:600; }
+/* TOPBAR */
+.topbar{background:#1e293b;color:#fff;padding:0 20px;height:48px;display:flex;align-items:center;justify-content:space-between;}
+.topbar-logo{font-size:16px;font-weight:800;cursor:pointer;}
+.topbar-logo span{color:#3b6cf7;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.topbar-user{font-size:13px;color:#94a3b8;}
+.topbar-btn{background:#3b6cf7;color:#fff;border:none;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;}
 
-  /* MAIN */
-  .container { max-width:900px; margin:0 auto; padding:32px 20px; }
+/* CLASS HEADER */
+.class-header{background:#fff;padding:16px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e2e8f0;}
+.cls-badge{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;flex-shrink:0;}
+.cls-name{font-size:18px;font-weight:800;color:#1e293b;}
+.cls-time{font-size:13px;color:#64748b;margin-top:2px;}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.icon-btn{background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;color:#64748b;}
+.icon-btn:hover{background:#f8fafc;}
+.btn-add-session{background:#3b6cf7;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
 
-  .class-header { background:#fff; border-radius:16px; padding:28px 32px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; align-items:center; gap:24px; }
-  .class-badge { width:64px; height:64px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:#fff; flex-shrink:0; }
-  .class-info h1 { font-size:22px; font-weight:800; color:#1e293b; margin-bottom:6px; }
-  .class-meta { display:flex; gap:16px; flex-wrap:wrap; }
-  .class-meta-item { display:flex; align-items:center; gap:6px; font-size:14px; color:#64748b; }
-  .class-meta-item strong { color:#334155; font-weight:600; }
-  .status-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:700; }
-  .status-active { background:#dcfce7; color:#16a34a; }
-  .status-past { background:#f1f5f9; color:#94a3b8; }
+/* SESSIONS ROW */
+.sessions-wrap{background:#fff;border-bottom:1px solid #e2e8f0;padding:10px 20px;display:flex;align-items:center;gap:8px;}
+.sessions-scroll{display:flex;gap:8px;overflow-x:auto;flex:1;padding-bottom:2px;scrollbar-width:none;}
+.sessions-scroll::-webkit-scrollbar{display:none;}
+.session-chip{flex-shrink:0;padding:8px 14px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;cursor:pointer;text-align:center;transition:.15s;}
+.session-chip:hover{border-color:#3b6cf7;background:#eff4ff;}
+.session-chip .snum{font-size:13px;font-weight:700;color:#1e293b;}
+.session-chip .sdate{font-size:11px;color:#94a3b8;margin-top:1px;}
+.no-sessions{color:#94a3b8;font-size:13px;padding:4px 0;}
 
-  .section-title { font-size:16px; font-weight:700; color:#1e293b; margin-bottom:14px; }
+/* TABS */
+.tabs-bar{background:#fff;border-bottom:2px solid #e2e8f0;padding:0 20px;display:flex;gap:0;}
+.tab-item{padding:12px 18px;font-size:14px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;}
+.tab-item.active{color:#3b6cf7;border-bottom-color:#3b6cf7;}
 
-  .students-card { background:#fff; border-radius:16px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); }
-  .student-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-top:16px; }
-  .student-item { background:#f8fafc; border-radius:12px; padding:14px 16px; }
-  .student-name { font-size:15px; font-weight:700; color:#1e293b; margin-bottom:4px; }
-  .student-sub { font-size:13px; color:#64748b; }
+/* CONTENT */
+.content{max-width:1100px;margin:20px auto;padding:0 20px;}
 
-  .empty-msg { text-align:center; padding:48px; color:#94a3b8; font-size:15px; }
+/* STUDENT TABLE */
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;}
+.card-header{padding:14px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:15px;font-weight:700;color:#1e293b;}
+table{width:100%;border-collapse:collapse;}
+th{padding:10px 14px;font-size:12px;color:#94a3b8;text-align:left;border-bottom:1px solid #f1f5f9;font-weight:600;white-space:nowrap;}
+td{padding:11px 14px;font-size:13px;color:#334155;border-bottom:1px solid #f8fafc;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#fafbff;}
+.stu-name{font-weight:700;color:#1e293b;}
+.stu-phone{color:#64748b;font-size:12px;}
+.att-chips{display:flex;gap:3px;flex-wrap:wrap;}
+.att-chip{padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700;}
 
-  .back-btn { display:inline-flex; align-items:center; gap:6px; color:#3b6cf7; font-size:14px; font-weight:600; cursor:pointer; margin-bottom:20px; text-decoration:none; }
-  .back-btn:hover { text-decoration:underline; }
+/* STATUS COLORS */
+.s현장{background:#dcfce7;color:#16a34a;}
+.s지각{background:#fef9c3;color:#a16207;}
+.s영상{background:#dbeafe;color:#2563eb;}
+.s보강{background:#ede9fe;color:#7c3aed;}
+.s조퇴{background:#fed7aa;color:#c2410c;}
+.s결석{background:#fee2e2;color:#dc2626;}
+.s부재{background:#f1f5f9;color:#94a3b8;}
+.s퇴원{background:#1e293b;color:#fff;}
+.s미정{background:#f1f5f9;color:#cbd5e1;}
 
-  .denied { text-align:center; padding:80px 20px; color:#64748b; font-size:16px; }
-  .denied h2 { font-size:22px; color:#1e293b; margin-bottom:12px; }
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;border-radius:16px;padding:28px;width:90%;max-width:420px;}
+.modal h3{font-size:18px;font-weight:800;color:#1e293b;margin-bottom:20px;}
+.fg{margin-bottom:14px;}
+.fg label{display:block;font-size:13px;font-weight:600;color:#64748b;margin-bottom:6px;}
+.fg input{width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;}
+.fg input:focus{border-color:#3b6cf7;}
+.modal-btns{display:flex;gap:10px;margin-top:20px;}
+.btn-cl{flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:9px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:#64748b;}
+.btn-ok{flex:1;padding:11px;background:#3b6cf7;border:none;border-radius:9px;cursor:pointer;font-size:14px;font-weight:700;color:#fff;}
+
+.empty{text-align:center;padding:48px;color:#94a3b8;font-size:14px;}
 </style>
 </head>
 <body>
@@ -53,115 +92,209 @@
   <span class="topbar-logo" onclick="location.href='index.html'">김민관 <span>수학</span></span>
   <div class="topbar-right">
     <span class="topbar-user" id="topbar-user"></span>
-    <button class="topbar-btn" id="topbar-logout" onclick="logout()" style="display:none;">로그아웃</button>
+    <button class="topbar-btn" onclick="logout()">로그아웃</button>
   </div>
 </div>
 
-<div class="container">
-  <a class="back-btn" onclick="history.back()">← 돌아가기</a>
-
-  <div id="denied-view" class="denied" style="display:none;">
-    <h2>접근 권한이 없습니다</h2>
-    <p>이 반에 소속된 학생 또는 선생님만 볼 수 있습니다.</p>
+<!-- CLASS HEADER -->
+<div class="class-header" id="class-header" style="display:none;">
+  <div class="cls-badge" id="cls-badge"></div>
+  <div>
+    <div class="cls-name" id="cls-name"></div>
+    <div class="cls-time" id="cls-time"></div>
   </div>
+  <div class="header-right">
+    <button class="btn-add-session" onclick="openAddSession()">+ 차시 추가</button>
+  </div>
+</div>
 
-  <div id="main-view" style="display:none;">
-    <div class="class-header">
-      <div class="class-badge" id="cls-badge"></div>
-      <div class="class-info">
-        <h1 id="cls-name"></h1>
-        <div class="class-meta">
-          <div class="class-meta-item">🕐 <strong id="cls-time"></strong></div>
-          <div class="class-meta-item">📅 <span id="cls-period"></span></div>
-          <div class="class-meta-item"><span class="status-badge" id="cls-status"></span></div>
-        </div>
-      </div>
+<!-- SESSIONS ROW -->
+<div class="sessions-wrap" id="sessions-wrap" style="display:none;">
+  <div class="sessions-scroll" id="sessions-scroll">
+    <div class="no-sessions">차시가 없습니다. 차시를 추가해주세요.</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-bar" id="tabs-bar" style="display:none;">
+  <div class="tab-item active" onclick="switchTab('students',this)">수강생 목록 <span id="stu-count-badge"></span></div>
+</div>
+
+<!-- CONTENT -->
+<div class="content" id="content-students">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">수강생 목록</div>
     </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px;">#</th>
+          <th>이름</th>
+          <th>학생 전화번호</th>
+          <th>학부모 전화번호</th>
+          <th>학교</th>
+          <th>최근 출결</th>
+        </tr>
+      </thead>
+      <tbody id="stu-tbody">
+        <tr><td colspan="6" class="empty">불러오는 중...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
-    <div class="students-card">
-      <div class="section-title">📋 수강생 목록 (<span id="cls-count">0</span>명)</div>
-      <div class="student-list" id="student-list">
-        <div class="empty-msg">불러오는 중...</div>
-      </div>
+<!-- 차시 추가 모달 -->
+<div class="modal-bg" id="add-session-modal">
+  <div class="modal">
+    <h3>차시 추가</h3>
+    <div class="fg"><label>날짜</label><input type="date" id="ses-date"></div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="closeAddSession()">취소</button>
+      <button class="btn-ok" onclick="saveSession()">추가</button>
     </div>
   </div>
 </div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
-
-const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+const SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+const session = JSON.parse(localStorage.getItem('mkmath_session')||'null');
 const params = new URLSearchParams(location.search);
 const classId = params.get('id');
 
-function logout() {
-  localStorage.removeItem('mkmath_session');
-  location.href = 'index.html';
-}
+if(!session){location.href='homework.html';}
 
-function badgeColor(name) {
-  const colors = ['#3b6cf7','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4'];
-  var h = 0; for (var i = 0; i < name.length; i++) h += name.charCodeAt(i);
-  return colors[h % colors.length];
-}
+document.getElementById('topbar-user').textContent = (session.role==='teacher'?'👨‍🏫 ':'🎓 ')+(session.name||session.id);
 
-function init() {
-  if (!session) { location.href = 'homework.html'; return; }
-  document.getElementById('topbar-user').textContent = (session.role === 'teacher' ? '👨‍🏫 ' : '🎓 ') + session.name;
-  document.getElementById('topbar-logout').style.display = 'block';
+function logout(){localStorage.removeItem('mkmath_session');location.href='index.html';}
 
-  if (!classId) { document.getElementById('denied-view').style.display = 'block'; return; }
-  loadClass();
-}
+const COLORS=['#3b6cf7','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4'];
+function badgeColor(n){var h=0;for(var i=0;i<n.length;i++)h+=n.charCodeAt(i);return COLORS[h%COLORS.length];}
 
-async function loadClass() {
-  try {
-    const res = await fetch(SCRIPT_URL + '?action=getClassStudents&classId=' + encodeURIComponent(classId));
-    const data = await res.json();
+const ATT_STATUS=['현장','지각','영상','보강','조퇴','결석','부재','퇴원','미정'];
 
-    if (!data.classInfo) {
-      document.getElementById('denied-view').style.display = 'block';
-      return;
-    }
+var classInfo=null, students=[], sessions=[];
 
-    // 학생이면 본인 반인지 확인
-    if (session.role === 'student' && session.classId !== classId) {
-      document.getElementById('denied-view').style.display = 'block';
-      return;
-    }
+async function init(){
+  if(!classId){document.body.innerHTML='<div style="text-align:center;padding:80px;color:#94a3b8;">반 정보를 찾을 수 없습니다.</div>';return;}
+  const [cr, sr] = await Promise.all([
+    fetch(SU+'?action=getClassStudents&classId='+encodeURIComponent(classId)).then(r=>r.json()),
+    fetch(SU+'?action=getSessions&classId='+encodeURIComponent(classId)).then(r=>r.json())
+  ]);
+  if(!cr.classInfo){document.body.innerHTML='<div style="text-align:center;padding:80px;color:#94a3b8;">반 정보를 찾을 수 없습니다.</div>';return;}
 
-    document.getElementById('main-view').style.display = 'block';
-
-    const cls = data.classInfo;
-    const color = badgeColor(cls.name);
-    document.getElementById('cls-badge').textContent = cls.name.substring(0, 2);
-    document.getElementById('cls-badge').style.background = color;
-    document.getElementById('cls-name').textContent = cls.name;
-    document.getElementById('cls-time').textContent = cls.time || '미정';
-    const period = [cls.start, cls.end].filter(Boolean).join(' ~ ') || '기간 미정';
-    document.getElementById('cls-period').textContent = period;
-    const statusEl = document.getElementById('cls-status');
-    statusEl.textContent = cls.status === 'past' ? '종료' : '진행 중';
-    statusEl.className = 'status-badge ' + (cls.status === 'past' ? 'status-past' : 'status-active');
-
-    const students = data.students || [];
-    document.getElementById('cls-count').textContent = students.length;
-    const list = document.getElementById('student-list');
-
-    if (!students.length) {
-      list.innerHTML = '<div class="empty-msg">등록된 수강생이 없습니다</div>';
-      return;
-    }
-
-    list.innerHTML = students.map(function(s) {
-      return '<div class="student-item"><div class="student-name">🎓 ' + (s.name || s.id) + '</div>' +
-             (s.school ? '<div class="student-sub">' + s.school + '</div>' : '') + '</div>';
-    }).join('');
-
-  } catch(e) {
-    document.getElementById('denied-view').style.display = 'block';
-    document.getElementById('denied-view').innerHTML = '<h2>불러오기 실패</h2><p>잠시 후 다시 시도해주세요</p>';
+  // 학생이 자기 반 아닌 경우 차단
+  if(session.role==='student' && session.classId !== classId){
+    document.body.innerHTML='<div style="text-align:center;padding:80px;"><h2>접근 권한이 없습니다</h2></div>';return;
   }
+
+  classInfo = cr.classInfo;
+  students = cr.students||[];
+  sessions = sr.sessions||[];
+
+  renderHeader();
+  renderSessions();
+  renderStudents();
+
+  document.getElementById('class-header').style.display='flex';
+  document.getElementById('sessions-wrap').style.display='flex';
+  document.getElementById('tabs-bar').style.display='flex';
+  document.getElementById('stu-count-badge').textContent = students.length+'명';
+}
+
+function renderHeader(){
+  const color=badgeColor(classInfo.name);
+  document.getElementById('cls-badge').style.background=color;
+  document.getElementById('cls-badge').textContent=classInfo.name.substring(0,2);
+  document.getElementById('cls-name').textContent=classInfo.name;
+  document.getElementById('cls-time').textContent=classInfo.time||'';
+  document.title=classInfo.name+' — 김민관 수학';
+  // 학생이면 차시 추가 버튼 숨기기
+  if(session.role!=='teacher') document.querySelector('.btn-add-session').style.display='none';
+}
+
+function renderSessions(){
+  const scroll=document.getElementById('sessions-scroll');
+  if(!sessions.length){scroll.innerHTML='<div class="no-sessions">차시가 없습니다.</div>';return;}
+  scroll.innerHTML=sessions.map(function(s){
+    var label=s.date?formatDate(s.date):'';
+    return '<div class="session-chip" onclick="goSession(\''+s.id+'\')"><div class="snum">'+s.sessionNum+'차시</div>'+(label?'<div class="sdate">'+label+'</div>':'')+'</div>';
+  }).join('');
+}
+
+function formatDate(d){
+  if(!d)return'';
+  var s=String(d),m=s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return m[2]+'/'+m[3];
+  return s.substring(0,10);
+}
+
+function goSession(sessionId){
+  location.href='session.html?id='+encodeURIComponent(sessionId)+'&classId='+encodeURIComponent(classId);
+}
+
+async function renderStudents(){
+  const tbody=document.getElementById('stu-tbody');
+  if(!students.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 수강생이 없습니다</td></tr>';return;}
+
+  // 최근 출결 히스토리 (최근 세션들에서 각 학생 출결)
+  var attMap = {}; // studentId -> [status, ...]
+  if(sessions.length){
+    try{
+      // 최근 10차시만
+      var recentSes = sessions.slice(0,10);
+      var attPromises = recentSes.map(s=>fetch(SU+'?action=getAttendance&sessionId='+s.id).then(r=>r.json()));
+      var attResults = await Promise.all(attPromises);
+      students.forEach(function(st){ attMap[st.id]=[]; });
+      recentSes.forEach(function(s,i){
+        var att = attResults[i].attendance||[];
+        students.forEach(function(st){
+          var found=att.find(function(a){return a.studentId===st.id;});
+          if(!attMap[st.id]) attMap[st.id]=[];
+          attMap[st.id].push(found?found.status:'미정');
+        });
+      });
+    }catch(e){}
+  }
+
+  tbody.innerHTML=students.map(function(st,idx){
+    var chips=(attMap[st.id]||[]).map(function(s){
+      return '<span class="att-chip s'+s+'">'+s.substring(0,1)+'</span>';
+    }).join('');
+    return '<tr><td style="color:#94a3b8;font-weight:600;">'+(idx+1)+'</td>'+
+      '<td><span class="stu-name">'+st.name+'</span></td>'+
+      '<td class="stu-phone">'+(st.studentPhone||'-')+'</td>'+
+      '<td class="stu-phone">'+(st.parentPhone||'-')+'</td>'+
+      '<td>'+(st.school||'-')+'</td>'+
+      '<td><div class="att-chips">'+chips+'</div></td></tr>';
+  }).join('');
+}
+
+function switchTab(tab,el){
+  document.querySelectorAll('.tab-item').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+}
+
+// 차시 추가
+function openAddSession(){
+  var today=new Date().toISOString().substring(0,10);
+  document.getElementById('ses-date').value=today;
+  document.getElementById('add-session-modal').classList.add('show');
+}
+function closeAddSession(){document.getElementById('add-session-modal').classList.remove('show');}
+async function saveSession(){
+  var date=document.getElementById('ses-date').value;
+  try{
+    var r=await fetch(SU+'?action=addSession&classId='+encodeURIComponent(classId)+'&date='+encodeURIComponent(date));
+    var d=await r.json();
+    if(d.success){
+      closeAddSession();
+      // 세션 목록 새로고침
+      var sr=await fetch(SU+'?action=getSessions&classId='+encodeURIComponent(classId)).then(r=>r.json());
+      sessions=sr.sessions||[];
+      renderSessions();
+    }
+  }catch(e){alert('오류가 발생했습니다.');}
 }
 
 init();
