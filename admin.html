@@ -375,10 +375,17 @@ function logout(){
 }
 
 // 반
-function loadClasses(){
-  var cls=JSON.parse(localStorage.getItem('mkmath_classes')||'[]');
-  var act=cls.filter(function(c){return c.status!=='past';});
-  var past=cls.filter(function(c){return c.status==='past';});
+var allClasses = [];
+async function loadClasses(){
+  var tb=document.getElementById('class-tbody');
+  tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:36px;">불러오는 중...</td></tr>';
+  try{
+    var r=await fetch(SU+'?action=getClasses');
+    var d=await r.json();
+    allClasses=d.classes||[];
+  }catch(e){allClasses=[];}
+  var act=allClasses.filter(function(c){return c.status!=='past';});
+  var past=allClasses.filter(function(c){return c.status==='past';});
   document.getElementById('cnt-active').textContent=act.length+'개';
   document.getElementById('cnt-past').textContent=past.length+'개';
   renderClasses(curClassTab==='active'?act:past);
@@ -388,7 +395,7 @@ function renderClasses(list){
   if(!list.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:36px;">반이 없습니다</td></tr>';return;}
   tb.innerHTML=list.map(function(c){
     var color=bc(c.name);
-    return '<tr><td><div class="class-cell"><div class="badge" style="background:'+color+'">'+c.name.substring(0,2)+'</div><span style="font-weight:700;">'+c.name+'</span></div></td><td>'+(c.count?c.count+'명':'-')+'</td><td>'+(c.time||'-')+'</td><td>'+(c.start||'-')+(c.end?' ~ '+c.end:'')+'</td><td style="text-align:right;white-space:nowrap;"><button class="btn-sm btn-blue" onclick="toggleCls('+c.id+')" style="margin-right:6px;">'+(c.status==='past'?'진행중':'종료')+'</button><button class="btn-sm btn-red" onclick="deleteCls('+c.id+')">삭제</button></td></tr>';
+    return '<tr><td style="cursor:pointer;" onclick="location.href=\'class.html?id='+encodeURIComponent(c.id)+'\'"><div class="class-cell"><div class="badge" style="background:'+color+'">'+c.name.substring(0,2)+'</div><span style="font-weight:700;">'+c.name+'</span></div></td><td>'+(c.count?c.count+'명':'-')+'</td><td>'+(c.time||'-')+'</td><td>'+(c.start||'-')+(c.end?' ~ '+c.end:'')+'</td><td style="text-align:right;white-space:nowrap;"><button class="btn-sm btn-blue" onclick="event.stopPropagation();toggleCls(\''+c.id+'\')" style="margin-right:6px;">'+(c.status==='past'?'진행중':'종료')+'</button><button class="btn-sm btn-red" onclick="event.stopPropagation();deleteCls(\''+c.id+'\')">삭제</button></td></tr>';
   }).join('');
 }
 function classTab(t,el){
@@ -402,23 +409,26 @@ function closeClassModal(){
   document.getElementById('cm').classList.remove('show');
   ['cn','ct','cs','ce','cc'].forEach(function(id){document.getElementById(id).value='';});
 }
-function saveClass(){
+async function saveClass(){
   var n=document.getElementById('cn').value.trim();
   if(!n){alert('반 이름을 입력해주세요');return;}
-  var cls=JSON.parse(localStorage.getItem('mkmath_classes')||'[]');
-  cls.push({id:Date.now(),name:n,time:document.getElementById('ct').value.trim(),start:document.getElementById('cs').value,end:document.getElementById('ce').value,count:document.getElementById('cc').value.trim(),status:'active'});
-  localStorage.setItem('mkmath_classes',JSON.stringify(cls));
-  closeClassModal(); loadClasses();
+  try{
+    await fetch(SU+'?action=addClass&name='+encodeURIComponent(n)+'&time='+encodeURIComponent(document.getElementById('ct').value.trim())+'&start='+encodeURIComponent(document.getElementById('cs').value)+'&end='+encodeURIComponent(document.getElementById('ce').value));
+    closeClassModal(); loadClasses();
+  }catch(e){alert('저장 중 오류가 발생했습니다.');}
 }
-function deleteCls(id){
+async function deleteCls(id){
   if(!confirm('삭제하시겠습니까?'))return;
-  var cls=JSON.parse(localStorage.getItem('mkmath_classes')||'[]').filter(function(c){return c.id!==id;});
-  localStorage.setItem('mkmath_classes',JSON.stringify(cls)); loadClasses();
+  try{
+    await fetch(SU+'?action=deleteClass&id='+encodeURIComponent(id));
+    loadClasses();
+  }catch(e){alert('삭제 중 오류가 발생했습니다.');}
 }
-function toggleCls(id){
-  var cls=JSON.parse(localStorage.getItem('mkmath_classes')||'[]').map(function(c){if(c.id===id)c.status=c.status==='past'?'active':'past';return c;});
-  localStorage.setItem('mkmath_classes',JSON.stringify(cls)); loadClasses();
-}
+async function toggleCls(id){
+  try{
+    await fetch(SU+'?action=toggleClassStatus&id='+encodeURIComponent(id));
+    loadClasses();
+  }catch(e){alert('오류가 발생했습니다.');}
 
 // 학생
 async function addSingle(){
@@ -462,11 +472,28 @@ async function uploadXl(input){
 async function loadStu(){
   var a=document.getElementById('stu-list'); a.innerHTML='불러오는 중...';
   try{
-    var r=await fetch(SU+'?action=getStudents');
-    var d=await r.json();
-    if(!d.students||!d.students.length){a.innerHTML='<p style="color:#64748b;font-size:14px;">등록된 학생이 없습니다</p>';return;}
-    a.innerHTML=d.students.map(function(s){return '<div class="srow"><div><div style="font-weight:700;">📱 '+(s.studentPhone||s.id||'-')+'</div><div class="sub">학부모: '+(s.parentPhone||'-')+'</div></div></div>';}).join('');
+    var [sr, cr] = await Promise.all([
+      fetch(SU+'?action=getStudents').then(r=>r.json()),
+      fetch(SU+'?action=getClasses').then(r=>r.json())
+    ]);
+    var students=sr.students||[];
+    var classes=cr.classes||[];
+    allClasses=classes;
+    if(!students.length){a.innerHTML='<p style="color:#64748b;font-size:14px;">등록된 학생이 없습니다</p>';return;}
+    var clsOptions='<option value="">— 반 미배정 —</option>'+classes.map(function(c){return '<option value="'+c.id+'">'+c.name+'</option>';}).join('');
+    a.innerHTML=students.map(function(s){
+      var selOpts=clsOptions.replace('value="'+(s.classId||'"'),'value="'+(s.classId||'')+'" selected');
+      return '<div class="srow" style="align-items:center;flex-wrap:wrap;gap:8px;">' +
+        '<div style="flex:1;min-width:160px;"><div style="font-weight:700;">📱 '+(s.name?'<span style="color:#3b6cf7;">'+s.name+'</span> ':'')+''+(s.studentPhone||s.id||'-')+'</div><div class="sub">학부모: '+(s.parentPhone||'-')+(s.school?' · '+s.school:'')+'</div></div>' +
+        '<select onchange="assignClass(\''+s.id+'\',this.value)" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;color:#334155;cursor:pointer;">'+selOpts+'</select>' +
+        '</div>';
+    }).join('');
   }catch(e){a.innerHTML='<p style="color:#dc2626;font-size:14px;">불러오기 실패</p>';}
+}
+async function assignClass(studentId, classId){
+  try{
+    await fetch(SU+'?action=assignStudentClass&studentId='+encodeURIComponent(studentId)+'&classId='+encodeURIComponent(classId));
+  }catch(e){alert('반 배정 중 오류가 발생했습니다.');}
 }
 
 // 공지

@@ -333,7 +333,7 @@ async function login() {
       } else {
         localStorage.removeItem('saved_login');
       }
-      currentUser = { id, role: data.role, name: data.name };
+      currentUser = { id, role: data.role, name: data.name, classId: data.classId || '', className: data.className || '' };
       localStorage.setItem('mkmath_session', JSON.stringify(currentUser));
       const returnUrl = localStorage.getItem('mkmath_return');
       if (returnUrl) {

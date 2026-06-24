@@ -513,9 +513,9 @@
       <a href="#" onclick="return false;">학생 ▾</a>
       <div class="nav-dropdown" id="student-dropdown">
         <a href="homework.html">📝 데일리 퀴즈</a>
-
         <a href="clinic.html">🏥 클리닉 신청</a>
         <a href="qna.html">💬 질의응답</a>
+        <a id="my-class-link" href="#" style="display:none;">📚 내 반</a>
       </div>
     </li>
     <li><a href="notice.html">공지사항</a></li>
@@ -1219,7 +1219,7 @@
       const res = await fetch(SCRIPT_URL + '?action=login&id=' + encodeURIComponent(id) + '&password=' + encodeURIComponent(pw));
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem('mkmath_session', JSON.stringify({ id, role: data.role, name: data.name }));
+        localStorage.setItem('mkmath_session', JSON.stringify({ id, role: data.role, name: data.name, classId: data.classId || '', className: data.className || '' }));
         closeLoginModal();
         updateLoginBtn();
       } else {
@@ -1233,6 +1233,7 @@
   function updateLoginBtn() {
     const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
     const btn = document.getElementById('nav-login-btn');
+    const classLink = document.getElementById('my-class-link');
     if (session) {
       btn.textContent = '🔓 ' + (session.name || session.id);
       btn.style.background = '#f1f5f9';
@@ -1247,6 +1248,13 @@
         document.getElementById('admin-bar').style.display = 'flex';
         document.getElementById('review-manage-btn').style.display = 'block';
       }
+      if (session.role === 'student' && session.classId) {
+        classLink.style.display = 'block';
+        classLink.textContent = '📚 내 반: ' + (session.className || session.classId);
+        classLink.href = 'class.html?id=' + encodeURIComponent(session.classId);
+      } else {
+        classLink.style.display = 'none';
+      }
     } else {
       btn.textContent = '🔐 로그인';
       btn.style.background = '';
@@ -1255,6 +1263,7 @@
       btn.onclick = function(e) { e.preventDefault(); openLoginModal(); };
       document.getElementById('admin-bar').style.display = 'none';
       document.getElementById('review-manage-btn').style.display = 'none';
+      classLink.style.display = 'none';
     }
   }
 
