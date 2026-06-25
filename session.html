@@ -229,7 +229,7 @@ const params=new URLSearchParams(location.search);
 const sessionId=params.get('id');
 const classId=params.get('classId');
 
-if(!session){location.href='homework.html';}
+if(!session||session.role!=='teacher'){location.href='homework.html';}
 
 const ATT_TYPES=['출석','지각','영상대체','보강','조퇴','결석','부재','퇴원'];
 
