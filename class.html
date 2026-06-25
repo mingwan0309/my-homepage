@@ -529,7 +529,9 @@ function openAddMat(){
   document.getElementById('mat-queue').innerHTML='';
   document.getElementById('mat-upload-btn').textContent='0개 자료 업로드';
   document.getElementById('mat-upload-btn').disabled=false;
-  switchMatTab('upload', document.querySelector('#add-mat-modal .vmod-tab'));
+  document.getElementById('mattab-upload').style.display='';
+  document.getElementById('mattab-existing').style.display='none';
+  document.querySelectorAll('#add-mat-modal .vmod-tab').forEach(function(t,i){t.classList.toggle('active',i===0);});
   document.getElementById('add-mat-modal').classList.add('show');
 }
 function closeAddMat(){document.getElementById('add-mat-modal').classList.remove('show');}
