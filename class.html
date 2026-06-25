@@ -319,9 +319,8 @@ tr:hover td{background:#fafbff;}
 <!-- YouTube 플레이어 모달 -->
 <div class="modal-bg" id="yt-player-modal" onclick="closeYtModal()">
   <div style="position:relative;width:90%;max-width:860px;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;" onclick="event.stopPropagation()">
-    <iframe id="yt-player-iframe" src="" frameborder="0" allow="autoplay;encrypted-media" style="width:100%;height:100%;"></iframe>
-    <div style="position:absolute;bottom:0;right:0;width:200px;height:52px;background:#000;pointer-events:none;"></div>
-    <div style="position:absolute;bottom:0;right:0;width:52px;height:52px;background:#000;pointer-events:all;cursor:default;"></div>
+    <iframe id="yt-player-iframe" src="" frameborder="0" allow="autoplay;encrypted-media" allowfullscreen style="width:100%;height:100%;"></iframe>
+    <div style="position:absolute;bottom:0;right:52px;width:160px;height:52px;background:#000;pointer-events:none;"></div>
     <button onclick="closeYtModal()" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;line-height:1;">✕</button>
   </div>
 </div>
