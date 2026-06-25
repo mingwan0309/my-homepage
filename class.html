@@ -14,6 +14,13 @@ body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);min
 .student-nav a{color:#475569;font-size:13px;font-weight:600;text-decoration:none;padding:12px 14px;display:inline-block;transition:.15s;}
 .student-nav a:hover{color:#3b6cf7;}
 .student-nav .home-btn{background:#3b6cf7;color:#fff;border-radius:7px;padding:6px 12px;font-size:12px;margin-right:8px;}
+.snav-dropdown{position:relative;display:inline-block;}
+.snav-dropdown-btn{color:#475569;font-size:13px;font-weight:600;background:none;border:none;cursor:pointer;padding:12px 14px;}
+.snav-dropdown-btn:hover{color:#3b6cf7;}
+.snav-menu{display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);min-width:160px;z-index:100;padding:6px 0;}
+.snav-menu a{display:block;padding:10px 16px;font-size:13px;color:#1e293b;text-decoration:none;font-weight:600;}
+.snav-menu a:hover{background:#f1f5f9;color:#3b6cf7;}
+.snav-dropdown:hover .snav-menu{display:block;}
 .topbar-logo{font-size:16px;font-weight:800;cursor:pointer;}
 .topbar-logo span{color:#3b6cf7;}
 .topbar-right{display:flex;align-items:center;gap:10px;}
@@ -144,12 +151,18 @@ tr:hover td{background:#fafbff;}
 </div>
 <div class="student-nav" id="student-nav">
   <a href="index.html" class="home-btn">🏠 홈</a>
-  <a href="#intro" onclick="location.href='index.html#intro'">강사소개</a>
-  <a href="homework.html">📝 데일리 퀴즈</a>
-  <a href="clinic.html">🏥 클리닉 신청</a>
-  <a href="qna.html">💬 질의응답</a>
-  <a href="notice.html">📢 공지사항</a>
-  <a href="index.html#reviews">⭐ 수강후기</a>
+  <a href="index.html#intro">강사소개</a>
+  <div class="snav-dropdown">
+    <button class="snav-dropdown-btn">학생 ▾</button>
+    <div class="snav-menu">
+      <a href="homework.html">📝 데일리 퀴즈</a>
+      <a href="clinic.html">🏥 클리닉 신청</a>
+      <a href="qna.html">💬 질의응답</a>
+      <a id="snav-myclass" href="#">📚 내 반</a>
+    </div>
+  </div>
+  <a href="notice.html">공지사항</a>
+  <a href="index.html#reviews">수강후기</a>
 </div>
 
 <div class="class-header" id="class-header" style="display:none;">
@@ -349,7 +362,11 @@ const classId = params.get('id');
 if(!session){location.href='homework.html';}
 
 document.getElementById('topbar-user').textContent = (session.role==='teacher'?'👨‍🏫 ':'🎓 ')+(session.name||session.id);
-if(session.role==='student') document.getElementById('student-nav').style.display='flex';
+if(session.role==='student'){
+  document.getElementById('student-nav').style.display='flex';
+  var myclassLink=document.getElementById('snav-myclass');
+  if(myclassLink&&session.classId) myclassLink.href='class.html?id='+session.classId;
+}
 
 function logout(){localStorage.removeItem('mkmath_session');location.href='index.html';}
 
