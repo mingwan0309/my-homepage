@@ -400,8 +400,11 @@ function goSession(sessionId){
 function renderStudents(){
   const tbody=document.getElementById('stu-tbody');
   if(!students.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 수강생이 없습니다</td></tr>';return;}
+  // 학생이면 자기 것만 표시
+  var list=session.role==='teacher'?students:students.filter(function(st){return st.id===session.id;});
+  if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">정보가 없습니다</td></tr>';return;}
   // 즉시 렌더 (출결 칩은 로딩 중 표시)
-  tbody.innerHTML=students.map(function(st,idx){
+  tbody.innerHTML=list.map(function(st,idx){
     return '<tr id="stu-row-'+st.id+'">'
       +'<td style="color:#94a3b8;font-weight:600;">'+(idx+1)+'</td>'
       +'<td><span class="stu-name">'+st.name+'</span></td>'
