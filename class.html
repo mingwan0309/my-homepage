@@ -243,18 +243,15 @@ tr:hover td{background:#fafbff;}
     <div class="vmod-body">
       <!-- 업로드 탭 -->
       <div id="mattab-upload">
-        <div class="drag-area" id="mat-drag-area" onclick="toggleMatForm()" style="cursor:pointer;">
+        <input type="file" id="mat-file-input" multiple style="display:none;" onchange="onFilePick(this)">
+        <div class="drag-area" onclick="document.getElementById('mat-file-input').click()" style="cursor:pointer;"
+          ondragover="event.preventDefault();this.style.borderColor='#3b6cf7'" ondragleave="this.style.borderColor=''"
+          ondrop="event.preventDefault();this.style.borderColor='';onFileDrop(event)">
           <div class="drag-area-icon">📎</div>
           <p style="font-weight:600;color:#475569;">여기로 끌거나 눌러 업로드해주세요.</p>
         </div>
-        <div id="mat-form-inline" style="display:none;margin-top:14px;">
-          <div class="fg"><label>파일명 / 제목</label><input type="text" id="mat-name" placeholder="예) 2학년 1학기 수1 개념정리"></div>
-          <div class="fg"><label>Google Drive 공유 링크</label><input type="url" id="mat-url" placeholder="https://drive.google.com/..."></div>
-          <div class="fg"><label>메모 (선택)</label><input type="text" id="mat-memo" placeholder="간단한 설명"></div>
-          <button onclick="queueMat()" style="background:#3b6cf7;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;">추가하기</button>
-        </div>
-        <div id="mat-queue" style="margin-top:8px;"></div>
-        <p style="font-size:12px;color:#94a3b8;margin-top:10px;">TIP : 이 업로드 창을 키지 않고, 바깥 목록에 바로 끌어서 업로드도 가능해요.</p>
+        <div id="mat-queue" style="margin-top:10px;"></div>
+        <p style="font-size:12px;color:#94a3b8;margin-top:8px;">TIP : 파일 선택 후 Google Drive 공유 링크를 붙여넣으세요.</p>
         <div class="vmod-btns">
           <button class="vmod-btn-cl" onclick="closeAddMat()">취소</button>
           <button class="vmod-btn-ok" id="mat-upload-btn" onclick="saveMatQueue()">0개 자료 업로드</button>
@@ -546,32 +543,34 @@ function switchMatTab(tab,el){
   if(tab==='existing') renderExistingMats();
 }
 
-function toggleMatForm(){
-  var f=document.getElementById('mat-form-inline');
-  f.style.display=f.style.display==='none'?'':'none';
+function onFilePick(input){
+  Array.from(input.files).forEach(function(f){
+    matQueue.push({name:f.name.replace(/\.[^.]+$/,''),url:'',memo:''});
+  });
+  input.value='';
+  renderMatQueue();
 }
 
-function queueMat(){
-  var name=document.getElementById('mat-name').value.trim();
-  var url=document.getElementById('mat-url').value.trim();
-  var memo=document.getElementById('mat-memo').value.trim();
-  if(!name||!url){alert('파일명과 링크를 입력하세요.');return;}
-  matQueue.push({name:name,url:url,memo:memo});
-  ['mat-name','mat-url','mat-memo'].forEach(function(id){document.getElementById(id).value='';});
-  document.getElementById('mat-form-inline').style.display='none';
+function onFileDrop(e){
+  Array.from(e.dataTransfer.files).forEach(function(f){
+    matQueue.push({name:f.name.replace(/\.[^.]+$/,''),url:'',memo:''});
+  });
   renderMatQueue();
 }
 
 function renderMatQueue(){
   var el=document.getElementById('mat-queue');
-  if(!matQueue.length){el.innerHTML='';return;}
+  if(!matQueue.length){el.innerHTML='';document.getElementById('mat-upload-btn').textContent='0개 자료 업로드';return;}
   el.innerHTML='<div style="border:1px solid #e2e8f0;border-radius:9px;overflow:hidden;margin-bottom:4px;">'+
     matQueue.map(function(m,i){
-      return '<div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:10px;">'
+      return '<div style="padding:12px 14px;border-bottom:1px solid #f1f5f9;">'
+        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
         +'<span style="font-size:18px;">📄</span>'
-        +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(m.name)+'</div>'
-        +(m.memo?'<div style="font-size:11px;color:#94a3b8;">'+escHtml(m.memo)+'</div>':'')+'</div>'
-        +'<button onclick="removeMatQueue('+i+')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;">✕</button></div>';
+        +'<input value="'+escHtml(m.name)+'" oninput="matQueue['+i+'].name=this.value" style="flex:1;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:13px;font-family:inherit;outline:none;" placeholder="파일명">'
+        +'<button onclick="removeMatQueue('+i+')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;">✕</button></div>'
+        +'<input value="'+escHtml(m.url)+'" oninput="matQueue['+i+'].url=this.value" style="width:100%;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;outline:none;margin-bottom:6px;" placeholder="Google Drive 공유 링크를 붙여넣으세요">'
+        +'<input value="'+escHtml(m.memo)+'" oninput="matQueue['+i+'].memo=this.value" style="width:100%;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;outline:none;" placeholder="메모 (선택)">'
+        +'</div>';
     }).join('')
   +'</div>';
   document.getElementById('mat-upload-btn').textContent=matQueue.length+'개 자료 업로드';
