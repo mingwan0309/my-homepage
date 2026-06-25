@@ -264,8 +264,10 @@ async function init(){
 
   // 선생님 아니면 출석/성적 수정 숨김
   if(session.role!=='teacher'){
-    document.getElementById('add-exam-btn').style.display='none';
-    document.querySelector('.btn-add-exam[onclick*="setAll"]').style.display='none';
+    var addExamBtn=document.getElementById('add-exam-btn');
+    if(addExamBtn)addExamBtn.style.display='none';
+    var setAllBtn=document.querySelector('.btn-add-exam[onclick*="setAll"]');
+    if(setAllBtn)setAllBtn.style.display='none';
   }
 
   await loadAttendance();
