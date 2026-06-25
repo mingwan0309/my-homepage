@@ -10,6 +10,10 @@
 body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);min-height:100vh;}
 
 .topbar{background:#1e293b;color:#fff;padding:0 20px;height:48px;display:flex;align-items:center;justify-content:space-between;}
+.student-nav{background:#fff;border-bottom:1px solid #e2e8f0;padding:0 20px;display:none;gap:4px;align-items:center;}
+.student-nav a{color:#475569;font-size:13px;font-weight:600;text-decoration:none;padding:12px 14px;display:inline-block;transition:.15s;}
+.student-nav a:hover{color:#3b6cf7;}
+.student-nav .home-btn{background:#3b6cf7;color:#fff;border-radius:7px;padding:6px 12px;font-size:12px;margin-right:8px;}
 .topbar-logo{font-size:16px;font-weight:800;cursor:pointer;}
 .topbar-logo span{color:#3b6cf7;}
 .topbar-right{display:flex;align-items:center;gap:10px;}
@@ -137,6 +141,15 @@ tr:hover td{background:#fafbff;}
     <span class="topbar-user" id="topbar-user"></span>
     <button class="topbar-btn" onclick="logout()">로그아웃</button>
   </div>
+</div>
+<div class="student-nav" id="student-nav">
+  <a href="index.html" class="home-btn">🏠 홈</a>
+  <a href="#intro" onclick="location.href='index.html#intro'">강사소개</a>
+  <a href="homework.html">📝 데일리 퀴즈</a>
+  <a href="clinic.html">🏥 클리닉 신청</a>
+  <a href="qna.html">💬 질의응답</a>
+  <a href="notice.html">📢 공지사항</a>
+  <a href="index.html#reviews">⭐ 수강후기</a>
 </div>
 
 <div class="class-header" id="class-header" style="display:none;">
@@ -336,6 +349,7 @@ const classId = params.get('id');
 if(!session){location.href='homework.html';}
 
 document.getElementById('topbar-user').textContent = (session.role==='teacher'?'👨‍🏫 ':'🎓 ')+(session.name||session.id);
+if(session.role==='student') document.getElementById('student-nav').style.display='flex';
 
 function logout(){localStorage.removeItem('mkmath_session');location.href='index.html';}
 
@@ -400,11 +414,20 @@ function goSession(sessionId){
 function renderStudents(){
   const tbody=document.getElementById('stu-tbody');
   if(!students.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 수강생이 없습니다</td></tr>';return;}
-  // 학생이면 자기 것만 표시
-  var list=session.role==='teacher'?students:students.filter(function(st){return st.id===session.id;});
+  var isTeacher=session.role==='teacher';
+  var list=isTeacher?students:students.filter(function(st){return st.id===session.id;});
   if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">정보가 없습니다</td></tr>';return;}
-  // 즉시 렌더 (출결 칩은 로딩 중 표시)
+  // 학생이면 헤더도 단순하게
+  if(!isTeacher){
+    document.querySelector('#content-students thead tr').innerHTML='<th>이름</th><th>최근 출결</th>';
+  }
   tbody.innerHTML=list.map(function(st,idx){
+    if(!isTeacher){
+      return '<tr id="stu-row-'+st.id+'">'
+        +'<td><span class="stu-name">'+st.name+'</span></td>'
+        +'<td><div class="att-chips" id="att-'+st.id+'"><span style="color:#cbd5e1;font-size:11px;">로딩...</span></div></td>'
+        +'</tr>';
+    }
     return '<tr id="stu-row-'+st.id+'">'
       +'<td style="color:#94a3b8;font-weight:600;">'+(idx+1)+'</td>'
       +'<td><span class="stu-name">'+st.name+'</span></td>'
