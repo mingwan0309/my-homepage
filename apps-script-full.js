@@ -1,3 +1,26 @@
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    if (data.action === 'uploadFile') {
+      var folderName = 'MKMath 자료실';
+      var folders = DriveApp.getFoldersByName(folderName);
+      var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+      var decoded = Utilities.base64Decode(data.fileData);
+      var blob = Utilities.newBlob(decoded, data.mimeType || 'application/octet-stream', data.fileName);
+      var file = folder.createFile(blob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      var url = 'https://drive.google.com/file/d/' + file.getId() + '/view';
+      return ContentService.createTextOutput(JSON.stringify({ success: true, url: url }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ error: 'unknown action' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 function doGet(e) {
   var action = e.parameter.action || '';
   switch(action) {
