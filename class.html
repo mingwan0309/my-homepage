@@ -386,28 +386,45 @@ function goSession(sessionId){
   location.href='session.html?id='+encodeURIComponent(sessionId)+'&classId='+encodeURIComponent(classId);
 }
 
-async function renderStudents(){
+function renderStudents(){
   const tbody=document.getElementById('stu-tbody');
   if(!students.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 수강생이 없습니다</td></tr>';return;}
-  var attMap={};
-  if(sessions.length){
-    try{
-      var recentSes=sessions.slice(0,10);
-      var attResults=await Promise.all(recentSes.map(s=>fetch(SU+'?action=getAttendance&sessionId='+s.id).then(r=>r.json())));
-      students.forEach(function(st){attMap[st.id]=[];});
-      recentSes.forEach(function(s,i){
-        var att=attResults[i].attendance||[];
-        students.forEach(function(st){
-          var found=att.find(function(a){return a.studentId===st.id;});
-          attMap[st.id].push(found?found.status:'미정');
-        });
-      });
-    }catch(e){}
-  }
+  // 즉시 렌더 (출결 칩은 로딩 중 표시)
   tbody.innerHTML=students.map(function(st,idx){
-    var chips=(attMap[st.id]||[]).map(function(s){return '<span class="att-chip s'+s+'">'+s.substring(0,1)+'</span>';}).join('');
-    return '<tr><td style="color:#94a3b8;font-weight:600;">'+(idx+1)+'</td><td><span class="stu-name">'+st.name+'</span></td><td class="stu-phone">'+(st.studentPhone||'-')+'</td><td class="stu-phone">'+(st.parentPhone||'-')+'</td><td>'+(st.school||'-')+'</td><td><div class="att-chips">'+chips+'</div></td></tr>';
+    return '<tr id="stu-row-'+st.id+'">'
+      +'<td style="color:#94a3b8;font-weight:600;">'+(idx+1)+'</td>'
+      +'<td><span class="stu-name">'+st.name+'</span></td>'
+      +'<td class="stu-phone">'+(st.studentPhone||'-')+'</td>'
+      +'<td class="stu-phone">'+(st.parentPhone||'-')+'</td>'
+      +'<td>'+(st.school||'-')+'</td>'
+      +'<td><div class="att-chips" id="att-'+st.id+'"><span style="color:#cbd5e1;font-size:11px;">로딩...</span></div></td>'
+      +'</tr>';
   }).join('');
+  // 출결은 백그라운드에서 로드
+  loadAttendanceAsync();
+}
+
+async function loadAttendanceAsync(){
+  if(!sessions.length) return;
+  try{
+    var recentSes=sessions.slice(0,5); // 5차시로 줄임
+    var attResults=await Promise.all(recentSes.map(s=>fetch(SU+'?action=getAttendance&sessionId='+s.id).then(r=>r.json())));
+    var attMap={};
+    students.forEach(function(st){attMap[st.id]=[];});
+    recentSes.forEach(function(s,i){
+      var att=attResults[i].attendance||[];
+      students.forEach(function(st){
+        var found=att.find(function(a){return a.studentId===st.id;});
+        attMap[st.id].push(found?found.status:'미정');
+      });
+    });
+    students.forEach(function(st){
+      var el=document.getElementById('att-'+st.id);
+      if(!el)return;
+      var chips=(attMap[st.id]||[]).map(function(s){return '<span class="att-chip s'+s+'">'+s.substring(0,1)+'</span>';}).join('');
+      el.innerHTML=chips||'<span style="color:#cbd5e1;font-size:11px;">-</span>';
+    });
+  }catch(e){}
 }
 
 // ── 탭 전환 ──
