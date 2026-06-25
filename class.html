@@ -526,10 +526,9 @@ var matQueue=[];
 
 function openAddMat(){
   matQueue=[];
-  document.getElementById('mat-form-inline').style.display='none';
   document.getElementById('mat-queue').innerHTML='';
   document.getElementById('mat-upload-btn').textContent='0개 자료 업로드';
-  ['mat-name','mat-url','mat-memo'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('mat-upload-btn').disabled=false;
   switchMatTab('upload', document.querySelector('#add-mat-modal .vmod-tab'));
   document.getElementById('add-mat-modal').classList.add('show');
 }
