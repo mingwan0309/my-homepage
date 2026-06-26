@@ -119,6 +119,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('clinic',this)"><span class="ni">🏥</span> 클리닉</div>
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
+      <div class="nav-item" onclick="showPage('videos',this)"><span class="ni">🎬</span> 영상</div>
       <div class="nav-item" onclick="showPage('settings',this)"><span class="ni">⚙️</span> 관리자</div>
     </nav>
     <div style="padding:10px 14px; border-top:1px solid #334155;">
@@ -215,6 +216,31 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div style="font-size:16px;font-weight:800;margin-bottom:8px;">질의응답 관리 페이지로 이동</div>
         <div style="font-size:13px;color:#64748b;margin-bottom:24px;">학생들의 질문 확인 및 답변 작성</div>
         <a href="qna.html" style="background:#2563eb;color:#fff;padding:12px 28px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;">질의응답 관리하러 가기 →</a>
+      </div>
+    </div>
+
+    <!-- 영상 -->
+    <div id="page-videos" class="page">
+      <div class="page-header"><div class="page-title">영상 관리</div></div>
+      <div class="card">
+        <div class="card-title">반 선택</div>
+        <select id="vid-class-select" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;" onchange="loadClassVideos()">
+          <option value="">반을 선택하세요</option>
+        </select>
+      </div>
+      <div id="vid-section" style="display:none;">
+        <div class="card">
+          <div class="card-title">YouTube 영상 추가</div>
+          <div class="fg"><label>영상 이름</label><input type="text" id="vid-name" placeholder="예) 수1 행렬 개념 강의" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+          <div class="fg" style="margin-top:10px;"><label>YouTube 링크</label><input type="url" id="vid-url" placeholder="https://www.youtube.com/watch?v=..." style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+          <div class="fg" style="margin-top:10px;"><label>메모 (선택)</label><input type="text" id="vid-memo" placeholder="간단한 설명" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+          <button class="btn-primary" style="margin-top:14px;" onclick="addAdminVideo()">+ 영상 등록</button>
+          <div id="vid-msg" style="margin-top:8px;font-size:13px;color:#16a34a;"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">등록된 영상 목록</div>
+          <div id="vid-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
+        </div>
       </div>
     </div>
 
@@ -347,7 +373,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','students','quiz','clinic','notice','qna','settings'];
+    var validPages = ['classes','students','quiz','clinic','notice','qna','videos','settings'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
   }
@@ -363,6 +389,7 @@ function showPage(page,el){
   if(page==='settings') loadRv();
   if(page==='notice') loadNotices();
   if(page==='clinic') loadClinics();
+  if(page==='videos') initVideoPage();
   location.hash = page;
 }
 
@@ -949,6 +976,56 @@ async function openBookingsModal(clinicId, clinicName) {
   } catch(e) {
     document.getElementById('bm-body').innerHTML = '<div style="text-align:center;padding:30px;color:#dc2626;">불러오기 실패</div>';
   }
+}
+
+// ── 영상 관리 ──
+var vidClassId='', vidMaterials=[];
+
+async function initVideoPage(){
+  var r=await fetch(SU+'?action=getClasses').then(r=>r.json());
+  var sel=document.getElementById('vid-class-select');
+  sel.innerHTML='<option value="">반을 선택하세요</option>'+(r.classes||[]).map(function(c){return '<option value="'+c.id+'">'+c.name+'</option>';}).join('');
+}
+
+async function loadClassVideos(){
+  vidClassId=document.getElementById('vid-class-select').value;
+  if(!vidClassId){document.getElementById('vid-section').style.display='none';return;}
+  document.getElementById('vid-section').style.display='';
+  var r=await fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(vidClassId)).then(r=>r.json());
+  vidMaterials=(r.materials||[]).filter(function(m){return m.category==='영상 자료';});
+  renderVidList();
+}
+
+function renderVidList(){
+  var el=document.getElementById('vid-list');
+  if(!vidMaterials.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">등록된 영상이 없습니다.</div>';return;}
+  el.innerHTML=vidMaterials.map(function(m){
+    var vid=m.url&&m.url.match(/[?&]v=([^&]+)/);
+    var thumb=vid?'<img src="https://img.youtube.com/vi/'+vid[1]+'/mqdefault.jpg" style="width:80px;height:45px;object-fit:cover;border-radius:5px;flex-shrink:0;">':'';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;">'
+      +thumb
+      +'<div style="flex:1;"><div style="font-size:13px;font-weight:700;">'+m.name+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+m.uploadDate+'</div></div>'
+      +'<button onclick="delAdminVideo(\''+m.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;font-weight:700;">삭제</button>'
+      +'</div>';
+  }).join('');
+}
+
+async function addAdminVideo(){
+  var name=document.getElementById('vid-name').value.trim();
+  var url=document.getElementById('vid-url').value.trim();
+  var memo=document.getElementById('vid-memo').value.trim();
+  if(!name||!url){document.getElementById('vid-msg').textContent='이름과 링크를 입력해주세요.';document.getElementById('vid-msg').style.color='#dc2626';return;}
+  await fetch(SU+'?action=addMaterial&classId='+encodeURIComponent(vidClassId)+'&category=영상 자료&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&memo='+encodeURIComponent(memo));
+  document.getElementById('vid-name').value='';document.getElementById('vid-url').value='';document.getElementById('vid-memo').value='';
+  document.getElementById('vid-msg').textContent='등록됐어요!';document.getElementById('vid-msg').style.color='#16a34a';
+  setTimeout(function(){document.getElementById('vid-msg').textContent='';},2000);
+  loadClassVideos();
+}
+
+async function delAdminVideo(id){
+  if(!confirm('삭제할까요?'))return;
+  await fetch(SU+'?action=deleteMaterial&id='+encodeURIComponent(id));
+  loadClassVideos();
 }
 </script>
 </body>
