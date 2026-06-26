@@ -224,14 +224,54 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="page-header"><div class="page-title">영상 라이브러리</div></div>
       <div class="card">
         <div class="card-title">강의 영상 등록</div>
-        <div class="fg"><label>영상 이름</label><input type="text" id="vlib-name" placeholder="예) 수1 삼각함수 개념" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div class="fg"><label>과목</label>
+            <select id="vlib-subject" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+              <option value="">과목 선택</option>
+              <option>공통수학1</option>
+              <option>공통수학2</option>
+              <option>대수</option>
+              <option>미적분1</option>
+              <option>미적분2</option>
+              <option>기하</option>
+              <option>확률과통계</option>
+            </select>
+          </div>
+          <div class="fg"><label>강의 유형</label>
+            <select id="vlib-type" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+              <option value="">유형 선택</option>
+              <option>개념강의</option>
+              <option>문제풀이강의</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg"><label>영상 이름</label><input type="text" id="vlib-name" placeholder="예) 삼각함수 기본 개념" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         <div class="fg" style="margin-top:10px;"><label>YouTube 링크</label><input type="url" id="vlib-url" placeholder="https://www.youtube.com/watch?v=..." style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         <div class="fg" style="margin-top:10px;"><label>메모 (선택)</label><input type="text" id="vlib-memo" placeholder="간단한 설명" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         <button class="btn-primary" style="margin-top:14px;" onclick="addVlib()">+ 라이브러리에 등록</button>
         <div id="vlib-msg" style="margin-top:8px;font-size:13px;color:#16a34a;"></div>
       </div>
       <div class="card">
-        <div class="card-title">등록된 강의 목록</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="card-title" style="margin:0;">등록된 강의 목록</div>
+          <div style="display:flex;gap:8px;">
+            <select id="vlib-filter-subject" onchange="filterVlib()" style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff;">
+              <option value="">전체 과목</option>
+              <option>공통수학1</option>
+              <option>공통수학2</option>
+              <option>대수</option>
+              <option>미적분1</option>
+              <option>미적분2</option>
+              <option>기하</option>
+              <option>확률과통계</option>
+            </select>
+            <select id="vlib-filter-type" onchange="filterVlib()" style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff;">
+              <option value="">전체 유형</option>
+              <option>개념강의</option>
+              <option>문제풀이강의</option>
+            </select>
+          </div>
+        </div>
         <div id="vlib-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
     </div>
@@ -975,32 +1015,54 @@ async function initVideoPage(){
   loadVlib();
 }
 
+var vlibAll=[];
+
 async function loadVlib(){
   var r=await fetch(SU+'?action=getVideoLibrary').then(r=>r.json());
+  vlibAll=r.videos||[];
+  renderVlib(vlibAll);
+}
+
+function filterVlib(){
+  var subj=document.getElementById('vlib-filter-subject').value;
+  var type=document.getElementById('vlib-filter-type').value;
+  var list=vlibAll.filter(function(v){
+    return (!subj||v.subject===subj)&&(!type||v.type===type);
+  });
+  renderVlib(list);
+}
+
+function renderVlib(videos){
   var el=document.getElementById('vlib-list');
-  var videos=r.videos||[];
-  if(!videos.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">등록된 강의가 없습니다.</div>';return;}
+  if(!videos.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">해당하는 강의가 없습니다.</div>';return;}
   el.innerHTML=videos.map(function(v){
     var vid=v.url&&(v.url.match(/[?&]v=([^&]+)/)||v.url.match(/youtu\.be\/([^?]+)/));
     var thumb=vid?'<img src="https://img.youtube.com/vi/'+vid[1]+'/mqdefault.jpg" style="width:90px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0;">':'<div style="width:90px;height:50px;background:#e2e8f0;border-radius:6px;flex-shrink:0;"></div>';
+    var tags='';
+    if(v.subject) tags+='<span style="display:inline-block;background:#eff6ff;color:#3b6cf7;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-right:4px;">'+v.subject+'</span>';
+    if(v.type) tags+='<span style="display:inline-block;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">'+v.type+'</span>';
     return '<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #f1f5f9;">'
       +thumb
-      +'<div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#1e293b;">'+v.name+'</div>'
-      +(v.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+v.memo+'</div>':'')
-      +'<div style="font-size:11px;color:#cbd5e1;margin-top:2px;">'+v.createdAt+'</div></div>'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px;">'+v.name+'</div>'
+      +tags
+      +(v.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+v.memo+'</div>':'')
+      +'</div>'
       +'<button onclick="delVlib(\''+v.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;font-weight:700;flex-shrink:0;">삭제</button>'
       +'</div>';
   }).join('');
 }
 
 async function addVlib(){
+  var subject=document.getElementById('vlib-subject').value;
+  var type=document.getElementById('vlib-type').value;
   var name=document.getElementById('vlib-name').value.trim();
   var url=document.getElementById('vlib-url').value.trim();
   var memo=document.getElementById('vlib-memo').value.trim();
   var msg=document.getElementById('vlib-msg');
   if(!name||!url){msg.textContent='이름과 링크를 입력해주세요.';msg.style.color='#dc2626';return;}
-  await fetch(SU+'?action=addVideoLibrary&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&memo='+encodeURIComponent(memo));
+  await fetch(SU+'?action=addVideoLibrary&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&memo='+encodeURIComponent(memo)+'&subject='+encodeURIComponent(subject)+'&type='+encodeURIComponent(type));
   document.getElementById('vlib-name').value='';document.getElementById('vlib-url').value='';document.getElementById('vlib-memo').value='';
+  document.getElementById('vlib-subject').value='';document.getElementById('vlib-type').value='';
   msg.textContent='등록됐어요!';msg.style.color='#16a34a';
   setTimeout(function(){msg.textContent='';},2000);
   loadVlib();

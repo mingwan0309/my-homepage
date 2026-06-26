@@ -746,19 +746,44 @@ function switchVTab(tab,el){
   if(tab==='existing') renderExistingVideos();
 }
 
+var vlibCache=[];
+
 async function renderExistingVideos(){
   var wrap=document.getElementById('existing-video-list');
   wrap.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">불러오는 중...</div>';
   var r=await fetch(SU+'?action=getVideoLibrary').then(r=>r.json());
-  var list=r.videos||[];
-  if(!list.length){wrap.innerHTML='<div style="text-align:center;padding:30px;color:#94a3b8;font-size:14px;">라이브러리에 등록된 강의가 없습니다.<br><span style="font-size:12px;">관리 페이지 > 영상에서 먼저 등록해주세요.</span></div>';return;}
-  wrap.innerHTML=list.map(function(v){
+  vlibCache=r.videos||[];
+  // 필터 UI 삽입
+  var filterHtml='<div style="display:flex;gap:8px;margin-bottom:10px;">'
+    +'<select id="vlib-pick-subj" onchange="renderVlibPick()" style="flex:1;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff;">'
+    +'<option value="">전체 과목</option>'
+    +'<option>공통수학1</option><option>공통수학2</option><option>대수</option>'
+    +'<option>미적분1</option><option>미적분2</option><option>기하</option><option>확률과통계</option>'
+    +'</select>'
+    +'<select id="vlib-pick-type" onchange="renderVlibPick()" style="flex:1;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff;">'
+    +'<option value="">전체 유형</option><option>개념강의</option><option>문제풀이강의</option>'
+    +'</select></div>'
+    +'<div id="vlib-pick-list"></div>';
+  wrap.innerHTML=filterHtml;
+  renderVlibPick();
+}
+
+function renderVlibPick(){
+  var subj=document.getElementById('vlib-pick-subj').value;
+  var type=document.getElementById('vlib-pick-type').value;
+  var list=vlibCache.filter(function(v){ return (!subj||v.subject===subj)&&(!type||v.type===type); });
+  var el=document.getElementById('vlib-pick-list');
+  if(!list.length){el.innerHTML='<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">'+(vlibCache.length?'해당하는 강의가 없습니다.':'라이브러리에 등록된 강의가 없습니다.<br><span style="font-size:11px;">관리 페이지 > 영상에서 먼저 등록해주세요.</span>')+'</div>';return;}
+  el.innerHTML=list.map(function(v){
     var vid=v.url&&(v.url.match(/[?&]v=([^&]+)/)||v.url.match(/youtu\.be\/([^?]+)/));
     var thumb=vid?'<img src="https://img.youtube.com/vi/'+vid[1]+'/mqdefault.jpg" style="width:72px;height:40px;object-fit:cover;border-radius:5px;flex-shrink:0;">':'<div style="width:72px;height:40px;background:#e2e8f0;border-radius:5px;flex-shrink:0;"></div>';
+    var tags='';
+    if(v.subject) tags+='<span style="display:inline-block;background:#eff6ff;color:#3b6cf7;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-right:3px;">'+v.subject+'</span>';
+    if(v.type) tags+='<span style="display:inline-block;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;">'+v.type+'</span>';
     return '<div style="padding:10px 12px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;cursor:pointer;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'\'" onclick="addVideoFromLibrary(\''+escHtml(v.name)+'\',\''+v.url+'\',\''+escHtml(v.memo||'')+'\' )">'
       +thumb
       +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(v.name)+'</div>'
-      +(v.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+escHtml(v.memo)+'</div>':'')+'</div>'
+      +'<div style="margin-top:3px;">'+tags+'</div></div>'
       +'<span style="font-size:12px;color:#3b6cf7;font-weight:700;flex-shrink:0;">+ 추가</span>'
       +'</div>';
   }).join('');
