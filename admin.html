@@ -1020,6 +1020,8 @@ var vlibAll=[];
 async function loadVlib(){
   var r=await fetch(SU+'?action=getVideoLibrary').then(r=>r.json());
   vlibAll=r.videos||[];
+  document.getElementById('vlib-filter-subject').value='';
+  document.getElementById('vlib-filter-type').value='';
   renderVlib(vlibAll);
 }
 
