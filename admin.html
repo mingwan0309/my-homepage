@@ -221,26 +221,18 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 
     <!-- 영상 -->
     <div id="page-videos" class="page">
-      <div class="page-header"><div class="page-title">영상 관리</div></div>
+      <div class="page-header"><div class="page-title">영상 라이브러리</div></div>
       <div class="card">
-        <div class="card-title">반 선택</div>
-        <select id="vid-class-select" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;" onchange="loadClassVideos()">
-          <option value="">반을 선택하세요</option>
-        </select>
+        <div class="card-title">강의 영상 등록</div>
+        <div class="fg"><label>영상 이름</label><input type="text" id="vlib-name" placeholder="예) 수1 삼각함수 개념" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <div class="fg" style="margin-top:10px;"><label>YouTube 링크</label><input type="url" id="vlib-url" placeholder="https://www.youtube.com/watch?v=..." style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <div class="fg" style="margin-top:10px;"><label>메모 (선택)</label><input type="text" id="vlib-memo" placeholder="간단한 설명" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <button class="btn-primary" style="margin-top:14px;" onclick="addVlib()">+ 라이브러리에 등록</button>
+        <div id="vlib-msg" style="margin-top:8px;font-size:13px;color:#16a34a;"></div>
       </div>
-      <div id="vid-section" style="display:none;">
-        <div class="card">
-          <div class="card-title">YouTube 영상 추가</div>
-          <div class="fg"><label>영상 이름</label><input type="text" id="vid-name" placeholder="예) 수1 행렬 개념 강의" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
-          <div class="fg" style="margin-top:10px;"><label>YouTube 링크</label><input type="url" id="vid-url" placeholder="https://www.youtube.com/watch?v=..." style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
-          <div class="fg" style="margin-top:10px;"><label>메모 (선택)</label><input type="text" id="vid-memo" placeholder="간단한 설명" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
-          <button class="btn-primary" style="margin-top:14px;" onclick="addAdminVideo()">+ 영상 등록</button>
-          <div id="vid-msg" style="margin-top:8px;font-size:13px;color:#16a34a;"></div>
-        </div>
-        <div class="card">
-          <div class="card-title">등록된 영상 목록</div>
-          <div id="vid-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
-        </div>
+      <div class="card">
+        <div class="card-title">등록된 강의 목록</div>
+        <div id="vlib-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
     </div>
 
@@ -978,54 +970,46 @@ async function openBookingsModal(clinicId, clinicName) {
   }
 }
 
-// ── 영상 관리 ──
-var vidClassId='', vidMaterials=[];
-
+// ── 영상 라이브러리 ──
 async function initVideoPage(){
-  var r=await fetch(SU+'?action=getClasses').then(r=>r.json());
-  var sel=document.getElementById('vid-class-select');
-  sel.innerHTML='<option value="">반을 선택하세요</option>'+(r.classes||[]).map(function(c){return '<option value="'+c.id+'">'+c.name+'</option>';}).join('');
+  loadVlib();
 }
 
-async function loadClassVideos(){
-  vidClassId=document.getElementById('vid-class-select').value;
-  if(!vidClassId){document.getElementById('vid-section').style.display='none';return;}
-  document.getElementById('vid-section').style.display='';
-  var r=await fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(vidClassId)).then(r=>r.json());
-  vidMaterials=(r.materials||[]).filter(function(m){return m.category==='영상 자료';});
-  renderVidList();
-}
-
-function renderVidList(){
-  var el=document.getElementById('vid-list');
-  if(!vidMaterials.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">등록된 영상이 없습니다.</div>';return;}
-  el.innerHTML=vidMaterials.map(function(m){
-    var vid=m.url&&m.url.match(/[?&]v=([^&]+)/);
-    var thumb=vid?'<img src="https://img.youtube.com/vi/'+vid[1]+'/mqdefault.jpg" style="width:80px;height:45px;object-fit:cover;border-radius:5px;flex-shrink:0;">':'';
-    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;">'
+async function loadVlib(){
+  var r=await fetch(SU+'?action=getVideoLibrary').then(r=>r.json());
+  var el=document.getElementById('vlib-list');
+  var videos=r.videos||[];
+  if(!videos.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">등록된 강의가 없습니다.</div>';return;}
+  el.innerHTML=videos.map(function(v){
+    var vid=v.url&&(v.url.match(/[?&]v=([^&]+)/)||v.url.match(/youtu\.be\/([^?]+)/));
+    var thumb=vid?'<img src="https://img.youtube.com/vi/'+vid[1]+'/mqdefault.jpg" style="width:90px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0;">':'<div style="width:90px;height:50px;background:#e2e8f0;border-radius:6px;flex-shrink:0;"></div>';
+    return '<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #f1f5f9;">'
       +thumb
-      +'<div style="flex:1;"><div style="font-size:13px;font-weight:700;">'+m.name+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+m.uploadDate+'</div></div>'
-      +'<button onclick="delAdminVideo(\''+m.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;font-weight:700;">삭제</button>'
+      +'<div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#1e293b;">'+v.name+'</div>'
+      +(v.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+v.memo+'</div>':'')
+      +'<div style="font-size:11px;color:#cbd5e1;margin-top:2px;">'+v.createdAt+'</div></div>'
+      +'<button onclick="delVlib(\''+v.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;font-weight:700;flex-shrink:0;">삭제</button>'
       +'</div>';
   }).join('');
 }
 
-async function addAdminVideo(){
-  var name=document.getElementById('vid-name').value.trim();
-  var url=document.getElementById('vid-url').value.trim();
-  var memo=document.getElementById('vid-memo').value.trim();
-  if(!name||!url){document.getElementById('vid-msg').textContent='이름과 링크를 입력해주세요.';document.getElementById('vid-msg').style.color='#dc2626';return;}
-  await fetch(SU+'?action=addMaterial&classId='+encodeURIComponent(vidClassId)+'&category=영상 자료&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&memo='+encodeURIComponent(memo));
-  document.getElementById('vid-name').value='';document.getElementById('vid-url').value='';document.getElementById('vid-memo').value='';
-  document.getElementById('vid-msg').textContent='등록됐어요!';document.getElementById('vid-msg').style.color='#16a34a';
-  setTimeout(function(){document.getElementById('vid-msg').textContent='';},2000);
-  loadClassVideos();
+async function addVlib(){
+  var name=document.getElementById('vlib-name').value.trim();
+  var url=document.getElementById('vlib-url').value.trim();
+  var memo=document.getElementById('vlib-memo').value.trim();
+  var msg=document.getElementById('vlib-msg');
+  if(!name||!url){msg.textContent='이름과 링크를 입력해주세요.';msg.style.color='#dc2626';return;}
+  await fetch(SU+'?action=addVideoLibrary&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&memo='+encodeURIComponent(memo));
+  document.getElementById('vlib-name').value='';document.getElementById('vlib-url').value='';document.getElementById('vlib-memo').value='';
+  msg.textContent='등록됐어요!';msg.style.color='#16a34a';
+  setTimeout(function(){msg.textContent='';},2000);
+  loadVlib();
 }
 
-async function delAdminVideo(id){
-  if(!confirm('삭제할까요?'))return;
-  await fetch(SU+'?action=deleteMaterial&id='+encodeURIComponent(id));
-  loadClassVideos();
+async function delVlib(id){
+  if(!confirm('라이브러리에서 삭제할까요?'))return;
+  await fetch(SU+'?action=deleteVideoLibrary&id='+encodeURIComponent(id));
+  loadVlib();
 }
 </script>
 </body>
