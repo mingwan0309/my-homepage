@@ -800,7 +800,10 @@ async function submitAnswer() {
 답변 형식 (반드시 지켜주세요):
 점수: X/${selectedProblem.total}
 피드백:
-(각 문제별로: 몇 번 문제 - 맞음/틀림, 틀렸다면 어디서 실수했는지와 올바른 풀이 방향)`;
+(각 문제별로: 몇 번 문제 - 맞음/틀림, 틀렸다면 어디서 실수했는지와 올바른 풀이 방향)
+
+중요: 수식 표기에 LaTeX 문법($, \\times, ^{} 등)이나 마크다운(**, ## 등)을 절대 쓰지 마세요.
+일반 텍스트로만 쓰세요. 예: "a=1, b=-2이므로 ab = 1×(-2) = -2"`;
 
   parts.push({ text: prompt });
   if (selectedProblem.image) parts.push({ inline_data: { mime_type: 'image/jpeg', data: selectedProblem.image.split(',')[1] } });
@@ -826,7 +829,14 @@ async function submitAnswer() {
     const scoreMatch = text.match(/점수:\s*(\d+)\s*\/\s*(\d+)/);
     const score = scoreMatch ? scoreMatch[1] : '?';
     const total = scoreMatch ? scoreMatch[2] : selectedProblem.total;
-    const feedback = text.replace(/점수:.*\n?/, '').trim();
+    // LaTeX/마크다운 기호 제거 (AI가 실수로 써도 깔끔하게 표시)
+    const feedback = text.replace(/점수:.*\n?/, '')
+      .replace(/\$\$?([^$]*)\$\$?/g, '$1')
+      .replace(/\*\*([^*]*)\*\*/g, '$1')
+      .replace(/\\times/g, '×').replace(/\\div/g, '÷')
+      .replace(/\\ge(q)?/g, '≥').replace(/\\le(q)?/g, '≤').replace(/\\ne(q)?/g, '≠')
+      .replace(/\\cdot/g, '·').replace(/\\pi/g, 'π').replace(/\\sqrt/g, '√')
+      .trim();
 
     await fetch(`${SCRIPT_URL}?action=saveScore&name=${encodeURIComponent(currentUser.name)}&id=${encodeURIComponent(currentUser.id)}&date=${new Date().toLocaleDateString('ko-KR')}&score=${score}&total=${total}&title=${encodeURIComponent(selectedProblem.title)}`);
 
