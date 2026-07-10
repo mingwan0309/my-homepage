@@ -567,6 +567,11 @@ api.getSlotCount = function(db, p){
   });
 };
 
+/* ---------- 외부 노출 (페이지에서 직접 Firestore 사용) ---------- */
+window.mkdbReady = _dbReady;
+window.mkGenId = genId;
+window.mkNowStr = nowStr;
+
 /* ---------- fetch 가로채기 ---------- */
 var _origFetch = window.fetch.bind(window);
 

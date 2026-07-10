@@ -158,9 +158,17 @@
         <input type="file" id="t-image" accept="image/*" style="display:none;">
       </div>
       <div id="t-image-preview" style="margin-bottom:16px;"></div>
+      <label>해설/정답 (AI 채점 기준 — 텍스트)</label>
+      <textarea id="t-solution" rows="4" placeholder="정답과 풀이 과정을 입력하면 AI가 이 기준으로 채점합니다 (선택)"></textarea>
+      <label>해설 사진 첨부 (선택)</label>
+      <div id="t-sol-drop-zone" style="border:2px dashed #cbd5e1; border-radius:12px; padding:24px; text-align:center; color:#94a3b8; font-size:14px; cursor:pointer; transition:all 0.2s; margin-bottom:8px;">
+        📝 해설 이미지를 여기에 드래그하거나 클릭해서 선택
+        <input type="file" id="t-sol-image" accept="image/*" style="display:none;">
+      </div>
+      <div id="t-sol-image-preview" style="margin-bottom:16px;"></div>
       <label>총 문항 수</label>
       <input type="number" id="t-total" placeholder="예: 5" min="1">
-      <button class="btn" onclick="saveProblems()">저장</button>
+      <button class="btn" id="btn-save-problem" onclick="saveProblems()">저장</button>
       <div id="teacher-msg" style="margin-top:12px"></div>
       <div id="t-problem-list" style="margin-top:20px"></div>
     </div>
@@ -283,6 +291,11 @@
       </div>
       <p style="font-weight:700; margin-bottom:10px">AI 피드백</p>
       <div class="feedback" id="result-feedback"></div>
+      <div id="result-solution-wrap" style="display:none; margin-top:20px;">
+        <p style="font-weight:700; margin-bottom:10px">📝 해설</p>
+        <div class="feedback" id="result-solution"></div>
+        <div id="result-solution-img" style="margin-top:10px;"></div>
+      </div>
     </div>
   </div>
 
@@ -290,10 +303,10 @@
 
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
-const GEMINI_KEY = 'AQ.Ab8RN6LVfn-MmMP7-TbtXpZxEs7seO59LUMMLJOt2bOg3rsYKg';
+const GEMINI_KEY = 'AQ.Ab8RN6I_i0JpzUDebt56rdrPDqu25kXdPFSEwiqQNzRqCDoDoA';
 
 let currentUser = null;
-let problems = JSON.parse(localStorage.getItem('mkmath-problems') || '[]');
+let problems = [];
 let selectedProblem = null;
 let canvasHistory = [];
 let canvas, ctx, drawing = false;
@@ -455,13 +468,14 @@ function studentTab(tab) {
   });
 }
 
-// 이미지 미리보기 + 드래그 앤 드롭
-document.addEventListener('DOMContentLoaded', function() {
-  const imgInput = document.getElementById('t-image');
-  const dropZone = document.getElementById('t-drop-zone');
+// 이미지 미리보기 + 드래그 앤 드롭 (문제 이미지 / 해설 이미지 공용)
+function setupDropZone(zoneId, inputId, previewId) {
+  const imgInput = document.getElementById(inputId);
+  const dropZone = document.getElementById(zoneId);
+  if (!dropZone || !imgInput) return;
 
   function showPreview(file) {
-    const preview = document.getElementById('t-image-preview');
+    const preview = document.getElementById(previewId);
     if (file) {
       const reader = new FileReader();
       reader.onload = e => {
@@ -473,61 +487,80 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  if (dropZone) {
-    dropZone.addEventListener('click', () => imgInput.click());
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor='#2563eb'; dropZone.style.background='#eff6ff'; });
-    dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor='#cbd5e1'; dropZone.style.background=''; });
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.style.borderColor='#cbd5e1'; dropZone.style.background='';
-      const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('image/')) {
-        const dt = new DataTransfer(); dt.items.add(file); imgInput.files = dt.files;
-        showPreview(file);
-        dropZone.querySelector('span') && (dropZone.querySelector('span').textContent = file.name);
-      }
-    });
-  }
-
-  if (imgInput) {
-    imgInput.addEventListener('change', function() {
-      const file = this.files[0];
-      const preview = document.getElementById('t-image-preview');
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = e => {
-          preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%; border-radius:8px; border:1.5px solid #e2e8f0;">`;
-        };
-        reader.readAsDataURL(file);
-      } else {
-        preview.innerHTML = '';
-      }
-    });
-  }
+  dropZone.addEventListener('click', () => imgInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor='#2563eb'; dropZone.style.background='#eff6ff'; });
+  dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor='#cbd5e1'; dropZone.style.background=''; });
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.borderColor='#cbd5e1'; dropZone.style.background='';
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const dt = new DataTransfer(); dt.items.add(file); imgInput.files = dt.files;
+      showPreview(file);
+    }
+  });
+  imgInput.addEventListener('change', function() { showPreview(this.files[0]); });
+}
+document.addEventListener('DOMContentLoaded', function() {
+  setupDropZone('t-drop-zone', 't-image', 't-image-preview');
+  setupDropZone('t-sol-drop-zone', 't-sol-image', 't-sol-image-preview');
 });
 
-// 문제 저장/불러오기
-function saveProblems() {
+// 이미지 리사이즈 (Firestore 1MB 제한 대비 축소)
+function resizeImageFile(file, maxW) {
+  return new Promise((resolve, reject) => {
+    if (!file) { resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, (maxW || 1200) / img.width);
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', 0.75));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// 문제 저장/불러오기 (Firebase)
+async function saveProblems() {
   const title = document.getElementById('t-title').value.trim();
   const content = document.getElementById('t-content').value.trim();
   const total = parseInt(document.getElementById('t-total').value);
+  const solution = document.getElementById('t-solution').value.trim();
   const msgEl = document.getElementById('teacher-msg');
-  if (!title || !content || !total) { showMsg(msgEl, '모두 입력해주세요', 'error'); return; }
+  const imgFile = document.getElementById('t-image').files[0];
+  if (!title || !total) { showMsg(msgEl, '제목과 총 문항 수를 입력해주세요', 'error'); return; }
+  if (!content && !imgFile) { showMsg(msgEl, '문제 내용 또는 문제 사진 중 하나는 필요해요', 'error'); return; }
 
-  const imgInput = document.getElementById('t-image');
-  const file = imgInput && imgInput.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      problems.push({ id: Date.now(), title, content, total, image: e.target.result });
-      localStorage.setItem('mkmath-problems', JSON.stringify(problems));
-      resetProblemForm(msgEl);
-    };
-    reader.readAsDataURL(file);
-  } else {
-    problems.push({ id: Date.now(), title, content, total, image: null });
-    localStorage.setItem('mkmath-problems', JSON.stringify(problems));
+  const btn = document.getElementById('btn-save-problem');
+  btn.disabled = true; btn.textContent = '저장 중...';
+  try {
+    const [image, solutionImage] = await Promise.all([
+      resizeImageFile(imgFile, 1200),
+      resizeImageFile(document.getElementById('t-sol-image').files[0], 1200)
+    ]);
+    const db = await window.mkdbReady;
+    const id = 'prob_' + Date.now();
+    await db.collection('problems').doc(id).set({
+      id, title, content, total,
+      image: image || null,
+      solution: solution || '',
+      solutionImage: solutionImage || null,
+      createdAt: window.mkNowStr()
+    });
     resetProblemForm(msgEl);
+  } catch(e) {
+    showMsg(msgEl, '저장 실패: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '저장';
   }
 }
 
@@ -537,36 +570,61 @@ function resetProblemForm(msgEl) {
   document.getElementById('t-total').value = '';
   document.getElementById('t-image').value = '';
   document.getElementById('t-image-preview').innerHTML = '';
+  document.getElementById('t-solution').value = '';
+  document.getElementById('t-sol-image').value = '';
+  document.getElementById('t-sol-image-preview').innerHTML = '';
   showMsg(msgEl, '저장되었습니다!', 'success');
   loadProblemList();
 }
 
-function loadProblemList() {
-  const area = document.getElementById('t-problem-list');
-  if (problems.length === 0) { area.innerHTML = ''; return; }
-  area.innerHTML = '<p style="font-weight:700;margin-bottom:12px">등록된 문제</p>' +
-    problems.map((p,i) => `
-      <div class="student-row">
-        <span>${p.title} (${p.total}문항)</span>
-        <button class="btn danger sm" onclick="deleteProblem(${i})">삭제</button>
-      </div>`).join('');
+async function fetchProblems() {
+  const db = await window.mkdbReady;
+  const snap = await db.collection('problems').get();
+  const arr = [];
+  snap.forEach(doc => arr.push(doc.data()));
+  arr.sort((a,b) => (a.createdAt||'') < (b.createdAt||'') ? 1 : -1);
+  problems = arr;
+  return arr;
 }
 
-function deleteProblem(idx) {
-  problems.splice(idx, 1);
-  localStorage.setItem('mkmath-problems', JSON.stringify(problems));
+async function loadProblemList() {
+  const area = document.getElementById('t-problem-list');
+  area.innerHTML = '<p class="spinner">불러오는 중...</p>';
+  try {
+    await fetchProblems();
+    if (problems.length === 0) { area.innerHTML = ''; return; }
+    area.innerHTML = '<p style="font-weight:700;margin-bottom:12px">등록된 문제</p>' +
+      problems.map(p => `
+        <div class="student-row">
+          <span>${p.title} (${p.total}문항)${p.solution || p.solutionImage ? ' 📝해설' : ''}</span>
+          <button class="btn danger sm" onclick="deleteProblem('${p.id}')">삭제</button>
+        </div>`).join('');
+  } catch(e) {
+    area.innerHTML = '<p style="color:#dc2626;font-size:14px">불러오기 실패</p>';
+  }
+}
+
+async function deleteProblem(id) {
+  if (!confirm('이 문제를 삭제할까요?')) return;
+  const db = await window.mkdbReady;
+  await db.collection('problems').doc(String(id)).delete();
   loadProblemList();
 }
 
-function loadProblems() {
+async function loadProblems() {
   const area = document.getElementById('problem-list-area');
-  problems = JSON.parse(localStorage.getItem('mkmath-problems') || '[]');
-  if (problems.length === 0) {
-    area.innerHTML = '<p style="color:#64748b;font-size:14px">등록된 문제가 없습니다</p>';
-    return;
+  area.innerHTML = '<p class="spinner">문제를 불러오는 중...</p>';
+  try {
+    await fetchProblems();
+    if (problems.length === 0) {
+      area.innerHTML = '<p style="color:#64748b;font-size:14px">등록된 문제가 없습니다</p>';
+      return;
+    }
+    area.innerHTML = '<ul class="problem-list">' +
+      problems.map(p => `<li onclick="selectProblem('${p.id}')" id="prob-${p.id}">${p.title}</li>`).join('') + '</ul>';
+  } catch(e) {
+    area.innerHTML = '<p style="color:#dc2626;font-size:14px">불러오기 실패</p>';
   }
-  area.innerHTML = '<ul class="problem-list">' +
-    problems.map(p => `<li onclick="selectProblem(${p.id})" id="prob-${p.id}">${p.title}</li>`).join('') + '</ul>';
 }
 
 function selectProblem(id) {
@@ -711,33 +769,52 @@ async function submitAnswer() {
   btn.textContent = 'AI 채점 중...';
   btn.disabled = true;
 
-  const imageData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-  const prompt = `다음은 수학 문제와 학생의 손글씨 답안입니다.
+  // 캔버스를 흰 배경 위에 합성 (투명 배경이 JPEG에서 검게 변하는 것 방지)
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = canvas.width;
+  exportCanvas.height = canvas.height;
+  const ectx = exportCanvas.getContext('2d');
+  ectx.fillStyle = '#ffffff';
+  ectx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  ectx.drawImage(canvas, 0, 0);
+  const imageData = exportCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-문제:
-${selectedProblem.content}
+  // Gemini에 보낼 내용 구성: 문제(텍스트/이미지) + 해설(텍스트/이미지) + 학생 답안 이미지
+  const parts = [];
+  let prompt = `당신은 수학 선생님입니다. 학생의 손글씨 풀이를 채점해주세요.
 
-총 문항 수: ${selectedProblem.total}문제
+[문제 정보]
+제목: ${selectedProblem.title}
+총 문항 수: ${selectedProblem.total}문제`;
+  if (selectedProblem.content) prompt += `\n문제 내용:\n${selectedProblem.content}`;
+  if (selectedProblem.image) prompt += `\n(첫 번째 첨부 이미지가 문제입니다)`;
+  if (selectedProblem.solution) prompt += `\n\n[선생님이 제공한 정답/해설 — 이 기준으로 채점하세요]\n${selectedProblem.solution}`;
+  if (selectedProblem.solutionImage) prompt += `\n(해설 이미지도 첨부되어 있습니다. 이 기준으로 채점하세요)`;
+  prompt += `\n\n[마지막 첨부 이미지가 학생의 손글씨 풀이입니다]
 
-학생의 손글씨 답안 이미지를 보고:
-1. 각 문제별로 맞았는지 틀렸는지 판단해주세요
-2. 맞은 문제 수를 알려주세요
-3. 틀린 문제에 대해 간단한 피드백을 주세요
+채점 기준:
+1. 각 문제별로 맞았는지 틀렸는지 판단
+2. 틀린 문제는 "어느 단계에서 어떤 실수를 했는지" 구체적으로 짚어주기
+3. 풀이 과정이 없고 답만 있으면 답 기준으로 채점
 
-답변 형식:
+답변 형식 (반드시 지켜주세요):
 점수: X/${selectedProblem.total}
 피드백:
-(각 문제별 피드백)`;
+(각 문제별로: 몇 번 문제 - 맞음/틀림, 틀렸다면 어디서 실수했는지와 올바른 풀이 방향)`;
+
+  parts.push({ text: prompt });
+  if (selectedProblem.image) parts.push({ inline_data: { mime_type: 'image/jpeg', data: selectedProblem.image.split(',')[1] } });
+  if (selectedProblem.solutionImage) parts.push({ inline_data: { mime_type: 'image/jpeg', data: selectedProblem.solutionImage.split(',')[1] } });
+  parts.push({ inline_data: { mime_type: 'image/jpeg', data: imageData } });
 
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: imageData } }] }]
-      })
+      body: JSON.stringify({ contents: [{ parts: parts }] })
     });
     const data = await res.json();
+    if (!data.candidates || !data.candidates[0]) throw new Error(data.error ? data.error.message : 'AI 응답 없음');
     const text = data.candidates[0].content.parts[0].text;
     const scoreMatch = text.match(/점수:\s*(\d+)\s*\/\s*(\d+)/);
     const score = scoreMatch ? scoreMatch[1] : '?';
@@ -749,6 +826,17 @@ ${selectedProblem.content}
     document.getElementById('result-score').textContent = `${score} / ${total}`;
     document.getElementById('result-label').textContent = `${currentUser.name} 학생`;
     document.getElementById('result-feedback').textContent = feedback;
+
+    // 해설 표시 (선생님이 등록한 경우)
+    const solWrap = document.getElementById('result-solution-wrap');
+    if (selectedProblem.solution || selectedProblem.solutionImage) {
+      solWrap.style.display = 'block';
+      document.getElementById('result-solution').textContent = selectedProblem.solution || '';
+      document.getElementById('result-solution-img').innerHTML = selectedProblem.solutionImage
+        ? `<img src="${selectedProblem.solutionImage}" style="max-width:100%; border-radius:8px; border:1.5px solid #e2e8f0;">` : '';
+    } else {
+      solWrap.style.display = 'none';
+    }
     show('page-result');
   } catch(e) {
     alert('채점 중 오류가 발생했습니다: ' + e.message);
