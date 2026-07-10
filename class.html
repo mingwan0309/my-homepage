@@ -197,14 +197,11 @@ tr:hover td{background:#fafbff;}
   <div class="mat-layout">
     <div class="mat-sidebar">
       <div class="mat-sidebar-title">카테고리</div>
-      <div class="mat-cat active" onclick="selectCat('자습용 자료',this)">
-        <span>📖 자습용 자료</span><span class="mat-cat-count" id="cnt-자습용 자료">0</span>
+      <div class="mat-cat active" onclick="selectCat('PDF 자료',this)">
+        <span>📄 PDF 자료</span><span class="mat-cat-count" id="cnt-PDF 자료">0</span>
       </div>
       <div class="mat-cat" onclick="selectCat('손필기 자료',this)">
         <span>✏️ 손필기 자료</span><span class="mat-cat-count" id="cnt-손필기 자료">0</span>
-      </div>
-      <div class="mat-cat" onclick="selectCat('암기자료',this)">
-        <span>🧠 암기자료</span><span class="mat-cat-count" id="cnt-암기자료">0</span>
       </div>
       <div class="mat-cat" onclick="selectCat('영상 자료',this)">
         <span>🎬 영상 자료</span><span class="mat-cat-count" id="cnt-영상 자료">0</span>
@@ -215,7 +212,7 @@ tr:hover td{background:#fafbff;}
       <div id="mat-file-area">
         <div class="card">
           <div class="card-header">
-            <div class="card-title" id="mat-cat-title">자습용 자료</div>
+            <div class="card-title" id="mat-cat-title">PDF 자료</div>
             <button class="btn-add-mat" id="btn-add-mat" onclick="openAddMat()" style="display:none;">+ 자료 추가</button>
           </div>
           <table class="mat-table">
@@ -336,6 +333,18 @@ tr:hover td{background:#fafbff;}
   </div>
 </div>
 
+<!-- 자료 확인 현황 모달 -->
+<div class="modal-bg" id="views-modal" onclick="closeViewsModal()">
+  <div style="background:#fff;border-radius:16px;padding:26px;width:90%;max-width:420px;max-height:80vh;overflow-y:auto;" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <h3 style="font-size:16px;font-weight:900;" id="views-modal-title">확인 현황</h3>
+      <button onclick="closeViewsModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;">✕</button>
+    </div>
+    <div style="font-size:12px;color:#94a3b8;margin-bottom:14px;" id="views-modal-sub"></div>
+    <div id="views-modal-list"></div>
+  </div>
+</div>
+
 <!-- YouTube 플레이어 모달 -->
 <div class="modal-bg" id="yt-player-modal" onclick="closeYtModal()">
   <div id="yt-player-wrap" style="position:relative;width:90%;max-width:860px;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;" onclick="event.stopPropagation()">
@@ -371,7 +380,7 @@ const COLORS=['#3b6cf7','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6
 function badgeColor(n){var h=0;for(var i=0;i<n.length;i++)h+=n.charCodeAt(i);return COLORS[h%COLORS.length];}
 
 var classInfo=null, students=[], sessions=[], materials=[];
-var currentCat='자습용 자료';
+var currentCat='PDF 자료';
 
 async function init(){
   if(!classId){document.body.innerHTML='<div style="text-align:center;padding:80px;color:#94a3b8;">반 정보를 찾을 수 없습니다.</div>';return;}
@@ -493,13 +502,95 @@ async function loadMaterials(){
     var r=await fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(classId));
     var d=await r.json();
     materials=d.materials||[];
+    if(session.role==='teacher') await loadMatViews();
     updateCounts();
     renderCurrentCat();
   }catch(e){}
 }
 
+// ── 자료 확인/시청 기록 ──
+var matViews={}; // materialId → [{studentId, studentName, viewedAt, progress}]
+
+async function loadMatViews(){
+  try{
+    var db=await window.mkdbReady;
+    var snap=await db.collection('material_views').where('classId','==',String(classId)).get();
+    matViews={};
+    snap.forEach(function(doc){
+      var v=doc.data();
+      if(!matViews[v.materialId]) matViews[v.materialId]=[];
+      matViews[v.materialId].push(v);
+    });
+  }catch(e){ console.error('확인현황 로드 실패', e); }
+}
+
+async function markViewed(matId, progress){
+  if(!session || session.role!=='student') return;
+  try{
+    var db=await window.mkdbReady;
+    var key=String(matId)+'__'+String(session.id);
+    var ref=db.collection('material_views').doc(key);
+    var doc=await ref.get();
+    var prev=doc.exists?Number(doc.data().progress||0):0;
+    await ref.set({
+      materialId:String(matId), classId:String(classId),
+      studentId:String(session.id), studentName:session.name||String(session.id),
+      viewedAt:new Date().toISOString().slice(0,16).replace('T',' '),
+      progress:Math.max(prev, Math.round(progress||0))
+    },{merge:true});
+  }catch(e){ console.error('확인 기록 실패', e); }
+}
+
+function viewStats(matId){
+  var views=matViews[matId]||[];
+  var seen=0;
+  students.forEach(function(s){
+    if(views.some(function(v){return String(v.studentId)===String(s.id);})) seen++;
+  });
+  return { seen:seen, total:students.length };
+}
+
+function showViews(matId, isVideo){
+  var m=materials.find(function(x){return x.id===matId;});
+  var views=matViews[matId]||[];
+  var st=viewStats(matId);
+  document.getElementById('views-modal-title').textContent=isVideo?'시청 현황 ('+st.seen+'/'+st.total+'명)':'확인 현황 ('+st.seen+'/'+st.total+'명)';
+  document.getElementById('views-modal-sub').textContent=m?m.name:'';
+  var list=document.getElementById('views-modal-list');
+  if(!students.length){ list.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:16px 0;text-align:center;">반에 등록된 학생이 없습니다.</div>'; }
+  else{
+    list.innerHTML=students.map(function(s){
+      var v=views.find(function(x){return String(x.studentId)===String(s.id);});
+      var right;
+      if(!v){
+        right='<span style="background:#fef2f2;color:#dc2626;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">미확인</span>';
+      } else if(isVideo){
+        var pct=Math.min(100,Number(v.progress||0));
+        right='<div style="display:flex;align-items:center;gap:8px;min-width:150px;">'
+          +'<div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+(pct>=90?'#16a34a':'#3b6cf7')+';"></div></div>'
+          +'<span style="font-size:11px;font-weight:700;color:#475569;width:32px;text-align:right;">'+pct+'%</span></div>';
+      } else {
+        right='<span style="background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">확인</span>';
+      }
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;">'
+        +'<div><div style="font-size:13px;font-weight:700;">'+escHtml(s.name||s.id)+'</div>'
+        +(v?'<div style="font-size:10px;color:#cbd5e1;">'+(v.viewedAt||'')+'</div>':'')
+        +'</div>'+right+'</div>';
+    }).join('');
+  }
+  document.getElementById('views-modal').classList.add('show');
+}
+
+function closeViewsModal(){
+  document.getElementById('views-modal').classList.remove('show');
+}
+
 function updateCounts(){
-  ['자습용 자료','손필기 자료','암기자료','영상 자료'].forEach(function(cat){
+  // 예전 이름으로 저장된 자료를 새 카테고리로 매핑
+  materials.forEach(function(m){
+    if(m.category==='자습용 자료'||m.category==='암기자료') m.category='PDF 자료';
+  });
+  ['PDF 자료','손필기 자료','영상 자료'].forEach(function(cat){
     var el=document.getElementById('cnt-'+cat);
     if(el) el.textContent=materials.filter(function(m){return m.category===cat;}).length;
   });
@@ -528,12 +619,18 @@ function renderMaterials(){
   if(!list.length){tbody.innerHTML='<tr><td colspan="5" class="empty">등록된 자료가 없습니다</td></tr>';return;}
   tbody.innerHTML=list.map(function(m){
     var delBtn=session.role==='teacher'?'<button class="mat-del-btn" onclick="delMat(\''+m.id+'\')">삭제</button>':'';
+    var viewBadge='';
+    if(session.role==='teacher'){
+      var st=viewStats(m.id);
+      var color=st.seen>=st.total&&st.total>0?'#16a34a':'#3b6cf7';
+      viewBadge='<button onclick="showViews(\''+m.id+'\',false)" style="background:none;border:1.5px solid '+color+';color:'+color+';font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;cursor:pointer;white-space:nowrap;margin-right:6px;">확인 '+st.seen+'/'+st.total+'</button>';
+    }
     return '<tr>'+
       '<td><a class="mat-link mat-name" href="'+m.url+'" target="_blank" onclick="countDl(\''+m.id+'\')">'+escHtml(m.name)+'</a></td>'+
       '<td style="font-size:12px;color:#94a3b8;">'+(m.uploadDate||'').substring(0,10)+'</td>'+
       '<td style="font-size:12px;color:#64748b;text-align:center;">'+m.downloadCount+'</td>'+
       '<td style="font-size:12px;color:#64748b;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(m.memo||'')+'</td>'+
-      '<td>'+delBtn+'</td></tr>';
+      '<td style="white-space:nowrap;">'+viewBadge+delBtn+'</td></tr>';
   }).join('');
 }
 
@@ -553,10 +650,16 @@ function renderVideos(){
     }
     var badge=isYt?'<span class="video-badge badge-yt">YouTube</span>':'<span class="video-badge badge-drive">Drive</span>';
     var delBtn=session.role==='teacher'?'<button class="video-del-btn" onclick="event.stopPropagation();delMat(\''+m.id+'\')">삭제</button>':'';
+    var viewBtn='';
+    if(session.role==='teacher'){
+      var st=viewStats(m.id);
+      var color=st.seen>=st.total&&st.total>0?'#16a34a':'#3b6cf7';
+      viewBtn='<button onclick="event.stopPropagation();showViews(\''+m.id+'\',true)" style="background:none;border:1.5px solid '+color+';color:'+color+';font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;cursor:pointer;">시청 '+st.seen+'/'+st.total+'</button>';
+    }
     return '<div class="video-card" onclick="openVideo(\''+m.url+'\',\''+m.id+'\')">'
       +'<div class="video-thumb">'+thumb+'<div class="video-play-icon">▶</div></div>'
       +'<div class="video-info"><div class="video-title">'+escHtml(m.name)+'</div>'
-      +'<div class="video-meta"><span>'+badge+'</span>'+delBtn+'</div>'
+      +'<div class="video-meta"><span>'+badge+'</span><span style="display:flex;gap:6px;align-items:center;">'+viewBtn+delBtn+'</span></div>'
       +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+escHtml(m.memo)+'</div>':'')
       +'</div></div>';
   }).join('')+'</div>';
@@ -569,18 +672,62 @@ function ytId(url){
   return m?m[1]:'';
 }
 
+// YouTube IFrame API (시청 진도 추적용)
+var ytApiPromise=null;
+function loadYtApi(){
+  if(ytApiPromise) return ytApiPromise;
+  ytApiPromise=new Promise(function(resolve){
+    if(window.YT&&window.YT.Player){resolve();return;}
+    window.onYouTubeIframeAPIReady=function(){resolve();};
+    var s=document.createElement('script');
+    s.src='https://www.youtube.com/iframe_api';
+    document.head.appendChild(s);
+  });
+  return ytApiPromise;
+}
+
+var ytPlayer=null, ytProgressTimer=null, ytWatchingMatId=null, ytMaxPct=0;
+
 function openVideo(url,id){
   countDl(id);
   var vid=ytId(url);
   if(vid){
-    document.getElementById('yt-player-iframe').src='https://www.youtube.com/embed/'+vid+'?autoplay=1&modestbranding=1&rel=0';
+    ytWatchingMatId=id; ytMaxPct=0;
+    document.getElementById('yt-player-iframe').src='https://www.youtube.com/embed/'+vid+'?autoplay=1&modestbranding=1&rel=0&enablejsapi=1&origin='+encodeURIComponent(location.origin);
     document.getElementById('yt-player-modal').classList.add('show');
+    if(session.role==='student'){
+      markViewed(id, 0);
+      loadYtApi().then(function(){
+        ytPlayer=new YT.Player('yt-player-iframe');
+        ytProgressTimer=setInterval(function(){
+          try{
+            if(!ytPlayer||!ytPlayer.getDuration) return;
+            var dur=ytPlayer.getDuration(), cur=ytPlayer.getCurrentTime();
+            if(dur>0){
+              var pct=Math.min(100, Math.round(cur/dur*100));
+              if(pct>ytMaxPct){ ytMaxPct=pct; markViewed(ytWatchingMatId, pct); }
+            }
+          }catch(e){}
+        }, 5000);
+      });
+    }
   } else {
     window.open(url,'_blank');
   }
 }
 function closeYtModal(){
   if(document.fullscreenElement) document.exitFullscreen();
+  if(ytProgressTimer){clearInterval(ytProgressTimer);ytProgressTimer=null;}
+  if(ytPlayer&&ytWatchingMatId&&session.role==='student'){
+    try{
+      var dur=ytPlayer.getDuration(), cur=ytPlayer.getCurrentTime();
+      if(dur>0){
+        var pct=Math.min(100, Math.round(cur/dur*100));
+        if(pct>ytMaxPct) markViewed(ytWatchingMatId, pct);
+      }
+    }catch(e){}
+  }
+  ytPlayer=null; ytWatchingMatId=null;
   document.getElementById('yt-player-iframe').src='';
   document.getElementById('yt-player-modal').classList.remove('show');
 }
@@ -596,6 +743,8 @@ function countDl(id){
   fetch(SU+'?action=incDownload&id='+encodeURIComponent(id));
   var m=materials.find(function(x){return x.id===id;});
   if(m)m.downloadCount=(m.downloadCount||0)+1;
+  // 학생이 영상 아닌 자료를 열면 '확인'으로 기록
+  if(m && m.category!=='영상 자료') markViewed(id, 100);
 }
 
 async function delMat(id){
