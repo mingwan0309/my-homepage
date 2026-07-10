@@ -430,6 +430,15 @@
 
     /* 섹션 안 inline 그리드/플렉스 안전망 */
     .section img { max-width: 100%; height: auto; }
+
+    /* 커리큘럼 시즌 제목: 화살표 숨기고 배지+제목 두 줄 정렬 */
+    .season-header { flex-wrap: wrap; gap: 10px; }
+    .season-arrow { display: none; }
+    .season-name { font-size: 19px; word-break: keep-all; white-space: nowrap; }
+    .season-badge { font-size: 12px; padding: 6px 14px; }
+
+    /* 한글 어절 단위 줄바꿈 (글자 중간에서 안 쪼개지게) */
+    h1, h2, h3, p, .section-title, .section-desc, .season-item { word-break: keep-all; }
   }
 </style>
 </head>
