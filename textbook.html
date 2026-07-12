@@ -28,6 +28,10 @@ body { font-family:'맑은 고딕', sans-serif; background:#f8fafc; color:#1e293
 .grade-tab { padding:10px 26px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; color:#475569; font-weight:700; cursor:pointer; font-size:14px; }
 .grade-tab.active { background:#2563eb; border-color:#2563eb; color:#fff; }
 
+.subject-tabs { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+.subject-tab { padding:8px 20px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; color:#475569; font-weight:700; cursor:pointer; font-size:13px; }
+.subject-tab.active { background:#16a34a; border-color:#16a34a; color:#fff; }
+
 .book-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px; }
 .book-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; padding:26px 18px; text-align:center; cursor:pointer; transition:.15s; }
 .book-card:hover { border-color:#2563eb; box-shadow:0 4px 16px rgba(37,99,235,0.1); }
@@ -104,6 +108,8 @@ body { font-family:'맑은 고딕', sans-serif; background:#f8fafc; color:#1e293
       <button class="grade-tab" onclick="selectGrade('고2',this)">고2</button>
     </div>
 
+    <div class="subject-tabs" id="subject-tabs"></div>
+
     <div class="book-grid" id="book-grid"></div>
 
     <div class="card">
@@ -143,8 +149,10 @@ body { font-family:'맑은 고딕', sans-serif; background:#f8fafc; color:#1e293
 
 <script>
 var session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+var SUBJECTS = { '고1': ['공통수학1', '공통수학2'], '고2': ['대수', '미적분'] };
 var BOOKS = ['올림포스', '올림포스 유형편', '올림포스 전국연합'];
 var currentGrade = '고1';
+var currentSubject = SUBJECTS['고1'][0];
 var currentBook = '올림포스';
 var allVideos = [];
 
@@ -156,6 +164,7 @@ window.addEventListener('DOMContentLoaded', async function(){
   var mc = document.getElementById('snav-myclass');
   if (session.role==='student' && session.classId) mc.href = 'class.html?id='+encodeURIComponent(session.classId);
   else mc.style.display='none';
+  renderSubjectTabs();
   renderBookGrid();
   await loadVideos();
 });
@@ -164,7 +173,24 @@ function logout(){ localStorage.removeItem('mkmath_session'); location.href='ind
 
 function selectGrade(grade, el){
   currentGrade = grade;
+  currentSubject = SUBJECTS[grade][0];
   document.querySelectorAll('.grade-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  renderSubjectTabs();
+  renderBookGrid();
+  renderVideoArea();
+}
+
+function renderSubjectTabs(){
+  document.getElementById('subject-tabs').innerHTML = SUBJECTS[currentGrade].map(function(s){
+    var active = s===currentSubject ? ' active' : '';
+    return '<button class="subject-tab'+active+'" onclick="selectSubject(\''+s+'\',this)">'+s+'</button>';
+  }).join('');
+}
+
+function selectSubject(subject, el){
+  currentSubject = subject;
+  document.querySelectorAll('.subject-tab').forEach(function(t){t.classList.remove('active');});
   el.classList.add('active');
   renderBookGrid();
   renderVideoArea();
@@ -173,7 +199,7 @@ function selectGrade(grade, el){
 function renderBookGrid(){
   var icons = {'올림포스':'📘','올림포스 유형편':'📗','올림포스 전국연합':'📙'};
   document.getElementById('book-grid').innerHTML = BOOKS.map(function(b){
-    var cnt = allVideos.filter(function(v){return v.grade===currentGrade && v.book===b;}).length;
+    var cnt = allVideos.filter(function(v){return v.grade===currentGrade && v.subject===currentSubject && v.book===b;}).length;
     var active = b===currentBook ? ' active' : '';
     return '<div class="book-card'+active+'" onclick="selectBook(\''+b+'\')">'
       +'<div class="book-card-icon">'+icons[b]+'</div>'
@@ -202,9 +228,9 @@ async function loadVideos(){
 }
 
 function renderVideoArea(){
-  document.getElementById('book-title').textContent = currentGrade + ' · ' + currentBook;
+  document.getElementById('book-title').textContent = currentGrade + ' · ' + currentSubject + ' · ' + currentBook;
   document.getElementById('btn-add-video').style.display = session.role==='teacher' ? '' : 'none';
-  var list = allVideos.filter(function(v){return v.grade===currentGrade && v.book===currentBook;});
+  var list = allVideos.filter(function(v){return v.grade===currentGrade && v.subject===currentSubject && v.book===currentBook;});
   var area = document.getElementById('video-area');
   if (!list.length){
     area.innerHTML = '<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">등록된 영상이 없습니다.</div>'
@@ -243,7 +269,7 @@ async function saveVideo(){
   var db = await window.mkdbReady;
   var id = window.mkGenId('tbv');
   await db.collection('textbook_videos').doc(id).set({
-    id: id, grade: currentGrade, book: currentBook, name: name, url: url, memo: memo, createdAt: window.mkNowStr()
+    id: id, grade: currentGrade, subject: currentSubject, book: currentBook, name: name, url: url, memo: memo, createdAt: window.mkNowStr()
   });
   closeAddModal();
   await loadVideos();
