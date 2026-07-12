@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>부교재 해설 강의 | 김민관 수학</title>
+<script src="firebase-api.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'맑은 고딕', sans-serif; background:#f8fafc; color:#1e293b; min-height:100vh; }
+.topbar { background:#1e293b; color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
+.topbar-logo { font-size:15px; font-weight:900; cursor:pointer; }
+.topbar-logo span { color:#60a5fa; }
+.topbar-right { display:flex; align-items:center; gap:12px; }
+.topbar-user { font-size:13px; color:#94a3b8; }
+.btn-home { background:#334155; color:#fff; border:none; padding:7px 14px; border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; }
+.btn-logout-t { background:none; border:none; color:#64748b; font-size:12px; cursor:pointer; }
+.btn-logout-t:hover { color:#ef4444; }
+#student-nav { display:none; background:#fff; border-bottom:1px solid #e2e8f0; padding:0 20px; gap:4px; align-items:center; position:sticky; top:0; z-index:99; }
+#student-nav a { text-decoration:none; padding:12px 14px; font-size:13px; font-weight:600; color:#475569; }
+#student-nav a.home-btn { background:#3b6cf7; color:#fff; border-radius:7px; padding:6px 12px; margin-right:8px; }
+#student-nav a.active { color:#3b6cf7; border-bottom:2px solid #3b6cf7; }
+.container { max-width:1040px; margin:0 auto; padding:32px 24px; }
+.page-title { font-size:24px; font-weight:900; margin-bottom:6px; }
+.page-sub { font-size:13px; color:#64748b; margin-bottom:24px; }
+
+.grade-tabs { display:flex; gap:8px; margin-bottom:24px; }
+.grade-tab { padding:10px 26px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; color:#475569; font-weight:700; cursor:pointer; font-size:14px; }
+.grade-tab.active { background:#2563eb; border-color:#2563eb; color:#fff; }
+
+.book-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px; }
+.book-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; padding:26px 18px; text-align:center; cursor:pointer; transition:.15s; }
+.book-card:hover { border-color:#2563eb; box-shadow:0 4px 16px rgba(37,99,235,0.1); }
+.book-card.active { border-color:#2563eb; background:#eff6ff; }
+.book-card-icon { font-size:30px; margin-bottom:10px; }
+.book-card-name { font-size:14px; font-weight:800; }
+.book-card-count { font-size:11px; color:#94a3b8; margin-top:4px; }
+
+.card { background:#fff; border-radius:14px; box-shadow:0 1px 6px rgba(0,0,0,0.06); padding:20px; }
+.card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.card-title { font-size:16px; font-weight:900; }
+.btn-add { background:#2563eb; color:#fff; border:none; padding:9px 18px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; }
+
+.video-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:14px; }
+.video-empty-icon { font-size:40px; color:#cbd5e1; }
+.video-empty-text { color:#94a3b8; font-size:14px; }
+.video-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+.video-card { background:#fff; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; cursor:pointer; transition:.15s; }
+.video-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.10); transform:translateY(-2px); }
+.video-thumb { width:100%; aspect-ratio:16/9; background:#1e293b; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+.video-thumb img { width:100%; height:100%; object-fit:cover; }
+.video-play-icon { position:absolute; width:44px; height:44px; background:rgba(0,0,0,0.6); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff; }
+.video-info { padding:10px 12px; }
+.video-title { font-size:13px; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.video-meta { font-size:11px; color:#94a3b8; margin-top:4px; display:flex; justify-content:space-between; align-items:center; }
+.video-del-btn { background:none; border:none; color:#dc2626; cursor:pointer; font-size:11px; padding:0; }
+
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center; }
+.modal-bg.show { display:flex; }
+.modal { background:#fff; border-radius:16px; padding:26px; width:90%; max-width:420px; }
+.fg label { display:block; font-size:13px; font-weight:700; color:#475569; margin-bottom:6px; }
+.fg input { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9px; font-size:14px; outline:none; margin-bottom:14px; box-sizing:border-box; }
+.modal-btns { display:flex; gap:10px; margin-top:6px; }
+.modal-btns button { flex:1; padding:11px; border:none; border-radius:9px; font-size:14px; font-weight:700; cursor:pointer; }
+.btn-ok { background:#2563eb; color:#fff; }
+.btn-cl { background:#f1f5f9; color:#64748b; }
+
+#page-denied { display:none; text-align:center; padding:80px 20px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="topbar-logo" onclick="location.href='index.html'">김민관 <span>수학</span></span>
+  <div class="topbar-right">
+    <span class="topbar-user" id="topbar-user"></span>
+    <a href="index.html" class="btn-home">🏠 홈</a>
+    <button class="btn-logout-t" onclick="logout()">로그아웃</button>
+  </div>
+</div>
+<div id="student-nav">
+  <a href="index.html" class="home-btn">🏠 홈</a>
+  <a href="homework.html">📝 데일리 퀴즈</a>
+  <a href="clinic.html">🏥 클리닉 신청</a>
+  <a href="qna.html">💬 질의응답</a>
+  <a href="textbook.html" class="active">📖 부교재 해설</a>
+  <a id="snav-myclass" href="#">📚 내 반</a>
+</div>
+
+<div id="page-denied">
+  <div style="font-size:48px;margin-bottom:16px;">🔒</div>
+  <h2 style="font-size:18px;font-weight:800;margin-bottom:8px;">로그인이 필요합니다</h2>
+  <p style="color:#64748b;font-size:14px;margin-bottom:20px;">계정으로 로그인 후 이용해주세요.</p>
+  <a href="homework.html" style="background:#2563eb;color:#fff;padding:10px 24px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;">로그인하러 가기</a>
+</div>
+
+<div id="page-main" style="display:none;">
+  <div class="container">
+    <div class="page-title">부교재 해설 강의</div>
+    <div class="page-sub">학년과 교재를 선택하면 해당 해설 강의를 볼 수 있어요.</div>
+
+    <div class="grade-tabs">
+      <button class="grade-tab active" onclick="selectGrade('고1',this)">고1</button>
+      <button class="grade-tab" onclick="selectGrade('고2',this)">고2</button>
+    </div>
+
+    <div class="book-grid" id="book-grid"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title" id="book-title">올림포스</div>
+        <button class="btn-add" id="btn-add-video" onclick="openAddModal()" style="display:none;">+ 영상 추가</button>
+      </div>
+      <div id="video-area"><div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">불러오는 중...</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 영상 추가 모달 -->
+<div class="modal-bg" id="add-modal">
+  <div class="modal">
+    <h3 style="font-size:16px;font-weight:900;margin-bottom:18px;">영상 추가</h3>
+    <div class="fg"><label>영상 이름</label><input type="text" id="v-name" placeholder="예) 1강 다항식 해설"></div>
+    <div class="fg"><label>YouTube 링크</label><input type="url" id="v-url" placeholder="https://www.youtube.com/watch?v=..."></div>
+    <div class="fg"><label>메모 (선택)</label><input type="text" id="v-memo" placeholder="간단한 설명"></div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="closeAddModal()">취소</button>
+      <button class="btn-ok" onclick="saveVideo()">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- YouTube 플레이어 모달 -->
+<div class="modal-bg" id="yt-player-modal" onclick="closeYtModal()">
+  <div id="yt-player-wrap" style="position:relative;width:90%;max-width:860px;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;" onclick="event.stopPropagation()">
+    <iframe id="yt-player-iframe" src="" frameborder="0" allow="autoplay;encrypted-media" style="width:100%;height:100%;"></iframe>
+    <div style="position:absolute;bottom:0;right:0;width:100%;height:52px;background:linear-gradient(transparent,#000);pointer-events:none;"></div>
+    <div style="position:absolute;bottom:0;right:0;width:220px;height:52px;background:#000;pointer-events:none;"></div>
+    <button onclick="toggleYtFullscreen()" style="position:absolute;bottom:12px;right:8px;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;width:32px;height:28px;font-size:14px;cursor:pointer;">⛶</button>
+    <button onclick="closeYtModal()" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;line-height:1;">✕</button>
+  </div>
+</div>
+
+<script>
+var session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+var BOOKS = ['올림포스', '올림포스 유형편', '올림포스 전국연합'];
+var currentGrade = '고1';
+var currentBook = '올림포스';
+var allVideos = [];
+
+window.addEventListener('DOMContentLoaded', async function(){
+  if (!session) { document.getElementById('page-denied').style.display='block'; return; }
+  document.getElementById('page-main').style.display='block';
+  document.getElementById('student-nav').style.display='flex';
+  document.getElementById('topbar-user').textContent = (session.name||session.id) + '님';
+  var mc = document.getElementById('snav-myclass');
+  if (session.role==='student' && session.classId) mc.href = 'class.html?id='+encodeURIComponent(session.classId);
+  else mc.style.display='none';
+  renderBookGrid();
+  await loadVideos();
+});
+
+function logout(){ localStorage.removeItem('mkmath_session'); location.href='index.html'; }
+
+function selectGrade(grade, el){
+  currentGrade = grade;
+  document.querySelectorAll('.grade-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  renderBookGrid();
+  renderVideoArea();
+}
+
+function renderBookGrid(){
+  var icons = {'올림포스':'📘','올림포스 유형편':'📗','올림포스 전국연합':'📙'};
+  document.getElementById('book-grid').innerHTML = BOOKS.map(function(b){
+    var cnt = allVideos.filter(function(v){return v.grade===currentGrade && v.book===b;}).length;
+    var active = b===currentBook ? ' active' : '';
+    return '<div class="book-card'+active+'" onclick="selectBook(\''+b+'\')">'
+      +'<div class="book-card-icon">'+icons[b]+'</div>'
+      +'<div class="book-card-name">'+b+'</div>'
+      +'<div class="book-card-count">영상 '+cnt+'개</div></div>';
+  }).join('');
+}
+
+function selectBook(book){
+  currentBook = book;
+  renderBookGrid();
+  renderVideoArea();
+}
+
+async function loadVideos(){
+  try{
+    var db = await window.mkdbReady;
+    var snap = await db.collection('textbook_videos').get();
+    allVideos = [];
+    snap.forEach(function(doc){ allVideos.push(doc.data()); });
+    renderBookGrid();
+    renderVideoArea();
+  }catch(e){
+    document.getElementById('video-area').innerHTML = '<div class="video-empty"><div class="video-empty-text">불러오기 실패</div></div>';
+  }
+}
+
+function renderVideoArea(){
+  document.getElementById('book-title').textContent = currentGrade + ' · ' + currentBook;
+  document.getElementById('btn-add-video').style.display = session.role==='teacher' ? '' : 'none';
+  var list = allVideos.filter(function(v){return v.grade===currentGrade && v.book===currentBook;});
+  var area = document.getElementById('video-area');
+  if (!list.length){
+    area.innerHTML = '<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">등록된 영상이 없습니다.</div>'
+      + (session.role==='teacher' ? '<button class="btn-add" onclick="openAddModal()">영상 추가하기</button>' : '') + '</div>';
+    return;
+  }
+  area.innerHTML = '<div class="video-grid">' + list.map(function(v){
+    var vid = ytId(v.url);
+    var thumb = vid ? '<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg">' : '';
+    var delBtn = session.role==='teacher' ? '<button class="video-del-btn" onclick="event.stopPropagation();delVideo(\''+v.id+'\')">삭제</button>' : '<span></span>';
+    return '<div class="video-card" onclick="openVideo(\''+v.url+'\')">'
+      +'<div class="video-thumb">'+thumb+'<div class="video-play-icon">▶</div></div>'
+      +'<div class="video-info"><div class="video-title">'+escHtml(v.name)+'</div>'
+      +'<div class="video-meta"><span>'+escHtml(v.memo||'')+'</span>'+delBtn+'</div></div></div>';
+  }).join('') + '</div>';
+}
+
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function ytId(url){
+  if(!url) return '';
+  var m = url.match(/[?&]v=([^&]+)/) || url.match(/youtu\.be\/([^?]+)/) || url.match(/embed\/([^?]+)/);
+  return m ? m[1] : '';
+}
+
+function openAddModal(){ document.getElementById('add-modal').classList.add('show'); }
+function closeAddModal(){
+  document.getElementById('add-modal').classList.remove('show');
+  document.getElementById('v-name').value=''; document.getElementById('v-url').value=''; document.getElementById('v-memo').value='';
+}
+
+async function saveVideo(){
+  var name = document.getElementById('v-name').value.trim();
+  var url = document.getElementById('v-url').value.trim();
+  var memo = document.getElementById('v-memo').value.trim();
+  if (!name || !url) { alert('이름과 링크를 입력해주세요.'); return; }
+  var db = await window.mkdbReady;
+  var id = window.mkGenId('tbv');
+  await db.collection('textbook_videos').doc(id).set({
+    id: id, grade: currentGrade, book: currentBook, name: name, url: url, memo: memo, createdAt: window.mkNowStr()
+  });
+  closeAddModal();
+  await loadVideos();
+}
+
+async function delVideo(id){
+  if (!confirm('이 영상을 삭제할까요?')) return;
+  var db = await window.mkdbReady;
+  await db.collection('textbook_videos').doc(String(id)).delete();
+  await loadVideos();
+}
+
+// YouTube 재생 (로고 가림 + 커스텀 풀스크린)
+function openVideo(url){
+  var vid = ytId(url);
+  if (vid){
+    document.getElementById('yt-player-iframe').src = 'https://www.youtube.com/embed/'+vid+'?autoplay=1&modestbranding=1&rel=0';
+    document.getElementById('yt-player-modal').classList.add('show');
+  } else {
+    window.open(url, '_blank');
+  }
+}
+function closeYtModal(){
+  if (document.fullscreenElement) document.exitFullscreen();
+  document.getElementById('yt-player-iframe').src = '';
+  document.getElementById('yt-player-modal').classList.remove('show');
+}
+function toggleYtFullscreen(){
+  var wrap = document.getElementById('yt-player-wrap');
+  if (!document.fullscreenElement) wrap.requestFullscreen();
+  else document.exitFullscreen();
+}
+</script>
+</body>
+</html>
