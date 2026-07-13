@@ -78,30 +78,7 @@ api.login = function(db, p){
   var auth = firebase.auth();
   return auth.signInWithEmailAndPassword(email, password)
     .then(function(){ return fetchProfileAfterAuth(db, loginId); })
-    .catch(function(err){
-      // 아직 Firebase 로그인 계정으로 마이그레이션되지 않은 기존 계정 처리
-      if (err.code !== 'auth/user-not-found') return { success:false };
-      return db.collection('students').doc(loginId).get().then(function(doc){
-        if (!doc.exists) {
-          // 학생 컬렉션이 완전히 비어있으면 첫 로그인 계정을 선생님으로 부트스트랩
-          return db.collection('students').limit(1).get().then(function(all){
-            if (!all.empty) return { success:false };
-            return auth.createUserWithEmailAndPassword(email, password).then(function(){
-              return db.collection('students').doc(loginId).set({
-                id:loginId, password:'', role:'teacher', name:'김민관', parentPhone:'', school:'', classId:''
-              });
-            }).then(function(){
-              return { success:true, role:'teacher', name:'김민관', classId:'', className:'' };
-            });
-          });
-        }
-        var u = doc.data();
-        if (String(u.password) !== password) return { success:false };
-        return auth.createUserWithEmailAndPassword(email, password).then(function(){
-          return fetchProfileAfterAuth(db, loginId);
-        });
-      });
-    });
+    .catch(function(){ return { success:false }; });
 };
 
 api.addStudent = function(db, p){
