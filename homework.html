@@ -52,6 +52,7 @@
   .nav-back { color: #2563eb; font-size: 14px; font-weight: 600; cursor: pointer; background: none; border: none; }
   .student-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: #f8fafc; border-radius: 8px; margin-bottom: 8px; font-size: 14px; }
   .student-row .id { color: #64748b; font-size: 12px; }
+  #scores-area { overflow-x: auto; }
   .scores-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .scores-table th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-weight: 700; }
   .scores-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
@@ -92,6 +93,12 @@
   .btn-keep:hover { background: #1d4ed8; }
   .btn-logout-now { background: #f1f5f9; color: #64748b; }
   .btn-logout-now:hover { background: #e2e8f0; }
+
+  @media (max-width: 768px) {
+    html, body { overflow-x: hidden; }
+    .container { padding: 100px 16px 40px; }
+    .card { padding: 20px; }
+  }
 </style>
 </head>
 <body>

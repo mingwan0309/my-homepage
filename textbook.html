@@ -69,6 +69,19 @@ body { font-family:'맑은 고딕', sans-serif; background:#f8fafc; color:#1e293
 .btn-ok { background:#2563eb; color:#fff; }
 .btn-cl { background:#f1f5f9; color:#64748b; }
 
+@media (max-width:768px){
+  html,body{overflow-x:hidden;}
+  .book-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+  .book-card{padding:16px 8px;}
+  .book-card-icon{font-size:24px;}
+  .subject-tabs{gap:6px;}
+  .card-header{flex-wrap:wrap;gap:8px;}
+  .container{padding:20px 14px;}
+}
+@media (max-width:400px){
+  .book-grid{grid-template-columns:1fr;}
+}
+
 #page-denied { display:none; text-align:center; padding:80px 20px; }
 </style>
 </head>
