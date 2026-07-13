@@ -69,6 +69,7 @@ function fetchProfileAfterAuth(db, loginId){
   return db.collection('students').doc(loginId).get().then(function(doc){
     if (!doc.exists) return { success:false };
     var u = doc.data();
+    if (u.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
     var role = u.role || 'student';
     var result = { success:true, role:role, name:u.name || u.id, classId:'', className:'' };
     if (role === 'student' && u.classId) {
@@ -101,7 +102,9 @@ api.addStudent = function(db, p){
     if (doc.exists) return { success:false, msg:'이미 존재하는 아이디입니다.' };
     return ref.set({
       id: sid, password: pw, role:'student',
-      name: p.sname || '', parentPhone: p.parentPhone || '', school:'', classId:''
+      name: p.sname || '', parentPhone: p.parentPhone || '',
+      school: p.school || '', grade: p.grade || '', gender: p.gender || '',
+      classId:'', active:true, createdAt: nowStr()
     }).then(function(){
       // 별도의 보조 앱으로 로그인 계정을 생성해서 현재(선생님) 로그인 세션이 끊기지 않게 함
       var secondary;
@@ -118,10 +121,30 @@ api.addStudent = function(db, p){
 api.getStudents = function(db){
   return db.collection('students').where('role','==','student').get().then(function(snap){
     var students = docsToArr(snap).map(function(r){
-      return { id:String(r.id), studentPhone:String(r.id), parentPhone:r.parentPhone||'', name:r.name||'', school:r.school||'', classId:String(r.classId||'') };
+      return { id:String(r.id), studentPhone:String(r.id), parentPhone:r.parentPhone||'', name:r.name||'',
+        school:r.school||'', grade:r.grade||'', gender:r.gender||'', classId:String(r.classId||''),
+        active: r.active !== false, createdAt: r.createdAt||'' };
     });
     return { students: students };
   });
+};
+
+api.updateStudentInfo = function(db, p){
+  var ref = db.collection('students').doc(String(p.id));
+  var data = {};
+  ['name','parentPhone','school','grade','gender'].forEach(function(k){ if (p[k] !== undefined) data[k] = p[k]; });
+  return ref.update(data).then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
+api.setStudentActive = function(db, p){
+  var active = (p.active === 'true' || p.active === true);
+  return db.collection('students').doc(String(p.id)).update({ active: active })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
+api.deleteStudentAccount = function(db, p){
+  return db.collection('students').doc(String(p.id)).delete()
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
 api.changePassword = function(db, p){
