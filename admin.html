@@ -176,7 +176,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
               <option value="">선택</option><option>남</option><option>여</option>
             </select>
           </div>
-          <div class="fg" style="max-width:130px;"><label>초기 비밀번호</label><input type="text" id="npw" value="1234" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+          <div class="fg" style="max-width:130px;"><label>초기 비밀번호</label><input type="text" id="npw" value="123456" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         </div>
         <button class="btn-primary" style="margin-top:12px;" onclick="addSingle()">추가</button>
         <div id="add-msg"></div>
@@ -187,7 +187,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           <button class="btn-green" onclick="dlTemplate()">📥 양식 다운로드</button>
           <label class="btn-ob" style="cursor:pointer;margin:0;">📤 엑셀 업로드<input type="file" id="xl" accept=".xlsx,.xls" style="display:none;" onchange="uploadXl(this)"></label>
         </div>
-        <p style="font-size:12px;color:#94a3b8;margin-top:6px;">양식에 번호 기입 후 업로드하세요. 비밀번호는 1234로 설정됩니다.</p>
+        <p style="font-size:12px;color:#94a3b8;margin-top:6px;">양식에 번호 기입 후 업로드하세요. 비밀번호는 123456으로 설정됩니다.</p>
         <div id="ul-msg"></div>
       </div>
       <div class="card">
@@ -556,7 +556,7 @@ var allStudents=[]; var stuSelected={};
 async function addSingle(){
   var sp=document.getElementById('sp').value.trim();
   var pp=document.getElementById('pp').value.trim();
-  var pw=document.getElementById('npw').value.trim()||'1234';
+  var pw=document.getElementById('npw').value.trim()||'123456';
   var name=document.getElementById('sname').value.trim();
   var school=document.getElementById('sschool').value.trim();
   var grade=document.getElementById('sgrade').value;
@@ -580,7 +580,7 @@ async function callAdd(sp,pp,pw,name,school,grade,gender){
 }
 function dlTemplate(){
   var wb=XLSX.utils.book_new();
-  var ws=XLSX.utils.aoa_to_sheet([['학생 전화번호','학부모 전화번호','초기 비밀번호'],['010-0000-0000','010-0000-0000','1234'],['010-0000-0000','010-0000-0000','1234']]);
+  var ws=XLSX.utils.aoa_to_sheet([['학생 전화번호','학부모 전화번호','초기 비밀번호'],['010-0000-0000','010-0000-0000','123456'],['010-0000-0000','010-0000-0000','123456']]);
   ws['!cols']=[{wch:18},{wch:18},{wch:14}];
   XLSX.utils.book_append_sheet(wb,ws,'학생목록');
   XLSX.writeFile(wb,'학생추가_양식.xlsx');
@@ -596,7 +596,7 @@ async function uploadXl(input){
       var dr=rows.slice(1).filter(function(r){return r[0]&&r[1];});
       if(!dr.length){showMsg(m,'데이터가 없습니다','error');return;}
       var ok=0,fail=0;
-      for(var i=0;i<dr.length;i++){var r=dr[i];var res=await callAdd(String(r[0]).trim(),String(r[1]).trim(),r[2]?String(r[2]).trim():'1234');res?ok++:fail++;}
+      for(var i=0;i<dr.length;i++){var r=dr[i];var res=await callAdd(String(r[0]).trim(),String(r[1]).trim(),r[2]?String(r[2]).trim():'123456');res?ok++:fail++;}
       loadStu(); showMsg(m,'완료! 성공 '+ok+'명'+(fail?', 실패 '+fail+'명':''),ok>0?'success':'error');
     }catch(err){showMsg(m,'파일 오류','error');}
     input.value='';
