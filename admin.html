@@ -160,8 +160,22 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="card">
         <div class="card-title">학생 개별 추가</div>
         <div class="fr">
+          <div class="fg"><label>이름</label><input type="text" id="sname" placeholder="홍길동" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
           <div class="fg"><label>학생 전화번호</label><input type="tel" id="sp" placeholder="010-0000-0000" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
           <div class="fg"><label>학부모 전화번호</label><input type="tel" id="pp" placeholder="010-0000-0000" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        </div>
+        <div class="fr" style="margin-top:10px;">
+          <div class="fg"><label>고등학교</label><input type="text" id="sschool" placeholder="예: 명덕여고" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+          <div class="fg" style="max-width:110px;"><label>학년</label>
+            <select id="sgrade" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+              <option value="">선택</option><option>1</option><option>2</option><option>3</option>
+            </select>
+          </div>
+          <div class="fg" style="max-width:110px;"><label>성별</label>
+            <select id="sgender" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+              <option value="">선택</option><option>남</option><option>여</option>
+            </select>
+          </div>
           <div class="fg" style="max-width:130px;"><label>초기 비밀번호</label><input type="text" id="npw" value="1234" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         </div>
         <button class="btn-primary" style="margin-top:12px;" onclick="addSingle()">추가</button>
@@ -177,8 +191,57 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div id="ul-msg"></div>
       </div>
       <div class="card">
-        <div class="card-title">학생 목록</div>
-        <div id="stu-list">불러오는 중...</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+          <div class="card-title" style="margin:0;">학생 목록 <span id="stu-count" style="color:#94a3b8;font-weight:400;font-size:13px;"></span></div>
+          <input type="text" id="stu-search" placeholder="🔍 이름/전화번호 검색" oninput="renderStu()" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;width:220px;">
+        </div>
+        <div id="stu-bulk-bar" style="display:none;align-items:center;gap:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:10px 14px;margin-bottom:12px;flex-wrap:wrap;">
+          <span id="stu-sel-count" style="font-size:13px;font-weight:700;color:#1e3a8a;"></span>
+          <button class="btn-ob" style="padding:6px 14px;font-size:12px;" onclick="openEditStudent()">✏️ 정보 수정</button>
+          <button class="btn-ob" style="padding:6px 14px;font-size:12px;" onclick="dlSelectedXl()">📥 엑셀 다운로드</button>
+          <button class="btn-ob" style="padding:6px 14px;font-size:12px;color:#dc2626;border-color:#fecaca;" onclick="deleteSelectedStu()">🗑 삭제</button>
+        </div>
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;">
+          <thead>
+            <tr style="border-bottom:2px solid #e2e8f0;color:#64748b;text-align:left;">
+              <th style="padding:8px 6px;"><input type="checkbox" id="stu-check-all" onchange="toggleAllStu(this.checked)"></th>
+              <th style="padding:8px 10px;">이름</th>
+              <th style="padding:8px 10px;">학생 전화번호</th>
+              <th style="padding:8px 10px;">학부모 전화번호</th>
+              <th style="padding:8px 10px;">고등학교</th>
+              <th style="padding:8px 10px;">학년</th>
+              <th style="padding:8px 10px;">성별</th>
+              <th style="padding:8px 10px;">반 배정</th>
+              <th style="padding:8px 10px;">등록일자</th>
+              <th style="padding:8px 10px;">계정상태</th>
+            </tr>
+          </thead>
+          <tbody id="stu-list"><tr><td colspan="10" style="padding:20px;color:#94a3b8;">불러오는 중...</td></tr></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 학생 정보 수정 모달 -->
+    <div id="edit-stu-modal" class="modal-bg">
+      <div class="modal">
+        <h3>학생 정보 수정</h3>
+        <div class="fg"><label>이름</label><input type="text" id="es-name"></div>
+        <div class="fg"><label>학부모 전화번호</label><input type="tel" id="es-pp"></div>
+        <div class="fg"><label>고등학교</label><input type="text" id="es-school"></div>
+        <div class="fr">
+          <div class="fg"><label>학년</label>
+            <select id="es-grade"><option value="">선택</option><option>1</option><option>2</option><option>3</option></select>
+          </div>
+          <div class="fg"><label>성별</label>
+            <select id="es-gender"><option value="">선택</option><option>남</option><option>여</option></select>
+          </div>
+        </div>
+        <div class="modal-btns">
+          <button class="btn-cl" onclick="closeEditStudent()">취소</button>
+          <button class="btn-ok" onclick="saveEditStudent()">저장</button>
+        </div>
       </div>
     </div>
 
@@ -488,18 +551,32 @@ async function toggleCls(id){
 }
 
 // 학생
+var allStudents=[]; var stuSelected={};
+
 async function addSingle(){
   var sp=document.getElementById('sp').value.trim();
   var pp=document.getElementById('pp').value.trim();
   var pw=document.getElementById('npw').value.trim()||'1234';
+  var name=document.getElementById('sname').value.trim();
+  var school=document.getElementById('sschool').value.trim();
+  var grade=document.getElementById('sgrade').value;
+  var gender=document.getElementById('sgender').value;
   var m=document.getElementById('add-msg');
   if(!sp||!pp){showMsg(m,'학생/학부모 번호를 모두 입력해주세요','error');return;}
-  var ok=await callAdd(sp,pp,pw);
-  if(ok){showMsg(m,'추가되었습니다!','success');document.getElementById('sp').value='';document.getElementById('pp').value='';loadStu();}
-  else showMsg(m,'오류가 발생했습니다','error');
+  var ok=await callAdd(sp,pp,pw,name,school,grade,gender);
+  if(ok){
+    showMsg(m,'추가되었습니다!','success');
+    ['sname','sp','pp','sschool'].forEach(function(id){document.getElementById(id).value='';});
+    document.getElementById('sgrade').value=''; document.getElementById('sgender').value='';
+    loadStu();
+  } else showMsg(m,'오류가 발생했습니다 (이미 존재하는 번호일 수 있어요)','error');
 }
-async function callAdd(sp,pp,pw){
-  try{var r=await fetch(SU+'?action=addStudent&teacherId='+encodeURIComponent(cu.id)+'&studentPhone='+encodeURIComponent(sp)+'&parentPhone='+encodeURIComponent(pp)+'&spw='+encodeURIComponent(pw));var d=await r.json();return d.success;}catch(e){return false;}
+async function callAdd(sp,pp,pw,name,school,grade,gender){
+  try{
+    var url=SU+'?action=addStudent&teacherId='+encodeURIComponent(cu.id)+'&studentPhone='+encodeURIComponent(sp)+'&parentPhone='+encodeURIComponent(pp)+'&spw='+encodeURIComponent(pw)
+      +'&sname='+encodeURIComponent(name||'')+'&school='+encodeURIComponent(school||'')+'&grade='+encodeURIComponent(grade||'')+'&gender='+encodeURIComponent(gender||'');
+    var r=await fetch(url);var d=await r.json();return d.success;
+  }catch(e){return false;}
 }
 function dlTemplate(){
   var wb=XLSX.utils.book_new();
@@ -527,30 +604,124 @@ async function uploadXl(input){
   reader.readAsArrayBuffer(file);
 }
 async function loadStu(){
-  var a=document.getElementById('stu-list'); a.innerHTML='불러오는 중...';
+  var a=document.getElementById('stu-list'); a.innerHTML='<tr><td colspan="10" style="padding:20px;color:#94a3b8;">불러오는 중...</td></tr>';
   try{
     var [sr, cr] = await Promise.all([
       fetch(SU+'?action=getStudents').then(r=>r.json()),
       fetch(SU+'?action=getClasses').then(r=>r.json())
     ]);
-    var students=sr.students||[];
-    var classes=cr.classes||[];
-    allClasses=classes;
-    if(!students.length){a.innerHTML='<p style="color:#64748b;font-size:14px;">등록된 학생이 없습니다</p>';return;}
-    var clsOptions='<option value="">— 반 미배정 —</option>'+classes.map(function(c){return '<option value="'+c.id+'">'+c.name+'</option>';}).join('');
-    a.innerHTML=students.map(function(s){
-      var selOpts=clsOptions.replace('value="'+(s.classId||'"'),'value="'+(s.classId||'')+'" selected');
-      return '<div class="srow" style="align-items:center;flex-wrap:wrap;gap:8px;">' +
-        '<div style="flex:1;min-width:160px;"><div style="font-weight:700;">📱 '+(s.name?'<span style="color:#3b6cf7;">'+s.name+'</span> ':'')+''+(s.studentPhone||s.id||'-')+'</div><div class="sub">학부모: '+(s.parentPhone||'-')+(s.school?' · '+s.school:'')+'</div></div>' +
-        '<select onchange="assignClass(\''+s.id+'\',this.value)" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;color:#334155;cursor:pointer;">'+selOpts+'</select>' +
-        '</div>';
-    }).join('');
-  }catch(e){a.innerHTML='<p style="color:#dc2626;font-size:14px;">불러오기 실패</p>';}
+    allStudents=sr.students||[];
+    allClasses=cr.classes||[];
+    stuSelected={};
+    renderStu();
+  }catch(e){a.innerHTML='<tr><td colspan="10" style="padding:20px;color:#dc2626;">불러오기 실패</td></tr>';}
+}
+function renderStu(){
+  var a=document.getElementById('stu-list');
+  var q=(document.getElementById('stu-search').value||'').trim().toLowerCase();
+  var list=allStudents.filter(function(s){
+    if(!q) return true;
+    return (s.name||'').toLowerCase().includes(q) || (s.studentPhone||'').includes(q) || (s.parentPhone||'').includes(q);
+  });
+  document.getElementById('stu-count').textContent='('+list.length+'명)';
+  if(!list.length){a.innerHTML='<tr><td colspan="10" style="padding:20px;color:#94a3b8;">등록된 학생이 없습니다</td></tr>';updateStuBulkBar();return;}
+  var clsOptions='<option value="">— 반 미배정 —</option>'+allClasses.map(function(c){return '<option value="'+c.id+'">'+c.name+'</option>';}).join('');
+  a.innerHTML=list.map(function(s){
+    var selOpts=clsOptions.replace('value="'+(s.classId||'"'),'value="'+(s.classId||'')+'" selected');
+    var checked=stuSelected[s.id]?'checked':'';
+    var active=s.active!==false;
+    return '<tr style="border-bottom:1px solid #f1f5f9;">'
+      +'<td style="padding:8px 6px;"><input type="checkbox" '+checked+' onchange="toggleStuSel(\''+s.id+'\',this.checked)"></td>'
+      +'<td style="padding:8px 10px;font-weight:700;">'+(s.name||'-')+'</td>'
+      +'<td style="padding:8px 10px;color:#64748b;">'+(s.studentPhone||s.id||'-')+'</td>'
+      +'<td style="padding:8px 10px;color:#64748b;">'+(s.parentPhone||'-')+'</td>'
+      +'<td style="padding:8px 10px;color:#64748b;">'+(s.school||'미입력')+'</td>'
+      +'<td style="padding:8px 10px;color:#64748b;">'+(s.grade||'미입력')+'</td>'
+      +'<td style="padding:8px 10px;color:#64748b;">'+(s.gender||'미입력')+'</td>'
+      +'<td style="padding:8px 6px;"><select onchange="assignClass(\''+s.id+'\',this.value)" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:5px 8px;font-size:12px;font-family:inherit;color:#334155;cursor:pointer;">'+selOpts+'</select></td>'
+      +'<td style="padding:8px 10px;color:#94a3b8;font-size:12px;">'+(s.createdAt||'-')+'</td>'
+      +'<td style="padding:8px 10px;"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">'
+        +'<input type="checkbox" '+(active?'checked':'')+' onchange="toggleStuActive(\''+s.id+'\',this.checked)">'
+        +'<span style="font-size:12px;color:'+(active?'#16a34a':'#94a3b8')+';font-weight:700;">'+(active?'활성화':'비활성화')+'</span></label></td>'
+      +'</tr>';
+  }).join('');
+  updateStuBulkBar();
+}
+function toggleStuSel(id,checked){
+  if(checked) stuSelected[id]=true; else delete stuSelected[id];
+  updateStuBulkBar();
+}
+function toggleAllStu(checked){
+  stuSelected={};
+  if(checked) allStudents.forEach(function(s){stuSelected[s.id]=true;});
+  renderStu();
+}
+function updateStuBulkBar(){
+  var ids=Object.keys(stuSelected);
+  var bar=document.getElementById('stu-bulk-bar');
+  if(!ids.length){bar.style.display='none';return;}
+  bar.style.display='flex';
+  document.getElementById('stu-sel-count').textContent=ids.length+'명 선택됨';
+}
+async function toggleStuActive(id,active){
+  try{
+    await fetch(SU+'?action=setStudentActive&id='+encodeURIComponent(id)+'&active='+active);
+    var s=allStudents.find(function(x){return x.id===id;}); if(s)s.active=active;
+  }catch(e){alert('처리 중 오류가 발생했습니다.');}
 }
 async function assignClass(studentId, classId){
   try{
     await fetch(SU+'?action=assignStudentClass&studentId='+encodeURIComponent(studentId)+'&classId='+encodeURIComponent(classId));
   }catch(e){alert('반 배정 중 오류가 발생했습니다.');}
+}
+function dlSelectedXl(){
+  var ids=Object.keys(stuSelected);
+  var list=ids.length?allStudents.filter(function(s){return stuSelected[s.id];}):allStudents;
+  if(!list.length){alert('선택된 학생이 없습니다.');return;}
+  var wb=XLSX.utils.book_new();
+  var rows=[['이름','학생 전화번호','학부모 전화번호','고등학교','학년','성별','등록일자','계정상태']];
+  list.forEach(function(s){rows.push([s.name||'',s.studentPhone||s.id,s.parentPhone||'',s.school||'',s.grade||'',s.gender||'',s.createdAt||'',s.active!==false?'활성화':'비활성화']);});
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:10},{wch:16},{wch:16},{wch:14},{wch:6},{wch:6},{wch:16},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws,'학생목록');
+  XLSX.writeFile(wb,'학생목록_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+async function deleteSelectedStu(){
+  var ids=Object.keys(stuSelected);
+  if(!ids.length)return;
+  if(!confirm(ids.length+'명을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'))return;
+  for(var i=0;i<ids.length;i++){
+    await fetch(SU+'?action=deleteStudentAccount&id='+encodeURIComponent(ids[i]));
+  }
+  loadStu();
+}
+function openEditStudent(){
+  var ids=Object.keys(stuSelected);
+  if(ids.length!==1){alert('정보 수정은 한 명만 선택했을 때 가능해요.');return;}
+  var s=allStudents.find(function(x){return x.id===ids[0];});
+  if(!s)return;
+  document.getElementById('edit-stu-modal').dataset.id=s.id;
+  document.getElementById('es-name').value=s.name||'';
+  document.getElementById('es-pp').value=s.parentPhone||'';
+  document.getElementById('es-school').value=s.school||'';
+  document.getElementById('es-grade').value=s.grade||'';
+  document.getElementById('es-gender').value=s.gender||'';
+  document.getElementById('edit-stu-modal').classList.add('show');
+}
+function closeEditStudent(){document.getElementById('edit-stu-modal').classList.remove('show');}
+async function saveEditStudent(){
+  var id=document.getElementById('edit-stu-modal').dataset.id;
+  var url=SU+'?action=updateStudentInfo&id='+encodeURIComponent(id)
+    +'&name='+encodeURIComponent(document.getElementById('es-name').value.trim())
+    +'&parentPhone='+encodeURIComponent(document.getElementById('es-pp').value.trim())
+    +'&school='+encodeURIComponent(document.getElementById('es-school').value.trim())
+    +'&grade='+encodeURIComponent(document.getElementById('es-grade').value)
+    +'&gender='+encodeURIComponent(document.getElementById('es-gender').value);
+  try{
+    await fetch(url);
+    closeEditStudent();
+    loadStu();
+  }catch(e){alert('저장 중 오류가 발생했습니다.');}
 }
 
 // 공지
