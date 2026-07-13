@@ -662,7 +662,7 @@ function renderVideos(){
       var vid=ytId(m.url);
       if(vid) thumb='<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg" onerror="this.style.display=\'none\'">';
     }
-    var badge=isYt?'<span class="video-badge badge-yt">YouTube</span>':'<span class="video-badge badge-drive">Drive</span>';
+    var badge='<span class="video-badge badge-drive">강의 영상</span>';
     var delBtn=session.role==='teacher'?'<button class="video-del-btn" onclick="event.stopPropagation();delMat(\''+m.id+'\')">삭제</button>':'';
     var viewBtn='';
     if(session.role==='teacher'){
