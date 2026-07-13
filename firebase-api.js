@@ -26,12 +26,16 @@ var _dbReady = new Promise(function(resolve, reject){
   }
   loadScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js')
     .then(function(){ return loadScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js'); })
+    .then(function(){ return loadScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js'); })
     .then(function(){
       firebase.initializeApp(firebaseConfig);
       resolve(firebase.firestore());
     })
     .catch(reject);
 });
+
+var AUTH_DOMAIN_SUFFIX = '@mkmath.local';
+function toAuthEmail(loginId){ return loginId + AUTH_DOMAIN_SUFFIX; }
 
 /* ---------- 유틸 ---------- */
 function nowStr(){
@@ -50,22 +54,10 @@ function docsToArr(snap){
 var api = {};
 
 /* === 로그인 / 학생 === */
-api.login = function(db, p){
-  return db.collection('students').where('id','==',String(p.id)).get().then(function(snap){
-    if (snap.empty) {
-      // 부트스트랩: 학생 컬렉션이 완전히 비어있으면 첫 로그인 계정을 선생님으로 생성
-      return db.collection('students').limit(1).get().then(function(all){
-        if (all.empty) {
-          var teacher = { id:String(p.id), password:String(p.password), role:'teacher', name:'김민관', parentPhone:'', school:'', classId:'' };
-          return db.collection('students').doc(String(p.id)).set(teacher).then(function(){
-            return { success:true, role:'teacher', name:'김민관', classId:'', className:'' };
-          });
-        }
-        return { success:false };
-      });
-    }
-    var u = snap.docs[0].data();
-    if (String(u.password) !== String(p.password)) return { success:false };
+function fetchProfileAfterAuth(db, loginId){
+  return db.collection('students').doc(loginId).get().then(function(doc){
+    if (!doc.exists) return { success:false };
+    var u = doc.data();
     var role = u.role || 'student';
     var result = { success:true, role:role, name:u.name || u.id, classId:'', className:'' };
     if (role === 'student' && u.classId) {
@@ -77,18 +69,61 @@ api.login = function(db, p){
     }
     return result;
   });
+}
+
+api.login = function(db, p){
+  var loginId = String(p.id);
+  var password = String(p.password);
+  var email = toAuthEmail(loginId);
+  var auth = firebase.auth();
+  return auth.signInWithEmailAndPassword(email, password)
+    .then(function(){ return fetchProfileAfterAuth(db, loginId); })
+    .catch(function(err){
+      // 아직 Firebase 로그인 계정으로 마이그레이션되지 않은 기존 계정 처리
+      if (err.code !== 'auth/user-not-found') return { success:false };
+      return db.collection('students').doc(loginId).get().then(function(doc){
+        if (!doc.exists) {
+          // 학생 컬렉션이 완전히 비어있으면 첫 로그인 계정을 선생님으로 부트스트랩
+          return db.collection('students').limit(1).get().then(function(all){
+            if (!all.empty) return { success:false };
+            return auth.createUserWithEmailAndPassword(email, password).then(function(){
+              return db.collection('students').doc(loginId).set({
+                id:loginId, password:'', role:'teacher', name:'김민관', parentPhone:'', school:'', classId:''
+              });
+            }).then(function(){
+              return { success:true, role:'teacher', name:'김민관', classId:'', className:'' };
+            });
+          });
+        }
+        var u = doc.data();
+        if (String(u.password) !== password) return { success:false };
+        return auth.createUserWithEmailAndPassword(email, password).then(function(){
+          return fetchProfileAfterAuth(db, loginId);
+        });
+      });
+    });
 };
 
 api.addStudent = function(db, p){
   var sid = String(p.sid || p.studentPhone || '');
   if (!sid) return Promise.resolve({ success:false, msg:'아이디가 없습니다.' });
   var ref = db.collection('students').doc(sid);
+  var pw = String(p.spw || '1234');
   return ref.get().then(function(doc){
     if (doc.exists) return { success:false, msg:'이미 존재하는 아이디입니다.' };
     return ref.set({
-      id: sid, password: String(p.spw || '1234'), role:'student',
+      id: sid, password: pw, role:'student',
       name: p.sname || '', parentPhone: p.parentPhone || '', school:'', classId:''
-    }).then(function(){ return { success:true }; });
+    }).then(function(){
+      // 별도의 보조 앱으로 로그인 계정을 생성해서 현재(선생님) 로그인 세션이 끊기지 않게 함
+      var secondary;
+      try { secondary = firebase.app('mk-secondary'); }
+      catch(e) { secondary = firebase.initializeApp(firebase.app().options, 'mk-secondary'); }
+      return secondary.auth().createUserWithEmailAndPassword(toAuthEmail(sid), pw)
+        .then(function(){ return secondary.auth().signOut(); })
+        .catch(function(){})
+        .then(function(){ return { success:true }; });
+    });
   });
 };
 
@@ -103,10 +138,21 @@ api.getStudents = function(db){
 
 api.changePassword = function(db, p){
   var ref = db.collection('students').doc(String(p.id));
+  var oldPw = String(p.oldPw), newPw = String(p.newPw);
   return ref.get().then(function(doc){
     if (!doc.exists) return { success:false, msg:'사용자를 찾을 수 없습니다.' };
-    if (String(doc.data().password) !== String(p.oldPw)) return { success:false, msg:'현재 비밀번호가 틀렸습니다.' };
-    return ref.update({ password: String(p.newPw) }).then(function(){ return { success:true }; });
+    if (String(doc.data().password) !== oldPw) return { success:false, msg:'현재 비밀번호가 틀렸습니다.' };
+    var user = firebase.auth().currentUser;
+    var authUpdate = Promise.resolve();
+    if (user) {
+      var cred = firebase.auth.EmailAuthProvider.credential(user.email, oldPw);
+      authUpdate = user.reauthenticateWithCredential(cred)
+        .then(function(){ return user.updatePassword(newPw); })
+        .catch(function(){ /* Firebase 로그인 계정이 아직 없는 경우 등은 무시하고 Firestore만 갱신 */ });
+    }
+    return authUpdate.then(function(){
+      return ref.update({ password: newPw });
+    }).then(function(){ return { success:true }; });
   });
 };
 
@@ -298,9 +344,21 @@ api.assignStudentClass = function(db, p){
 };
 
 api.getClassStudents = function(db, p){
+  var authUser = firebase.auth().currentUser;
+  var myEmail = authUser ? authUser.email : '';
+  var amTeacher = myEmail === toAuthEmail('mingwan0309');
+  var studentsQuery = amTeacher
+    ? db.collection('students').where('classId','==',String(p.classId)).get()
+    : db.collection('students').doc(myEmail.split('@')[0]).get().then(function(doc){
+        // 학생 계정: 보안 규칙상 자기 자신의 정보만 조회 가능 (반 목록 전체 조회 불가)
+        var fake = { docs: [] };
+        if (doc.exists && String(doc.data().classId) === String(p.classId)) fake.docs = [doc];
+        fake.forEach = function(fn){ fake.docs.forEach(fn); };
+        return fake;
+      });
   var tasks = [
     db.collection('classes').doc(String(p.classId)).get(),
-    db.collection('students').where('classId','==',String(p.classId)).get()
+    studentsQuery
   ];
   return Promise.all(tasks).then(function(res){
     if (!res[0].exists) return { classInfo:null, students:[] };
