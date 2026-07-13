@@ -16,8 +16,8 @@ body { font-family:'맑은 고딕', sans-serif; background:#f8fafc; color:#1e293
 .btn-home { background:#334155; color:#fff; border:none; padding:7px 14px; border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; }
 .btn-logout-t { background:none; border:none; color:#64748b; font-size:12px; cursor:pointer; }
 .btn-logout-t:hover { color:#ef4444; }
-#student-nav { display:none; background:#fff; border-bottom:1px solid #e2e8f0; padding:0 20px; gap:4px; align-items:center; position:sticky; top:0; z-index:99; }
-#student-nav a { text-decoration:none; padding:12px 14px; font-size:13px; font-weight:600; color:#475569; }
+#student-nav { display:none; background:#fff; border-bottom:1px solid #e2e8f0; padding:0 20px; gap:4px; align-items:center; position:sticky; top:0; z-index:99; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+#student-nav a { text-decoration:none; padding:12px 14px; font-size:13px; font-weight:600; color:#475569; white-space:nowrap; flex-shrink:0; }
 #student-nav a.home-btn { background:#3b6cf7; color:#fff; border-radius:7px; padding:6px 12px; margin-right:8px; }
 #student-nav a.active { color:#3b6cf7; border-bottom:2px solid #3b6cf7; }
 .container { max-width:1040px; margin:0 auto; padding:32px 24px; }
