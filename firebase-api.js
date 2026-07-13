@@ -29,13 +29,24 @@ var _dbReady = new Promise(function(resolve, reject){
     .then(function(){ return loadScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js'); })
     .then(function(){
       firebase.initializeApp(firebaseConfig);
-      resolve(firebase.firestore());
+      // 브라우저에 저장된 로그인 정보(구글 인증 세션)가 완전히 확인될 때까지 대기.
+      // 이걸 안 기다리면 페이지 이동 직후 요청이 "로그인 안 된 상태"로 나가서 권한 오류가 남.
+      var unsub = firebase.auth().onAuthStateChanged(function(){
+        unsub();
+        resolve(firebase.firestore());
+      });
     })
     .catch(reject);
 });
 
 var AUTH_DOMAIN_SUFFIX = '@mkmath.local';
 function toAuthEmail(loginId){ return loginId + AUTH_DOMAIN_SUFFIX; }
+// Firebase 로그인은 비밀번호 6자 이상이 필요함. 짧은 비번(예: 1234)은 뒤에 0을 채워서 맞춤.
+function toAuthPassword(pw){
+  pw = String(pw);
+  while (pw.length < 6) pw += '0';
+  return pw;
+}
 
 /* ---------- 유틸 ---------- */
 function nowStr(){
@@ -76,7 +87,7 @@ api.login = function(db, p){
   var password = String(p.password);
   var email = toAuthEmail(loginId);
   var auth = firebase.auth();
-  return auth.signInWithEmailAndPassword(email, password)
+  return auth.signInWithEmailAndPassword(email, toAuthPassword(password))
     .then(function(){ return fetchProfileAfterAuth(db, loginId); })
     .catch(function(){ return { success:false }; });
 };
@@ -96,7 +107,7 @@ api.addStudent = function(db, p){
       var secondary;
       try { secondary = firebase.app('mk-secondary'); }
       catch(e) { secondary = firebase.initializeApp(firebase.app().options, 'mk-secondary'); }
-      return secondary.auth().createUserWithEmailAndPassword(toAuthEmail(sid), pw)
+      return secondary.auth().createUserWithEmailAndPassword(toAuthEmail(sid), toAuthPassword(pw))
         .then(function(){ return secondary.auth().signOut(); })
         .catch(function(){})
         .then(function(){ return { success:true }; });
@@ -122,9 +133,9 @@ api.changePassword = function(db, p){
     var user = firebase.auth().currentUser;
     var authUpdate = Promise.resolve();
     if (user) {
-      var cred = firebase.auth.EmailAuthProvider.credential(user.email, oldPw);
+      var cred = firebase.auth.EmailAuthProvider.credential(user.email, toAuthPassword(oldPw));
       authUpdate = user.reauthenticateWithCredential(cred)
-        .then(function(){ return user.updatePassword(newPw); })
+        .then(function(){ return user.updatePassword(toAuthPassword(newPw)); })
         .catch(function(){ /* Firebase 로그인 계정이 아직 없는 경우 등은 무시하고 Firestore만 갱신 */ });
     }
     return authUpdate.then(function(){
