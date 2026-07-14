@@ -374,6 +374,7 @@ tr:hover td{background:#fafbff;}
     <div id="yt-seek-bar" onclick="seekYt(event)" style="position:absolute;bottom:8px;left:12px;right:12px;height:5px;background:rgba(255,255,255,0.3);border-radius:3px;cursor:pointer;z-index:5;">
       <div id="yt-seek-fill" style="height:100%;width:0%;background:#ff3b3b;border-radius:3px;pointer-events:none;"></div>
     </div>
+    <button id="yt-speed-btn" onclick="cycleYtSpeed(event)" style="position:absolute;bottom:18px;right:46px;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;height:28px;padding:0 8px;font-size:12px;font-weight:700;cursor:pointer;z-index:5;">1.0x</button>
     <button onclick="toggleYtFullscreen()" style="position:absolute;bottom:18px;right:8px;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;width:32px;height:28px;font-size:14px;cursor:pointer;z-index:5;">⛶</button>
     <button onclick="closeYtModal()" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;line-height:1;z-index:5;">✕</button>
   </div>
@@ -710,12 +711,15 @@ function loadYtApi(){
 }
 
 var ytPlayer=null, ytProgressTimer=null, ytWatchingMatId=null, ytMaxPct=0, ytReady=false;
+var YT_SPEEDS=[0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0];
+var ytSpeedIdx=2;
 
 function openVideo(url,id){
   countDl(id);
   var vid=ytId(url);
   if(vid){
-    ytWatchingMatId=id; ytMaxPct=0; ytReady=false;
+    ytWatchingMatId=id; ytMaxPct=0; ytReady=false; ytSpeedIdx=2;
+    document.getElementById('yt-speed-btn').textContent='1.0x';
     document.getElementById('yt-seek-fill').style.width='0%';
     document.getElementById('yt-player-iframe').src='https://www.youtube.com/embed/'+vid+'?autoplay=1&modestbranding=1&rel=0&controls=0&enablejsapi=1&origin='+encodeURIComponent(location.origin);
     document.getElementById('yt-player-modal').classList.add('show');
@@ -771,6 +775,14 @@ function seekYt(e){
     var dur=ytPlayer.getDuration();
     if(dur>0){ ytPlayer.seekTo(dur*frac,true); document.getElementById('yt-seek-fill').style.width=(frac*100)+'%'; }
   }catch(e){}
+}
+function cycleYtSpeed(e){
+  e.stopPropagation();
+  if(!ytPlayer||!ytReady) return;
+  ytSpeedIdx=(ytSpeedIdx+1)%YT_SPEEDS.length;
+  var rate=YT_SPEEDS[ytSpeedIdx];
+  try{ ytPlayer.setPlaybackRate(rate); }catch(err){}
+  document.getElementById('yt-speed-btn').textContent=rate.toFixed(1)+'x';
 }
 function toggleYtFullscreen(){
   var wrap=document.getElementById('yt-player-wrap');
