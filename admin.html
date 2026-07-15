@@ -753,7 +753,7 @@ async function chgPw(){
   var n=document.getElementById('newpw').value;
   var m=document.getElementById('pw-msg');
   if(!o||!n){showMsg(m,'모두 입력해주세요','error');return;}
-  try{var r=await fetch(SU+'?action=changePassword&id='+encodeURIComponent(cu.id)+'&oldPassword='+encodeURIComponent(o)+'&newPassword='+encodeURIComponent(n));var d=await r.json();showMsg(m,d.success?'변경되었습니다!':'현재 비밀번호가 틀렸습니다',d.success?'success':'error');if(d.success){document.getElementById('opw').value='';document.getElementById('newpw').value='';}}
+  try{var authId=cu.authId||cu.id;var r=await fetch(SU+'?action=changePassword&id='+encodeURIComponent(cu.id)+'&authId='+encodeURIComponent(authId)+'&oldPassword='+encodeURIComponent(o)+'&newPassword='+encodeURIComponent(n));var d=await r.json();showMsg(m,d.success?'변경되었습니다!':'현재 비밀번호가 틀렸습니다',d.success?'success':'error');if(d.success){document.getElementById('opw').value='';document.getElementById('newpw').value='';}}
   catch(e){showMsg(m,'오류가 발생했습니다','error');}
 }
 

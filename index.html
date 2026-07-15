@@ -1235,7 +1235,9 @@
       const res = await fetch(SCRIPT_URL + '?action=login&id=' + encodeURIComponent(id) + '&password=' + encodeURIComponent(pw));
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem('mkmath_session', JSON.stringify({ id, role: data.role, name: data.name, classId: data.classId || '', className: data.className || '' }));
+        // data.studentId: 학부모로 로그인 시 실제 학생 ID(학생 전화번호). 학생 직접 로그인 시 없음.
+        var sessionId = data.studentId || id;
+        localStorage.setItem('mkmath_session', JSON.stringify({ id: sessionId, authId: id, role: data.role, name: data.name, classId: data.classId || '', className: data.className || '' }));
         closeLoginModal();
         updateLoginBtn();
       } else {

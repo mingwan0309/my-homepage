@@ -86,10 +86,30 @@ function fetchProfileAfterAuth(db, loginId){
 api.login = function(db, p){
   var loginId = String(p.id);
   var password = String(p.password);
-  var email = toAuthEmail(loginId);
   var auth = firebase.auth();
-  return auth.signInWithEmailAndPassword(email, toAuthPassword(password))
-    .then(function(){ return fetchProfileAfterAuth(db, loginId); })
+  return auth.signInWithEmailAndPassword(toAuthEmail(loginId), toAuthPassword(password))
+    .then(function(){
+      // 학생 번호로 직접 조회
+      return db.collection('students').doc(loginId).get().then(function(doc){
+        if (doc.exists) return fetchProfileAfterAuth(db, loginId);
+        // 학부모 번호인 경우: parentPhone 필드로 학생 검색
+        return db.collection('students').where('parentPhone','==',loginId).limit(1).get().then(function(snap){
+          if (snap.empty) return { success:false };
+          var studentDoc = snap.docs[0];
+          var u = studentDoc.data();
+          if (u.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
+          var result = { success:true, role:'student', name:u.name||u.id, classId:'', className:'', studentId: studentDoc.id };
+          if (u.classId) {
+            result.classId = String(u.classId);
+            return db.collection('classes').doc(String(u.classId)).get().then(function(c){
+              if (c.exists) result.className = c.data().name||'';
+              return result;
+            });
+          }
+          return result;
+        });
+      });
+    })
     .catch(function(){ return { success:false }; });
 };
 
@@ -110,10 +130,18 @@ api.addStudent = function(db, p){
       var secondary;
       try { secondary = firebase.app('mk-secondary'); }
       catch(e) { secondary = firebase.initializeApp(firebase.app().options, 'mk-secondary'); }
+      var parentPhone = String(p.parentPhone || '');
       return secondary.auth().createUserWithEmailAndPassword(toAuthEmail(sid), toAuthPassword(pw))
         .then(function(){ return secondary.auth().signOut(); })
         .catch(function(){})
-        .then(function(){ return { success:true }; });
+        .then(function(){
+          // 학부모 전화번호가 있으면 별도 로그인 계정 생성 (초기 비번 123456)
+          if (!parentPhone) return { success:true };
+          return secondary.auth().createUserWithEmailAndPassword(toAuthEmail(parentPhone), toAuthPassword('123456'))
+            .then(function(){ return secondary.auth().signOut(); })
+            .catch(function(){})
+            .then(function(){ return { success:true }; });
+        });
     });
   });
 };
@@ -148,23 +176,29 @@ api.deleteStudentAccount = function(db, p){
 };
 
 api.changePassword = function(db, p){
-  var ref = db.collection('students').doc(String(p.id));
-  var oldPw = String(p.oldPw), newPw = String(p.newPw);
-  return ref.get().then(function(doc){
-    if (!doc.exists) return { success:false, msg:'사용자를 찾을 수 없습니다.' };
-    if (String(doc.data().password) !== oldPw) return { success:false, msg:'현재 비밀번호가 틀렸습니다.' };
-    var user = firebase.auth().currentUser;
-    var authUpdate = Promise.resolve();
-    if (user) {
-      var cred = firebase.auth.EmailAuthProvider.credential(user.email, toAuthPassword(oldPw));
-      authUpdate = user.reauthenticateWithCredential(cred)
-        .then(function(){ return user.updatePassword(toAuthPassword(newPw)); })
-        .catch(function(){ /* Firebase 로그인 계정이 아직 없는 경우 등은 무시하고 Firestore만 갱신 */ });
-    }
-    return authUpdate.then(function(){
-      return ref.update({ password: newPw });
-    }).then(function(){ return { success:true }; });
-  });
+  var studentId = String(p.id);
+  var authId = String(p.authId || p.id); // 로그인에 쓴 번호 (학생 또는 학부모 번호)
+  var isParent = (authId !== studentId);
+  var oldPw = String(p.oldPassword || p.oldPw || ''), newPw = String(p.newPassword || p.newPw || '');
+  var user = firebase.auth().currentUser;
+  if (!user) return Promise.resolve({ success:false, msg:'로그인이 필요합니다.' });
+  // Firebase Auth 재인증 + 비밀번호 변경
+  var cred = firebase.auth.EmailAuthProvider.credential(toAuthEmail(authId), toAuthPassword(oldPw));
+  return user.reauthenticateWithCredential(cred)
+    .then(function(){ return user.updatePassword(toAuthPassword(newPw)); })
+    .then(function(){
+      // 학생 본인 비번 변경일 때만 Firestore에도 기록
+      if (!isParent) {
+        return db.collection('students').doc(studentId).update({ password: newPw });
+      }
+    })
+    .then(function(){ return { success:true }; })
+    .catch(function(e){
+      if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+        return { success:false, msg:'현재 비밀번호가 틀렸습니다.' };
+      }
+      return { success:false, msg:'비밀번호 변경 실패' };
+    });
 };
 
 api.getStudentInfo = function(db, p){
