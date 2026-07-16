@@ -859,9 +859,10 @@ function renderScores(){
 }
 
 function openPanel(studentId, examId){
+  try{
   var exam=exams.find(function(e){return e.id===examId;});
   var st=students.find(function(s){return s.id===studentId;});
-  if(!exam||!st)return;
+  if(!exam||!st){alert('찾기 실패: exam='+!!exam+' st='+!!st+' exams='+exams.length+' students='+students.length);return;}
   panelStudentId=studentId; panelExamId=examId; panelPass='';
   document.getElementById('panel-exam-name').textContent=exam.name;
   document.getElementById('panel-sub').textContent=classInfo.name+' '+sessionInfo.sessionNum+'차시, '+st.name;
@@ -872,6 +873,7 @@ function openPanel(studentId, examId){
   updatePassBtns();
   renderPanelStats(examId, sc&&sc.score!==''?sc.score:'');
   document.getElementById('score-panel').classList.add('open');
+  }catch(e){alert('오류: '+e.message);}
 }
 
 function closePanel(){
