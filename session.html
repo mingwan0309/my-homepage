@@ -847,7 +847,7 @@ function renderScores(){
     var scoreCols=exams.map(function(ex){
       var sc=(scoresMap[st.id]||{})[ex.id];
       if(sc&&sc.score!==''){
-        var passIcon=sc.pass==='submit'?'<span style="color:#16a34a;font-size:10px;"> 제출</span>':sc.pass==='nosub'?'<span style="color:#dc2626;font-size:10px;"> 미제출</span>':sc.pass==='partial'?'<span style="color:#ca8a04;font-size:10px;"> 일부</span>':'';
+        var passIcon=sc.pass==='submit'?'<span style="color:#16a34a;font-size:10px;"> 통과</span>':sc.pass==='nosub'?'<span style="color:#dc2626;font-size:10px;"> 미통과</span>':'';
         return '<td class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+sc.score+'점'+passIcon+'</td>';
       }
       return '<td class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">—</td>';
