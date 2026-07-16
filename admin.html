@@ -346,7 +346,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="card">
         <div class="card-title">🔑 비밀번호 변경</div>
         <div class="fg"><label>현재 비밀번호</label><input type="password" id="opw" placeholder="현재 비밀번호" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;margin-bottom:10px;"></div>
-        <div class="fg"><label>새 비밀번호</label><input type="password" id="newpw" placeholder="새 비밀번호" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <div class="fg"><label>새 비밀번호</label><input type="password" id="newpw" placeholder="새 비밀번호 (6자 이상)" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"><p style="font-size:12px;color:#64748b;margin-top:4px;">※ 새 비밀번호는 6자 이상으로 설정해주세요.</p></div>
         <button class="btn-primary" style="margin-top:12px;" onclick="chgPw()">변경</button>
         <div id="pw-msg"></div>
       </div>
@@ -753,6 +753,7 @@ async function chgPw(){
   var n=document.getElementById('newpw').value;
   var m=document.getElementById('pw-msg');
   if(!o||!n){showMsg(m,'모두 입력해주세요','error');return;}
+  if(n.length<6){showMsg(m,'새 비밀번호는 6자 이상이어야 합니다','error');return;}
   try{var authId=cu.authId||cu.id;var r=await fetch(SU+'?action=changePassword&id='+encodeURIComponent(cu.id)+'&authId='+encodeURIComponent(authId)+'&oldPassword='+encodeURIComponent(o)+'&newPassword='+encodeURIComponent(n));var d=await r.json();showMsg(m,d.success?'변경되었습니다!':'현재 비밀번호가 틀렸습니다',d.success?'success':'error');if(d.success){document.getElementById('opw').value='';document.getElementById('newpw').value='';}}
   catch(e){showMsg(m,'오류가 발생했습니다','error');}
 }
