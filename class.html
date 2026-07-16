@@ -74,6 +74,40 @@ tr:hover td{background:#fafbff;}
 .s퇴원{background:#1e293b;color:#fff;}
 .s미정{background:#f1f5f9;color:#cbd5e1;}
 
+/* 수강생 클릭 상세 패널 */
+.stu-name-link{font-weight:700;color:#1e293b;cursor:pointer;text-decoration:none;}
+.stu-name-link:hover{color:#3b6cf7;text-decoration:underline;}
+.att-chips-wrap{display:flex;gap:2px;overflow-x:auto;max-width:340px;scrollbar-width:none;padding-bottom:2px;}
+.att-chips-wrap::-webkit-scrollbar{display:none;}
+.att-chip-sm{width:20px;height:20px;border-radius:4px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+.stu-panel{position:fixed;top:0;right:-440px;width:420px;height:100vh;background:#fff;box-shadow:-4px 0 32px rgba(0,0,0,.12);z-index:900;transition:.28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column;}
+.stu-panel.open{right:0;}
+.stu-panel-backdrop{display:none;position:fixed;inset:0;z-index:899;}
+.stu-panel-backdrop.open{display:block;}
+.stu-panel-head{padding:20px 20px 14px;border-bottom:1px solid #f1f5f9;position:sticky;top:0;background:#fff;z-index:2;}
+.stu-panel-name{font-size:18px;font-weight:800;color:#1e293b;margin-bottom:2px;}
+.stu-panel-sub{font-size:12px;color:#94a3b8;}
+.stu-panel-close{position:absolute;top:16px;right:16px;background:#f1f5f9;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:15px;color:#64748b;display:flex;align-items:center;justify-content:center;}
+.stu-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 20px;}
+.stu-info-item{background:#f8fafc;border-radius:10px;padding:10px 13px;}
+.stu-info-label{font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:3px;}
+.stu-info-val{font-size:13px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:4px;}
+.copy-btn{background:none;border:none;cursor:pointer;font-size:12px;color:#94a3b8;padding:0;}
+.copy-btn:hover{color:#3b6cf7;}
+.stu-panel-tabs{display:flex;border-bottom:1px solid #e2e8f0;padding:0 20px;}
+.stu-ptab{padding:10px 14px;font-size:13px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.stu-ptab.active{color:#3b6cf7;border-bottom-color:#3b6cf7;}
+.stu-panel-body{padding:16px 20px;flex:1;}
+.att-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f8fafc;}
+.att-row:last-child{border-bottom:none;}
+.att-row-num{font-size:12px;color:#94a3b8;font-weight:600;width:42px;flex-shrink:0;}
+.att-row-date{font-size:12px;color:#64748b;flex:1;}
+.qna-item{padding:10px 0;border-bottom:1px solid #f8fafc;}
+.qna-item:last-child{border-bottom:none;}
+.qna-item-title{font-size:13px;font-weight:600;color:#1e293b;}
+.qna-item-date{font-size:11px;color:#94a3b8;margin-top:3px;}
+
 /* 자료실 */
 .mat-layout{display:flex;gap:16px;align-items:flex-start;}
 .mat-sidebar{width:190px;flex-shrink:0;background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;}
@@ -209,7 +243,7 @@ tr:hover td{background:#fafbff;}
       </div>
     </div>
     <table>
-      <thead><tr><th style="width:40px;">#</th><th>이름</th><th>학생 전화번호</th><th>학부모 전화번호</th><th>학교</th><th>최근 출결</th></tr></thead>
+      <thead><tr id="stu-thead-tr"><th style="width:34px;">#</th><th>이름</th><th>학부모 전화번호</th><th>학생 전화번호</th><th>학교</th><th>출결 이력</th></tr></thead>
       <tbody id="stu-tbody"><tr><td colspan="6" class="empty">불러오는 중...</td></tr></tbody>
     </table>
   </div>
@@ -389,6 +423,25 @@ tr:hover td{background:#fafbff;}
   </div>
 </div>
 
+<!-- 학생 상세 패널 -->
+<div class="stu-panel-backdrop" id="stu-panel-backdrop" onclick="closeStudentDetail()"></div>
+<div class="stu-panel" id="stu-panel">
+  <div class="stu-panel-head">
+    <div class="stu-panel-name" id="sp-name"></div>
+    <div class="stu-panel-sub" id="sp-sub"></div>
+    <button class="stu-panel-close" onclick="closeStudentDetail()">✕</button>
+  </div>
+  <div class="stu-info-grid" id="sp-info-grid"></div>
+  <div class="stu-panel-tabs">
+    <div class="stu-ptab active" onclick="switchStuTab('att',this)">수강 이력</div>
+    <div class="stu-ptab" onclick="switchStuTab('qna',this)">질문 이력</div>
+  </div>
+  <div class="stu-panel-body">
+    <div id="sp-att"></div>
+    <div id="sp-qna" style="display:none;"></div>
+  </div>
+</div>
+
 <!-- 학생 추가 모달 -->
 <div class="modal-bg" id="add-stu-modal" onclick="if(event.target===this)closeAddStudent()">
   <div class="modal">
@@ -509,6 +562,8 @@ function goSession(sessionId){
   location.href='session.html?id='+encodeURIComponent(sessionId)+'&classId='+encodeURIComponent(classId);
 }
 
+var attMapGlobal={};
+
 function renderStudents(){
   const tbody=document.getElementById('stu-tbody');
   if(!students.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 수강생이 없습니다</td></tr>';return;}
@@ -516,49 +571,48 @@ function renderStudents(){
   students.sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ko');});
   var list=isTeacher?students:students.filter(function(st){return st.id===session.id;});
   if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">정보가 없습니다</td></tr>';return;}
-  // 학생이면 헤더도 단순하게
   if(!isTeacher){
-    document.querySelector('#content-students thead tr').innerHTML='<th>이름</th><th>최근 출결</th>';
-  }
-  tbody.innerHTML=list.map(function(st,idx){
-    if(!isTeacher){
+    document.getElementById('stu-thead-tr').innerHTML='<th>이름</th><th>최근 출결</th>';
+    tbody.innerHTML=list.map(function(st){
       return '<tr id="stu-row-'+st.id+'">'
-        +'<td><span class="stu-name">'+st.name+'</span></td>'
-        +'<td><div class="att-chips" id="att-'+st.id+'"><span style="color:#cbd5e1;font-size:11px;">로딩...</span></div></td>'
+        +'<td><span class="stu-name">'+escHtml(st.name)+'</span></td>'
+        +'<td><div class="att-chips-wrap" id="att-'+st.id+'"><span style="color:#cbd5e1;font-size:11px;">로딩...</span></div></td>'
         +'</tr>';
-    }
-    return '<tr id="stu-row-'+st.id+'">'
-      +'<td style="color:#94a3b8;font-weight:600;">'+(idx+1)+'</td>'
-      +'<td><span class="stu-name">'+st.name+'</span></td>'
-      +'<td class="stu-phone">'+(st.studentPhone||'-')+'</td>'
-      +'<td class="stu-phone">'+(st.parentPhone||'-')+'</td>'
-      +'<td>'+(st.school||'-')+'</td>'
-      +'<td><div class="att-chips" id="att-'+st.id+'"><span style="color:#cbd5e1;font-size:11px;">로딩...</span></div></td>'
-      +'</tr>';
-  }).join('');
-  // 출결은 백그라운드에서 로드
+    }).join('');
+  } else {
+    tbody.innerHTML=list.map(function(st,idx){
+      return '<tr id="stu-row-'+st.id+'">'
+        +'<td style="color:#94a3b8;font-weight:600;font-size:12px;">'+(idx+1)+'</td>'
+        +'<td><span class="stu-name-link" onclick="openStudentDetail(\''+st.id+'\')">'+escHtml(st.name)+'</span></td>'
+        +'<td class="stu-phone">'+(st.parentPhone||'-')+'</td>'
+        +'<td class="stu-phone">'+(st.studentPhone||'-')+'</td>'
+        +'<td style="font-size:12px;color:#475569;">'+(st.school||'-')+'</td>'
+        +'<td style="padding:8px 14px;"><div class="att-chips-wrap" id="att-'+st.id+'"><span style="color:#cbd5e1;font-size:10px;">로딩...</span></div></td>'
+        +'</tr>';
+    }).join('');
+  }
   loadAttendanceAsync();
 }
 
 async function loadAttendanceAsync(){
   if(!sessions.length) return;
   try{
-    var recentSes=sessions.slice(0,5); // 5차시로 줄임
-    var attResults=await Promise.all(recentSes.map(s=>fetch(SU+'?action=getAttendance&sessionId='+s.id).then(r=>r.json())));
-    var attMap={};
-    students.forEach(function(st){attMap[st.id]=[];});
-    recentSes.forEach(function(s,i){
+    var attResults=await Promise.all(sessions.map(function(s){return fetch(SU+'?action=getAttendance&sessionId='+s.id).then(function(r){return r.json();});}));
+    attMapGlobal={};
+    students.forEach(function(st){attMapGlobal[st.id]=[];});
+    sessions.forEach(function(s,i){
       var att=attResults[i].attendance||[];
       students.forEach(function(st){
         var found=att.find(function(a){return a.studentId===st.id;});
-        attMap[st.id].push(found?found.status:'미정');
+        attMapGlobal[st.id].push({sessionNum:s.sessionNum,date:s.date,status:found?found.status:'미정'});
       });
     });
     students.forEach(function(st){
       var el=document.getElementById('att-'+st.id);
       if(!el)return;
-      var chips=(attMap[st.id]||[]).map(function(s){return '<span class="att-chip s'+s+'">'+s.substring(0,1)+'</span>';}).join('');
-      el.innerHTML=chips||'<span style="color:#cbd5e1;font-size:11px;">-</span>';
+      var data=attMapGlobal[st.id]||[];
+      var chips=data.map(function(d){return '<span class="att-chip-sm s'+d.status+'" title="'+d.sessionNum+'차시 '+d.status+'">'+d.status.substring(0,1)+'</span>';}).join('');
+      el.innerHTML=chips||'<span style="color:#cbd5e1;font-size:10px;">-</span>';
     });
   }catch(e){}
 }
@@ -1071,6 +1125,82 @@ async function saveVideo(type){
       await loadMaterials();
     }
   }catch(e){alert('오류가 발생했습니다.');}
+}
+
+// ── 학생 상세 패널 ──
+var currentStuId=null;
+function openStudentDetail(studentId){
+  var st=students.find(function(s){return s.id===studentId;});
+  if(!st)return;
+  currentStuId=studentId;
+  document.getElementById('sp-name').textContent=st.name;
+  document.getElementById('sp-sub').textContent=(st.school||'')+(st.grade?' · '+st.grade:'');
+  function infoItem(label,val,copy){
+    return '<div class="stu-info-item">'
+      +'<div class="stu-info-label">'+label+'</div>'
+      +'<div class="stu-info-val">'+escHtml(val||'-')+(copy&&val?'<button class="copy-btn" onclick="copyText(\''+val+'\')" title="복사">📋</button>':'')+'</div>'
+      +'</div>';
+  }
+  document.getElementById('sp-info-grid').innerHTML=
+    infoItem('학생 전화번호',st.studentPhone,true)
+    +infoItem('학부모 전화번호',st.parentPhone,true)
+    +infoItem('학교',st.school,false)
+    +infoItem('학년',st.grade,false)
+    +infoItem('성별',st.gender,false)
+    +infoItem('등록일',(st.createdAt||'').substring(0,10),false);
+  switchStuTab('att',document.querySelector('.stu-ptab'));
+  document.getElementById('sp-att').innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">로딩 중...</div>';
+  document.getElementById('sp-qna').innerHTML='';
+  document.getElementById('stu-panel').classList.add('open');
+  document.getElementById('stu-panel-backdrop').classList.add('open');
+  loadStudentAtt(studentId);
+}
+function closeStudentDetail(){
+  document.getElementById('stu-panel').classList.remove('open');
+  document.getElementById('stu-panel-backdrop').classList.remove('open');
+}
+function copyText(txt){
+  navigator.clipboard.writeText(txt).then(function(){alert('복사되었습니다.');}).catch(function(){});
+}
+function switchStuTab(tab, el){
+  document.querySelectorAll('.stu-ptab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('sp-att').style.display=tab==='att'?'':'none';
+  document.getElementById('sp-qna').style.display=tab==='qna'?'':'none';
+  if(tab==='qna'&&currentStuId) loadStudentQna(currentStuId);
+}
+function loadStudentAtt(studentId){
+  var data=(attMapGlobal[studentId]||[]).slice().reverse();
+  if(!data.length){
+    document.getElementById('sp-att').innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">출결 이력이 없습니다.</div>';
+    return;
+  }
+  var html=data.map(function(d){
+    return '<div class="att-row">'
+      +'<span class="att-row-num">'+d.sessionNum+'차시</span>'
+      +'<span class="att-row-date">'+(d.date||'')+'</span>'
+      +'<span class="att-chip s'+d.status+'" style="padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;">'+d.status+'</span>'
+      +'</div>';
+  }).join('');
+  document.getElementById('sp-att').innerHTML=html;
+}
+async function loadStudentQna(studentId){
+  var el=document.getElementById('sp-qna');
+  if(el.dataset.loaded===studentId) return;
+  el.innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">로딩 중...</div>';
+  try{
+    var db=await window.mkdbReady;
+    var snap=await db.collection('qna').where('studentId','==',String(studentId)).orderBy('createdAt','desc').get();
+    var items=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    if(!items.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">질문 이력이 없습니다.</div>';el.dataset.loaded=studentId;return;}
+    el.innerHTML=items.map(function(q){
+      return '<div class="qna-item">'
+        +'<div class="qna-item-title">'+escHtml(q.title||'(제목 없음)')+'</div>'
+        +'<div class="qna-item-date">'+(q.createdAt||'').substring(0,10)+(q.answered?' · 답변완료':' · 미답변')+'</div>'
+        +'</div>';
+    }).join('');
+    el.dataset.loaded=studentId;
+  }catch(e){el.innerHTML='<div style="color:#dc2626;font-size:13px;text-align:center;padding:20px;">불러오기 실패</div>';}
 }
 
 // ── 학생 추가 ──
