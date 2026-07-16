@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>차시 — 김민관 수학</title>
 <script src="firebase-api.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <style>
 :root{--primary:#3b6cf7;--bg:#f1f5f9;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -101,6 +102,24 @@ tr:hover td{background:#fafbff;}
 .done-badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;background:#dcfce7;color:#16a34a;}
 
 .empty{text-align:center;padding:48px;color:#94a3b8;font-size:14px;}
+/* 체크박스 & 선택 바 */
+.att-cb{width:16px;height:16px;accent-color:#3b6cf7;cursor:pointer;flex-shrink:0;}
+.sel-bar{display:none;align-items:center;gap:8px;padding:10px 20px;background:#f0f4ff;border-bottom:1px solid #dbe4ff;flex-wrap:wrap;}
+.sel-bar.show{display:flex;}
+.sel-bar-count{font-size:13px;font-weight:700;color:#3b6cf7;margin-right:4px;}
+.sel-bar-btn{padding:7px 13px;border-radius:8px;border:1.5px solid #3b6cf7;background:#fff;color:#3b6cf7;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.sel-bar-btn:hover{background:#eff4ff;}
+.sel-bar-btn.primary{background:#3b6cf7;color:#fff;border-color:#3b6cf7;}
+.sel-bar-btn.primary:hover{background:#2d5ce5;}
+.rel-wrap{position:relative;display:inline-block;}
+.dropdown-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.1);min-width:160px;z-index:200;padding:6px 0;}
+.dropdown-menu.show{display:block;}
+.dropdown-item{display:block;width:100%;padding:10px 16px;font-size:13px;font-weight:600;color:#334155;background:none;border:none;cursor:pointer;text-align:left;white-space:nowrap;}
+.dropdown-item:hover{background:#f8fafc;color:#3b6cf7;}
+.dropdown-item.danger{color:#dc2626;}
+.dropdown-item.danger:hover{background:#fee2e2;}
+/* 출석 일괄 변경 드롭다운 */
+.bulk-att-menu .dropdown-item{padding:8px 16px;font-size:12px;}
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;gap:16px;}
 .empty-icon{font-size:36px;color:#cbd5e1;}
 .empty-text{color:#94a3b8;font-size:14px;}
@@ -185,15 +204,41 @@ tr:hover td{background:#fafbff;}
   <div class="card">
     <div class="card-header">
       <div class="card-title">출석 관리</div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button id="btn-add-stu-top" class="btn-add-exam" style="border-style:solid;display:none;" onclick="openAddStudentModal()">+ 학생 추가</button>
-        <button id="btn-all-present" class="btn-add-exam" style="border-style:solid;display:none;" onclick="setAllAttendance('현장')">전원 현장</button>
+      <button id="btn-add-stu-top" class="btn-add-exam" style="border-style:solid;display:none;" onclick="openAddStudentModal()">+ 학생 추가</button>
+    </div>
+    <!-- 선택 바 -->
+    <div class="sel-bar" id="sel-bar">
+      <span class="sel-bar-count" id="sel-bar-count">0명을 대상으로</span>
+      <div class="rel-wrap">
+        <button class="sel-bar-btn primary" onclick="toggleDropdown('bulk-att-menu')">✏️ 출석 일괄 변경 ▾</button>
+        <div class="dropdown-menu bulk-att-menu" id="bulk-att-menu">
+          <button class="dropdown-item" onclick="bulkChangeAtt('출석')">출석</button>
+          <button class="dropdown-item" onclick="bulkChangeAtt('현장')">현장</button>
+          <button class="dropdown-item" onclick="bulkChangeAtt('지각')">지각</button>
+          <button class="dropdown-item" onclick="bulkChangeAtt('영상대체')">영상대체</button>
+          <button class="dropdown-item" onclick="bulkChangeAtt('보강')">보강</button>
+          <button class="dropdown-item" onclick="bulkChangeAtt('조퇴')">조퇴</button>
+          <button class="dropdown-item" onclick="bulkChangeAtt('결석')">결석</button>
+          <button class="dropdown-item" onclick="bulkChangeAtt('부재')">부재</button>
+          <button class="dropdown-item" onclick="bulkChangeAtt('퇴원')">퇴원</button>
+          <button class="dropdown-item" onclick="bulkChangeAtt('미정')">미정으로 초기화</button>
+        </div>
       </div>
+      <button class="sel-bar-btn" onclick="sendResults()">💬 수업 결과 발송</button>
+      <div class="rel-wrap">
+        <button class="sel-bar-btn" onclick="toggleDropdown('more-menu')">더보기 ▾</button>
+        <div class="dropdown-menu" id="more-menu">
+          <button class="dropdown-item" onclick="downloadExcel()">⬇️ 엑셀 다운로드</button>
+          <button class="dropdown-item danger" onclick="removeParticipants()">🗑 참여자 제거</button>
+        </div>
+      </div>
+      <button style="margin-left:auto;background:none;border:none;color:#94a3b8;font-size:18px;cursor:pointer;line-height:1;" onclick="clearSelection()">✕</button>
     </div>
     <table>
       <thead>
         <tr>
-          <th style="width:36px;">#</th>
+          <th style="width:36px;"><input type="checkbox" class="att-cb" id="cb-all" onclick="toggleSelectAll(this.checked)"></th>
+          <th style="width:30px;">#</th>
           <th>이름</th>
           <th>상태</th>
           <th>학부모 전화번호</th>
@@ -203,7 +248,7 @@ tr:hover td{background:#fafbff;}
         </tr>
       </thead>
       <tbody id="att-tbody">
-        <tr><td colspan="7" class="empty">불러오는 중...</td></tr>
+        <tr><td colspan="8" class="empty">불러오는 중...</td></tr>
       </tbody>
     </table>
   </div>
@@ -374,11 +419,92 @@ function getSessionStudents(){
     .sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ko');});
 }
 
+var selectedIds=new Set();
+
+function toggleSelect(id, checked){
+  if(checked) selectedIds.add(id); else selectedIds.delete(id);
+  updateSelBar();
+}
+function toggleSelectAll(checked){
+  getSessionStudents().forEach(function(st){
+    if(checked) selectedIds.add(st.id); else selectedIds.delete(st.id);
+    var cb=document.getElementById('cb-'+st.id);
+    if(cb) cb.checked=checked;
+  });
+  updateSelBar();
+}
+function clearSelection(){
+  selectedIds.clear();
+  document.querySelectorAll('.att-cb-row').forEach(function(cb){cb.checked=false;});
+  var cbAll=document.getElementById('cb-all');
+  if(cbAll) cbAll.checked=false;
+  updateSelBar();
+}
+function updateSelBar(){
+  var n=selectedIds.size;
+  var bar=document.getElementById('sel-bar');
+  if(n>0){bar.classList.add('show');}else{bar.classList.remove('show');closeAllDropdowns();}
+  document.getElementById('sel-bar-count').textContent=n+'명을 대상으로';
+  var cbAll=document.getElementById('cb-all');
+  if(cbAll){var total=getSessionStudents().length;cbAll.checked=total>0&&n>=total;cbAll.indeterminate=n>0&&n<total;}
+}
+function toggleDropdown(id){
+  closeAllDropdowns(id);
+  document.getElementById(id).classList.toggle('show');
+}
+function closeAllDropdowns(except){
+  document.querySelectorAll('.dropdown-menu').forEach(function(m){if(m.id!==except)m.classList.remove('show');});
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.rel-wrap')) closeAllDropdowns();
+});
+
+function bulkChangeAtt(status){
+  closeAllDropdowns();
+  selectedIds.forEach(function(id){setAtt(id,status);});
+}
+
+function sendResults(){
+  closeAllDropdowns();
+  alert('수업 결과 발송 기능은 준비 중입니다.');
+}
+
+function downloadExcel(){
+  closeAllDropdowns();
+  var sesStu=getSessionStudents().filter(function(st){return selectedIds.has(st.id);});
+  if(!sesStu.length)sesStu=getSessionStudents();
+  var rows=[['이름','상태','학부모 전화번호','학생 전화번호','메모']];
+  sesStu.forEach(function(st){
+    var att=attMap[st.id]||{status:'미정',memo:''};
+    rows.push([st.name,att.status||'미정',st.parentPhone||'',st.studentPhone||'',att.memo||'']);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'출석');
+  var fname=(classInfo?classInfo.name:'')+(sessionInfo?' '+sessionInfo.sessionNum+'차시':'')+'_출석.xlsx';
+  XLSX.writeFile(wb,fname);
+}
+
+async function removeParticipants(){
+  closeAllDropdowns();
+  if(!selectedIds.size){alert('제거할 학생을 선택하세요.');return;}
+  if(!confirm(selectedIds.size+'명을 이 차시에서 제거하시겠습니까?'))return;
+  for(var id of selectedIds){
+    delete attMap[id];
+    fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'removeAttendance',sessionId:sessionId,studentId:id})});
+  }
+  selectedIds.clear();
+  renderAttendance();
+  updateStats();
+  updateSelBar();
+}
+
 function renderAttendance(){
   const tbody=document.getElementById('att-tbody');
   var sesStu=getSessionStudents();
   if(!sesStu.length){
-    tbody.innerHTML='<tr><td colspan="7"><div class="empty-state">'
+    tbody.innerHTML='<tr><td colspan="8"><div class="empty-state">'
       +'<div class="empty-icon">📢</div>'
       +'<div class="empty-text">추가된 학생이 없어요.</div>'
       +(session.role==='teacher'?'<button class="btn-add-stu" onclick="openAddStudentModal()">학생 추가하기</button>':'')
@@ -391,11 +517,13 @@ function renderAttendance(){
     var att=attMap[st.id]||{status:'미정',memo:''};
     var status=att.status||'미정';
     var memo=att.memo||'';
+    var checked=selectedIds.has(st.id);
     var btns=ATT_TYPES.map(function(t){
       var cls=(status===t)?'att-btn active-'+t:'att-btn';
       return '<button class="'+cls+'" onclick="setAtt(\''+st.id+'\',\''+t+'\')">'+t+'</button>';
     }).join('');
     return '<tr id="att-row-'+st.id+'">'+
+      '<td><input type="checkbox" class="att-cb att-cb-row" id="cb-'+st.id+'" '+(checked?'checked':'')+' onclick="toggleSelect(\''+st.id+'\',this.checked)"></td>'+
       '<td style="color:#94a3b8;font-weight:600;">'+(i+1)+'</td>'+
       '<td><span class="stu-name">'+st.name+'</span></td>'+
       '<td><span class="status-badge s'+status+'" id="att-badge-'+st.id+'">'+status+'</span></td>'+

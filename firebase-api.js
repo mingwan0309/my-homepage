@@ -465,6 +465,11 @@ api.setAttendance = function(db, p){
   }).then(function(){ return { success:true }; });
 };
 
+api.removeAttendance = function(db, p){
+  var key = String(p.sessionId) + '__' + String(p.studentId);
+  return db.collection('attendance').doc(key).delete().then(function(){ return { success:true }; });
+};
+
 api.getAttendance = function(db, p){
   return db.collection('attendance').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
     var att = docsToArr(snap).map(function(r){
