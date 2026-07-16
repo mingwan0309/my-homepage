@@ -595,13 +595,18 @@ function renderStudents(){
 }
 
 async function loadAttendanceAsync(){
-  if(!sessions.length) return;
+  if(!sessions.length){
+    students.forEach(function(st){var el=document.getElementById('att-'+st.id);if(el)el.innerHTML='<span style="color:#cbd5e1;font-size:10px;">-</span>';});
+    return;
+  }
+  attMapGlobal={};
+  students.forEach(function(st){attMapGlobal[st.id]=[];});
   try{
-    var attResults=await Promise.all(sessions.map(function(s){return fetch(SU+'?action=getAttendance&sessionId='+s.id).then(function(r){return r.json();});}));
-    attMapGlobal={};
-    students.forEach(function(st){attMapGlobal[st.id]=[];});
+    var results=await Promise.allSettled(sessions.map(function(s){
+      return fetch(SU+'?action=getAttendance&sessionId='+s.id).then(function(r){return r.json();});
+    }));
     sessions.forEach(function(s,i){
-      var att=attResults[i].attendance||[];
+      var att=(results[i].status==='fulfilled'?(results[i].value.attendance||[]):[]);
       students.forEach(function(st){
         var found=att.find(function(a){return a.studentId===st.id;});
         attMapGlobal[st.id].push({sessionNum:s.sessionNum,date:s.date,status:found?found.status:'미정'});
@@ -614,7 +619,9 @@ async function loadAttendanceAsync(){
       var chips=data.map(function(d){return '<span class="att-chip-sm s'+d.status+'" title="'+d.sessionNum+'차시 '+d.status+'">'+d.status.substring(0,1)+'</span>';}).join('');
       el.innerHTML=chips||'<span style="color:#cbd5e1;font-size:10px;">-</span>';
     });
-  }catch(e){}
+  }catch(e){
+    students.forEach(function(st){var el=document.getElementById('att-'+st.id);if(el)el.innerHTML='<span style="color:#cbd5e1;font-size:10px;">-</span>';});
+  }
 }
 
 // ── 탭 전환 ──
@@ -1142,8 +1149,8 @@ function openStudentDetail(studentId){
       +'</div>';
   }
   document.getElementById('sp-info-grid').innerHTML=
-    infoItem('학생 전화번호',st.studentPhone,true)
-    +infoItem('학부모 전화번호',st.parentPhone,true)
+    infoItem('학부모 전화번호',st.parentPhone,true)
+    +infoItem('학생 전화번호',st.studentPhone,true)
     +infoItem('학교',st.school,false)
     +infoItem('학년',st.grade,false)
     +infoItem('성별',st.gender,false)
@@ -1190,8 +1197,8 @@ async function loadStudentQna(studentId){
   el.innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">로딩 중...</div>';
   try{
     var db=await window.mkdbReady;
-    var snap=await db.collection('qna').where('studentId','==',String(studentId)).orderBy('createdAt','desc').get();
-    var items=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    var snap=await db.collection('qna').where('studentId','==',String(studentId)).get();
+    var items=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}).sort(function(a,b){return (b.createdAt||'').localeCompare(a.createdAt||'');});
     if(!items.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">질문 이력이 없습니다.</div>';el.dataset.loaded=studentId;return;}
     el.innerHTML=items.map(function(q){
       return '<div class="qna-item">'
@@ -1245,7 +1252,7 @@ async function saveStudent(){
 // ── 엑셀 일괄 등록 ──
 function downloadExcelTemplate(){
   var ws=XLSX.utils.aoa_to_sheet([
-    ['이름','학생전화번호','학부모전화번호','학교','학년','성별','초기비밀번호'],
+    ['이름','학부모전화번호','학생전화번호','학교','학년','성별','초기비밀번호'],
     ['홍길동','01012345678','01098765432','○○중학교','중3','남','1234']
   ]);
   var wb=XLSX.utils.book_new();
