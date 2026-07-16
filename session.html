@@ -862,8 +862,9 @@ function togglePass(p){
 var GRADE_PCTS=[0.10,0.34,0.66,0.90];
 function calcGrade(rank,total){
   if(!total)return null;
-  var pct=rank/total;
-  for(var i=0;i<GRADE_PCTS.length;i++){if(pct<=GRADE_PCTS[i])return i+1;}
+  // 각 등급 최대 인원 (최소 1명 보장)
+  var cuts=GRADE_PCTS.map(function(p){return Math.max(1,Math.ceil(total*p));});
+  for(var i=0;i<cuts.length;i++){if(rank<=cuts[i])return i+1;}
   return null;
 }
 function renderPanelStats(examId, myScore){
