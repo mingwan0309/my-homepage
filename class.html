@@ -1113,14 +1113,13 @@ async function saveStudent(){
 
 // ── 엑셀 일괄 등록 ──
 function downloadExcelTemplate(){
-  var header=['이름','학생전화번호','학부모전화번호','학교','학년','성별','초기비밀번호'];
-  var example=['홍길동','01012345678','01098765432','○○중학교','중3','남','1234'];
-  var csv='﻿'+header.join(',')+'\n'+example.join(',')+'\n';
-  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='학생등록양식.csv';
-  a.click();
+  var ws=XLSX.utils.aoa_to_sheet([
+    ['이름','학생전화번호','학부모전화번호','학교','학년','성별','초기비밀번호'],
+    ['홍길동','01012345678','01098765432','○○중학교','중3','남','1234']
+  ]);
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'학생목록');
+  XLSX.writeFile(wb,'학생등록양식.xlsx');
 }
 
 function openExcelImport(){
