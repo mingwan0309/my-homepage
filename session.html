@@ -101,6 +101,46 @@ tr:hover td{background:#fafbff;}
 .done-badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;background:#dcfce7;color:#16a34a;}
 
 .empty{text-align:center;padding:48px;color:#94a3b8;font-size:14px;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;gap:16px;}
+.empty-icon{font-size:36px;color:#cbd5e1;}
+.empty-text{color:#94a3b8;font-size:14px;}
+.btn-add-stu{background:#3b6cf7;color:#fff;border:none;padding:11px 24px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;}
+
+/* 학생 추가 모달 (대형 split panel) */
+.sam-wrap{background:#fff;border-radius:16px;width:92%;max-width:1060px;height:82vh;display:flex;overflow:hidden;}
+.sam-left{flex:1;min-width:0;display:flex;flex-direction:column;border-right:1px solid #e2e8f0;}
+.sam-left-head{padding:20px 24px 0;border-bottom:1px solid #e2e8f0;}
+.sam-left-title{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:14px;}
+.sam-tabs{display:flex;gap:0;}
+.sam-tab{padding:9px 16px;font-size:13px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.sam-tab.active{color:#3b6cf7;border-bottom-color:#3b6cf7;}
+.sam-search-wrap{padding:12px 24px;border-bottom:1px solid #f1f5f9;}
+.sam-search{width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;}
+.sam-search:focus{border-color:#3b6cf7;}
+.sam-list{flex:1;overflow-y:auto;padding:0;}
+.sam-list-item{display:flex;align-items:center;gap:12px;padding:11px 24px;border-bottom:1px solid #f8fafc;cursor:pointer;transition:.1s;}
+.sam-list-item:hover{background:#f8fafc;}
+.sam-list-item.selected{background:#eff4ff;}
+.sam-cb{width:16px;height:16px;flex-shrink:0;accent-color:#3b6cf7;cursor:pointer;}
+.sam-stu-name{font-size:13px;font-weight:600;color:#1e293b;min-width:70px;}
+.sam-stu-info{font-size:12px;color:#94a3b8;flex:1;}
+.sam-already{font-size:11px;color:#3b6cf7;background:#eff4ff;border-radius:4px;padding:1px 6px;white-space:nowrap;}
+.sam-right{width:280px;flex-shrink:0;display:flex;flex-direction:column;background:#f8fafc;}
+.sam-load-section{padding:18px 18px 14px;border-bottom:1px solid #e2e8f0;}
+.sam-load-title{font-size:12px;font-weight:700;color:#94a3b8;margin-bottom:10px;}
+.sam-load-btn{display:block;width:100%;padding:8px 14px;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;color:#334155;cursor:pointer;margin-bottom:7px;text-align:left;}
+.sam-load-btn:hover{border-color:#3b6cf7;color:#3b6cf7;}
+.sam-sel-section{flex:1;overflow-y:auto;padding:14px 18px 0;}
+.sam-sel-title{font-size:12px;font-weight:700;color:#94a3b8;margin-bottom:8px;}
+.sam-sel-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:30px 0;color:#94a3b8;font-size:13px;}
+.sam-sel-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9;}
+.sam-sel-num{font-size:12px;color:#94a3b8;width:18px;}
+.sam-sel-name{flex:1;font-size:13px;font-weight:600;color:#1e293b;}
+.sam-sel-del{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:14px;padding:0;}
+.sam-sel-del:hover{color:#dc2626;}
+.sam-foot{padding:14px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;}
+.sam-btn-cl{flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:600;color:#64748b;}
+.sam-btn-ok{flex:1;padding:10px;background:#3b6cf7;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;}
 
 /* MODAL */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;}
@@ -146,7 +186,8 @@ tr:hover td{background:#fafbff;}
     <div class="card-header">
       <div class="card-title">출석 관리</div>
       <div style="display:flex;gap:8px;align-items:center;">
-        <button class="btn-add-exam" style="border-style:solid;" onclick="setAllAttendance('현장')">전원 현장</button>
+        <button id="btn-add-stu-top" class="btn-add-exam" style="border-style:solid;display:none;" onclick="openAddStudentModal()">+ 학생 추가</button>
+        <button id="btn-all-present" class="btn-add-exam" style="border-style:solid;display:none;" onclick="setAllAttendance('현장')">전원 현장</button>
       </div>
     </div>
     <table>
@@ -211,6 +252,47 @@ tr:hover td{background:#fafbff;}
 </div>
 </div>
 
+<!-- 학생 추가 모달 -->
+<div class="modal-bg" id="add-stu-modal" onclick="if(event.target===this)closeSamModal()">
+  <div class="sam-wrap">
+    <div class="sam-left">
+      <div class="sam-left-head">
+        <div class="sam-left-title">전체 학생 명단</div>
+        <div class="sam-tabs">
+          <div class="sam-tab active" onclick="switchSamTab('existing',this)">기존 학생 추가</div>
+          <div class="sam-tab" onclick="switchSamTab('new',this)">신규 학생 추가</div>
+        </div>
+      </div>
+      <div class="sam-search-wrap" id="sam-search-wrap">
+        <input class="sam-search" id="sam-search-input" placeholder="검색어 입력 (이름, 전화번호)" oninput="renderSamList()">
+      </div>
+      <div class="sam-list" id="sam-list">
+        <div style="text-align:center;padding:40px;color:#94a3b8;">불러오는 중...</div>
+      </div>
+      <div id="sam-new-tab" style="display:none;flex:1;overflow-y:auto;padding:24px;">
+        <p style="font-size:13px;color:#64748b;margin-bottom:18px;">신규 학생을 등록하려면 반 페이지에서 먼저 학생을 추가하세요.<br>추가 후 이 화면에서 기존 학생 추가로 불러올 수 있습니다.</p>
+        <a href="class.html?id=" id="sam-class-link" style="display:inline-block;background:#3b6cf7;color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;">반 페이지로 이동</a>
+      </div>
+    </div>
+    <div class="sam-right">
+      <div class="sam-load-section">
+        <div class="sam-load-title">불러오기</div>
+        <button class="sam-load-btn" onclick="loadFromPrevSession()">📋 직전 차시에서</button>
+      </div>
+      <div class="sam-sel-section">
+        <div class="sam-sel-title">선택 목록</div>
+        <div id="sam-sel-list">
+          <div class="sam-sel-empty"><span>📢</span><span>선택한 학생이 없어요.</span></div>
+        </div>
+      </div>
+      <div class="sam-foot">
+        <button class="sam-btn-cl" onclick="closeSamModal()">취소</button>
+        <button class="sam-btn-ok" onclick="confirmAddStudents()">확인</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 시험 추가 모달 -->
 <div class="modal-bg" id="add-exam-modal">
   <div class="modal">
@@ -234,8 +316,9 @@ if(!session||session.role!=='teacher'){location.href='homework.html';}
 
 const ATT_TYPES=['출석','지각','영상대체','보강','조퇴','결석','부재','퇴원'];
 
-var sessionInfo=null, classInfo=null, students=[], attMap={}, exams=[], scoresMap={};
+var sessionInfo=null, classInfo=null, students=[], classSessions=[], attMap={}, exams=[], scoresMap={};
 var panelStudentId='', panelExamId='', panelPass='';
+var allSystemStudents=[], samSelected=[], samLoaded=false;
 
 function goBack(){location.href='class.html?id='+encodeURIComponent(classId);}
 
@@ -248,27 +331,30 @@ function formatDate(d){
 
 async function init(){
   if(!sessionId||!classId){goBack();return;}
-  const [sesr, clsr] = await Promise.all([
+  const [sesr, clsr, sssr] = await Promise.all([
     fetch(SU+'?action=getSession&id='+encodeURIComponent(sessionId)).then(r=>r.json()),
-    fetch(SU+'?action=getClassStudents&classId='+encodeURIComponent(classId)).then(r=>r.json())
+    fetch(SU+'?action=getClassStudents&classId='+encodeURIComponent(classId)).then(r=>r.json()),
+    fetch(SU+'?action=getSessions&classId='+encodeURIComponent(classId)).then(r=>r.json())
   ]);
   if(!sesr.success||!clsr.classInfo){goBack();return;}
   sessionInfo=sesr.session;
   classInfo=clsr.classInfo;
   students=clsr.students||[];
+  classSessions=sssr.sessions||[];
 
   document.getElementById('header-class').textContent=classInfo.name;
   document.getElementById('header-session').textContent=sessionInfo.sessionNum+'차시';
   document.getElementById('stat-date').textContent=formatDate(sessionInfo.date);
-  document.getElementById('stat-total').textContent=students.length+'명';
   document.title=classInfo.name+' '+sessionInfo.sessionNum+'차시 — 김민관 수학';
 
-  // 선생님 아니면 출석/성적 수정 숨김
-  if(session.role!=='teacher'){
-    var addExamBtn=document.getElementById('add-exam-btn');
-    if(addExamBtn)addExamBtn.style.display='none';
-    var setAllBtn=document.querySelector('.btn-add-exam[onclick*="setAll"]');
-    if(setAllBtn)setAllBtn.style.display='none';
+  var link=document.getElementById('sam-class-link');
+  if(link) link.href='class.html?id='+encodeURIComponent(classId);
+
+  if(session.role==='teacher'){
+    document.getElementById('btn-add-stu-top').style.display='';
+    document.getElementById('btn-all-present').style.display='';
+  } else {
+    document.getElementById('add-exam-btn').style.display='none';
   }
 
   await loadAttendance();
@@ -283,10 +369,25 @@ async function loadAttendance(){
   updateStats();
 }
 
+function getSessionStudents(){
+  return students.filter(function(st){return attMap[st.id]!==undefined;})
+    .sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ko');});
+}
+
 function renderAttendance(){
   const tbody=document.getElementById('att-tbody');
-  if(!students.length){tbody.innerHTML='<tr><td colspan="7" class="empty">수강생이 없습니다</td></tr>';return;}
-  tbody.innerHTML=students.map(function(st,i){
+  var sesStu=getSessionStudents();
+  if(!sesStu.length){
+    tbody.innerHTML='<tr><td colspan="7"><div class="empty-state">'
+      +'<div class="empty-icon">📢</div>'
+      +'<div class="empty-text">추가된 학생이 없어요.</div>'
+      +(session.role==='teacher'?'<button class="btn-add-stu" onclick="openAddStudentModal()">학생 추가하기</button>':'')
+      +'</div></td></tr>';
+    document.getElementById('stat-total').textContent='0명';
+    return;
+  }
+  document.getElementById('stat-total').textContent=sesStu.length+'명';
+  tbody.innerHTML=sesStu.map(function(st,i){
     var att=attMap[st.id]||{status:'미정',memo:''};
     var status=att.status||'미정';
     var memo=att.memo||'';
@@ -334,14 +435,127 @@ async function saveMemo(studentId, memo){
 
 function setAllAttendance(status){
   if(session.role!=='teacher')return;
-  students.forEach(function(st){setAtt(st.id,status);});
+  getSessionStudents().forEach(function(st){setAtt(st.id,status);});
 }
 
 function updateStats(){
-  var present=Object.values(attMap).filter(function(a){return a.status==='현장';}).length;
-  var unknown=students.filter(function(st){return !attMap[st.id]||!attMap[st.id].status||attMap[st.id].status==='미정';}).length;
+  var sesStu=getSessionStudents();
+  var present=sesStu.filter(function(st){return attMap[st.id]&&attMap[st.id].status==='현장';}).length;
+  var unknown=sesStu.filter(function(st){return !attMap[st.id]||attMap[st.id].status==='미정';}).length;
   document.getElementById('stat-present').textContent=present+'명';
   document.getElementById('stat-unknown').textContent=unknown+'명';
+}
+
+// ── 학생 추가 모달 ──
+async function openAddStudentModal(){
+  samSelected=[];
+  document.getElementById('add-stu-modal').classList.add('show');
+  document.getElementById('sam-search-input').value='';
+  switchSamTab('existing', document.querySelector('.sam-tab'));
+  renderSamSelected();
+  if(!samLoaded){
+    document.getElementById('sam-list').innerHTML='<div style="text-align:center;padding:40px;color:#94a3b8;">불러오는 중...</div>';
+    try{
+      var r=await fetch(SU+'?action=getStudents').then(function(r){return r.json();});
+      allSystemStudents=(r.students||[]).sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ko');});
+      samLoaded=true;
+    }catch(e){allSystemStudents=students;}
+    renderSamList();
+  } else {
+    renderSamList();
+  }
+}
+function closeSamModal(){document.getElementById('add-stu-modal').classList.remove('show');}
+
+function switchSamTab(tab, el){
+  document.querySelectorAll('.sam-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('sam-search-wrap').style.display=tab==='existing'?'':'none';
+  document.getElementById('sam-list').style.display=tab==='existing'?'':'none';
+  document.getElementById('sam-new-tab').style.display=tab==='new'?'block':'none';
+  if(tab==='existing') renderSamList();
+}
+
+function renderSamList(){
+  var q=(document.getElementById('sam-search-input').value||'').trim().toLowerCase();
+  var list=allSystemStudents.filter(function(st){
+    if(!q)return true;
+    return (st.name||'').toLowerCase().indexOf(q)>=0||(st.studentPhone||'').indexOf(q)>=0;
+  });
+  if(!list.length){document.getElementById('sam-list').innerHTML='<div style="text-align:center;padding:40px;color:#94a3b8;">검색 결과가 없습니다.</div>';return;}
+  document.getElementById('sam-list').innerHTML=list.map(function(st){
+    var already=attMap[st.id]!==undefined;
+    var sel=samSelected.indexOf(st.id)>=0;
+    return '<div class="sam-list-item'+(sel?' selected':'')+'" onclick="toggleSamStudent(\''+st.id+'\')">'
+      +'<input type="checkbox" class="sam-cb" '+(sel||already?'checked':'')+' '+(already?'disabled':'')+' onclick="event.stopPropagation();toggleSamStudent(\''+st.id+'\')">'
+      +'<span class="sam-stu-name">'+st.name+'</span>'
+      +'<span class="sam-stu-info">'+(st.parentPhone||'')+(st.school?' · '+st.school:'')+'</span>'
+      +(already?'<span class="sam-already">이미 추가됨</span>':'')
+      +'</div>';
+  }).join('');
+}
+
+function toggleSamStudent(studentId){
+  var st=allSystemStudents.find(function(s){return s.id===studentId;});
+  if(!st||attMap[studentId]!==undefined)return;
+  var idx=samSelected.indexOf(studentId);
+  if(idx>=0){samSelected.splice(idx,1);}else{samSelected.push(studentId);}
+  renderSamList();
+  renderSamSelected();
+}
+
+function renderSamSelected(){
+  var el=document.getElementById('sam-sel-list');
+  if(!samSelected.length){el.innerHTML='<div class="sam-sel-empty"><span>📢</span><span>선택한 학생이 없어요.</span></div>';return;}
+  el.innerHTML=samSelected.map(function(id,i){
+    var st=allSystemStudents.find(function(s){return s.id===id;})||{name:id};
+    return '<div class="sam-sel-item">'
+      +'<span class="sam-sel-num">'+(i+1)+'</span>'
+      +'<span class="sam-sel-name">'+st.name+'</span>'
+      +'<button class="sam-sel-del" onclick="removeSamStudent(\''+id+'\')">🗑</button>'
+      +'</div>';
+  }).join('');
+}
+
+function removeSamStudent(id){
+  samSelected=samSelected.filter(function(s){return s!==id;});
+  renderSamList();
+  renderSamSelected();
+}
+
+async function loadFromPrevSession(){
+  var cur=sessionInfo.sessionNum;
+  var prev=classSessions.find(function(s){return s.sessionNum===cur-1;});
+  if(!prev){alert('직전 차시가 없습니다.');return;}
+  try{
+    var r=await fetch(SU+'?action=getAttendance&sessionId='+encodeURIComponent(prev.id)).then(function(r){return r.json();});
+    var prevStudentIds=(r.attendance||[]).map(function(a){return a.studentId;});
+    prevStudentIds.forEach(function(id){
+      if(attMap[id]===undefined&&samSelected.indexOf(id)<0) samSelected.push(id);
+    });
+    renderSamList();
+    renderSamSelected();
+    if(!prevStudentIds.length)alert('직전 차시에 등록된 학생이 없습니다.');
+  }catch(e){alert('불러오기 실패');}
+}
+
+async function confirmAddStudents(){
+  if(!samSelected.length){closeSamModal();return;}
+  for(var i=0;i<samSelected.length;i++){
+    var id=samSelected[i];
+    attMap[id]={status:'미정',memo:''};
+    await fetch(SU+'?action=setAttendance&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(id)+'&status=미정&memo=');
+  }
+  // 새로 추가된 학생이 students 배열에 없으면 allSystemStudents에서 가져와 추가
+  samSelected.forEach(function(id){
+    if(!students.find(function(s){return s.id===id;})){
+      var st=allSystemStudents.find(function(s){return s.id===id;});
+      if(st)students.push(st);
+    }
+  });
+  closeSamModal();
+  renderAttendance();
+  updateStats();
 }
 
 // 성적
