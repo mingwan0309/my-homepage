@@ -302,7 +302,7 @@ tr:hover td{background:#fafbff;}
         </div>
       </div>
     </div>
-    <div class="score-panel" id="score-panel" style="display:none;">
+    <div class="score-panel" id="score-panel">
       <h3 id="panel-exam-name">시험명</h3>
       <div class="sub" id="panel-sub"></div>
       <div class="score-input-wrap">
@@ -859,10 +859,9 @@ function renderScores(){
 }
 
 function openPanel(studentId, examId){
-  try{
   var exam=exams.find(function(e){return e.id===examId;});
   var st=students.find(function(s){return s.id===studentId;});
-  if(!exam||!st){alert('찾기 실패: exam='+!!exam+' st='+!!st+' exams='+exams.length+' students='+students.length);return;}
+  if(!exam||!st)return;
   panelStudentId=studentId; panelExamId=examId; panelPass='';
   document.getElementById('panel-exam-name').textContent=exam.name;
   document.getElementById('panel-sub').textContent=classInfo.name+' '+sessionInfo.sessionNum+'차시, '+st.name;
@@ -873,7 +872,6 @@ function openPanel(studentId, examId){
   updatePassBtns();
   renderPanelStats(examId, sc&&sc.score!==''?sc.score:'');
   document.getElementById('score-panel').classList.add('open');
-  }catch(e){alert('오류: '+e.message);}
 }
 
 function closePanel(){
@@ -954,7 +952,6 @@ function renderPanelStats(examId, myScore){
 function updatePassBtns(){
   document.getElementById('btn-submit').className='pass-btn'+(panelPass==='submit'?' submit-active':'');
   document.getElementById('btn-nosub').className='pass-btn'+(panelPass==='nosub'?' nosub-active':'');
-  document.getElementById('btn-partial').className='pass-btn'+(panelPass==='partial'?' partial-active':'');
 }
 
 async function saveScore(){
