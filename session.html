@@ -76,9 +76,10 @@ tr:hover td{background:#fafbff;}
 .memo-input:focus{border-color:#3b6cf7;}
 
 /* 성적 */
-.score-layout{display:flex;gap:16px;}
-.score-table-wrap{flex:1;min-width:0;overflow-x:auto;}
-.score-panel{width:300px;flex-shrink:0;background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.06);padding:20px;position:sticky;top:20px;align-self:flex-start;}
+.score-layout{display:block;}
+.score-table-wrap{overflow-x:auto;}
+.score-panel{position:fixed;top:0;right:-380px;width:360px;height:100vh;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,0.12);padding:24px 20px;overflow-y:auto;z-index:400;transition:right .25s ease;box-sizing:border-box;}
+.score-panel.open{right:0;}
 .score-panel h3{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:4px;}
 .score-panel .sub{font-size:12px;color:#94a3b8;margin-bottom:16px;}
 .score-input-wrap{margin-bottom:12px;}
@@ -870,11 +871,11 @@ function openPanel(studentId, examId){
   document.getElementById('panel-feedback').value=sc?sc.feedback||'':'';
   updatePassBtns();
   renderPanelStats(examId, sc&&sc.score!==''?sc.score:'');
-  document.getElementById('score-panel').style.display='block';
+  document.getElementById('score-panel').classList.add('open');
 }
 
 function closePanel(){
-  document.getElementById('score-panel').style.display='none';
+  document.getElementById('score-panel').classList.remove('open');
   panelStudentId=''; panelExamId=''; panelPass='';
 }
 
