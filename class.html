@@ -76,6 +76,8 @@ tr:hover td{background:#fafbff;}
 
 /* 수강생 클릭 상세 패널 */
 .stu-name-link{font-weight:700;color:#1e293b;cursor:pointer;text-decoration:none;}
+.phone-copy{cursor:pointer;color:#3b6cf7;}
+.phone-copy:hover{text-decoration:underline;}
 .stu-name-link:hover{color:#3b6cf7;text-decoration:underline;}
 .att-chips-wrap{display:flex;gap:2px;overflow-x:auto;max-width:340px;scrollbar-width:none;padding-bottom:2px;}
 .att-chips-wrap::-webkit-scrollbar{display:none;}
@@ -584,8 +586,8 @@ function renderStudents(){
       return '<tr id="stu-row-'+st.id+'">'
         +'<td style="color:#94a3b8;font-weight:600;font-size:12px;">'+(idx+1)+'</td>'
         +'<td><span class="stu-name-link" onclick="openStudentDetail(\''+st.id+'\')">'+escHtml(st.name)+'</span></td>'
-        +'<td class="stu-phone">'+(st.parentPhone||'-')+'</td>'
-        +'<td class="stu-phone">'+(st.studentPhone||'-')+'</td>'
+        +'<td class="stu-phone">'+(st.parentPhone?'<span class="phone-copy" onclick="copyText(\''+st.parentPhone+'\')" title="클릭하여 복사">'+st.parentPhone+'</span>':'-')+'</td>'
+        +'<td class="stu-phone">'+(st.studentPhone?'<span class="phone-copy" onclick="copyText(\''+st.studentPhone+'\')" title="클릭하여 복사">'+st.studentPhone+'</span>':'-')+'</td>'
         +'<td style="font-size:12px;color:#475569;">'+(st.school||'-')+'</td>'
         +'<td style="padding:8px 14px;"><div class="att-chips-wrap" id="att-'+st.id+'"><span style="color:#cbd5e1;font-size:10px;">로딩...</span></div></td>'
         +'</tr>';
