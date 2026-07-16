@@ -830,7 +830,9 @@ function renderScores(){
       var sc=(scoresMap[st.id]||{})[ex.id];
       if(sc&&sc.score!==''){
         var passIcon=sc.pass==='submit'?'<span style="color:#16a34a;font-size:10px;"> 통과</span>':sc.pass==='nosub'?'<span style="color:#dc2626;font-size:10px;"> 미통과</span>':'';
-        return '<td class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+sc.score+'점'+passIcon+'</td>';
+        var scoreUnit=(ex.scoreType||'score')==='count'?'개':'점';
+        var scoreDisp=ex.totalQuestions&&ex.scoreType==='count'?sc.score+'/'+ex.totalQuestions+'개':sc.score+scoreUnit;
+        return '<td class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+scoreDisp+passIcon+'</td>';
       }
       return '<td class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">—</td>';
     }).join('');
