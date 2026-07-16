@@ -525,20 +525,18 @@ async function doDeleteAnswer() {
 }
 
 function editQuestion() {
-  // 작성 폼을 수정 모드로 열기
+  // showWrite()가 폼을 초기화하므로 먼저 열고 그 다음 값 채움
+  showWrite();
   document.getElementById('write-title').value = currentQuestion.title || '';
   document.getElementById('write-editor').innerHTML = currentQuestion.content || '';
   var secretChk = document.getElementById('write-secret');
   if (secretChk) secretChk.checked = currentQuestion.secret === true || String(currentQuestion.secret) === 'true';
-  // 제목 변경
   document.querySelector('#view-write .write-title-h').textContent = '질문 수정';
-  // 제출 버튼을 수정 제출로 교체
   var submitBtn = document.getElementById('write-save-btn');
   if (submitBtn) {
     submitBtn.textContent = '수정 완료';
     submitBtn.onclick = submitEditQuestion;
   }
-  showWrite();
 }
 
 async function submitEditQuestion() {
