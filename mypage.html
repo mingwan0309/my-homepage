@@ -184,8 +184,7 @@ a{text-decoration:none;}
     <div id="tab-settings" style="display:none;">
       <div class="card">
         <div class="card-title"><span>🔑</span> 비밀번호 변경</div>
-        <div id="pw-type-notice" style="background:#eff6ff;border-radius:10px;padding:11px 14px;font-size:13px;color:#1d4ed8;margin-bottom:16px;display:none;"></div>
-        <div class="setting-section">
+    <div class="setting-section">
           <div class="setting-label">현재 비밀번호</div>
           <input type="password" id="old-pw" class="setting-input" placeholder="현재 비밀번호">
         </div>
@@ -228,14 +227,7 @@ document.addEventListener('DOMContentLoaded', async function(){
 
   document.getElementById('page-main').style.display = 'block';
 
-  // 설정탭 안내
-  if (session.authId && session.authId !== session.id) {
-    var n = document.getElementById('pw-type-notice');
-    n.style.display = 'block';
-    n.textContent = '💡 학부모 계정으로 로그인 중입니다. 변경 시 학부모 비밀번호만 바뀝니다. 학생 비밀번호는 학생이 직접 변경해야 합니다.';
-  }
-
-  loadInfo();
+loadInfo();
   loadAttendance();
 });
 
