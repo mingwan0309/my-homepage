@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마이페이지 — 김민관 수학</title>
+<script src="firebase-api.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'맑은 고딕','Apple SD Gothic Neo',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;}
+a{text-decoration:none;}
+
+/* ── 상단 네비 ── */
+#student-nav{display:none;background:#fff;border-bottom:1px solid #e2e8f0;padding:0 20px;gap:4px;align-items:center;position:sticky;top:0;z-index:99;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+#student-nav a{color:#475569;font-size:13px;font-weight:600;text-decoration:none;padding:12px 14px;white-space:nowrap;flex-shrink:0;}
+#student-nav a.home-btn{background:#3b6cf7;color:#fff;border-radius:7px;padding:6px 12px;font-size:12px;margin-right:8px;}
+#student-nav a.active{color:#3b6cf7;border-bottom:2px solid #3b6cf7;}
+
+/* ── 로그인 필요 ── */
+#page-denied{display:none;text-align:center;padding:100px 20px;}
+
+/* ── 메인 ── */
+.container{max-width:760px;margin:0 auto;padding:28px 16px 60px;}
+
+/* 프로필 헤더 */
+.profile-header{background:linear-gradient(135deg,#1d4ed8,#3b6cf7);border-radius:20px;padding:28px 28px 24px;color:#fff;margin-bottom:24px;display:flex;align-items:center;gap:20px;}
+.profile-avatar{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+.profile-name{font-size:22px;font-weight:800;margin-bottom:4px;}
+.profile-sub{font-size:13px;opacity:.85;}
+.profile-badge{display:inline-block;background:rgba(255,255,255,0.2);border-radius:20px;padding:3px 12px;font-size:12px;margin-top:6px;}
+
+/* 탭 */
+.tab-nav{display:flex;gap:6px;margin-bottom:20px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+.tab-nav button{flex-shrink:0;padding:9px 18px;border:none;background:#fff;border-radius:10px;font-size:13px;font-weight:700;color:#64748b;cursor:pointer;transition:.15s;box-shadow:0 1px 4px rgba(0,0,0,.07);}
+.tab-nav button.active{background:#3b6cf7;color:#fff;}
+
+/* 카드 */
+.card{background:#fff;border-radius:16px;padding:22px 20px;margin-bottom:16px;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+.card-title{font-size:15px;font-weight:800;color:#1e293b;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.card-title span{font-size:18px;}
+
+/* 정보 그리드 */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.info-item{background:#f8fafc;border-radius:10px;padding:12px 14px;}
+.info-label{font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:4px;text-transform:uppercase;}
+.info-value{font-size:14px;font-weight:700;color:#1e293b;}
+
+/* 출결 배지 */
+.att-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;}
+.att-badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;}
+.att-출석{background:#dcfce7;color:#16a34a;}
+.att-지각{background:#fef9c3;color:#ca8a04;}
+.att-결석{background:#fee2e2;color:#dc2626;}
+.att-미정{background:#f1f5f9;color:#64748b;}
+
+/* 예약 카드 */
+.booking-item{border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.booking-info{flex:1;}
+.booking-name{font-size:14px;font-weight:700;margin-bottom:3px;}
+.booking-date{font-size:12px;color:#64748b;}
+.booking-status{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;}
+.status-예약{background:#dbeafe;color:#1d4ed8;}
+.status-취소{background:#f1f5f9;color:#94a3b8;text-decoration:line-through;}
+.btn-cancel{border:1px solid #fca5a5;color:#dc2626;background:#fff;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+.btn-cancel:hover{background:#fee2e2;}
+
+/* 퀴즈 기록 */
+.quiz-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;}
+.quiz-item:last-child{border-bottom:none;}
+.quiz-score-circle{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;}
+.score-high{background:#dcfce7;color:#16a34a;}
+.score-mid{background:#fef9c3;color:#ca8a04;}
+.score-low{background:#fee2e2;color:#dc2626;}
+.quiz-title{font-size:13px;font-weight:700;margin-bottom:2px;}
+.quiz-date{font-size:11px;color:#94a3b8;}
+.quiz-summary{background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:14px;display:flex;justify-content:space-around;text-align:center;}
+.quiz-summary-val{font-size:20px;font-weight:800;color:#3b6cf7;}
+.quiz-summary-lbl{font-size:11px;color:#94a3b8;margin-top:2px;}
+
+/* 영상 진도 */
+.video-item{margin-bottom:14px;}
+.video-name{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;}
+.progress-bar{height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#3b6cf7,#60a5fa);transition:width .4s;}
+.video-meta{font-size:11px;color:#94a3b8;margin-top:3px;}
+
+/* 설정 */
+.setting-section{margin-bottom:20px;}
+.setting-label{font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;}
+.setting-input{width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;font-family:inherit;}
+.setting-input:focus{border-color:#3b6cf7;}
+.setting-hint{font-size:11px;color:#94a3b8;margin-top:4px;}
+.btn-primary{background:#3b6cf7;color:#fff;border:none;border-radius:10px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:4px;}
+.btn-primary:hover{background:#1d4ed8;}
+
+.empty-msg{text-align:center;padding:32px 0;color:#94a3b8;font-size:13px;}
+.spinner{text-align:center;padding:24px 0;color:#94a3b8;font-size:13px;}
+.msg-box{padding:10px 14px;border-radius:10px;font-size:13px;margin-top:10px;display:none;}
+.msg-success{background:#dcfce7;color:#16a34a;}
+.msg-error{background:#fee2e2;color:#dc2626;}
+</style>
+</head>
+<body>
+
+<div id="student-nav">
+  <a href="index.html" class="home-btn">🏠 홈</a>
+  <a href="homework.html">📝 데일리 퀴즈</a>
+  <a href="clinic.html">🏥 클리닉 신청</a>
+  <a href="qna.html">💬 질의응답</a>
+  <a href="textbook.html">📖 부교재 해설 강의</a>
+  <a id="snav-myclass" href="#">📚 내 반</a>
+  <a href="mypage.html" class="active">👤 마이페이지</a>
+</div>
+
+<div id="page-denied">
+  <div style="font-size:48px;margin-bottom:16px;">🔒</div>
+  <h2 style="font-size:18px;font-weight:800;margin-bottom:8px;">로그인이 필요합니다</h2>
+  <p style="color:#64748b;font-size:14px;margin-bottom:20px;">학생 계정으로 로그인 후 이용해주세요.</p>
+  <a href="homework.html" style="display:inline-block;background:#3b6cf7;color:#fff;padding:12px 28px;border-radius:10px;font-weight:700;">로그인하러 가기</a>
+</div>
+
+<div id="page-main" style="display:none;">
+  <div class="container">
+
+    <!-- 프로필 헤더 -->
+    <div class="profile-header">
+      <div class="profile-avatar">👤</div>
+      <div>
+        <div class="profile-name" id="ph-name">—</div>
+        <div class="profile-sub" id="ph-sub">—</div>
+        <div class="profile-badge" id="ph-badge">—</div>
+      </div>
+    </div>
+
+    <!-- 탭 -->
+    <div class="tab-nav">
+      <button class="active" onclick="switchTab('info')">📋 내 정보</button>
+      <button onclick="switchTab('clinic')">🏥 클리닉 예약</button>
+      <button onclick="switchTab('quiz')">📝 퀴즈 기록</button>
+      <button onclick="switchTab('video')">🎬 영상 진도</button>
+      <button onclick="switchTab('settings')">⚙️ 설정</button>
+    </div>
+
+    <!-- 내 정보 탭 -->
+    <div id="tab-info">
+      <div class="card">
+        <div class="card-title"><span>🙋</span> 학생 정보</div>
+        <div class="info-grid" id="info-grid">
+          <div class="spinner">불러오는 중...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>📅</span> 최근 출결</div>
+        <div id="att-list"><div class="spinner">불러오는 중...</div></div>
+      </div>
+    </div>
+
+    <!-- 클리닉 예약 탭 -->
+    <div id="tab-clinic" style="display:none;">
+      <div class="card">
+        <div class="card-title"><span>🏥</span> 클리닉 예약 내역</div>
+        <div id="booking-list"><div class="spinner">불러오는 중...</div></div>
+      </div>
+    </div>
+
+    <!-- 퀴즈 기록 탭 -->
+    <div id="tab-quiz" style="display:none;">
+      <div class="card">
+        <div class="card-title"><span>📝</span> 데일리 퀴즈 기록</div>
+        <div id="quiz-summary-box"></div>
+        <div id="quiz-list"><div class="spinner">불러오는 중...</div></div>
+      </div>
+    </div>
+
+    <!-- 영상 진도 탭 -->
+    <div id="tab-video" style="display:none;">
+      <div class="card">
+        <div class="card-title"><span>🎬</span> 영상 시청 진도</div>
+        <div id="video-list"><div class="spinner">불러오는 중...</div></div>
+      </div>
+    </div>
+
+    <!-- 설정 탭 -->
+    <div id="tab-settings" style="display:none;">
+      <div class="card">
+        <div class="card-title"><span>🔑</span> 비밀번호 변경</div>
+        <div id="pw-type-notice" style="background:#eff6ff;border-radius:10px;padding:11px 14px;font-size:13px;color:#1d4ed8;margin-bottom:16px;display:none;"></div>
+        <div class="setting-section">
+          <div class="setting-label">현재 비밀번호</div>
+          <input type="password" id="old-pw" class="setting-input" placeholder="현재 비밀번호">
+        </div>
+        <div class="setting-section">
+          <div class="setting-label">새 비밀번호</div>
+          <input type="password" id="new-pw" class="setting-input" placeholder="새 비밀번호 (6자 이상)">
+          <div class="setting-hint">※ 새 비밀번호는 6자 이상으로 설정해주세요.</div>
+        </div>
+        <button class="btn-primary" onclick="changePw()">비밀번호 변경</button>
+        <div id="pw-msg" class="msg-box"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>🚪</span> 계정</div>
+        <button onclick="doLogout()" style="width:100%;padding:11px;border:1.5px solid #e2e8f0;background:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;color:#64748b;">로그아웃</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+let session = null;
+
+document.addEventListener('DOMContentLoaded', async function(){
+  session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+  if (!session || session.role !== 'student') {
+    document.getElementById('page-denied').style.display = 'block';
+    return;
+  }
+  // 네비바
+  document.getElementById('student-nav').style.display = 'flex';
+  var mc = document.getElementById('snav-myclass');
+  if (mc && session.classId) mc.href = 'class.html?id=' + session.classId;
+
+  // 프로필 헤더 (기본값 먼저)
+  document.getElementById('ph-name').textContent = session.name || '—';
+  document.getElementById('ph-sub').textContent = session.className ? session.className + ' 수강 중' : '반 미배정';
+  document.getElementById('ph-badge').textContent = session.authId && session.authId !== session.id ? '학부모 로그인 중' : '학생 계정';
+
+  document.getElementById('page-main').style.display = 'block';
+
+  // 설정탭 안내
+  if (session.authId && session.authId !== session.id) {
+    var n = document.getElementById('pw-type-notice');
+    n.style.display = 'block';
+    n.textContent = '💡 학부모 계정으로 로그인 중입니다. 변경 시 학부모 비밀번호만 바뀝니다. 학생 비밀번호는 학생이 직접 변경해야 합니다.';
+  }
+
+  loadInfo();
+  loadAttendance();
+});
+
+// ── 탭 전환 ──
+let loaded = {};
+function switchTab(name) {
+  ['info','clinic','quiz','video','settings'].forEach(function(t){
+    document.getElementById('tab-'+t).style.display = t===name ? '' : 'none';
+  });
+  document.querySelectorAll('.tab-nav button').forEach(function(btn, i){
+    btn.classList.toggle('active', i === ['info','clinic','quiz','video','settings'].indexOf(name));
+  });
+  if (!loaded[name]) {
+    loaded[name] = true;
+    if (name === 'clinic') loadBookings();
+    if (name === 'quiz') loadQuiz();
+    if (name === 'video') loadVideos();
+  }
+}
+
+// ── 내 정보 ──
+async function loadInfo() {
+  try {
+    var db = await window.mkdbReady;
+    var doc = await db.collection('students').doc(session.id).get();
+    if (!doc.exists) return;
+    var d = doc.data();
+    document.getElementById('ph-sub').textContent =
+      (d.school || '') + (d.grade ? ' ' + d.grade : '') + (session.className ? ' · ' + session.className : '');
+    document.getElementById('info-grid').innerHTML =
+      infoItem('이름', d.name || '—') +
+      infoItem('학교', d.school || '—') +
+      infoItem('학년', d.grade || '—') +
+      infoItem('반', session.className || '미배정') +
+      infoItem('학생 번호', session.id) +
+      infoItem('학부모 번호', d.parentPhone || '—');
+  } catch(e) {
+    document.getElementById('info-grid').innerHTML = '<p style="color:#dc2626;font-size:13px;">불러오기 실패</p>';
+  }
+}
+function infoItem(label, value) {
+  return '<div class="info-item"><div class="info-label">'+label+'</div><div class="info-value">'+value+'</div></div>';
+}
+
+// ── 출결 ──
+async function loadAttendance() {
+  if (!session.classId) {
+    document.getElementById('att-list').innerHTML = '<div class="empty-msg">배정된 반이 없습니다.</div>';
+    return;
+  }
+  try {
+    var db = await window.mkdbReady;
+    var [sesSnap, attSnap] = await Promise.all([
+      db.collection('sessions').where('classId','==',String(session.classId)).get(),
+      db.collection('attendance').where('studentId','==',String(session.id)).get()
+    ]);
+    var sessions = [];
+    sesSnap.forEach(function(d){ sessions.push(d.data()); });
+    sessions.sort(function(a,b){ return Number(b.sessionNum)-Number(a.sessionNum); });
+    var attMap = {};
+    attSnap.forEach(function(d){ var v=d.data(); attMap[v.sessionId]=v.status; });
+    var recent = sessions.slice(0,10);
+    if (!recent.length) {
+      document.getElementById('att-list').innerHTML = '<div class="empty-msg">수업 기록이 없습니다.</div>';
+      return;
+    }
+    var html = '';
+    recent.forEach(function(s){
+      var st = attMap[s.id] || '미정';
+      html += '<div class="att-row"><div class="att-badge att-'+st+'">'+st+'</div>'
+            + '<span style="font-size:13px;color:#475569;">' + s.sessionNum + '차시</span>'
+            + (s.date ? '<span style="font-size:12px;color:#94a3b8;">'+s.date+'</span>' : '')
+            + '</div>';
+    });
+    document.getElementById('att-list').innerHTML = html;
+  } catch(e) {
+    document.getElementById('att-list').innerHTML = '<div class="empty-msg">출결 정보를 불러올 수 없습니다.</div>';
+  }
+}
+
+// ── 클리닉 예약 ──
+async function loadBookings() {
+  try {
+    var res = await fetch(SU + '?action=getBookings&studentId=' + encodeURIComponent(session.id));
+    var data = await res.json();
+    var list = (data.bookings || []).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? 1 : -1; });
+    if (!list.length) {
+      document.getElementById('booking-list').innerHTML = '<div class="empty-msg">예약 내역이 없습니다.</div>';
+      return;
+    }
+    var html = '';
+    list.forEach(function(b){
+      var isCancellable = b.status === '예약';
+      var statusCls = b.status === '예약' ? 'status-예약' : 'status-취소';
+      html += '<div class="booking-item">'
+            + '<div class="booking-info">'
+            + '<div class="booking-name">' + (b.clinicName||'클리닉') + '</div>'
+            + '<div class="booking-date">📅 ' + (b.date||'') + ' ' + (b.time||'') + '</div>'
+            + '</div>'
+            + '<span class="booking-status '+statusCls+'">' + (b.status||'예약') + '</span>'
+            + (isCancellable ? '<button class="btn-cancel" onclick="cancelBooking(\''+b.id+'\')">취소</button>' : '')
+            + '</div>';
+    });
+    document.getElementById('booking-list').innerHTML = html;
+  } catch(e) {
+    document.getElementById('booking-list').innerHTML = '<div class="empty-msg">불러오기 실패</div>';
+  }
+}
+
+async function cancelBooking(bookId) {
+  if (!confirm('예약을 취소하시겠습니까?')) return;
+  try {
+    await fetch(SU + '?action=cancelBooking&bookId=' + encodeURIComponent(bookId));
+    loaded.clinic = false;
+    loadBookings();
+  } catch(e) { alert('취소 실패. 다시 시도해주세요.'); }
+}
+
+// ── 퀴즈 기록 ──
+async function loadQuiz() {
+  try {
+    var res = await fetch(SU + '?action=getScores');
+    var data = await res.json();
+    var all = (data.scores || []).filter(function(s){ return s.name === session.name || s.id === session.id; });
+    if (!all.length) {
+      document.getElementById('quiz-list').innerHTML = '<div class="empty-msg">제출 기록이 없습니다.</div>';
+      return;
+    }
+    var totalPct = all.reduce(function(acc, s){ return acc + (Number(s.total) ? Math.round(Number(s.score)/Number(s.total)*100) : 0); }, 0);
+    var avg = Math.round(totalPct / all.length);
+    document.getElementById('quiz-summary-box').innerHTML =
+      '<div class="quiz-summary">'
+      + '<div><div class="quiz-summary-val">'+all.length+'</div><div class="quiz-summary-lbl">총 제출 횟수</div></div>'
+      + '<div><div class="quiz-summary-val">'+avg+'%</div><div class="quiz-summary-lbl">평균 점수</div></div>'
+      + '</div>';
+    var html = '';
+    all.forEach(function(s){
+      var pct = Number(s.total) ? Math.round(Number(s.score)/Number(s.total)*100) : 0;
+      var cls = pct >= 80 ? 'score-high' : pct >= 50 ? 'score-mid' : 'score-low';
+      html += '<div class="quiz-item">'
+            + '<div class="quiz-score-circle '+cls+'">'+pct+'%</div>'
+            + '<div style="flex:1;">'
+            + '<div class="quiz-title">'+s.title+'</div>'
+            + '<div class="quiz-date">'+s.date+' &nbsp;·&nbsp; '+s.score+'/'+s.total+'점</div>'
+            + '</div></div>';
+    });
+    document.getElementById('quiz-list').innerHTML = html;
+  } catch(e) {
+    document.getElementById('quiz-list').innerHTML = '<div class="empty-msg">불러오기 실패</div>';
+  }
+}
+
+// ── 영상 진도 ──
+async function loadVideos() {
+  try {
+    var db = await window.mkdbReady;
+    var snap = await db.collection('material_views').where('studentId','==',String(session.id)).get();
+    var views = [];
+    snap.forEach(function(d){ views.push(d.data()); });
+    if (!views.length) {
+      document.getElementById('video-list').innerHTML = '<div class="empty-msg">시청한 영상이 없습니다.</div>';
+      return;
+    }
+    // 자료 이름 가져오기
+    var matIds = views.filter(function(v){ return v.materialId; }).map(function(v){ return v.materialId; });
+    var matNames = {};
+    var matSnaps = await Promise.all(matIds.map(function(id){
+      return db.collection('materials').doc(id).get().then(function(d){
+        if (d.exists) matNames[id] = d.data().name || id;
+        else return db.collection('textbook_videos').doc(id).get().then(function(d2){
+          matNames[id] = d2.exists ? d2.data().name || id : id;
+        });
+      });
+    }));
+    // 진도순 정렬
+    views.sort(function(a,b){ return Number(b.progress||0) - Number(a.progress||0); });
+    var html = '';
+    views.forEach(function(v){
+      var pct = Math.min(100, Number(v.progress||0));
+      var name = matNames[v.materialId] || v.materialId;
+      html += '<div class="video-item">'
+            + '<div class="video-name"><span>'+name+'</span><span style="color:'+(pct===100?'#16a34a':'#3b6cf7')+';font-weight:800;">'+pct+'%</span></div>'
+            + '<div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;'+(pct===100?'background:linear-gradient(90deg,#16a34a,#4ade80)':'')+'"></div></div>'
+            + '<div class="video-meta">'+(v.viewedAt||'')+'</div>'
+            + '</div>';
+    });
+    document.getElementById('video-list').innerHTML = html;
+  } catch(e) {
+    document.getElementById('video-list').innerHTML = '<div class="empty-msg">불러오기 실패</div>';
+  }
+}
+
+// ── 비밀번호 변경 ──
+async function changePw() {
+  var oldPw = document.getElementById('old-pw').value;
+  var newPw = document.getElementById('new-pw').value;
+  var msgEl = document.getElementById('pw-msg');
+  msgEl.style.display = 'none';
+  if (!oldPw || !newPw) { showMsg(msgEl, '모두 입력해주세요', 'error'); return; }
+  if (newPw.length < 6) { showMsg(msgEl, '새 비밀번호는 6자 이상이어야 합니다', 'error'); return; }
+  try {
+    var authId = session.authId || session.id;
+    var res = await fetch(SU + '?action=changePassword&id=' + encodeURIComponent(session.id)
+      + '&authId=' + encodeURIComponent(authId)
+      + '&oldPassword=' + encodeURIComponent(oldPw)
+      + '&newPassword=' + encodeURIComponent(newPw));
+    var data = await res.json();
+    if (data.success) {
+      showMsg(msgEl, '✅ 비밀번호가 변경되었습니다!', 'success');
+      document.getElementById('old-pw').value = '';
+      document.getElementById('new-pw').value = '';
+    } else {
+      showMsg(msgEl, data.msg || '현재 비밀번호가 틀렸습니다', 'error');
+    }
+  } catch(e) {
+    showMsg(msgEl, '오류가 발생했습니다', 'error');
+  }
+}
+
+function showMsg(el, text, type) {
+  el.textContent = text;
+  el.className = 'msg-box msg-' + type;
+  el.style.display = 'block';
+}
+
+function doLogout() {
+  if (!confirm('로그아웃 하시겠습니까?')) return;
+  localStorage.removeItem('mkmath_session');
+  try { firebase.auth().signOut(); } catch(e) {}
+  location.href = 'index.html';
+}
+</script>
+</body>
+</html>
