@@ -306,7 +306,7 @@ tr:hover td{background:#fafbff;}
       <h3 id="panel-exam-name">시험명</h3>
       <div class="sub" id="panel-sub"></div>
       <div class="score-input-wrap">
-        <label>점수</label>
+        <label>점수 <span id="panel-max-score" style="font-weight:400;color:#94a3b8;font-size:12px;"></span></label>
         <input class="score-input" type="number" id="panel-score" placeholder="—">
       </div>
       <div class="pass-btns">
@@ -364,10 +364,10 @@ tr:hover td{background:#fafbff;}
           <input id="exam-detail-range" type="text" placeholder="예: [03/09]" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
         <div>
-          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">문항 총 개수</label>
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">총점 (만점)</label>
           <div style="display:flex;align-items:center;gap:8px;">
-            <input id="exam-detail-total" type="number" min="0" placeholder="0" style="flex:1;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
-            <span style="font-size:14px;color:#64748b;">개</span>
+            <input id="exam-detail-total" type="number" min="0" placeholder="100" style="flex:1;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
+            <span style="font-size:14px;color:#64748b;">점</span>
           </div>
         </div>
         <button onclick="saveExamDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
@@ -840,6 +840,8 @@ function openPanel(studentId, examId){
   panelStudentId=studentId; panelExamId=examId; panelPass='';
   document.getElementById('panel-exam-name').textContent=exam.name;
   document.getElementById('panel-sub').textContent=classInfo.name+' '+sessionInfo.sessionNum+'차시, '+st.name;
+  var maxScore=exam.totalQuestions?'/ '+exam.totalQuestions+'점':'';
+  document.getElementById('panel-max-score').textContent=maxScore;
   var sc=(scoresMap[studentId]||{})[examId];
   document.getElementById('panel-score').value=sc&&sc.score!==''?sc.score:'';
   panelPass=sc?sc.pass||'':'';
