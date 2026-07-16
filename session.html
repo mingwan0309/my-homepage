@@ -85,10 +85,15 @@ tr:hover td{background:#fafbff;}
 .score-input-wrap label{font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;}
 .score-input{width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:20px;font-weight:700;text-align:center;outline:none;font-family:inherit;}
 .score-input:focus{border-color:#3b6cf7;}
-.pass-btns{display:flex;gap:8px;margin-bottom:16px;}
-.pass-btn{flex:1;padding:10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:14px;font-weight:700;cursor:pointer;transition:.12s;}
-.pass-btn.pass-active{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
-.pass-btn.fail-active{background:#fee2e2;border-color:#dc2626;color:#dc2626;}
+.pass-btns{display:flex;gap:6px;margin-bottom:16px;}
+.pass-btn{flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:12px;font-weight:700;cursor:pointer;transition:.12s;color:#475569;}
+.pass-btn.submit-active{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
+.pass-btn.nosub-active{background:#fee2e2;border-color:#dc2626;color:#dc2626;}
+.pass-btn.partial-active{background:#fef9c3;border-color:#ca8a04;color:#92400e;}
+.feedback-wrap{margin-bottom:14px;}
+.feedback-wrap label{font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:5px;}
+.feedback-input{width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;min-height:90px;outline:none;}
+.feedback-input:focus{border-color:#3b6cf7;}
 .save-score-btn{width:100%;padding:11px;background:#3b6cf7;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;}
 .save-score-btn:hover{background:#2d5ce5;}
 .score-cell{padding:4px 8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center;cursor:pointer;min-width:50px;}
@@ -305,8 +310,13 @@ tr:hover td{background:#fafbff;}
         <input class="score-input" type="number" id="panel-score" placeholder="—">
       </div>
       <div class="pass-btns">
-        <button class="pass-btn" id="btn-pass" onclick="togglePass('pass')">통과</button>
-        <button class="pass-btn" id="btn-fail" onclick="togglePass('fail')">미통과</button>
+        <button class="pass-btn" id="btn-submit" onclick="togglePass('submit')">제출</button>
+        <button class="pass-btn" id="btn-nosub" onclick="togglePass('nosub')">미제출</button>
+        <button class="pass-btn" id="btn-partial" onclick="togglePass('partial')">일부미이행</button>
+      </div>
+      <div class="feedback-wrap">
+        <label>코멘트</label>
+        <textarea class="feedback-input" id="panel-feedback" placeholder="학생에게 전달할 내용을 입력하세요"></textarea>
       </div>
       <button class="save-score-btn" onclick="saveScore()">완료</button>
       <button style="width:100%;padding:10px;border:none;background:none;color:#94a3b8;font-size:13px;cursor:pointer;" onclick="closePanel()">닫기</button>
@@ -806,7 +816,7 @@ function renderScores(){
     var scoreCols=exams.map(function(ex){
       var sc=(scoresMap[st.id]||{})[ex.id];
       if(sc&&sc.score!==''){
-        var passIcon=sc.pass==='pass'?'<span style="color:#16a34a;font-size:10px;"> ✓</span>':sc.pass==='fail'?'<span style="color:#dc2626;font-size:10px;"> ✗</span>':'';
+        var passIcon=sc.pass==='submit'?'<span style="color:#16a34a;font-size:10px;"> 제출</span>':sc.pass==='nosub'?'<span style="color:#dc2626;font-size:10px;"> 미제출</span>':sc.pass==='partial'?'<span style="color:#ca8a04;font-size:10px;"> 일부</span>':'';
         return '<td><div class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+sc.score+'점'+passIcon+'</div></td>';
       }
       return '<td><div class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')" style="cursor:pointer;">—</div></td>';
@@ -827,6 +837,7 @@ function openPanel(studentId, examId){
   var sc=(scoresMap[studentId]||{})[examId];
   document.getElementById('panel-score').value=sc&&sc.score!==''?sc.score:'';
   panelPass=sc?sc.pass||'':'';
+  document.getElementById('panel-feedback').value=sc?sc.feedback||'':'';
   updatePassBtns();
   document.getElementById('score-panel').style.display='block';
 }
@@ -841,18 +852,20 @@ function togglePass(p){
   updatePassBtns();
 }
 function updatePassBtns(){
-  document.getElementById('btn-pass').className='pass-btn'+(panelPass==='pass'?' pass-active':'');
-  document.getElementById('btn-fail').className='pass-btn'+(panelPass==='fail'?' fail-active':'');
+  document.getElementById('btn-submit').className='pass-btn'+(panelPass==='submit'?' submit-active':'');
+  document.getElementById('btn-nosub').className='pass-btn'+(panelPass==='nosub'?' nosub-active':'');
+  document.getElementById('btn-partial').className='pass-btn'+(panelPass==='partial'?' partial-active':'');
 }
 
 async function saveScore(){
   if(!panelStudentId||!panelExamId)return;
   var score=document.getElementById('panel-score').value;
   if(!scoresMap[panelStudentId])scoresMap[panelStudentId]={};
-  scoresMap[panelStudentId][panelExamId]={score:score,pass:panelPass,feedback:''};
+  var feedback=document.getElementById('panel-feedback').value.trim();
+  scoresMap[panelStudentId][panelExamId]={score:score,pass:panelPass,feedback:feedback};
   renderScores();
   closePanel();
-  fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(panelStudentId)+'&examId='+encodeURIComponent(panelExamId)+'&score='+encodeURIComponent(score)+'&pass='+encodeURIComponent(panelPass));
+  fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(panelStudentId)+'&examId='+encodeURIComponent(panelExamId)+'&score='+encodeURIComponent(score)+'&pass='+encodeURIComponent(panelPass)+'&feedback='+encodeURIComponent(feedback));
 }
 
 // 시험 추가
