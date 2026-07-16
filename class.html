@@ -76,8 +76,9 @@ tr:hover td{background:#fafbff;}
 
 /* 수강생 클릭 상세 패널 */
 .stu-name-link{font-weight:700;color:#1e293b;cursor:pointer;text-decoration:none;}
-.phone-copy{cursor:pointer;color:#3b6cf7;}
-.phone-copy:hover{text-decoration:underline;}
+.phone-copy{cursor:pointer;color:#64748b;}
+.phone-copy::after{content:'';margin-left:4px;opacity:0;font-size:11px;}
+.phone-copy:hover::after{content:'📋';opacity:1;}
 .stu-name-link:hover{color:#3b6cf7;text-decoration:underline;}
 .att-chips-wrap{display:flex;gap:2px;overflow-x:auto;max-width:340px;scrollbar-width:none;padding-bottom:2px;}
 .att-chips-wrap::-webkit-scrollbar{display:none;}
