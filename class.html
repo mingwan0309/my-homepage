@@ -390,7 +390,7 @@ tr:hover td{background:#fafbff;}
 </div>
 
 <!-- 학생 추가 모달 -->
-<div class="overlay" id="add-stu-modal" onclick="if(event.target===this)closeAddStudent()">
+<div class="modal-bg" id="add-stu-modal" onclick="if(event.target===this)closeAddStudent()">
   <div class="modal">
     <h3>학생 추가</h3>
     <form id="add-stu-form" onsubmit="event.preventDefault();saveStudent();">
@@ -413,7 +413,7 @@ tr:hover td{background:#fafbff;}
 </div>
 
 <!-- 엑셀 일괄 등록 모달 -->
-<div class="overlay" id="excel-modal" onclick="if(event.target===this)closeExcelImport()">
+<div class="modal-bg" id="excel-modal" onclick="if(event.target===this)closeExcelImport()">
   <div class="modal" style="max-width:640px;">
     <h3>엑셀 일괄 등록</h3>
     <p style="font-size:13px;color:#64748b;margin-bottom:14px;">엑셀/CSV 파일을 업로드하면 미리보기 후 일괄 등록합니다.<br>양식은 <button onclick="downloadExcelTemplate()" style="background:none;border:none;color:#3b6cf7;font-size:13px;font-weight:600;cursor:pointer;padding:0;">엑셀 양식 다운로드</button>를 사용하세요.</p>
