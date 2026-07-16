@@ -823,7 +823,7 @@ function renderScores(){
   // 바디
   var tbody=document.getElementById('score-tbody');
   if(!students.length){tbody.innerHTML='<tr><td colspan="'+(3+exams.length)+'" class="empty">수강생이 없습니다</td></tr>';return;}
-  tbody.innerHTML=students.map(function(st,i){
+  tbody.innerHTML=students.slice().sort(function(a,b){return a.name.localeCompare(b.name,'ko');}).map(function(st,i){
     var att=attMap[st.id]||{status:'미정'};
     var attBadge='<span class="status-badge s'+(att.status||'미정')+'">'+(att.status||'미정')+'</span>';
     var scoreCols=exams.map(function(ex){
