@@ -513,6 +513,7 @@ function renderStudents(){
   const tbody=document.getElementById('stu-tbody');
   if(!students.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 수강생이 없습니다</td></tr>';return;}
   var isTeacher=session.role==='teacher';
+  students.sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ko');});
   var list=isTeacher?students:students.filter(function(st){return st.id===session.id;});
   if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">정보가 없습니다</td></tr>';return;}
   // 학생이면 헤더도 단순하게
