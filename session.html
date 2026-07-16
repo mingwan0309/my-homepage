@@ -364,10 +364,17 @@ tr:hover td{background:#fafbff;}
           <input id="exam-detail-range" type="text" placeholder="예: [03/09]" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
         <div>
-          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">총점 (만점)</label>
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">성적 입력 방식</label>
+          <div style="display:flex;gap:8px;">
+            <button id="score-type-score" onclick="setScoreType('score')" style="flex:1;padding:10px;border:2px solid #3b6cf7;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;background:#eff4ff;color:#3b6cf7;">점수 (예: 87점)</button>
+            <button id="score-type-count" onclick="setScoreType('count')" style="flex:1;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;background:#fff;color:#94a3b8;">개수 (예: 8/10개)</button>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;" id="exam-total-label">총점 (만점)</label>
           <div style="display:flex;align-items:center;gap:8px;">
             <input id="exam-detail-total" type="number" min="0" placeholder="100" style="flex:1;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
-            <span style="font-size:14px;color:#64748b;">점</span>
+            <span style="font-size:14px;color:#64748b;" id="exam-total-unit">점</span>
           </div>
         </div>
         <button onclick="saveExamDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
@@ -840,8 +847,11 @@ function openPanel(studentId, examId){
   panelStudentId=studentId; panelExamId=examId; panelPass='';
   document.getElementById('panel-exam-name').textContent=exam.name;
   document.getElementById('panel-sub').textContent=classInfo.name+' '+sessionInfo.sessionNum+'차시, '+st.name;
-  var maxScore=exam.totalQuestions?'/ '+exam.totalQuestions+'점':'';
+  var st2=exam.scoreType||'score';
+  var unit=st2==='count'?'개':'점';
+  var maxScore=exam.totalQuestions?'/ '+exam.totalQuestions+unit:'';
   document.getElementById('panel-max-score').textContent=maxScore;
+  document.getElementById('panel-score').placeholder=st2==='count'?'맞은 개수':'점수';
   var sc=(scoresMap[studentId]||{})[examId];
   document.getElementById('panel-score').value=sc&&sc.score!==''?sc.score:'';
   panelPass=sc?sc.pass||'':'';
@@ -986,6 +996,7 @@ function openExamDetail(examId){
   document.getElementById('exam-detail-name-input').value=ex.name;
   document.getElementById('exam-detail-range').value=ex.range||'';
   document.getElementById('exam-detail-total').value=ex.totalQuestions||'';
+  setScoreType(ex.scoreType||'score');
   document.getElementById('exam-list-view').style.display='none';
   document.getElementById('exam-detail-view').style.display='';
 }
@@ -993,15 +1004,29 @@ function closeExamDetail(){
   document.getElementById('exam-detail-view').style.display='none';
   document.getElementById('exam-list-view').style.display='';
 }
+var currentScoreType='score';
+function setScoreType(type){
+  currentScoreType=type;
+  var isSc=type==='score';
+  document.getElementById('score-type-score').style.borderColor=isSc?'#3b6cf7':'#e2e8f0';
+  document.getElementById('score-type-score').style.background=isSc?'#eff4ff':'#fff';
+  document.getElementById('score-type-score').style.color=isSc?'#3b6cf7':'#94a3b8';
+  document.getElementById('score-type-count').style.borderColor=!isSc?'#3b6cf7':'#e2e8f0';
+  document.getElementById('score-type-count').style.background=!isSc?'#eff4ff':'#fff';
+  document.getElementById('score-type-count').style.color=!isSc?'#3b6cf7':'#94a3b8';
+  document.getElementById('exam-total-label').textContent=isSc?'총점 (만점)':'총 문항 수';
+  document.getElementById('exam-total-unit').textContent=isSc?'점':'개';
+  document.getElementById('exam-detail-total').placeholder=isSc?'100':'10';
+}
 async function saveExamDetail(){
   var name=document.getElementById('exam-detail-name-input').value.trim();
   var range=document.getElementById('exam-detail-range').value.trim();
   var total=document.getElementById('exam-detail-total').value.trim();
   if(!name){alert('시험 이름을 입력해주세요');return;}
-  var r=await fetch(SU+'?action=updateExam&id='+encodeURIComponent(currentExamId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&totalQuestions='+encodeURIComponent(total)).then(function(r){return r.json();});
+  var r=await fetch(SU+'?action=updateExam&id='+encodeURIComponent(currentExamId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&totalQuestions='+encodeURIComponent(total)+'&scoreType='+encodeURIComponent(currentScoreType)).then(function(r){return r.json();});
   if(r.success){
     var ex=exams.find(function(e){return e.id===currentExamId;});
-    if(ex){ex.name=name;ex.range=range;ex.totalQuestions=total;}
+    if(ex){ex.name=name;ex.range=range;ex.totalQuestions=total;ex.scoreType=currentScoreType;}
     document.getElementById('exam-detail-name').textContent=name;
     renderExamList();
     renderScores();

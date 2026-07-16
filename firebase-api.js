@@ -539,7 +539,7 @@ api.addExam = function(db, p){
 api.getExams = function(db, p){
   return db.collection('exams').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
     var exams = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; })
-      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', totalQuestions:r.totalQuestions||'', grade1:r.grade1||'', grade2:r.grade2||'', grade3:r.grade3||'', grade4:r.grade4||'', createdAt:r.createdAt||'' }; });
+      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', totalQuestions:r.totalQuestions||'', scoreType:r.scoreType||'score', grade1:r.grade1||'', grade2:r.grade2||'', grade3:r.grade3||'', grade4:r.grade4||'', createdAt:r.createdAt||'' }; });
     return { exams: exams };
   });
 };
@@ -554,6 +554,7 @@ api.updateExam = function(db, p){
   if(p.name!==undefined) data.name=p.name;
   if(p.range!==undefined) data.range=p.range;
   if(p.totalQuestions!==undefined) data.totalQuestions=p.totalQuestions;
+  if(p.scoreType!==undefined) data.scoreType=p.scoreType;
   return db.collection('exams').doc(String(p.id)).update(data)
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
