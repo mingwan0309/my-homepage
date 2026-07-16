@@ -455,7 +455,7 @@ tr:hover td{background:#fafbff;}
       <div class="fg"><label>성별</label>
         <select id="as-gender"><option value="">선택 안 함</option><option value="남">남</option><option value="여">여</option></select>
       </div>
-      <div class="fg"><label>초기 비밀번호 (기본: 1234)</label><input id="as-pw" placeholder="1234"></div>
+      <div class="fg"><label>초기 비밀번호 (기본: 123456)</label><input id="as-pw" placeholder="123456"></div>
       <p id="add-stu-msg" style="font-size:13px;margin-bottom:8px;min-height:18px;"></p>
       <div class="modal-btns">
         <button type="button" class="btn-cl" onclick="closeAddStudent()">취소</button>
@@ -1225,7 +1225,7 @@ async function saveStudent(){
   var school=document.getElementById('as-school').value.trim();
   var grade=document.getElementById('as-grade').value.trim();
   var gender=document.getElementById('as-gender').value;
-  var pw=document.getElementById('as-pw').value.trim()||'1234';
+  var pw=document.getElementById('as-pw').value.trim()||'123456';
   var msgEl=document.getElementById('add-stu-msg');
   if(!name||!phone){msgEl.textContent='이름과 학생 전화번호는 필수입니다.';msgEl.style.color='#dc2626';return;}
   msgEl.textContent='등록 중...';msgEl.style.color='#3b6cf7';
