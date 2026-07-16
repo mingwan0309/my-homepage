@@ -702,8 +702,27 @@ function fakeResponse(obj){
 
 window.fetch = function(url, opts){
   if (typeof url === 'string' && url.indexOf('script.google.com') !== -1) {
-    // 파일 업로드(POST uploadFile)는 기존 Apps Script로 통과 (Google Drive 저장)
     if (opts && opts.method && opts.method.toUpperCase() === 'POST') {
+      // POST body에서 action 파싱
+      var bodyStr = opts.body || '';
+      var bodyObj = {};
+      try { bodyObj = JSON.parse(bodyStr); } catch(e) {}
+      var postAction = bodyObj.action || '';
+      // 파일 업로드(uploadFile)만 진짜 Apps Script로 통과
+      if (postAction === 'uploadFile' || !postAction) {
+        return _origFetch(url, opts);
+      }
+      // 나머지 POST(submitQuestion, submitAnswer 등)는 Firestore로 처리
+      if (api[postAction]) {
+        return _dbReady.then(function(db){
+          return api[postAction](db, bodyObj);
+        }).then(function(result){
+          return fakeResponse(result);
+        }).catch(function(err){
+          console.error('[firebase-api] POST ' + postAction + ' 오류:', err);
+          return fakeResponse({ success:false, error:String(err) });
+        });
+      }
       return _origFetch(url, opts);
     }
     var params = parseParams(url);
