@@ -399,9 +399,9 @@ async function init(){
 
   if(session.role==='teacher'){
     document.getElementById('btn-add-stu-top').style.display='';
-    document.getElementById('btn-all-present').style.display='';
   } else {
-    document.getElementById('add-exam-btn').style.display='none';
+    var addExamBtn=document.getElementById('add-exam-btn');
+    if(addExamBtn) addExamBtn.style.display='none';
   }
 
   await loadAttendance();
