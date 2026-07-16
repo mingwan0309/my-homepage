@@ -539,13 +539,22 @@ api.addExam = function(db, p){
 api.getExams = function(db, p){
   return db.collection('exams').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
     var exams = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; })
-      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', createdAt:r.createdAt||'' }; });
+      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', totalQuestions:r.totalQuestions||'', createdAt:r.createdAt||'' }; });
     return { exams: exams };
   });
 };
 
 api.deleteExam = function(db, p){
   return db.collection('exams').doc(String(p.id)).delete()
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
+api.updateExam = function(db, p){
+  var data={};
+  if(p.name!==undefined) data.name=p.name;
+  if(p.range!==undefined) data.range=p.range;
+  if(p.totalQuestions!==undefined) data.totalQuestions=p.totalQuestions;
+  return db.collection('exams').doc(String(p.id)).update(data)
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
