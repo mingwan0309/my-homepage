@@ -193,6 +193,30 @@ tr:hover td{background:#fafbff;}
 .modal-btns{display:flex;gap:10px;margin-top:18px;}
 .btn-cl{flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:#64748b;}
 .btn-ok{flex:1;padding:10px;background:#3b6cf7;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;color:#fff;}
+.stu-panel{position:fixed;top:0;right:-440px;width:420px;height:100vh;background:#fff;box-shadow:-4px 0 32px rgba(0,0,0,.12);z-index:900;transition:.28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column;}
+.stu-panel.open{right:0;}
+.stu-panel-backdrop{display:none;position:fixed;inset:0;z-index:899;}
+.stu-panel-backdrop.open{display:block;}
+.stu-panel-head{padding:20px 20px 14px;border-bottom:1px solid #f1f5f9;position:sticky;top:0;background:#fff;z-index:2;}
+.stu-panel-name{font-size:18px;font-weight:800;color:#1e293b;margin-bottom:2px;}
+.stu-panel-sub{font-size:12px;color:#94a3b8;}
+.stu-panel-close{position:absolute;top:16px;right:16px;background:#f1f5f9;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:15px;color:#64748b;display:flex;align-items:center;justify-content:center;}
+.stu-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 20px;}
+.stu-info-item{background:#f8fafc;border-radius:10px;padding:10px 13px;}
+.stu-info-label{font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:3px;}
+.stu-info-val{font-size:13px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:4px;}
+.copy-btn{background:none;border:none;cursor:pointer;font-size:12px;color:#94a3b8;padding:0;}
+.copy-btn:hover{color:#3b6cf7;}
+.stu-panel-tabs{display:flex;border-bottom:1px solid #e2e8f0;padding:0 20px;}
+.stu-ptab{padding:10px 14px;font-size:13px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.stu-ptab.active{color:#3b6cf7;border-bottom-color:#3b6cf7;}
+.stu-panel-body{padding:16px 20px;flex:1;}
+.att-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f8fafc;}
+.att-row:last-child{border-bottom:none;}
+.att-row-num{font-size:12px;color:#94a3b8;font-weight:600;width:42px;flex-shrink:0;}
+.att-row-date{font-size:12px;color:#64748b;flex:1;}
+.sp-score-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f8fafc;}
+.sp-score-row:last-child{border-bottom:none;}
 </style>
 </head>
 <body>
@@ -386,6 +410,25 @@ tr:hover td{background:#fafbff;}
 <div id="page-homework" class="page">
   <div class="card" style="padding:80px 20px;text-align:center;color:#94a3b8;">과제 내용을 여기에 추가하세요.</div>
 </div>
+</div>
+
+<!-- 학생 상세 패널 -->
+<div class="stu-panel-backdrop" id="stu-panel-backdrop" onclick="closeStudentDetail()"></div>
+<div class="stu-panel" id="stu-panel">
+  <div class="stu-panel-head">
+    <div class="stu-panel-name" id="sp-name"></div>
+    <div class="stu-panel-sub" id="sp-sub"></div>
+    <button class="stu-panel-close" onclick="closeStudentDetail()">✕</button>
+  </div>
+  <div class="stu-info-grid" id="sp-info-grid"></div>
+  <div class="stu-panel-tabs">
+    <div class="stu-ptab active" onclick="switchStuTab('score',this)">성적 이력</div>
+    <div class="stu-ptab" onclick="switchStuTab('att',this)">수강 이력</div>
+  </div>
+  <div class="stu-panel-body">
+    <div id="sp-score"></div>
+    <div id="sp-att" style="display:none;"></div>
+  </div>
 </div>
 
 <!-- 학생 추가 모달 -->
@@ -627,7 +670,7 @@ function renderAttendance(){
     return '<tr id="att-row-'+st.id+'">'+
       '<td><input type="checkbox" class="att-cb att-cb-row" id="cb-'+st.id+'" '+(checked?'checked':'')+' onclick="toggleSelect(\''+st.id+'\',this.checked)"></td>'+
       '<td style="color:#94a3b8;font-weight:600;">'+(i+1)+'</td>'+
-      '<td><span class="stu-name">'+st.name+'</span></td>'+
+      '<td><span class="stu-name" style="cursor:pointer;text-decoration:underline;" onclick="openStudentDetail(\''+st.id+'\')">'+st.name+'</span></td>'+
       '<td><span class="status-badge s'+status+'" id="att-badge-'+st.id+'">'+status+'</span></td>'+
       '<td style="font-size:12px;color:#64748b;">'+(st.parentPhone||'—')+'</td>'+
       '<td style="font-size:12px;color:#64748b;">'+(st.studentPhone||'—')+'</td>'+
@@ -837,7 +880,7 @@ function renderScores(){
       return '<td class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">—</td>';
     }).join('');
     return '<tr><td style="color:#94a3b8;font-weight:600;">'+(i+1)+'</td>'+
-      '<td><span class="stu-name">'+st.name+'</span></td>'+
+      '<td><span class="stu-name" style="cursor:pointer;text-decoration:underline;" onclick="openStudentDetail(\''+st.id+'\')">'+st.name+'</span></td>'+
       '<td>'+attBadge+'</td>'+scoreCols+'</tr>';
   }).join('');
 }
@@ -867,6 +910,75 @@ function closePanel(){
   document.getElementById('score-panel').classList.remove('open');
   panelStudentId=''; panelExamId=''; panelPass='';
 }
+
+// 학생 상세 패널
+var currentStuId=null;
+function openStudentDetail(studentId){
+  var st=students.find(function(s){return s.id===studentId;});
+  if(!st)return;
+  currentStuId=studentId;
+  document.getElementById('sp-name').textContent=st.name;
+  document.getElementById('sp-sub').textContent=(st.school||'')+(st.grade?' · '+st.grade:'');
+  function infoItem(label,val,copy){
+    return '<div class="stu-info-item"><div class="stu-info-label">'+label+'</div>'
+      +'<div class="stu-info-val">'+escHtml(val||'-')+(copy&&val?'<button class="copy-btn" onclick="copyText(\''+val+'\')" title="복사">📋</button>':'')+'</div></div>';
+  }
+  document.getElementById('sp-info-grid').innerHTML=
+    infoItem('학부모 전화번호',st.parentPhone,true)
+    +infoItem('학생 전화번호',st.studentPhone||st.id,true)
+    +infoItem('학교',st.school,false)
+    +infoItem('학년',st.grade,false)
+    +infoItem('성별',st.gender,false)
+    +infoItem('등록일',(st.createdAt||'').substring(0,10),false);
+  switchStuTab('score', document.querySelector('.stu-ptab'));
+  document.getElementById('stu-panel').classList.add('open');
+  document.getElementById('stu-panel-backdrop').classList.add('open');
+}
+function closeStudentDetail(){
+  document.getElementById('stu-panel').classList.remove('open');
+  document.getElementById('stu-panel-backdrop').classList.remove('open');
+}
+function copyText(txt){
+  navigator.clipboard.writeText(txt).then(function(){alert('복사되었습니다.');}).catch(function(){});
+}
+function switchStuTab(tab, el){
+  document.querySelectorAll('.stu-ptab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('sp-score').style.display=tab==='score'?'':'none';
+  document.getElementById('sp-att').style.display=tab==='att'?'':'none';
+  if(tab==='score') renderStuScores();
+  if(tab==='att') renderStuAtt();
+}
+function renderStuScores(){
+  var el=document.getElementById('sp-score');
+  if(!currentStuId){el.innerHTML='';return;}
+  var stuScores=scoresMap[currentStuId]||{};
+  if(!exams.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">시험이 없습니다.</div>';return;}
+  var rows=exams.map(function(ex){
+    var sc=stuScores[ex.id];
+    var scoreUnit=(ex.scoreType||'score')==='count'?'개':'점';
+    var scoreDisp=sc&&sc.score!==''?(ex.totalQuestions&&ex.scoreType==='count'?sc.score+'/'+ex.totalQuestions+'개':sc.score+scoreUnit):'—';
+    var passDisp=sc&&sc.pass==='submit'?'<span style="color:#16a34a;font-size:11px;font-weight:700;"> 통과</span>':sc&&sc.pass==='nosub'?'<span style="color:#dc2626;font-size:11px;font-weight:700;"> 미통과</span>':'';
+    return '<div class="sp-score-row">'
+      +'<span style="font-size:13px;font-weight:600;color:#1e293b;flex:1;">'+escHtml(ex.name)+'</span>'
+      +(ex.range?'<span style="font-size:11px;color:#94a3b8;margin-right:8px;">'+escHtml(ex.range)+'</span>':'')
+      +'<span style="font-size:13px;font-weight:700;color:#3b6cf7;">'+scoreDisp+passDisp+'</span>'
+      +'</div>';
+  }).join('');
+  el.innerHTML=rows;
+}
+function renderStuAtt(){
+  var el=document.getElementById('sp-att');
+  if(!currentStuId){el.innerHTML='';return;}
+  var att=attMap[currentStuId];
+  if(!att){el.innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">출결 정보가 없습니다.</div>';return;}
+  el.innerHTML='<div class="att-row"><span class="att-row-num">'+sessionInfo.sessionNum+'차시</span>'
+    +'<span class="att-row-date">'+(sessionInfo.date||'')+'</span>'
+    +'<span class="att-chip s'+(att.status||'미정')+'" style="padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;">'+(att.status||'미정')+'</span>'
+    +(att.memo?'<span style="font-size:11px;color:#64748b;margin-left:4px;">'+escHtml(att.memo)+'</span>':'')
+    +'</div>';
+}
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 function togglePass(p){
   panelPass=panelPass===p?'':p;
