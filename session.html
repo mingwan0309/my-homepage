@@ -377,16 +377,17 @@ function formatDate(d){
 
 async function init(){
   if(!sessionId||!classId){goBack();return;}
-  const [sesr, clsr, sssr] = await Promise.all([
+  const [sesr, clsr] = await Promise.all([
     fetch(SU+'?action=getSession&id='+encodeURIComponent(sessionId)).then(r=>r.json()),
-    fetch(SU+'?action=getClassStudents&classId='+encodeURIComponent(classId)).then(r=>r.json()),
-    fetch(SU+'?action=getSessions&classId='+encodeURIComponent(classId)).then(r=>r.json())
+    fetch(SU+'?action=getClassStudents&classId='+encodeURIComponent(classId)).then(r=>r.json())
   ]);
   if(!sesr.success||!clsr.classInfo){goBack();return;}
   sessionInfo=sesr.session;
   classInfo=clsr.classInfo;
   students=clsr.students||[];
-  classSessions=sssr.sessions||[];
+  // 세션 목록은 실패해도 무관 (직전차시 기능용)
+  fetch(SU+'?action=getSessions&classId='+encodeURIComponent(classId)).then(r=>r.json())
+    .then(function(r){classSessions=r.sessions||[];}).catch(function(){});
 
   document.getElementById('header-class').textContent=classInfo.name;
   document.getElementById('header-session').textContent=sessionInfo.sessionNum+'차시';
