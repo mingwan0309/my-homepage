@@ -138,6 +138,7 @@ a{text-decoration:none;}
       <button onclick="switchTab('clinic')">🏥 클리닉 예약</button>
       <button onclick="switchTab('quiz')">📝 퀴즈 기록</button>
       <button onclick="switchTab('video')">🎬 영상 진도</button>
+      <button onclick="switchTab('qna')">💬 질의응답</button>
       <button onclick="switchTab('settings')">⚙️ 설정</button>
     </div>
 
@@ -177,6 +178,14 @@ a{text-decoration:none;}
       <div class="card">
         <div class="card-title"><span>🎬</span> 영상 시청 진도</div>
         <div id="video-list"><div class="spinner">불러오는 중...</div></div>
+      </div>
+    </div>
+
+    <!-- 질의응답 탭 -->
+    <div id="tab-qna" style="display:none;">
+      <div class="card">
+        <div class="card-title"><span>💬</span> 질의응답 내역</div>
+        <div id="qna-list"><div class="spinner">불러오는 중...</div></div>
       </div>
     </div>
 
@@ -234,17 +243,18 @@ loadInfo();
 // ── 탭 전환 ──
 let loaded = {};
 function switchTab(name) {
-  ['info','clinic','quiz','video','settings'].forEach(function(t){
+  ['info','clinic','quiz','video','qna','settings'].forEach(function(t){
     document.getElementById('tab-'+t).style.display = t===name ? '' : 'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(function(btn, i){
-    btn.classList.toggle('active', i === ['info','clinic','quiz','video','settings'].indexOf(name));
+    btn.classList.toggle('active', i === ['info','clinic','quiz','video','qna','settings'].indexOf(name));
   });
   if (!loaded[name]) {
     loaded[name] = true;
     if (name === 'clinic') loadBookings();
     if (name === 'quiz') loadQuiz();
     if (name === 'video') loadVideos();
+    if (name === 'qna') loadQna();
   }
 }
 
@@ -417,6 +427,34 @@ async function loadVideos() {
     document.getElementById('video-list').innerHTML = html;
   } catch(e) {
     document.getElementById('video-list').innerHTML = '<div class="empty-msg">불러오기 실패</div>';
+  }
+}
+
+// ── 질의응답 ──
+async function loadQna() {
+  try {
+    var res = await fetch(SU + '?action=getQuestions&role=student&studentId=' + encodeURIComponent(session.id));
+    var data = await res.json();
+    var list = (data.questions || []).filter(function(q){ return q.studentId === session.id; });
+    if (!list.length) {
+      document.getElementById('qna-list').innerHTML = '<div class="empty-msg">작성한 질문이 없습니다.</div>';
+      return;
+    }
+    var html = '';
+    list.forEach(function(q){
+      var statusCls = q.status === 'answered' ? 'status-예약' : 'status-취소';
+      var statusTxt = q.status === 'answered' ? '답변 완료' : '답변 대기';
+      html += '<div class="booking-item" style="cursor:pointer;" onclick="location.href=\'qna.html?id='+q.id+'\'">'
+            + '<div class="booking-info">'
+            + '<div class="booking-name">' + (q.secret ? '🔒 ' : '') + q.title + '</div>'
+            + '<div class="booking-date">' + (q.date||'') + '</div>'
+            + '</div>'
+            + '<span class="booking-status '+statusCls+'">'+statusTxt+'</span>'
+            + '</div>';
+    });
+    document.getElementById('qna-list').innerHTML = html;
+  } catch(e) {
+    document.getElementById('qna-list').innerHTML = '<div class="empty-msg">불러오기 실패</div>';
   }
 }
 
