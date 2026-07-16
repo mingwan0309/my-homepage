@@ -522,7 +522,7 @@ function renderAttendance(){
     var checked=selectedIds.has(st.id);
     var btns=ATT_TYPES.map(function(t){
       var cls=(status===t)?'att-btn active-'+t:'att-btn';
-      return '<button class="'+cls+'" onclick="setAtt(\''+st.id+'\',\''+t+'\')">'+t+'</button>';
+      return '<button class="'+cls+'" onclick="setAtt(\''+st.id+'\',status===\''+t+'\'?\'미정\':\''+t+'\')">'+t+'</button>';
     }).join('');
     return '<tr id="att-row-'+st.id+'">'+
       '<td><input type="checkbox" class="att-cb att-cb-row" id="cb-'+st.id+'" '+(checked?'checked':'')+' onclick="toggleSelect(\''+st.id+'\',this.checked)"></td>'+
