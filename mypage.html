@@ -433,20 +433,28 @@ async function loadVideos() {
 // ── 질의응답 ──
 async function loadQna() {
   try {
-    var res = await fetch(SU + '?action=getQuestions&role=student&studentId=' + encodeURIComponent(session.id));
-    var data = await res.json();
-    var list = (data.questions || []).filter(function(q){ return q.studentId === session.id; });
+    var db = await window.mkdbReady;
+    var snap = await db.collection('qna')
+      .where('studentId', '==', String(session.id))
+      .get();
+    var list = [];
+    snap.forEach(function(d){
+      var q = d.data();
+      if (q.status !== 'deleted') list.push(q);
+    });
+    list.sort(function(a,b){ return (a.date||'') < (b.date||'') ? 1 : -1; });
     if (!list.length) {
       document.getElementById('qna-list').innerHTML = '<div class="empty-msg">작성한 질문이 없습니다.</div>';
       return;
     }
     var html = '';
     list.forEach(function(q){
-      var statusCls = q.status === 'answered' ? 'status-예약' : 'status-취소';
-      var statusTxt = q.status === 'answered' ? '답변 완료' : '답변 대기';
+      var isAnswered = q.status === 'answered';
+      var statusCls = isAnswered ? 'status-예약' : 'status-취소';
+      var statusTxt = isAnswered ? '답변 완료' : '답변 대기';
       html += '<div class="booking-item" style="cursor:pointer;" onclick="location.href=\'qna.html?id='+q.id+'\'">'
             + '<div class="booking-info">'
-            + '<div class="booking-name">' + (q.secret ? '🔒 ' : '') + q.title + '</div>'
+            + '<div class="booking-name">' + (String(q.secret)==='true' ? '🔒 ' : '') + (q.title||'(제목 없음)') + '</div>'
             + '<div class="booking-date">' + (q.date||'') + '</div>'
             + '</div>'
             + '<span class="booking-status '+statusCls+'">'+statusTxt+'</span>'
