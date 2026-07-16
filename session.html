@@ -317,6 +317,15 @@ tr:hover td{background:#fafbff;}
         <label>코멘트</label>
         <textarea class="feedback-input" id="panel-feedback" placeholder="학생에게 전달할 내용을 입력하세요"></textarea>
       </div>
+      <div id="panel-stats" style="display:none;margin-bottom:14px;background:#f8fafc;border-radius:10px;padding:14px;">
+        <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:10px;">통계</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;" id="panel-stats-grid"></div>
+        <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;">등급 정보</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;" id="panel-grade-table">
+          <thead><tr style="color:#94a3b8;"><th style="text-align:left;padding:4px 0;">기준</th><th style="text-align:right;padding:4px 0;">등급컷</th><th style="text-align:right;padding:4px 0;">내 등급</th></tr></thead>
+          <tbody id="panel-grade-body"></tbody>
+        </table>
+      </div>
       <button class="save-score-btn" onclick="saveScore()">완료</button>
       <button style="width:100%;padding:10px;border:none;background:none;color:#94a3b8;font-size:13px;cursor:pointer;" onclick="closePanel()">닫기</button>
     </div>
@@ -359,6 +368,31 @@ tr:hover td{background:#fafbff;}
           <div style="display:flex;align-items:center;gap:8px;">
             <input id="exam-detail-total" type="number" min="0" placeholder="0" style="flex:1;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
             <span style="font-size:14px;color:#64748b;">개</span>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:10px;">등급컷 (점수 이상이면 해당 등급)</label>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="width:52px;font-size:13px;color:#64748b;font-weight:600;">1등급</span>
+              <input id="exam-grade1" type="number" min="0" placeholder="—" style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+              <span style="font-size:13px;color:#94a3b8;">점 이상</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="width:52px;font-size:13px;color:#64748b;font-weight:600;">2등급</span>
+              <input id="exam-grade2" type="number" min="0" placeholder="—" style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+              <span style="font-size:13px;color:#94a3b8;">점 이상</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="width:52px;font-size:13px;color:#64748b;font-weight:600;">3등급</span>
+              <input id="exam-grade3" type="number" min="0" placeholder="—" style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+              <span style="font-size:13px;color:#94a3b8;">점 이상</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="width:52px;font-size:13px;color:#64748b;font-weight:600;">4등급</span>
+              <input id="exam-grade4" type="number" min="0" placeholder="—" style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+              <span style="font-size:13px;color:#94a3b8;">점 이상</span>
+            </div>
           </div>
         </div>
         <button onclick="saveExamDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
@@ -836,6 +870,7 @@ function openPanel(studentId, examId){
   panelPass=sc?sc.pass||'':'';
   document.getElementById('panel-feedback').value=sc?sc.feedback||'':'';
   updatePassBtns();
+  renderPanelStats(examId, sc&&sc.score!==''?sc.score:'');
   document.getElementById('score-panel').style.display='block';
 }
 
@@ -847,6 +882,72 @@ function closePanel(){
 function togglePass(p){
   panelPass=panelPass===p?'':p;
   updatePassBtns();
+}
+
+function renderPanelStats(examId, myScore){
+  var ex=exams.find(function(e){return e.id===examId;});
+  if(!ex)return;
+  var grades=[ex.grade1,ex.grade2,ex.grade3,ex.grade4].map(function(v){return v===''||v===undefined?null:Number(v);});
+  var hasGrades=grades.some(function(g){return g!==null;});
+
+  // 응시한 학생 점수 모음
+  var scores=[];
+  students.forEach(function(st){
+    var sc=(scoresMap[st.id]||{})[examId];
+    if(sc&&sc.score!=='')scores.push(Number(sc.score));
+  });
+
+  var statsBox=document.getElementById('panel-stats');
+  if(!scores.length&&!hasGrades){statsBox.style.display='none';return;}
+  statsBox.style.display='';
+
+  // 통계 그리드
+  var avg=scores.length?Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length*10)/10:'—';
+  var max=scores.length?Math.max.apply(null,scores):'—';
+  var cnt=scores.length;
+  var myNum=myScore!==''?Number(myScore):null;
+  var rank=myNum!==null?scores.filter(function(s){return s>myNum;}).length+1:null;
+
+  var items=[
+    {label:'평균',val:avg+(scores.length?'점':'')},
+    {label:'최고점',val:max+(scores.length?'점':'')},
+    {label:'응시 인원',val:cnt+'명'},
+    {label:'내 점수',val:myNum!==null?myNum+'점':'—'},
+    {label:'내 등수',val:rank!==null?rank+'등 / '+cnt+'명':'—'},
+  ];
+  document.getElementById('panel-stats-grid').innerHTML=items.map(function(it){
+    return '<div style="text-align:center;background:#fff;border-radius:8px;padding:8px 4px;">'
+      +'<div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">'+it.label+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:#1e293b;">'+it.val+'</div>'
+      +'</div>';
+  }).join('');
+
+  // 등급 테이블
+  if(!hasGrades){document.getElementById('panel-grade-table').style.display='none';return;}
+  document.getElementById('panel-grade-table').style.display='';
+  var tbody=document.getElementById('panel-grade-body');
+  var myGrade=null;
+  var rows=grades.map(function(cut,i){
+    var g=i+1;
+    var isMy=myNum!==null&&cut!==null&&myNum>=cut&&(i===0||grades[i-1]===null||myNum<grades[i-1]);
+    if(isMy)myGrade=g;
+    return {g:g,cut:cut};
+  });
+  // 내 등급 재계산 (가장 높은 충족 등급)
+  if(myNum!==null){
+    myGrade=null;
+    for(var i=0;i<grades.length;i++){
+      if(grades[i]!==null&&myNum>=grades[i]){myGrade=i+1;break;}
+    }
+  }
+  tbody.innerHTML=rows.map(function(r){
+    var isMyRow=myGrade===r.g;
+    return '<tr style="'+(isMyRow?'background:#eff4ff;font-weight:700;':'')+'">'
+      +'<td style="padding:5px 4px;color:#475569;">'+r.g+'등급컷</td>'
+      +'<td style="padding:5px 4px;text-align:right;color:#1e293b;">'+(r.cut!==null?r.cut+'점':'—')+'</td>'
+      +'<td style="padding:5px 4px;text-align:right;">'+(isMyRow?'<span style="background:#3b6cf7;color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;">내 등급</span>':'')+'</td>'
+      +'</tr>';
+  }).join('');
 }
 function updatePassBtns(){
   document.getElementById('btn-submit').className='pass-btn'+(panelPass==='submit'?' submit-active':'');
@@ -920,6 +1021,10 @@ function openExamDetail(examId){
   document.getElementById('exam-detail-name-input').value=ex.name;
   document.getElementById('exam-detail-range').value=ex.range||'';
   document.getElementById('exam-detail-total').value=ex.totalQuestions||'';
+  document.getElementById('exam-grade1').value=ex.grade1||'';
+  document.getElementById('exam-grade2').value=ex.grade2||'';
+  document.getElementById('exam-grade3').value=ex.grade3||'';
+  document.getElementById('exam-grade4').value=ex.grade4||'';
   document.getElementById('exam-list-view').style.display='none';
   document.getElementById('exam-detail-view').style.display='';
 }
@@ -931,11 +1036,15 @@ async function saveExamDetail(){
   var name=document.getElementById('exam-detail-name-input').value.trim();
   var range=document.getElementById('exam-detail-range').value.trim();
   var total=document.getElementById('exam-detail-total').value.trim();
+  var g1=document.getElementById('exam-grade1').value.trim();
+  var g2=document.getElementById('exam-grade2').value.trim();
+  var g3=document.getElementById('exam-grade3').value.trim();
+  var g4=document.getElementById('exam-grade4').value.trim();
   if(!name){alert('시험 이름을 입력해주세요');return;}
-  var r=await fetch(SU+'?action=updateExam&id='+encodeURIComponent(currentExamId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&totalQuestions='+encodeURIComponent(total)).then(function(r){return r.json();});
+  var r=await fetch(SU+'?action=updateExam&id='+encodeURIComponent(currentExamId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&totalQuestions='+encodeURIComponent(total)+'&grade1='+encodeURIComponent(g1)+'&grade2='+encodeURIComponent(g2)+'&grade3='+encodeURIComponent(g3)+'&grade4='+encodeURIComponent(g4)).then(function(r){return r.json();});
   if(r.success){
     var ex=exams.find(function(e){return e.id===currentExamId;});
-    if(ex){ex.name=name;ex.range=range;ex.totalQuestions=total;}
+    if(ex){ex.name=name;ex.range=range;ex.totalQuestions=total;ex.grade1=g1;ex.grade2=g2;ex.grade3=g3;ex.grade4=g4;}
     document.getElementById('exam-detail-name').textContent=name;
     renderExamList();
     renderScores();
