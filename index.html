@@ -498,12 +498,12 @@
         <a href="qna.html">💬 질의응답</a>
         <a href="textbook.html">📖 부교재 해설 강의</a>
         <a id="my-class-link" href="#" style="display:none;">📚 내 반</a>
-        <a href="mypage.html">👤 마이페이지</a>
       </div>
     </li>
     <li><a href="notice.html">공지사항</a></li>
     <li><a href="#reviews">수강후기</a></li>
   </ul>
+  <a id="nav-mypage-btn" href="mypage.html" style="display:none; text-decoration:none; font-size:13px; font-weight:700; color:#1e293b; background:#f1f5f9; border-radius:8px; padding:7px 14px; margin-right:8px;">👤 마이페이지</a>
   <a id="nav-login-btn" href="homework.html" class="nav-cta" style="text-decoration:none; font-size:14px; font-weight:700;">🔐 로그인</a>
   <button class="hamburger" id="hamburger" onclick="toggleMenu()">
     <span></span><span></span><span></span>
@@ -522,7 +522,6 @@
     <a href="qna.html" onclick="closeMenu()">💬 질의응답</a>
     <a href="textbook.html" onclick="closeMenu()">📖 부교재 해설 강의</a>
     <a id="mobile-my-class-link" href="#" onclick="closeMenu()" style="display:none;">📚 내 반</a>
-    <a href="mypage.html" onclick="closeMenu()">👤 마이페이지</a>
   </div>
   <a href="notice.html" onclick="closeMenu()">공지사항</a>
   <a href="#reviews" onclick="closeMenu()">수강후기</a>
@@ -1279,6 +1278,9 @@
       if (session.role === 'teacher') {
         document.getElementById('admin-bar').style.display = 'flex';
         document.getElementById('review-manage-btn').style.display = 'block';
+      }
+      if (session.role === 'student') {
+        document.getElementById('nav-mypage-btn').style.display = 'inline-block';
       }
       if (session.role === 'student' && session.classId) {
         classLink.style.display = 'block';
