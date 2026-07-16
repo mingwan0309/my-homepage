@@ -322,6 +322,7 @@ tr:hover td{background:#fafbff;}
     <div class="sam-right">
       <div class="sam-load-section">
         <div class="sam-load-title">불러오기</div>
+        <button class="sam-load-btn" onclick="selectAllStudents()">✅ 전체 등록</button>
         <button class="sam-load-btn" onclick="loadFromPrevSession()">📋 직전 차시에서</button>
       </div>
       <div class="sam-sel-section">
@@ -647,6 +648,14 @@ function renderSamSelected(){
 
 function removeSamStudent(id){
   samSelected=samSelected.filter(function(s){return s!==id;});
+  renderSamList();
+  renderSamSelected();
+}
+
+function selectAllStudents(){
+  allSystemStudents.forEach(function(st){
+    if(attMap[st.id]===undefined && samSelected.indexOf(st.id)<0) samSelected.push(st.id);
+  });
   renderSamList();
   renderSamSelected();
 }
