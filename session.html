@@ -847,9 +847,9 @@ function renderScores(){
       var sc=(scoresMap[st.id]||{})[ex.id];
       if(sc&&sc.score!==''){
         var passIcon=sc.pass==='submit'?'<span style="color:#16a34a;font-size:10px;"> 제출</span>':sc.pass==='nosub'?'<span style="color:#dc2626;font-size:10px;"> 미제출</span>':sc.pass==='partial'?'<span style="color:#ca8a04;font-size:10px;"> 일부</span>':'';
-        return '<td><div class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+sc.score+'점'+passIcon+'</div></td>';
+        return '<td class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+sc.score+'점'+passIcon+'</td>';
       }
-      return '<td><div class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')" style="cursor:pointer;">—</div></td>';
+      return '<td class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">—</td>';
     }).join('');
     return '<tr><td style="color:#94a3b8;font-weight:600;">'+(i+1)+'</td>'+
       '<td><span class="stu-name">'+st.name+'</span></td>'+
