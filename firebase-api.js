@@ -322,6 +322,12 @@ api.getQuestion = function(db, p){
   });
 };
 
+api.updateQuestion = function(db, p){
+  var ref = db.collection('qna').doc(String(p.id));
+  return ref.update({ title:p.title||'', content:p.content||'', secret:String(p.secret||'false') })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
 api.deleteQuestion = function(db, p){
   return db.collection('qna').doc(String(p.id)).update({ status:'deleted' })
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });

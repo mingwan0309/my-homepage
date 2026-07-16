@@ -202,7 +202,10 @@ body { font-family:'맑은 고딕', sans-serif; background:#f8fafc; color:#1e293
         <div id="answer-section"></div>
         <div class="detail-footer">
           <button class="btn-list2" onclick="showList()">＜ 목록으로</button>
-          <button class="btn-del-q" id="btn-del-q" onclick="deleteQuestion()">삭제</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-edit-q" id="btn-edit-q" onclick="editQuestion()" style="display:none;background:#fff;border:1.5px solid #bfdbfe;color:#1d4ed8;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">수정</button>
+            <button class="btn-del-q" id="btn-del-q" onclick="deleteQuestion()">삭제</button>
+          </div>
         </div>
       </div>
     </div>
@@ -386,11 +389,18 @@ async function loadDetail(id) {
     document.getElementById('detail-author').innerHTML = '<span>' + esc(currentQuestion.studentName) + '(학생)</span> - ' + currentQuestion.createdAt;
     document.getElementById('detail-content').innerHTML = currentQuestion.content || '';
 
-    // delete button
-    if (isTeacher || currentQuestion.studentId === (session.id || '')) {
+    // delete / edit button (본인 or 선생님만)
+    var isOwner = currentQuestion.studentId === (session.id || '');
+    if (isTeacher || isOwner) {
       document.getElementById('btn-del-q').style.display = '';
     } else {
       document.getElementById('btn-del-q').style.display = 'none';
+    }
+    // 수정은 본인만 (답변 없을 때만)
+    if (isOwner && !currentAnswer) {
+      document.getElementById('btn-edit-q').style.display = '';
+    } else {
+      document.getElementById('btn-edit-q').style.display = 'none';
     }
 
     // sidebar
@@ -512,6 +522,46 @@ async function doDeleteAnswer() {
     editingAnswer = false;
     renderAnswer();
   } catch(e) { alert('삭제 실패'); }
+}
+
+function editQuestion() {
+  // 작성 폼을 수정 모드로 열기
+  document.getElementById('write-title').value = currentQuestion.title || '';
+  document.getElementById('write-editor').innerHTML = currentQuestion.content || '';
+  var secretChk = document.getElementById('write-secret');
+  if (secretChk) secretChk.checked = currentQuestion.secret === true || String(currentQuestion.secret) === 'true';
+  // 제목 변경
+  document.querySelector('#view-write .write-title-h').textContent = '질문 수정';
+  // 제출 버튼을 수정 제출로 교체
+  var submitBtn = document.getElementById('write-save-btn');
+  if (submitBtn) {
+    submitBtn.textContent = '수정 완료';
+    submitBtn.onclick = submitEditQuestion;
+  }
+  showWrite();
+}
+
+async function submitEditQuestion() {
+  const title = document.getElementById('write-title').value.trim();
+  const content = document.getElementById('write-editor').innerHTML.trim();
+  const secretChk = document.getElementById('write-secret');
+  const secret = secretChk ? secretChk.checked : false;
+  if (!title) { alert('제목을 입력해주세요.'); return; }
+  if (!content || content === '<br>') { alert('내용을 입력해주세요.'); return; }
+  try {
+    await fetch(SU, {
+      method: 'POST', mode: 'no-cors',
+      body: JSON.stringify({ action: 'updateQuestion', id: currentQuestion.id, title, content, secret })
+    });
+    currentQuestion.title = title;
+    currentQuestion.content = content;
+    currentQuestion.secret = secret;
+    // 작성 폼 원래대로 복원
+    var submitBtn = document.getElementById('write-save-btn');
+    if (submitBtn) { submitBtn.textContent = '질문 등록'; submitBtn.onclick = submitQuestion; }
+    document.querySelector('#view-write .write-title-h').textContent = '질의응답 작성';
+    showDetail(currentQuestion.id);
+  } catch(e) { alert('수정 실패. 다시 시도해주세요.'); }
 }
 
 async function deleteQuestion() {
