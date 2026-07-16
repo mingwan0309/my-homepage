@@ -124,7 +124,7 @@ api.addStudent = function(db, p){
       id: sid, password: pw, role:'student',
       name: p.sname || '', parentPhone: p.parentPhone || '',
       school: p.school || '', grade: p.grade || '', gender: p.gender || '',
-      classId:'', active:true, createdAt: nowStr()
+      classId: p.classId || '', active:true, createdAt: nowStr()
     }).then(function(){
       // 별도의 보조 앱으로 로그인 계정을 생성해서 현재(선생님) 로그인 세션이 끊기지 않게 함
       var secondary;

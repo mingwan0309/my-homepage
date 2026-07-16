@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>반 정보 — 김민관 수학</title>
 <script src="firebase-api.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <style>
 :root{--primary:#3b6cf7;--bg:#f1f5f9;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -199,7 +200,14 @@ tr:hover td{background:#fafbff;}
 <!-- 수강생 -->
 <div class="content" id="content-students">
   <div class="card">
-    <div class="card-header"><div class="card-title">수강생 목록</div></div>
+    <div class="card-header">
+      <div class="card-title">수강생 목록</div>
+      <div id="stu-add-btns" style="display:none;gap:8px;flex-wrap:wrap;">
+        <button onclick="downloadExcelTemplate()" style="background:#fff;border:1.5px solid #e2e8f0;color:#475569;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">📥 엑셀 양식</button>
+        <button onclick="openExcelImport()" style="background:#fff;border:1.5px solid #3b6cf7;color:#3b6cf7;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">📊 엑셀 일괄 등록</button>
+        <button onclick="openAddStudent()" style="background:#3b6cf7;border:none;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">+ 학생 추가</button>
+      </div>
+    </div>
     <table>
       <thead><tr><th style="width:40px;">#</th><th>이름</th><th>학생 전화번호</th><th>학부모 전화번호</th><th>학교</th><th>최근 출결</th></tr></thead>
       <tbody id="stu-tbody"><tr><td colspan="6" class="empty">불러오는 중...</td></tr></tbody>
@@ -381,6 +389,46 @@ tr:hover td{background:#fafbff;}
   </div>
 </div>
 
+<!-- 학생 추가 모달 -->
+<div class="overlay" id="add-stu-modal" onclick="if(event.target===this)closeAddStudent()">
+  <div class="modal">
+    <h3>학생 추가</h3>
+    <form id="add-stu-form" onsubmit="event.preventDefault();saveStudent();">
+      <div class="fg"><label>이름 *</label><input id="as-name" placeholder="홍길동" required></div>
+      <div class="fg"><label>학생 전화번호 * (로그인 아이디)</label><input id="as-phone" placeholder="01012345678" required></div>
+      <div class="fg"><label>학부모 전화번호</label><input id="as-parent" placeholder="01098765432"></div>
+      <div class="fg"><label>학교</label><input id="as-school" placeholder="○○중학교"></div>
+      <div class="fg"><label>학년</label><input id="as-grade" placeholder="중3"></div>
+      <div class="fg"><label>성별</label>
+        <select id="as-gender"><option value="">선택 안 함</option><option value="남">남</option><option value="여">여</option></select>
+      </div>
+      <div class="fg"><label>초기 비밀번호 (기본: 1234)</label><input id="as-pw" placeholder="1234"></div>
+      <p id="add-stu-msg" style="font-size:13px;margin-bottom:8px;min-height:18px;"></p>
+      <div class="modal-btns">
+        <button type="button" class="btn-cl" onclick="closeAddStudent()">취소</button>
+        <button type="submit" class="btn-ok">등록</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 엑셀 일괄 등록 모달 -->
+<div class="overlay" id="excel-modal" onclick="if(event.target===this)closeExcelImport()">
+  <div class="modal" style="max-width:640px;">
+    <h3>엑셀 일괄 등록</h3>
+    <p style="font-size:13px;color:#64748b;margin-bottom:14px;">엑셀/CSV 파일을 업로드하면 미리보기 후 일괄 등록합니다.<br>양식은 <button onclick="downloadExcelTemplate()" style="background:none;border:none;color:#3b6cf7;font-size:13px;font-weight:600;cursor:pointer;padding:0;">엑셀 양식 다운로드</button>를 사용하세요.</p>
+    <div class="fg"><label>파일 선택 (.xlsx / .csv)</label>
+      <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" onchange="onExcelFile(event)" style="padding:6px;">
+    </div>
+    <div id="excel-preview" style="max-height:260px;overflow-y:auto;margin-bottom:12px;border:1px solid #e2e8f0;border-radius:8px;"></div>
+    <p id="excel-import-msg" style="font-size:13px;margin-bottom:10px;min-height:18px;"></p>
+    <div class="modal-btns">
+      <button type="button" class="btn-cl" onclick="closeExcelImport()">닫기</button>
+      <button id="btn-do-import" class="btn-ok" style="display:none;" onclick="doExcelImport()">일괄 등록</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 const session = JSON.parse(localStorage.getItem('mkmath_session')||'null');
@@ -397,6 +445,8 @@ if(session.role==='student'){
 }
 if(session.role==='teacher'){
   document.getElementById('btn-admin').style.display='';
+  var stuAddBtns=document.getElementById('stu-add-btns');
+  if(stuAddBtns){stuAddBtns.style.display='flex';}
 }
 
 function logout(){localStorage.removeItem('mkmath_session');location.href='index.html';}
@@ -1020,6 +1070,156 @@ async function saveVideo(type){
       await loadMaterials();
     }
   }catch(e){alert('오류가 발생했습니다.');}
+}
+
+// ── 학생 추가 ──
+function openAddStudent(){
+  document.getElementById('add-stu-form').reset();
+  document.getElementById('add-stu-msg').textContent='';
+  document.getElementById('add-stu-modal').classList.add('show');
+}
+function closeAddStudent(){document.getElementById('add-stu-modal').classList.remove('show');}
+
+async function saveStudent(){
+  var name=document.getElementById('as-name').value.trim();
+  var phone=document.getElementById('as-phone').value.trim();
+  var parentPhone=document.getElementById('as-parent').value.trim();
+  var school=document.getElementById('as-school').value.trim();
+  var grade=document.getElementById('as-grade').value.trim();
+  var gender=document.getElementById('as-gender').value;
+  var pw=document.getElementById('as-pw').value.trim()||'1234';
+  var msgEl=document.getElementById('add-stu-msg');
+  if(!name||!phone){msgEl.textContent='이름과 학생 전화번호는 필수입니다.';msgEl.style.color='#dc2626';return;}
+  msgEl.textContent='등록 중...';msgEl.style.color='#3b6cf7';
+  try{
+    var r=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'addStudent',sid:phone,sname:name,spw:pw,parentPhone:parentPhone,school:school,grade:grade,gender:gender,classId:classId})});
+    var d=await r.json();
+    if(d.success){
+      // classId 업데이트 (addStudent에서 이미 저장되지만 혹시 API 버전 차이를 대비해 updateStudentInfo도 호출)
+      msgEl.textContent='등록 완료!';msgEl.style.color='#16a34a';
+      setTimeout(async function(){
+        closeAddStudent();
+        var cr=await fetch(SU+'?action=getClass&classId='+encodeURIComponent(classId)).then(r=>r.json());
+        students=cr.students||[];
+        renderStudents();
+        document.getElementById('stu-count-badge').textContent='('+students.length+')';
+      },800);
+    } else {
+      msgEl.textContent=d.msg||'등록 실패';msgEl.style.color='#dc2626';
+    }
+  }catch(e){msgEl.textContent='오류 발생';msgEl.style.color='#dc2626';}
+}
+
+// ── 엑셀 일괄 등록 ──
+function downloadExcelTemplate(){
+  var header=['이름','학생전화번호','학부모전화번호','학교','학년','성별','초기비밀번호'];
+  var example=['홍길동','01012345678','01098765432','○○중학교','중3','남','1234'];
+  var csv='﻿'+header.join(',')+'\n'+example.join(',')+'\n';
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='학생등록양식.csv';
+  a.click();
+}
+
+function openExcelImport(){
+  document.getElementById('excel-file-input').value='';
+  document.getElementById('excel-preview').innerHTML='';
+  document.getElementById('excel-import-msg').textContent='';
+  document.getElementById('btn-do-import').style.display='none';
+  document.getElementById('excel-modal').classList.add('show');
+}
+function closeExcelImport(){document.getElementById('excel-modal').classList.remove('show');}
+
+var excelRows=[];
+function onExcelFile(e){
+  var file=e.target.files[0];
+  if(!file){return;}
+  var msgEl=document.getElementById('excel-import-msg');
+  msgEl.textContent='파일 읽는 중...';msgEl.style.color='#3b6cf7';
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var wb=XLSX.read(ev.target.result,{type:'binary'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(rows.length<2){msgEl.textContent='데이터가 없습니다.';msgEl.style.color='#dc2626';return;}
+      // 첫 행 헤더, 나머지 데이터
+      var header=rows[0].map(function(h){return String(h).trim();});
+      // 컬럼 인덱스 추론
+      function findCol(keywords){
+        for(var i=0;i<header.length;i++){
+          for(var k=0;k<keywords.length;k++){if(header[i].indexOf(keywords[k])>=0)return i;}
+        }
+        return -1;
+      }
+      var iName=findCol(['이름','name']);
+      var iPhone=findCol(['학생전화','학생 전화','전화번호','phone','연락처']);
+      var iParent=findCol(['학부모','parent','부모']);
+      var iSchool=findCol(['학교','school']);
+      var iGrade=findCol(['학년','grade']);
+      var iGender=findCol(['성별','gender']);
+      var iPw=findCol(['비밀번호','password','pw','초기']);
+      if(iName<0||iPhone<0){msgEl.textContent='이름 또는 학생전화번호 열을 찾을 수 없습니다.';msgEl.style.color='#dc2626';return;}
+      excelRows=rows.slice(1).filter(function(r){return r[iName]||r[iPhone];}).map(function(r){
+        return{name:String(r[iName]||'').trim(),phone:String(r[iPhone]||'').trim(),
+          parentPhone:iParent>=0?String(r[iParent]||'').trim():'',
+          school:iSchool>=0?String(r[iSchool]||'').trim():'',
+          grade:iGrade>=0?String(r[iGrade]||'').trim():'',
+          gender:iGender>=0?String(r[iGender]||'').trim():'',
+          pw:iPw>=0?String(r[iPw]||'').trim()||'1234':'1234'};
+      });
+      if(!excelRows.length){msgEl.textContent='데이터 행이 없습니다.';msgEl.style.color='#dc2626';return;}
+      var preview='<table style="width:100%;font-size:12px;border-collapse:collapse;">'
+        +'<thead><tr style="background:#f1f5f9;"><th style="padding:5px 8px;text-align:left;">이름</th><th>전화번호</th><th>학부모</th><th>학교</th><th>학년</th><th>성별</th></tr></thead><tbody>'
+        +excelRows.map(function(r){
+          return '<tr style="border-bottom:1px solid #e2e8f0;">'
+            +'<td style="padding:5px 8px;">'+escHtml(r.name)+'</td>'
+            +'<td style="padding:5px 8px;">'+escHtml(r.phone)+'</td>'
+            +'<td style="padding:5px 8px;">'+escHtml(r.parentPhone)+'</td>'
+            +'<td style="padding:5px 8px;">'+escHtml(r.school)+'</td>'
+            +'<td style="padding:5px 8px;">'+escHtml(r.grade)+'</td>'
+            +'<td style="padding:5px 8px;">'+escHtml(r.gender)+'</td>'
+            +'</tr>';
+        }).join('')+'</tbody></table>';
+      document.getElementById('excel-preview').innerHTML=preview;
+      msgEl.textContent=excelRows.length+'명 확인됨. 아래 버튼으로 등록하세요.';msgEl.style.color='#16a34a';
+      document.getElementById('btn-do-import').style.display='';
+    }catch(err){msgEl.textContent='파일 읽기 오류: '+err.message;msgEl.style.color='#dc2626';}
+  };
+  reader.readAsBinaryString(file);
+}
+
+async function doExcelImport(){
+  var msgEl=document.getElementById('excel-import-msg');
+  var btn=document.getElementById('btn-do-import');
+  btn.disabled=true;
+  var ok=0,fail=0,failNames=[];
+  for(var i=0;i<excelRows.length;i++){
+    var row=excelRows[i];
+    msgEl.textContent=(i+1)+'/'+excelRows.length+' 등록 중...';msgEl.style.color='#3b6cf7';
+    try{
+      var r=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'addStudent',sid:row.phone,sname:row.name,spw:row.pw,
+          parentPhone:row.parentPhone,school:row.school,grade:row.grade,gender:row.gender,classId:classId})});
+      var d=await r.json();
+      if(d.success){ok++;}else{fail++;failNames.push(row.name+'('+d.msg+')');}
+    }catch(e){fail++;failNames.push(row.name+'(오류)');}
+  }
+  btn.disabled=false;
+  var msg=ok+'명 등록 완료';
+  if(fail>0)msg+=' / '+fail+'명 실패: '+failNames.join(', ');
+  msgEl.textContent=msg;msgEl.style.color=fail?'#f59e0b':'#16a34a';
+  if(ok>0){
+    setTimeout(async function(){
+      closeExcelImport();
+      var cr=await fetch(SU+'?action=getClass&classId='+encodeURIComponent(classId)).then(r=>r.json());
+      students=cr.students||[];
+      renderStudents();
+      document.getElementById('stu-count-badge').textContent='('+students.length+')';
+    },1200);
+  }
 }
 
 // ── 차시 추가 ──
