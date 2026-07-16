@@ -957,12 +957,16 @@ function updatePassBtns(){
 async function saveScore(){
   if(!panelStudentId||!panelExamId)return;
   var score=document.getElementById('panel-score').value;
-  if(!scoresMap[panelStudentId])scoresMap[panelStudentId]={};
   var feedback=document.getElementById('panel-feedback').value.trim();
-  scoresMap[panelStudentId][panelExamId]={score:score,pass:panelPass,feedback:feedback};
+  var sid=panelStudentId, eid=panelExamId, pp=panelPass;
+  if(!scoresMap[sid])scoresMap[sid]={};
+  scoresMap[sid][eid]={score:score,pass:pp,feedback:feedback};
   renderScores();
   closePanel();
-  fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(panelStudentId)+'&examId='+encodeURIComponent(panelExamId)+'&score='+encodeURIComponent(score)+'&pass='+encodeURIComponent(panelPass)+'&feedback='+encodeURIComponent(feedback));
+  try{
+    var r=await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(sid)+'&examId='+encodeURIComponent(eid)+'&score='+encodeURIComponent(score)+'&pass='+encodeURIComponent(pp)+'&feedback='+encodeURIComponent(feedback)).then(function(r){return r.json();});
+    if(!r.success)alert('저장 실패: '+JSON.stringify(r));
+  }catch(e){alert('저장 오류: '+e.message);}
 }
 
 // 시험 추가
