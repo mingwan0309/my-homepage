@@ -161,6 +161,18 @@ tr:hover td{background:#fafbff;}
 .sam-btn-cl{flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:600;color:#64748b;}
 .sam-btn-ok{flex:1;padding:10px;background:#3b6cf7;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;}
 
+/* 차시 드롭다운 */
+.cls-badge-sm{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0;}
+.session-dropdown-btn{display:flex;align-items:center;gap:5px;background:#eff4ff;border:none;padding:5px 11px;border-radius:9px;font-size:14px;font-weight:700;color:#3b6cf7;cursor:pointer;}
+.session-dropdown-btn:hover{background:#dbeafe;}
+.session-dd-wrap{position:relative;}
+.session-dd-menu{display:none;position:absolute;top:calc(100%+6px);left:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.1);min-width:140px;max-height:320px;overflow-y:auto;z-index:300;padding:6px 0;}
+.session-dd-menu.show{display:block;}
+.session-dd-item{display:flex;align-items:center;gap:8px;padding:9px 16px;font-size:13px;font-weight:600;color:#334155;cursor:pointer;white-space:nowrap;}
+.session-dd-item:hover{background:#f8fafc;color:#3b6cf7;}
+.session-dd-item.current{color:#3b6cf7;background:#eff4ff;}
+.session-dd-date{font-size:11px;color:#94a3b8;font-weight:400;}
+
 /* MODAL */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;}
 .modal-bg.show{display:flex;}
@@ -180,9 +192,11 @@ tr:hover td{background:#fafbff;}
 <!-- HEADER -->
 <div class="header">
   <button class="back-btn" onclick="goBack()">←</button>
+  <div class="cls-badge-sm" id="cls-badge-sm"></div>
   <div class="header-class" id="header-class">—</div>
-  <div class="header-session">
-    <span class="session-label" id="header-session">—</span>
+  <div class="session-dd-wrap">
+    <button class="session-dropdown-btn" id="header-session-btn" onclick="toggleSessionDD()">— ▾</button>
+    <div class="session-dd-menu" id="session-dd-menu"></div>
   </div>
   <div class="header-right" id="header-stats">
     <div class="stat-box"><div class="stat-label">날짜</div><div class="stat-val" id="stat-date">—</div></div>
@@ -196,6 +210,8 @@ tr:hover td{background:#fafbff;}
 <div class="tabs-bar">
   <div class="tab-item active" onclick="switchTab('attendance',this)">출석</div>
   <div class="tab-item" onclick="switchTab('scores',this)">성적</div>
+  <div class="tab-item" onclick="switchTab('exam',this)">시험</div>
+  <div class="tab-item" onclick="switchTab('homework',this)">과제</div>
 </div>
 
 <!-- 출석 -->
@@ -297,6 +313,17 @@ tr:hover td{background:#fafbff;}
 </div>
 </div>
 
+<!-- 시험 탭 -->
+<div class="content">
+<div id="page-exam" class="page">
+  <div class="card" style="padding:80px 20px;text-align:center;color:#94a3b8;">시험 내용을 여기에 추가하세요.</div>
+</div>
+<!-- 과제 탭 -->
+<div id="page-homework" class="page">
+  <div class="card" style="padding:80px 20px;text-align:center;color:#94a3b8;">과제 내용을 여기에 추가하세요.</div>
+</div>
+</div>
+
 <!-- 학생 추가 모달 -->
 <div class="modal-bg" id="add-stu-modal" onclick="if(event.target===this)closeSamModal()">
   <div class="sam-wrap">
@@ -387,10 +414,12 @@ async function init(){
   students=clsr.students||[];
   // 세션 목록은 실패해도 무관 (직전차시 기능용)
   fetch(SU+'?action=getSessions&classId='+encodeURIComponent(classId)).then(r=>r.json())
-    .then(function(r){classSessions=r.sessions||[];}).catch(function(){});
+    .then(function(r){classSessions=r.sessions||[];renderSessionDD();}).catch(function(){});
 
   document.getElementById('header-class').textContent=classInfo.name;
-  document.getElementById('header-session').textContent=sessionInfo.sessionNum+'차시';
+  var badge=document.getElementById('cls-badge-sm');
+  if(badge){var n=classInfo.name||'?';badge.textContent=n[0];badge.style.background=badgeColor(n);}
+  document.getElementById('header-session-btn').textContent=sessionInfo.sessionNum+'차시 ▾';
   document.getElementById('stat-date').textContent=formatDate(sessionInfo.date);
   document.title=classInfo.name+' '+sessionInfo.sessionNum+'차시 — 김민관 수학';
 
@@ -799,8 +828,35 @@ function switchTab(tab,el){
   document.querySelectorAll('.tab-item').forEach(function(t){t.classList.remove('active');});
   el.classList.add('active');
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
-  document.getElementById('page-'+tab).classList.add('active');
+  var pg=document.getElementById('page-'+tab);
+  if(pg) pg.classList.add('active');
 }
+
+// 차시 드롭다운
+function toggleSessionDD(){
+  var menu=document.getElementById('session-dd-menu');
+  menu.classList.toggle('show');
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.session-dd-wrap')) document.getElementById('session-dd-menu').classList.remove('show');
+},true);
+function renderSessionDD(){
+  var menu=document.getElementById('session-dd-menu');
+  if(!classSessions.length){menu.innerHTML='<div style="padding:12px 16px;font-size:13px;color:#94a3b8;">차시 없음</div>';return;}
+  menu.innerHTML=classSessions.map(function(s){
+    var isCur=s.id===sessionId;
+    return '<div class="session-dd-item'+(isCur?' current':'')+'" onclick="goToSession(\''+s.id+'\')">'
+      +s.sessionNum+'차시'
+      +(s.date?'<span class="session-dd-date">'+s.date.substring(5)+'</span>':'')
+      +'</div>';
+  }).join('');
+}
+function goToSession(id){
+  if(id===sessionId)return;
+  location.href='session.html?id='+encodeURIComponent(id)+'&classId='+encodeURIComponent(classId);
+}
+const BADGE_COLORS=['#3b6cf7','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4'];
+function badgeColor(n){var h=0;for(var i=0;i<n.length;i++)h+=n.charCodeAt(i);return BADGE_COLORS[h%BADGE_COLORS.length];}
 
 init();
 </script>
