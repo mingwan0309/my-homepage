@@ -172,6 +172,8 @@ tr:hover td{background:#fafbff;}
 .session-dd-item:hover{background:#f8fafc;color:#3b6cf7;}
 .session-dd-item.current{color:#3b6cf7;background:#eff4ff;}
 .session-dd-date{font-size:11px;color:#94a3b8;font-weight:400;}
+.exam-preset-btn{padding:6px 12px;border:1px solid #e2e8f0;border-radius:20px;font-size:12px;cursor:pointer;background:#f8fafc;color:#475569;}
+.exam-preset-btn:hover{background:#eff4ff;border-color:#3b6cf7;color:#3b6cf7;}
 
 /* MODAL */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;}
@@ -407,6 +409,15 @@ tr:hover td{background:#fafbff;}
 <div class="modal-bg" id="add-exam-modal">
   <div class="modal">
     <h3>시험 추가</h3>
+    <div class="fg" style="margin-bottom:10px;">
+      <label style="font-size:13px;color:#64748b;margin-bottom:6px;display:block;">빠른 선택</label>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;">
+        <button type="button" onclick="setExamPreset('데일리테스트')" class="exam-preset-btn">데일리테스트</button>
+        <button type="button" onclick="setExamPresetNum('실전모의고사')" class="exam-preset-btn">실전모의고사 N회</button>
+        <button type="button" onclick="setExamPresetNum('단원평가')" class="exam-preset-btn">단원평가 N회</button>
+        <button type="button" onclick="setExamPresetNum('수능특강')" class="exam-preset-btn">수능특강 N회</button>
+      </div>
+    </div>
     <div class="fg"><label>시험 이름</label><input type="text" id="exam-name-input" placeholder="예: 실전모의고사 1회"></div>
     <div class="modal-btns">
       <button class="btn-cl" onclick="closeAddExam()">취소</button>
@@ -847,6 +858,14 @@ async function saveScore(){
 // 시험 추가
 function openAddExam(){document.getElementById('exam-name-input').value='';document.getElementById('add-exam-modal').classList.add('show');}
 function closeAddExam(){document.getElementById('add-exam-modal').classList.remove('show');}
+function setExamPreset(name){document.getElementById('exam-name-input').value=name;}
+function setExamPresetNum(prefix){
+  var cur=document.getElementById('exam-name-input').value;
+  var m=cur.match(/(\d+)/);
+  var n=m?parseInt(m[1]):1;
+  var next=cur.startsWith(prefix)?(n+1):1;
+  document.getElementById('exam-name-input').value=prefix+' '+next+'회';
+}
 async function saveExam(){
   var name=document.getElementById('exam-name-input').value.trim();
   if(!name){alert('시험 이름을 입력해주세요');return;}
