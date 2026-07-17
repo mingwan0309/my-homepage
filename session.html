@@ -353,6 +353,20 @@ tr:hover td{background:#fafbff;}
       <button class="save-score-btn" onclick="saveScore()">완료</button>
       <button style="width:100%;padding:10px;border:none;background:none;color:#94a3b8;font-size:13px;cursor:pointer;" onclick="closePanel()">닫기</button>
     </div>
+    <div class="score-panel" id="hw-panel">
+      <h3 id="hw-panel-name">과제명</h3>
+      <div class="sub" id="hw-panel-sub"></div>
+      <div class="pass-btns">
+        <button class="pass-btn" id="hw-btn-submit" onclick="toggleHwPass('submit')">통과</button>
+        <button class="pass-btn" id="hw-btn-nosub" onclick="toggleHwPass('nosub')">미통과</button>
+      </div>
+      <div class="feedback-wrap">
+        <label>코멘트</label>
+        <textarea class="feedback-input" id="hw-panel-feedback" placeholder="학생에게 전달할 내용을 입력하세요"></textarea>
+      </div>
+      <button class="save-score-btn" onclick="saveHwStatus()">완료</button>
+      <button style="width:100%;padding:10px;border:none;background:none;color:#94a3b8;font-size:13px;cursor:pointer;" onclick="closeHwPanel()">닫기</button>
+    </div>
   </div>
 </div>
 </div>
@@ -408,42 +422,35 @@ tr:hover td{background:#fafbff;}
 </div>
 <!-- 과제 탭 -->
 <div id="page-homework" class="page">
-  <div class="score-layout">
-    <div class="score-table-wrap">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">과제 관리</div>
-          <button class="btn-sm" onclick="openAddHw()" style="background:#3b6cf7;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">+ 과제 추가</button>
-        </div>
-        <div style="overflow-x:auto;">
-          <table>
-            <thead>
-              <tr id="hw-thead-row">
-                <th style="width:36px;">#</th>
-                <th style="width:90px;">이름</th>
-                <th style="width:90px;">출석</th>
-              </tr>
-            </thead>
-            <tbody id="hw-tbody">
-              <tr><td colspan="10" class="empty">불러오는 중...</td></tr>
-            </tbody>
-          </table>
-        </div>
+  <!-- 과제 목록 뷰 -->
+  <div id="hw-list-view">
+    <div class="card" id="hw-list-card" style="padding:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <span style="font-weight:700;font-size:15px;">과제 목록</span>
+        <button class="btn-sm" onclick="openAddHw()" style="background:#3b6cf7;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">+ 과제 추가</button>
       </div>
+      <div id="hw-list-body"></div>
     </div>
-    <div class="score-panel" id="hw-panel">
-      <h3 id="hw-panel-name">과제명</h3>
-      <div class="sub" id="hw-panel-sub"></div>
-      <div class="pass-btns">
-        <button class="pass-btn" id="hw-btn-submit" onclick="toggleHwPass('submit')">통과</button>
-        <button class="pass-btn" id="hw-btn-nosub" onclick="toggleHwPass('nosub')">미통과</button>
+  </div>
+  <!-- 과제 상세 뷰 -->
+  <div id="hw-detail-view" style="display:none;">
+    <div class="card" style="padding:20px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <button onclick="closeHwDetail()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#64748b;">←</button>
+        <span id="hw-detail-name" style="font-weight:700;font-size:16px;flex:1;"></span>
+        <button onclick="deleteHwFromDetail()" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:13px;">삭제</button>
       </div>
-      <div class="feedback-wrap">
-        <label>코멘트</label>
-        <textarea class="feedback-input" id="hw-panel-feedback" placeholder="학생에게 전달할 내용을 입력하세요"></textarea>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">과제 이름</label>
+          <input id="hw-detail-name-input" type="text" placeholder="과제 이름" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
+        </div>
+        <div>
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">날짜</label>
+          <input id="hw-detail-range" type="text" placeholder="예: [07/17]" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
+        </div>
+        <button onclick="saveHwDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
       </div>
-      <button class="save-score-btn" onclick="saveHwStatus()">완료</button>
-      <button style="width:100%;padding:10px;border:none;background:none;color:#94a3b8;font-size:13px;cursor:pointer;" onclick="closeHwPanel()">닫기</button>
     </div>
   </div>
 </div>
@@ -908,17 +915,22 @@ async function loadScores(){
 }
 
 function renderScores(){
-  // 헤더
+  // 헤더 (시험 컬럼 + 과제 컬럼)
   var theadRow=document.getElementById('score-thead-row');
   var examCols=exams.map(function(ex){
     var del=session.role==='teacher'?'<button class="del-exam" onclick="deleteExam(\''+ex.id+'\',event)" title="삭제">✕</button>':'';
     return '<th><div class="exam-col-header">'+ex.name+del+'</div></th>';
   }).join('');
-  theadRow.innerHTML='<th style="width:36px;">#</th><th style="width:90px;">이름</th><th style="width:90px;">출석</th>'+examCols;
+  var hwCols=homeworks.map(function(hw){
+    var del=session.role==='teacher'?'<button class="del-exam" onclick="deleteHwFromScoreTable(\''+hw.id+'\',event)" title="삭제">✕</button>':'';
+    return '<th><div class="exam-col-header">📋 '+hw.name+del+'</div></th>';
+  }).join('');
+  theadRow.innerHTML='<th style="width:36px;">#</th><th style="width:90px;">이름</th><th style="width:90px;">출석</th>'+examCols+hwCols;
 
   // 바디
   var tbody=document.getElementById('score-tbody');
-  if(!students.length){tbody.innerHTML='<tr><td colspan="'+(3+exams.length)+'" class="empty">수강생이 없습니다</td></tr>';return;}
+  var colCount=3+exams.length+homeworks.length;
+  if(!students.length){tbody.innerHTML='<tr><td colspan="'+colCount+'" class="empty">수강생이 없습니다</td></tr>';return;}
   tbody.innerHTML=students.slice().sort(function(a,b){return a.name.localeCompare(b.name,'ko');}).map(function(st,i){
     var att=attMap[st.id]||{status:'미정'};
     var attBadge='<span class="status-badge s'+(att.status||'미정')+'">'+(att.status||'미정')+'</span>';
@@ -932,16 +944,30 @@ function renderScores(){
       }
       return '<td class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">—</td>';
     }).join('');
+    var hwResultCols=homeworks.map(function(hw){
+      var s=(hwStatusMap[st.id]||{})[hw.id];
+      var passIcon=s&&s.pass==='submit'?'<span style="color:#16a34a;font-size:11px;font-weight:700;">통과</span>':s&&s.pass==='nosub'?'<span style="color:#dc2626;font-size:11px;font-weight:700;">미통과</span>':'—';
+      return '<td class="score-cell'+(s&&s.pass?' has-score':' no-score')+'" onclick="openHwPanel(\''+st.id+'\',\''+hw.id+'\')">'+passIcon+'</td>';
+    }).join('');
     return '<tr><td style="color:#94a3b8;font-weight:600;">'+(i+1)+'</td>'+
       '<td><span class="stu-name" style="cursor:pointer;text-decoration:underline;" onclick="openStudentDetail(\''+st.id+'\')">'+st.name+'</span></td>'+
-      '<td>'+attBadge+'</td>'+scoreCols+'</tr>';
+      '<td>'+attBadge+'</td>'+scoreCols+hwResultCols+'</tr>';
   }).join('');
+}
+async function deleteHwFromScoreTable(hwId, e){
+  e.stopPropagation();
+  if(!confirm('과제를 삭제하시겠습니까?'))return;
+  await fetch(SU+'?action=deleteHwItem&id='+encodeURIComponent(hwId));
+  homeworks=homeworks.filter(function(h){return h.id!==hwId;});
+  renderScores();
+  renderHwList();
 }
 
 function openPanel(studentId, examId){
   var exam=exams.find(function(e){return e.id===examId;});
   var st=students.find(function(s){return s.id===studentId;});
   if(!exam||!st)return;
+  closeHwPanel();
   panelStudentId=studentId; panelExamId=examId; panelPass='';
   document.getElementById('panel-exam-name').textContent=exam.name;
   document.getElementById('panel-sub').textContent=classInfo.name+' '+sessionInfo.sessionNum+'차시, '+st.name;
@@ -1133,7 +1159,7 @@ async function deleteExam(examId, e){
   renderExamList();
 }
 
-// 과제
+// 과제 (시험과 동일한 목록/상세 구조, 결과는 성적 탭 표에 표시)
 async function loadHw(){
   const [hr, sr] = await Promise.all([
     fetch(SU+'?action=getHwItems&sessionId='+encodeURIComponent(sessionId)).then(r=>r.json()),
@@ -1145,36 +1171,81 @@ async function loadHw(){
     if(!hwStatusMap[s.studentId])hwStatusMap[s.studentId]={};
     hwStatusMap[s.studentId][s.hwId]={pass:s.pass,feedback:s.feedback||''};
   });
-  renderHw();
+  renderHwList();
+  renderScores();
 }
-function renderHw(){
-  var theadRow=document.getElementById('hw-thead-row');
-  if(!theadRow)return;
-  var hwCols=homeworks.map(function(hw){
-    var del=session.role==='teacher'?'<button class="del-exam" onclick="deleteHw(\''+hw.id+'\',event)" title="삭제">✕</button>':'';
-    return '<th><div class="exam-col-header">'+hw.name+del+'</div></th>';
+function renderHwList(){
+  var body=document.getElementById('hw-list-body');
+  if(!body)return;
+  if(!homeworks.length){
+    body.innerHTML='<div style="padding:48px 20px;text-align:center;color:#94a3b8;">'
+      +'<div style="font-size:36px;margin-bottom:10px;">📋</div>'
+      +'<div style="font-size:14px;margin-bottom:16px;">추가된 과제가 없어요.</div>'
+      +'</div>';
+    return;
+  }
+  body.innerHTML=homeworks.map(function(hw){
+    return '<div onclick="openHwDetail(\''+hw.id+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:10px;cursor:pointer;background:#fff;">'
+      +'<div>'
+      +'<div style="font-weight:600;font-size:14px;">'+hw.name+'</div>'
+      +(hw.range?'<div style="font-size:12px;color:#64748b;margin-top:3px;">'+hw.range+'</div>':'')
+      +'</div>'
+      +'<span style="color:#cbd5e1;">›</span></div>';
   }).join('');
-  theadRow.innerHTML='<th style="width:36px;">#</th><th style="width:90px;">이름</th><th style="width:90px;">출석</th>'+hwCols;
+}
+var currentHwId='';
+function openHwDetail(hwId){
+  var hw=homeworks.find(function(h){return h.id===hwId;});
+  if(!hw)return;
+  currentHwId=hwId;
+  document.getElementById('hw-detail-name').textContent=hw.name;
+  document.getElementById('hw-detail-name-input').value=hw.name;
+  document.getElementById('hw-detail-range').value=hw.range||'';
+  document.getElementById('hw-list-view').style.display='none';
+  document.getElementById('hw-detail-view').style.display='';
+}
+function closeHwDetail(){
+  document.getElementById('hw-detail-view').style.display='none';
+  document.getElementById('hw-list-view').style.display='';
+}
+async function saveHwDetail(){
+  var name=document.getElementById('hw-detail-name-input').value.trim();
+  var range=document.getElementById('hw-detail-range').value.trim();
+  if(!name){alert('과제 이름을 입력해주세요');return;}
+  var r=await fetch(SU+'?action=updateHwItem&id='+encodeURIComponent(currentHwId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)).then(function(r){return r.json();});
+  if(r.success){
+    var hw=homeworks.find(function(h){return h.id===currentHwId;});
+    if(hw){hw.name=name;hw.range=range;}
+    document.getElementById('hw-detail-name').textContent=name;
+    renderHwList();
+    renderScores();
+    alert('저장됐습니다.');
+  }
+}
+async function deleteHwFromDetail(){
+  if(!confirm('과제를 삭제하시겠습니까?'))return;
+  await fetch(SU+'?action=deleteHwItem&id='+encodeURIComponent(currentHwId));
+  homeworks=homeworks.filter(function(h){return h.id!==currentHwId;});
+  closeHwDetail();
+  renderHwList();
+  renderScores();
+}
+function openAddHw(){document.getElementById('hw-name-input').value='';document.getElementById('hw-range-input').value='';document.getElementById('add-hw-modal').classList.add('show');}
+function closeAddHw(){document.getElementById('add-hw-modal').classList.remove('show');}
+async function saveHw(){
+  var name=document.getElementById('hw-name-input').value.trim();
+  var range=document.getElementById('hw-range-input').value.trim();
+  if(!name){alert('과제 이름을 입력해주세요');return;}
+  var r=await fetch(SU+'?action=addHwItem&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)).then(r=>r.json());
+  if(r.success){closeAddHw();await loadHw();renderScores();}
+}
 
-  var tbody=document.getElementById('hw-tbody');
-  if(!students.length){tbody.innerHTML='<tr><td colspan="'+(3+homeworks.length)+'" class="empty">수강생이 없습니다</td></tr>';return;}
-  tbody.innerHTML=students.slice().sort(function(a,b){return a.name.localeCompare(b.name,'ko');}).map(function(st,i){
-    var att=attMap[st.id]||{status:'미정'};
-    var attBadge='<span class="status-badge s'+(att.status||'미정')+'">'+(att.status||'미정')+'</span>';
-    var hwCols=homeworks.map(function(hw){
-      var s=(hwStatusMap[st.id]||{})[hw.id];
-      var passIcon=s&&s.pass==='submit'?'<span style="color:#16a34a;font-size:11px;font-weight:700;">통과</span>':s&&s.pass==='nosub'?'<span style="color:#dc2626;font-size:11px;font-weight:700;">미통과</span>':'—';
-      return '<td class="score-cell'+(s&&s.pass?' has-score':' no-score')+'" onclick="openHwPanel(\''+st.id+'\',\''+hw.id+'\')">'+passIcon+'</td>';
-    }).join('');
-    return '<tr><td style="color:#94a3b8;font-weight:600;">'+(i+1)+'</td>'+
-      '<td><span class="stu-name" style="cursor:pointer;text-decoration:underline;" onclick="openStudentDetail(\''+st.id+'\')">'+st.name+'</span></td>'+
-      '<td>'+attBadge+'</td>'+hwCols+'</tr>';
-  }).join('');
-}
+// 과제 결과 입력 패널 (성적 탭 표에서 호출)
 function openHwPanel(studentId, hwId){
   var hw=homeworks.find(function(h){return h.id===hwId;});
   var st=students.find(function(s){return s.id===studentId;});
   if(!hw||!st)return;
+  closePanel();
   hwPanelStudentId=studentId; hwPanelHwId=hwId; hwPanelPass='';
   document.getElementById('hw-panel-name').textContent=hw.name;
   document.getElementById('hw-panel-sub').textContent=classInfo.name+' '+sessionInfo.sessionNum+'차시, '+st.name;
@@ -1202,27 +1273,12 @@ async function saveHwStatus(){
   var sid=hwPanelStudentId, hid=hwPanelHwId, pp=hwPanelPass;
   if(!hwStatusMap[sid])hwStatusMap[sid]={};
   hwStatusMap[sid][hid]={pass:pp,feedback:feedback};
-  renderHw();
+  renderScores();
   closeHwPanel();
   try{
     var r=await fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(sid)+'&hwId='+encodeURIComponent(hid)+'&pass='+encodeURIComponent(pp)+'&feedback='+encodeURIComponent(feedback)).then(function(r){return r.json();});
     if(!r.success)alert('저장 실패: '+JSON.stringify(r));
   }catch(e){alert('저장 오류: '+e.message);}
-}
-function openAddHw(){document.getElementById('hw-name-input').value='';document.getElementById('hw-range-input').value='';document.getElementById('add-hw-modal').classList.add('show');}
-function closeAddHw(){document.getElementById('add-hw-modal').classList.remove('show');}
-async function saveHw(){
-  var name=document.getElementById('hw-name-input').value.trim();
-  var range=document.getElementById('hw-range-input').value.trim();
-  if(!name){alert('과제 이름을 입력해주세요');return;}
-  var r=await fetch(SU+'?action=addHwItem&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)).then(r=>r.json());
-  if(r.success){closeAddHw();await loadHw();}
-}
-async function deleteHw(hwId, e){
-  e.stopPropagation();
-  if(!confirm('과제를 삭제하시겠습니까?'))return;
-  await fetch(SU+'?action=deleteHwItem&id='+encodeURIComponent(hwId));
-  await loadHw();
 }
 
 // 시험 탭 전용
@@ -1310,7 +1366,7 @@ function switchTab(tab,el){
   var pg=document.getElementById('page-'+tab);
   if(pg) pg.classList.add('active');
   if(tab==='exam') renderExamList();
-  if(tab==='homework') renderHw();
+  if(tab==='homework') renderHwList();
 }
 
 // 차시 드롭다운
