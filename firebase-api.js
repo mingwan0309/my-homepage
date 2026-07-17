@@ -559,6 +559,45 @@ api.updateExam = function(db, p){
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
+/* === 과제 (session.html 과제 탭) === */
+api.addHwItem = function(db, p){
+  var id = genId('hw');
+  return db.collection('homeworks').doc(id).set({
+    id:id, sessionId:String(p.sessionId), name:p.name||'과제', range:p.range||'', createdAt:nowStr()
+  }).then(function(){ return { success:true, id:id }; });
+};
+api.getHwItems = function(db, p){
+  return db.collection('homeworks').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
+    var hws = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; })
+      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', createdAt:r.createdAt||'' }; });
+    return { homeworks: hws };
+  });
+};
+api.deleteHwItem = function(db, p){
+  return db.collection('homeworks').doc(String(p.id)).delete()
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+api.updateHwItem = function(db, p){
+  var data={};
+  if(p.name!==undefined) data.name=p.name;
+  if(p.range!==undefined) data.range=p.range;
+  return db.collection('homeworks').doc(String(p.id)).update(data)
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+api.setHwStatus = function(db, p){
+  var key = String(p.sessionId)+'__'+String(p.studentId)+'__'+String(p.hwId);
+  return db.collection('hw_status').doc(key).set({
+    id:key, sessionId:String(p.sessionId), studentId:String(p.studentId), hwId:String(p.hwId),
+    pass:p.pass||'', feedback:p.feedback||''
+  }).then(function(){ return { success:true }; });
+};
+api.getHwStatuses = function(db, p){
+  return db.collection('hw_status').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
+    var list = docsToArr(snap).map(function(r){ return { studentId:String(r.studentId), hwId:String(r.hwId), pass:r.pass||'', feedback:r.feedback||'' }; });
+    return { statuses: list };
+  });
+};
+
 /* === 자료실 === */
 api.getMaterials = function(db, p){
   return db.collection('materials').where('classId','==',String(p.classId)).get().then(function(snap){
