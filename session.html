@@ -1076,9 +1076,15 @@ function renderStuAtt(){
 }
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+var EXAM_STATUS_TEMPLATE={
+  submit:'금일 TEST 결과가 기준을 달성하였습니다. 수고하셨습니다!',
+  nosub:'금일 TEST 결과가 기준에 미달하였습니다.\n보완 학습을 위해 다음 수업까지 추가 문항을 풀어 제출해 주시기 바랍니다.'
+};
 function togglePass(p){
   panelPass=panelPass===p?'':p;
   updatePassBtns();
+  var fb=document.getElementById('panel-feedback');
+  fb.value=panelPass?(EXAM_STATUS_TEMPLATE[panelPass]||''):'';
 }
 function autoPassFromScore(){
   var exam=exams.find(function(e){return e.id===panelExamId;});
@@ -1087,6 +1093,8 @@ function autoPassFromScore(){
   if(v===''){return;}
   panelPass=Number(v)>=Number(exam.passCutoff)?'submit':'nosub';
   updatePassBtns();
+  var fb=document.getElementById('panel-feedback');
+  fb.value=EXAM_STATUS_TEMPLATE[panelPass]||'';
 }
 
 var GRADE_PCTS=[0.10,0.34,0.66,0.90];
@@ -1285,16 +1293,16 @@ function closeHwPanel(){
   hwPanelStudentId=''; hwPanelHwId=''; hwPanelPass='';
 }
 var HW_STATUS_TEMPLATE={
-  complete:'제출하신 과제를 확인했습니다. 잘 하셨어요!',
-  partial:'제출하신 과제 중 일부만 완료되었습니다. 나머지 부분을 마저 진행해주세요.',
-  incomplete:'과제가 완료되지 않았습니다. 다음 수업 전까지 마무리해주세요.',
-  notsub:'과제가 제출되지 않았습니다. 다음 수업 시간에 확인 예정이니 반드시 챙겨와주세요.'
+  complete:'제출하신 과제가 [완료] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!',
+  partial:'제출하신 과제가 [일부미이행] 상태로 확인되었습니다.\n다음 수업 시간에 2차 점검이 예정되어 있으니, 반드시 완료하여 제출해 주시기 바랍니다.',
+  incomplete:'제출하신 과제가 [미이행] 상태로 확인되었습니다.\n다음 수업 시간에 2차 점검이 예정되어 있으니, 반드시 완료하여 제출해 주시기 바랍니다.',
+  notsub:'제출하신 과제가 [미제출] 상태로 확인되었습니다.\n다음 수업 시간에 2차 점검이 예정되어 있으니, 반드시 완료하여 제출해 주시기 바랍니다.'
 };
 function toggleHwPass(p){
   hwPanelPass=hwPanelPass===p?'':p;
   updateHwPassBtns();
   var fb=document.getElementById('hw-panel-feedback');
-  if(hwPanelPass && !fb.value.trim()) fb.value=HW_STATUS_TEMPLATE[hwPanelPass]||'';
+  fb.value=hwPanelPass?(HW_STATUS_TEMPLATE[hwPanelPass]||''):'';
 }
 function updateHwPassBtns(){
   document.getElementById('hw-btn-complete').className='pass-btn'+(hwPanelPass==='complete'?' submit-active':'');
