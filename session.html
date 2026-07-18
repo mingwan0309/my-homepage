@@ -254,38 +254,37 @@ tr:hover td{background:#fafbff;}
   <div class="card">
     <div class="card-header">
       <div class="card-title">출석 관리</div>
-      <div style="display:flex;gap:8px;">
+      <div class="sel-bar inline" id="sel-bar" style="padding:0;background:none;border:none;">
+        <span class="sel-bar-count" id="sel-bar-count">0명을 대상으로</span>
+        <div class="rel-wrap">
+          <button class="sel-bar-btn primary" onclick="toggleDropdown('bulk-att-menu')">✏️ 출석 일괄 변경 ▾</button>
+          <div class="dropdown-menu bulk-att-menu" id="bulk-att-menu">
+            <button class="dropdown-item" onclick="bulkChangeAtt('출석')">출석</button>
+            <button class="dropdown-item" onclick="bulkChangeAtt('현장')">현장</button>
+            <button class="dropdown-item" onclick="bulkChangeAtt('지각')">지각</button>
+            <button class="dropdown-item" onclick="bulkChangeAtt('영상대체')">영상대체</button>
+            <button class="dropdown-item" onclick="bulkChangeAtt('보강')">보강</button>
+            <button class="dropdown-item" onclick="bulkChangeAtt('조퇴')">조퇴</button>
+            <button class="dropdown-item" onclick="bulkChangeAtt('결석')">결석</button>
+            <button class="dropdown-item" onclick="bulkChangeAtt('부재')">부재</button>
+            <button class="dropdown-item" onclick="bulkChangeAtt('퇴원')">퇴원</button>
+            <button class="dropdown-item" onclick="bulkChangeAtt('미정')">미정으로 초기화</button>
+          </div>
+        </div>
+        <button class="sel-bar-btn" onclick="sendResults()">💬 수업 결과 발송</button>
+        <div class="rel-wrap">
+          <button class="sel-bar-btn" onclick="toggleDropdown('more-menu')">더보기 ▾</button>
+          <div class="dropdown-menu" id="more-menu">
+            <button class="dropdown-item" onclick="downloadExcel()">⬇️ 엑셀 다운로드</button>
+            <button class="dropdown-item danger" onclick="removeParticipants()">🗑 참여자 제거</button>
+          </div>
+        </div>
+        <button style="background:none;border:none;color:#94a3b8;font-size:18px;cursor:pointer;line-height:1;" onclick="clearSelection()">✕</button>
+      </div>
+      <div id="header-default-actions" style="display:flex;gap:8px;">
         <button id="btn-msg-top" class="btn-add-exam" style="border-style:solid;" onclick="openMsgFromHeader()">💬 메시지 발송</button>
         <button id="btn-add-stu-top" class="btn-add-exam" style="border-style:solid;display:none;" onclick="openAddStudentModal()">+ 학생 추가</button>
       </div>
-    </div>
-    <!-- 선택 바 -->
-    <div class="sel-bar" id="sel-bar">
-      <span class="sel-bar-count" id="sel-bar-count">0명을 대상으로</span>
-      <div class="rel-wrap">
-        <button class="sel-bar-btn primary" onclick="toggleDropdown('bulk-att-menu')">✏️ 출석 일괄 변경 ▾</button>
-        <div class="dropdown-menu bulk-att-menu" id="bulk-att-menu">
-          <button class="dropdown-item" onclick="bulkChangeAtt('출석')">출석</button>
-          <button class="dropdown-item" onclick="bulkChangeAtt('현장')">현장</button>
-          <button class="dropdown-item" onclick="bulkChangeAtt('지각')">지각</button>
-          <button class="dropdown-item" onclick="bulkChangeAtt('영상대체')">영상대체</button>
-          <button class="dropdown-item" onclick="bulkChangeAtt('보강')">보강</button>
-          <button class="dropdown-item" onclick="bulkChangeAtt('조퇴')">조퇴</button>
-          <button class="dropdown-item" onclick="bulkChangeAtt('결석')">결석</button>
-          <button class="dropdown-item" onclick="bulkChangeAtt('부재')">부재</button>
-          <button class="dropdown-item" onclick="bulkChangeAtt('퇴원')">퇴원</button>
-          <button class="dropdown-item" onclick="bulkChangeAtt('미정')">미정으로 초기화</button>
-        </div>
-      </div>
-      <button class="sel-bar-btn" onclick="sendResults()">💬 수업 결과 발송</button>
-      <div class="rel-wrap">
-        <button class="sel-bar-btn" onclick="toggleDropdown('more-menu')">더보기 ▾</button>
-        <div class="dropdown-menu" id="more-menu">
-          <button class="dropdown-item" onclick="downloadExcel()">⬇️ 엑셀 다운로드</button>
-          <button class="dropdown-item danger" onclick="removeParticipants()">🗑 참여자 제거</button>
-        </div>
-      </div>
-      <button style="margin-left:auto;background:none;border:none;color:#94a3b8;font-size:18px;cursor:pointer;line-height:1;" onclick="clearSelection()">✕</button>
     </div>
     <table>
       <thead>
@@ -701,7 +700,8 @@ function clearSelection(){
 function updateSelBar(){
   var n=selectedIds.size;
   var bar=document.getElementById('sel-bar');
-  if(n>0){bar.classList.add('show');}else{bar.classList.remove('show');closeAllDropdowns();}
+  var defaultActions=document.getElementById('header-default-actions');
+  if(n>0){bar.classList.add('show');defaultActions.style.display='none';}else{bar.classList.remove('show');closeAllDropdowns();defaultActions.style.display='flex';}
   document.getElementById('sel-bar-count').textContent=n+'명을 대상으로';
   var cbAll=document.getElementById('cb-all');
   if(cbAll){var total=getSessionStudents().length;cbAll.checked=total>0&&n>=total;cbAll.indeterminate=n>0&&n<total;}
