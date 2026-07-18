@@ -91,6 +91,8 @@ tr:hover td{background:#fafbff;}
 .pass-btn.submit-active{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
 .pass-btn.nosub-active{background:#fee2e2;border-color:#dc2626;color:#dc2626;}
 .pass-btn.partial-active{background:#fef9c3;border-color:#ca8a04;color:#92400e;}
+.pass-btn.incomplete-active{background:#fee2e2;border-color:#dc2626;color:#dc2626;}
+.pass-btn.notsub-active{background:#f1f5f9;border-color:#64748b;color:#475569;}
 .feedback-wrap{margin-bottom:14px;}
 .feedback-wrap label{font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:5px;}
 .feedback-input{width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;min-height:90px;outline:none;}
@@ -331,7 +333,7 @@ tr:hover td{background:#fafbff;}
       <div class="sub" id="panel-sub"></div>
       <div class="score-input-wrap">
         <label>점수 <span id="panel-max-score" style="font-weight:400;color:#94a3b8;font-size:12px;"></span></label>
-        <input class="score-input" type="number" id="panel-score" placeholder="—">
+        <input class="score-input" type="number" id="panel-score" placeholder="—" oninput="autoPassFromScore()">
       </div>
       <div class="pass-btns">
         <button class="pass-btn" id="btn-submit" onclick="togglePass('submit')">통과</button>
@@ -356,9 +358,11 @@ tr:hover td{background:#fafbff;}
     <div class="score-panel" id="hw-panel">
       <h3 id="hw-panel-name">과제명</h3>
       <div class="sub" id="hw-panel-sub"></div>
-      <div class="pass-btns">
-        <button class="pass-btn" id="hw-btn-submit" onclick="toggleHwPass('submit')">통과</button>
-        <button class="pass-btn" id="hw-btn-nosub" onclick="toggleHwPass('nosub')">미통과</button>
+      <div class="pass-btns" style="flex-wrap:wrap;">
+        <button class="pass-btn" id="hw-btn-complete" onclick="toggleHwPass('complete')" style="flex:1 1 45%;">완료</button>
+        <button class="pass-btn" id="hw-btn-partial" onclick="toggleHwPass('partial')" style="flex:1 1 45%;">일부미이행</button>
+        <button class="pass-btn" id="hw-btn-incomplete" onclick="toggleHwPass('incomplete')" style="flex:1 1 45%;">미이행</button>
+        <button class="pass-btn" id="hw-btn-notsub" onclick="toggleHwPass('notsub')" style="flex:1 1 45%;">미제출</button>
       </div>
       <div class="feedback-wrap">
         <label>코멘트</label>
@@ -414,6 +418,10 @@ tr:hover td{background:#fafbff;}
             <input id="exam-detail-total" type="number" min="0" placeholder="100" style="flex:1;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
             <span style="font-size:14px;color:#64748b;" id="exam-total-unit">점</span>
           </div>
+        </div>
+        <div>
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">통과 커트라인 <span style="font-weight:400;color:#94a3b8;">(선택, 입력 시 점수에 따라 자동으로 통과/미통과 판정)</span></label>
+          <input id="exam-detail-cutoff" type="number" min="0" placeholder="예: 80" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
         <button onclick="saveExamDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
       </div>
@@ -944,9 +952,11 @@ function renderScores(){
       }
       return '<td class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">—</td>';
     }).join('');
+    var HW_LABELS={complete:['#16a34a','완료'],partial:['#ca8a04','일부미이행'],incomplete:['#dc2626','미이행'],notsub:['#64748b','미제출']};
     var hwResultCols=homeworks.map(function(hw){
       var s=(hwStatusMap[st.id]||{})[hw.id];
-      var passIcon=s&&s.pass==='submit'?'<span style="color:#16a34a;font-size:11px;font-weight:700;">통과</span>':s&&s.pass==='nosub'?'<span style="color:#dc2626;font-size:11px;font-weight:700;">미통과</span>':'—';
+      var lbl=s&&HW_LABELS[s.pass];
+      var passIcon=lbl?'<span style="color:'+lbl[0]+';font-size:11px;font-weight:700;">'+lbl[1]+'</span>':'—';
       return '<td class="score-cell'+(s&&s.pass?' has-score':' no-score')+'" onclick="openHwPanel(\''+st.id+'\',\''+hw.id+'\')">'+passIcon+'</td>';
     }).join('');
     return '<tr><td style="color:#94a3b8;font-weight:600;">'+(i+1)+'</td>'+
@@ -1061,6 +1071,14 @@ function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt
 
 function togglePass(p){
   panelPass=panelPass===p?'':p;
+  updatePassBtns();
+}
+function autoPassFromScore(){
+  var exam=exams.find(function(e){return e.id===panelExamId;});
+  if(!exam||!exam.passCutoff)return;
+  var v=document.getElementById('panel-score').value;
+  if(v===''){return;}
+  panelPass=Number(v)>=Number(exam.passCutoff)?'submit':'nosub';
   updatePassBtns();
 }
 
@@ -1259,13 +1277,23 @@ function closeHwPanel(){
   document.getElementById('hw-panel').classList.remove('open');
   hwPanelStudentId=''; hwPanelHwId=''; hwPanelPass='';
 }
+var HW_STATUS_TEMPLATE={
+  complete:'제출하신 과제를 확인했습니다. 잘 하셨어요!',
+  partial:'제출하신 과제 중 일부만 완료되었습니다. 나머지 부분을 마저 진행해주세요.',
+  incomplete:'과제가 완료되지 않았습니다. 다음 수업 전까지 마무리해주세요.',
+  notsub:'과제가 제출되지 않았습니다. 다음 수업 시간에 확인 예정이니 반드시 챙겨와주세요.'
+};
 function toggleHwPass(p){
   hwPanelPass=hwPanelPass===p?'':p;
   updateHwPassBtns();
+  var fb=document.getElementById('hw-panel-feedback');
+  if(hwPanelPass && !fb.value.trim()) fb.value=HW_STATUS_TEMPLATE[hwPanelPass]||'';
 }
 function updateHwPassBtns(){
-  document.getElementById('hw-btn-submit').className='pass-btn'+(hwPanelPass==='submit'?' submit-active':'');
-  document.getElementById('hw-btn-nosub').className='pass-btn'+(hwPanelPass==='nosub'?' nosub-active':'');
+  document.getElementById('hw-btn-complete').className='pass-btn'+(hwPanelPass==='complete'?' submit-active':'');
+  document.getElementById('hw-btn-partial').className='pass-btn'+(hwPanelPass==='partial'?' partial-active':'');
+  document.getElementById('hw-btn-incomplete').className='pass-btn'+(hwPanelPass==='incomplete'?' incomplete-active':'');
+  document.getElementById('hw-btn-notsub').className='pass-btn'+(hwPanelPass==='notsub'?' notsub-active':'');
 }
 async function saveHwStatus(){
   if(!hwPanelStudentId||!hwPanelHwId)return;
@@ -1311,6 +1339,7 @@ function openExamDetail(examId){
   document.getElementById('exam-detail-name-input').value=ex.name;
   document.getElementById('exam-detail-range').value=ex.range||'';
   document.getElementById('exam-detail-total').value=ex.totalQuestions||'';
+  document.getElementById('exam-detail-cutoff').value=ex.passCutoff||'';
   setScoreType(ex.scoreType||'score');
   document.getElementById('exam-list-view').style.display='none';
   document.getElementById('exam-detail-view').style.display='';
@@ -1337,11 +1366,12 @@ async function saveExamDetail(){
   var name=document.getElementById('exam-detail-name-input').value.trim();
   var range=document.getElementById('exam-detail-range').value.trim();
   var total=document.getElementById('exam-detail-total').value.trim();
+  var cutoff=document.getElementById('exam-detail-cutoff').value.trim();
   if(!name){alert('시험 이름을 입력해주세요');return;}
-  var r=await fetch(SU+'?action=updateExam&id='+encodeURIComponent(currentExamId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&totalQuestions='+encodeURIComponent(total)+'&scoreType='+encodeURIComponent(currentScoreType)).then(function(r){return r.json();});
+  var r=await fetch(SU+'?action=updateExam&id='+encodeURIComponent(currentExamId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&totalQuestions='+encodeURIComponent(total)+'&scoreType='+encodeURIComponent(currentScoreType)+'&passCutoff='+encodeURIComponent(cutoff)).then(function(r){return r.json();});
   if(r.success){
     var ex=exams.find(function(e){return e.id===currentExamId;});
-    if(ex){ex.name=name;ex.range=range;ex.totalQuestions=total;ex.scoreType=currentScoreType;}
+    if(ex){ex.name=name;ex.range=range;ex.totalQuestions=total;ex.scoreType=currentScoreType;ex.passCutoff=cutoff;}
     document.getElementById('exam-detail-name').textContent=name;
     renderExamList();
     renderScores();
