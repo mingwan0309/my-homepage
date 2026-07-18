@@ -61,7 +61,7 @@ tr:hover td{background:#fafbff;}
 .att-btn.active-부재{background:#f1f5f9;border-color:#94a3b8;color:#94a3b8;}
 .att-btn.active-퇴원{background:#1e293b;border-color:#1e293b;color:#fff;}
 
-.status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;}
+.status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;}
 .s출석{background:#dcfce7;color:#16a34a;}
 .s지각{background:#fef9c3;color:#a16207;}
 .s영상대체{background:#dbeafe;color:#2563eb;}
@@ -986,7 +986,7 @@ function renderScores(){
     return '<th><div class="exam-col-header">📋 '+hw.name+del+'</div></th>';
   }).join('');
   var allChecked=students.length>0 && students.every(function(s){return scoreSelected[s.id];});
-  theadRow.innerHTML='<th style="width:30px;"><input type="checkbox" id="score-check-all" '+(allChecked?'checked':'')+' onchange="toggleAllScoreSel(this.checked)"></th><th style="width:36px;">#</th><th style="width:90px;">이름</th><th style="width:90px;">출석</th>'+examCols+hwCols;
+  theadRow.innerHTML='<th style="width:30px;"><input type="checkbox" id="score-check-all" '+(allChecked?'checked':'')+' onchange="toggleAllScoreSel(this.checked)"></th><th style="width:36px;">#</th><th style="width:90px;">이름</th><th style="width:110px;white-space:nowrap;">출석</th>'+examCols+hwCols;
 
   // 바디
   var tbody=document.getElementById('score-tbody');
