@@ -945,7 +945,11 @@ function renderScores(){
     var scoreCols=exams.map(function(ex){
       var sc=(scoresMap[st.id]||{})[ex.id];
       if(sc&&sc.score!==''){
-        var passIcon=sc.pass==='submit'?'<span style="color:#16a34a;font-size:10px;"> 통과</span>':sc.pass==='nosub'?'<span style="color:#dc2626;font-size:10px;"> 미통과</span>':'';
+        var pass=sc.pass;
+        if(ex.passCutoff!==undefined && ex.passCutoff!=='' && ex.passCutoff!==null){
+          pass=Number(sc.score)>=Number(ex.passCutoff)?'submit':'nosub';
+        }
+        var passIcon=pass==='submit'?'<span style="color:#16a34a;font-size:10px;"> 통과</span>':pass==='nosub'?'<span style="color:#dc2626;font-size:10px;"> 미통과</span>':'';
         var scoreUnit=(ex.scoreType||'score')==='count'?'개':'점';
         var scoreDisp=ex.totalQuestions&&ex.scoreType==='count'?sc.score+'/'+ex.totalQuestions+'개':sc.score+scoreUnit;
         return '<td class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+scoreDisp+passIcon+'</td>';
@@ -989,6 +993,9 @@ function openPanel(studentId, examId){
   var sc=(scoresMap[studentId]||{})[examId];
   document.getElementById('panel-score').value=sc&&sc.score!==''?sc.score:'';
   panelPass=sc?sc.pass||'':'';
+  if(sc&&sc.score!==''&&exam.passCutoff!==undefined&&exam.passCutoff!==''&&exam.passCutoff!==null){
+    panelPass=Number(sc.score)>=Number(exam.passCutoff)?'submit':'nosub';
+  }
   document.getElementById('panel-feedback').value=sc?sc.feedback||'':'';
   updatePassBtns();
   renderPanelStats(examId, sc&&sc.score!==''?sc.score:'');
