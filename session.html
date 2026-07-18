@@ -976,7 +976,8 @@ function renderScores(){
     var del=session.role==='teacher'?'<button class="del-exam" onclick="deleteHwFromScoreTable(\''+hw.id+'\',event)" title="삭제">✕</button>':'';
     return '<th><div class="exam-col-header">📋 '+hw.name+del+'</div></th>';
   }).join('');
-  theadRow.innerHTML='<th style="width:30px;"><input type="checkbox" id="score-check-all" onchange="toggleAllScoreSel(this.checked)"></th><th style="width:36px;">#</th><th style="width:90px;">이름</th><th style="width:90px;">출석</th>'+examCols+hwCols;
+  var allChecked=students.length>0 && students.every(function(s){return scoreSelected[s.id];});
+  theadRow.innerHTML='<th style="width:30px;"><input type="checkbox" id="score-check-all" '+(allChecked?'checked':'')+' onchange="toggleAllScoreSel(this.checked)"></th><th style="width:36px;">#</th><th style="width:90px;">이름</th><th style="width:90px;">출석</th>'+examCols+hwCols;
 
   // 바디
   var tbody=document.getElementById('score-tbody');
@@ -1024,6 +1025,8 @@ async function deleteHwFromScoreTable(hwId, e){
 // 학생 선택 (체크박스)
 function toggleScoreSel(id,checked){
   if(checked) scoreSelected[id]=true; else delete scoreSelected[id];
+  var allBox=document.getElementById('score-check-all');
+  if(allBox) allBox.checked = students.length>0 && students.every(function(s){return scoreSelected[s.id];});
 }
 function toggleAllScoreSel(checked){
   scoreSelected={};
