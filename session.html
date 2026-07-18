@@ -254,7 +254,10 @@ tr:hover td{background:#fafbff;}
   <div class="card">
     <div class="card-header">
       <div class="card-title">출석 관리</div>
-      <button id="btn-add-stu-top" class="btn-add-exam" style="border-style:solid;display:none;" onclick="openAddStudentModal()">+ 학생 추가</button>
+      <div style="display:flex;gap:8px;">
+        <button id="btn-msg-top" class="btn-add-exam" style="border-style:solid;" onclick="openMsgFromHeader()">💬 메시지 발송</button>
+        <button id="btn-add-stu-top" class="btn-add-exam" style="border-style:solid;display:none;" onclick="openAddStudentModal()">+ 학생 추가</button>
+      </div>
     </div>
     <!-- 선택 바 -->
     <div class="sel-bar" id="sel-bar">
@@ -722,7 +725,15 @@ function bulkChangeAtt(status){
 
 function sendResults(){
   closeAllDropdowns();
-  alert('수업 결과 발송 기능은 준비 중입니다.');
+  scoreSelected={};
+  selectedIds.forEach(function(id){scoreSelected[id]=true;});
+  openMsgModal();
+}
+function openMsgFromHeader(){
+  if(!selectedIds.size){
+    getSessionStudents().forEach(function(st){selectedIds.add(st.id);});
+  }
+  sendResults();
 }
 
 function downloadExcel(){
