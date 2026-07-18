@@ -370,7 +370,10 @@ tr:hover td{background:#fafbff;}
       </div>
       <div class="feedback-wrap" id="hw-detail-wrap" style="display:none;">
         <label>미이행 부분</label>
-        <input type="text" id="hw-panel-detail" placeholder="어느 부분이 남았는지 적어주세요" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="hw-panel-detail" placeholder="어느 부분이 남았는지 적어주세요" onkeydown="if(event.key==='Enter'){event.preventDefault();addHwDetailLine();}" style="flex:1;box-sizing:border-box;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+          <button type="button" onclick="addHwDetailLine()" style="padding:0 16px;background:#3b6cf7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">추가</button>
+        </div>
       </div>
       <button class="save-score-btn" onclick="saveHwStatus()">완료</button>
       <button style="width:100%;padding:10px;border:none;background:none;color:#94a3b8;font-size:13px;cursor:pointer;" onclick="closeHwPanel()">닫기</button>
@@ -1302,6 +1305,15 @@ function updateHwDetailWrap(){
   var show=hwPanelPass==='partial'||hwPanelPass==='incomplete';
   document.getElementById('hw-detail-wrap').style.display=show?'':'none';
 }
+function addHwDetailLine(){
+  var input=document.getElementById('hw-panel-detail');
+  var val=input.value.trim();
+  if(!val)return;
+  var fb=document.getElementById('hw-panel-feedback');
+  fb.value=(fb.value?fb.value+'\n':'')+'미이행 부분 : '+val;
+  input.value='';
+  input.focus();
+}
 var HW_STATUS_TEMPLATE={
   complete:'제출하신 과제가 [완료] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!',
   partial:'제출하신 과제가 [일부미이행] 상태로 확인되었습니다.\n다음 수업 시간에 2차 점검이 예정되어 있으니, 반드시 완료하여 제출해 주시기 바랍니다.',
@@ -1325,8 +1337,6 @@ function updateHwPassBtns(){
 async function saveHwStatus(){
   if(!hwPanelStudentId||!hwPanelHwId)return;
   var feedback=document.getElementById('hw-panel-feedback').value.trim();
-  var detail=document.getElementById('hw-panel-detail').value.trim();
-  if(detail) feedback+='\n미이행 부분 : '+detail;
   var sid=hwPanelStudentId, hid=hwPanelHwId, pp=hwPanelPass;
   if(!hwStatusMap[sid])hwStatusMap[sid]={};
   hwStatusMap[sid][hid]={pass:pp,feedback:feedback};
