@@ -311,11 +311,13 @@ tr:hover td{background:#fafbff;}
       <div class="card">
         <div class="card-header">
           <div class="card-title">성적 관리</div>
+          <button class="btn-sm" onclick="openMsgModal()" style="background:#3b6cf7;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">💬 메시지 발송</button>
         </div>
         <div style="overflow-x:auto;">
           <table>
             <thead>
               <tr id="score-thead-row">
+                <th style="width:30px;"><input type="checkbox" id="score-check-all" onchange="toggleAllScoreSel(this.checked)"></th>
                 <th style="width:36px;">#</th>
                 <th>이름</th>
                 <th>출석</th>
@@ -484,6 +486,39 @@ tr:hover td{background:#fafbff;}
   </div>
 </div>
 
+<!-- 메시지 작성 모달 -->
+<div class="modal-bg" id="msg-modal">
+  <div class="modal" style="max-width:920px;width:94%;max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3 style="margin:0;">메시지 작성</h3>
+      <button onclick="closeMsgModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <!-- 왼쪽: 대상 목록 -->
+      <div>
+        <label style="font-size:13px;font-weight:700;color:#475569;display:block;margin-bottom:8px;">발송 대상 (<span id="msg-target-count">0</span>명)</label>
+        <div id="msg-target-list" style="border:1px solid #e2e8f0;border-radius:10px;max-height:200px;overflow-y:auto;"></div>
+
+        <label style="font-size:13px;font-weight:700;color:#475569;display:block;margin:16px 0 8px;">데이터 기준 (시험/과제 선택)</label>
+        <select id="msg-assessment" onchange="onMsgAssessmentChange()" style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;"></select>
+
+        <label style="font-size:13px;font-weight:700;color:#475569;display:block;margin:16px 0 8px;">데이터 삽입 (클릭하면 메시지에 추가)</label>
+        <div id="msg-token-bar" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      </div>
+      <!-- 오른쪽: 메시지 작성 + 미리보기 -->
+      <div>
+        <label style="font-size:13px;font-weight:700;color:#475569;display:block;margin-bottom:8px;">메시지 내용</label>
+        <textarea id="msg-template" oninput="renderMsgPreview()" rows="8" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;resize:vertical;"></textarea>
+        <label style="font-size:13px;font-weight:700;color:#475569;display:block;margin:16px 0 8px;">학생별 미리보기</label>
+        <div id="msg-preview-list" style="display:flex;flex-direction:column;gap:10px;max-height:280px;overflow-y:auto;"></div>
+      </div>
+    </div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;text-align:center;color:#94a3b8;font-size:12px;">
+      ⚠️ 실제 카카오톡/문자 자동 발송은 아직 연결 전이에요. 지금은 학생별 문구를 만들어서 "복사" 버튼으로 복사한 뒤 직접 붙여넣어 보내는 방식이에요.
+    </div>
+  </div>
+</div>
+
 <!-- 학생 상세 패널 -->
 <div class="stu-panel-backdrop" id="stu-panel-backdrop" onclick="closeStudentDetail()"></div>
 <div class="stu-panel" id="stu-panel">
@@ -577,6 +612,7 @@ const ATT_TYPES=['출석','지각','영상대체','보강','조퇴','결석','�
 
 var sessionInfo=null, classInfo=null, students=[], classSessions=[], attMap={}, exams=[], scoresMap={};
 var panelStudentId='', panelExamId='', panelPass='';
+var scoreSelected={};
 var homeworks=[], hwStatusMap={};
 var hwPanelStudentId='', hwPanelHwId='', hwPanelPass='';
 var allSystemStudents=[], samSelected=[], samLoaded=false;
@@ -940,11 +976,11 @@ function renderScores(){
     var del=session.role==='teacher'?'<button class="del-exam" onclick="deleteHwFromScoreTable(\''+hw.id+'\',event)" title="삭제">✕</button>':'';
     return '<th><div class="exam-col-header">📋 '+hw.name+del+'</div></th>';
   }).join('');
-  theadRow.innerHTML='<th style="width:36px;">#</th><th style="width:90px;">이름</th><th style="width:90px;">출석</th>'+examCols+hwCols;
+  theadRow.innerHTML='<th style="width:30px;"><input type="checkbox" id="score-check-all" onchange="toggleAllScoreSel(this.checked)"></th><th style="width:36px;">#</th><th style="width:90px;">이름</th><th style="width:90px;">출석</th>'+examCols+hwCols;
 
   // 바디
   var tbody=document.getElementById('score-tbody');
-  var colCount=3+exams.length+homeworks.length;
+  var colCount=4+exams.length+homeworks.length;
   if(!students.length){tbody.innerHTML='<tr><td colspan="'+colCount+'" class="empty">수강생이 없습니다</td></tr>';return;}
   tbody.innerHTML=students.slice().sort(function(a,b){return a.name.localeCompare(b.name,'ko');}).map(function(st,i){
     var att=attMap[st.id]||{status:'미정'};
@@ -970,7 +1006,8 @@ function renderScores(){
       var passIcon=lbl?'<span style="color:'+lbl[0]+';font-size:11px;font-weight:700;">'+lbl[1]+'</span>':'—';
       return '<td class="score-cell'+(s&&s.pass?' has-score':' no-score')+'" onclick="openHwPanel(\''+st.id+'\',\''+hw.id+'\')">'+passIcon+'</td>';
     }).join('');
-    return '<tr><td style="color:#94a3b8;font-weight:600;">'+(i+1)+'</td>'+
+    var checked=scoreSelected[st.id]?'checked':'';
+    return '<tr><td><input type="checkbox" '+checked+' onchange="toggleScoreSel(\''+st.id+'\',this.checked)"></td><td style="color:#94a3b8;font-weight:600;">'+(i+1)+'</td>'+
       '<td><span class="stu-name" style="cursor:pointer;text-decoration:underline;" onclick="openStudentDetail(\''+st.id+'\')">'+st.name+'</span></td>'+
       '<td>'+attBadge+'</td>'+scoreCols+hwResultCols+'</tr>';
   }).join('');
@@ -982,6 +1019,166 @@ async function deleteHwFromScoreTable(hwId, e){
   homeworks=homeworks.filter(function(h){return h.id!==hwId;});
   renderScores();
   renderHwList();
+}
+
+// 학생 선택 (체크박스)
+function toggleScoreSel(id,checked){
+  if(checked) scoreSelected[id]=true; else delete scoreSelected[id];
+}
+function toggleAllScoreSel(checked){
+  scoreSelected={};
+  if(checked) students.forEach(function(s){scoreSelected[s.id]=true;});
+  renderScores();
+}
+
+// 메시지 작성 모달
+var MSG_TOKENS_COMMON=[['이름','{이름}'],['출결','{출결}'],['반','{반}'],['차시','{차시}']];
+var MSG_TOKENS_EXAM=[['점수','{점수}'],['등급','{등급}'],['등수','{등수}'],['평균','{평균}'],['최고점','{최고점}'],['통과여부','{통과여부}'],['피드백','{피드백}']];
+var MSG_TOKENS_HW=[['상태','{상태}'],['코멘트','{코멘트}']];
+
+function openMsgModal(){
+  if(!Object.keys(scoreSelected).length){alert('학생을 먼저 선택해주세요.');return;}
+  renderMsgAssessmentOptions();
+  var ta=document.getElementById('msg-template');
+  if(!ta.value.trim()){
+    ta.value='안녕하세요, '+(classInfo?classInfo.name:'')+' 담당 선생님입니다.\n금일 수업에 대한 학습 현황을 안내드립니다.\n\n이름 : {이름}\n출결 : {출결}\n\n감사합니다.';
+  }
+  renderMsgTargetList();
+  renderMsgTokenBar();
+  renderMsgPreview();
+  document.getElementById('msg-modal').classList.add('show');
+}
+function closeMsgModal(){
+  document.getElementById('msg-modal').classList.remove('show');
+}
+function renderMsgTargetList(){
+  var ids=Object.keys(scoreSelected);
+  document.getElementById('msg-target-count').textContent=ids.length;
+  var list=document.getElementById('msg-target-list');
+  if(!ids.length){list.innerHTML='<div style="padding:16px;color:#94a3b8;font-size:13px;text-align:center;">선택된 학생이 없습니다.</div>';return;}
+  list.innerHTML=ids.map(function(id){
+    var st=students.find(function(s){return s.id===id;});
+    if(!st)return'';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;">'
+      +'<span>'+st.name+'</span>'
+      +'<span style="cursor:pointer;color:#94a3b8;" onclick="removeMsgTarget(\''+id+'\')">✕</span></div>';
+  }).join('');
+}
+function removeMsgTarget(id){
+  delete scoreSelected[id];
+  renderScores();
+  renderMsgTargetList();
+  renderMsgPreview();
+}
+function renderMsgAssessmentOptions(){
+  var sel=document.getElementById('msg-assessment');
+  var opts=['<option value="">(선택 안 함)</option>'];
+  exams.forEach(function(ex){opts.push('<option value="exam:'+ex.id+'">[시험] '+ex.name+'</option>');});
+  homeworks.forEach(function(hw){opts.push('<option value="hw:'+hw.id+'">[과제] '+hw.name+'</option>');});
+  sel.innerHTML=opts.join('');
+}
+function onMsgAssessmentChange(){
+  renderMsgTokenBar();
+  renderMsgPreview();
+}
+function renderMsgTokenBar(){
+  var val=document.getElementById('msg-assessment').value;
+  var type=val.split(':')[0];
+  var tokens=MSG_TOKENS_COMMON.slice();
+  if(type==='exam') tokens=tokens.concat(MSG_TOKENS_EXAM);
+  if(type==='hw') tokens=tokens.concat(MSG_TOKENS_HW);
+  document.getElementById('msg-token-bar').innerHTML=tokens.map(function(t){
+    return '<button type="button" onclick="insertMsgToken(\''+t[1]+'\')" style="padding:6px 12px;background:#eff6ff;color:#2563eb;border:none;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;">'+t[0]+'</button>';
+  }).join('');
+}
+function insertMsgToken(token){
+  var ta=document.getElementById('msg-template');
+  var start=ta.selectionStart||ta.value.length, end=ta.selectionEnd||ta.value.length;
+  ta.value=ta.value.slice(0,start)+token+ta.value.slice(end);
+  ta.focus();
+  ta.selectionStart=ta.selectionEnd=start+token.length;
+  renderMsgPreview();
+}
+function computeMsgTokens(studentId){
+  var st=students.find(function(s){return s.id===studentId;});
+  var att=attMap[studentId]||{status:'미정'};
+  var tokens={
+    '{이름}': st?st.name:'',
+    '{출결}': att.status||'미정',
+    '{반}': classInfo?classInfo.name:'',
+    '{차시}': sessionInfo?(sessionInfo.sessionNum+'차시'):''
+  };
+  var selVal=document.getElementById('msg-assessment').value;
+  if(!selVal)return tokens;
+  var parts=selVal.split(':'), type=parts[0], id=parts[1];
+  if(type==='exam'){
+    var ex=exams.find(function(e){return e.id===id;});
+    var sc=(scoresMap[studentId]||{})[id];
+    var scoreDisp='—', passDisp='—', feedback='—';
+    if(ex&&sc&&sc.score!==''){
+      var scoreUnit=(ex.scoreType||'score')==='count'?'개':'점';
+      scoreDisp=ex.totalQuestions&&ex.scoreType==='count'?sc.score+'/'+ex.totalQuestions+'개':sc.score+scoreUnit;
+      var pass=sc.pass;
+      if(ex.passCutoff!==undefined&&ex.passCutoff!==''&&ex.passCutoff!==null){
+        pass=Number(sc.score)>=Number(ex.passCutoff)?'submit':'nosub';
+      }
+      passDisp=pass==='submit'?'통과':pass==='nosub'?'미통과':'—';
+      feedback=sc.feedback||'—';
+    }
+    var scoreList=[];
+    students.forEach(function(s){
+      var sc2=(scoresMap[s.id]||{})[id];
+      if(sc2&&sc2.score!=='')scoreList.push(Number(sc2.score));
+    });
+    scoreList.sort(function(a,b){return b-a;});
+    var avg=scoreList.length?Math.round(scoreList.reduce(function(a,b){return a+b;},0)/scoreList.length*10)/10:null;
+    var myNum=sc&&sc.score!==''?Number(sc.score):null;
+    var rank=myNum!==null?scoreList.filter(function(s2){return s2>myNum;}).length+1:null;
+    var grade=(myNum!==null&&scoreList.length)?calcGrade(rank,scoreList.length):null;
+    tokens['{점수}']=scoreDisp;
+    tokens['{등급}']=grade?grade+'등급':'—';
+    tokens['{등수}']=rank!==null?rank+'등/'+scoreList.length+'명':'—';
+    tokens['{평균}']=avg!==null?avg+'점':'—';
+    tokens['{최고점}']=scoreList.length?scoreList[0]+'점':'—';
+    tokens['{통과여부}']=passDisp;
+    tokens['{피드백}']=feedback;
+  } else if(type==='hw'){
+    var HW_LABELS={complete:'완료',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
+    var s=(hwStatusMap[studentId]||{})[id];
+    tokens['{상태}']=s&&s.pass?HW_LABELS[s.pass]:'—';
+    tokens['{코멘트}']=s&&s.feedback?s.feedback:'—';
+  }
+  return tokens;
+}
+function fillTemplate(template, tokens){
+  var out=template;
+  Object.keys(tokens).forEach(function(k){ out=out.split(k).join(tokens[k]); });
+  return out;
+}
+function renderMsgPreview(){
+  var ids=Object.keys(scoreSelected);
+  var template=document.getElementById('msg-template').value;
+  var list=document.getElementById('msg-preview-list');
+  if(!ids.length){list.innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">선택된 학생이 없습니다.</div>';return;}
+  list.innerHTML=ids.map(function(id){
+    var st=students.find(function(s){return s.id===id;});
+    if(!st)return'';
+    var tokens=computeMsgTokens(id);
+    var filled=fillTemplate(template,tokens);
+    var escaped=escHtml(filled).replace(/\n/g,'<br>');
+    return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+      +'<span style="font-weight:700;font-size:13px;">'+st.name+'</span>'
+      +'<button onclick="copyMsgFor(\''+id+'\')" style="background:#f1f5f9;border:none;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;">복사</button>'
+      +'</div>'
+      +'<div style="font-size:13px;color:#334155;line-height:1.6;white-space:pre-wrap;">'+escaped+'</div>'
+      +'</div>';
+  }).join('');
+}
+function copyMsgFor(studentId){
+  var template=document.getElementById('msg-template').value;
+  var tokens=computeMsgTokens(studentId);
+  copyText(fillTemplate(template,tokens));
 }
 
 function openPanel(studentId, examId){
