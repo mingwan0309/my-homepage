@@ -368,6 +368,10 @@ tr:hover td{background:#fafbff;}
         <label>코멘트</label>
         <textarea class="feedback-input" id="hw-panel-feedback" placeholder="학생에게 전달할 내용을 입력하세요"></textarea>
       </div>
+      <div class="feedback-wrap" id="hw-detail-wrap" style="display:none;">
+        <label>미이행 부분</label>
+        <input type="text" id="hw-panel-detail" placeholder="어느 부분이 남았는지 적어주세요" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+      </div>
       <button class="save-score-btn" onclick="saveHwStatus()">완료</button>
       <button style="width:100%;padding:10px;border:none;background:none;color:#94a3b8;font-size:13px;cursor:pointer;" onclick="closeHwPanel()">닫기</button>
     </div>
@@ -1285,12 +1289,18 @@ function openHwPanel(studentId, hwId){
   var s=(hwStatusMap[studentId]||{})[hwId];
   hwPanelPass=s?s.pass||'':'';
   document.getElementById('hw-panel-feedback').value=s?s.feedback||'':'';
+  document.getElementById('hw-panel-detail').value='';
   updateHwPassBtns();
+  updateHwDetailWrap();
   document.getElementById('hw-panel').classList.add('open');
 }
 function closeHwPanel(){
   document.getElementById('hw-panel').classList.remove('open');
   hwPanelStudentId=''; hwPanelHwId=''; hwPanelPass='';
+}
+function updateHwDetailWrap(){
+  var show=hwPanelPass==='partial'||hwPanelPass==='incomplete';
+  document.getElementById('hw-detail-wrap').style.display=show?'':'none';
 }
 var HW_STATUS_TEMPLATE={
   complete:'제출하신 과제가 [완료] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!',
@@ -1301,8 +1311,10 @@ var HW_STATUS_TEMPLATE={
 function toggleHwPass(p){
   hwPanelPass=hwPanelPass===p?'':p;
   updateHwPassBtns();
+  updateHwDetailWrap();
   var fb=document.getElementById('hw-panel-feedback');
   fb.value=hwPanelPass?(HW_STATUS_TEMPLATE[hwPanelPass]||''):'';
+  document.getElementById('hw-panel-detail').value='';
 }
 function updateHwPassBtns(){
   document.getElementById('hw-btn-complete').className='pass-btn'+(hwPanelPass==='complete'?' submit-active':'');
@@ -1313,6 +1325,8 @@ function updateHwPassBtns(){
 async function saveHwStatus(){
   if(!hwPanelStudentId||!hwPanelHwId)return;
   var feedback=document.getElementById('hw-panel-feedback').value.trim();
+  var detail=document.getElementById('hw-panel-detail').value.trim();
+  if(detail) feedback+='\n미이행 부분 : '+detail;
   var sid=hwPanelStudentId, hid=hwPanelHwId, pp=hwPanelPass;
   if(!hwStatusMap[sid])hwStatusMap[sid]={};
   hwStatusMap[sid][hid]={pass:pp,feedback:feedback};
