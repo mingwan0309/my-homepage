@@ -599,7 +599,8 @@ tr:hover td{background:#fafbff;}
         <div id="msg-preview-label" style="font-size:12px;color:#3b6cf7;font-weight:600;"></div>
       </div>
       <div style="display:flex;gap:8px;">
-        <button onclick="copyAllMsgs()" style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#475569;">전체 복사 목록 보기</button>
+        <button onclick="copyAllAtOnce()" style="padding:10px 20px;border:1.5px solid #3b6cf7;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#3b6cf7;">📋 전체 한번에 복사</button>
+        <button onclick="copyAllMsgs()" style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#475569;">학생별 복사 목록</button>
         <button disabled style="padding:10px 24px;background:#3b6cf7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:not-allowed;opacity:0.5;" id="msg-send-btn"><span id="msg-target-count2">0</span>명에게 알림톡 발송</button>
       </div>
     </div>
@@ -1385,6 +1386,18 @@ function copyMsgFor(studentId){
   var template=document.getElementById('msg-template').value;
   var tokens=computeMsgTokens(studentId);
   copyText(fillTemplate(template,tokens));
+}
+function copyAllAtOnce(){
+  var ids=Object.keys(scoreSelected);
+  var template=document.getElementById('msg-template').value;
+  if(!ids.length){alert('선택된 학생이 없습니다.');return;}
+  var text=ids.map(function(id){
+    var st=students.find(function(s){return s.id===id;});
+    var filled=fillTemplate(template,computeMsgTokens(id));
+    return '▶ '+( st?st.name:'')+'\\n'+filled;
+  }).join('\\n\\n---\\n\\n');
+  copyText(text);
+  alert(ids.length+'명 전체 메시지가 복사되었습니다.');
 }
 function copyAllMsgs(){
   var ids=Object.keys(scoreSelected);
