@@ -731,6 +731,94 @@ api.getSlotCount = function(db, p){
   });
 };
 
+/* === 조교 관리 === */
+api.getAssistants = function(db){
+  return db.collection('assistants').get().then(function(snap){
+    return { assistants: docsToArr(snap).sort(function(a,b){return (a.createdAt||'')>(b.createdAt||'')?1:-1;})
+      .map(function(r){ return { id:r.id, name:r.name||'', phone:r.phone||'', isAdmin:!!r.isAdmin,
+        salaryType:r.salaryType||'hourly', defaultWorkTypeId:r.defaultWorkTypeId||'', active:r.active!==false, createdAt:r.createdAt||'' }; }); };
+  });
+};
+api.addAssistant = function(db, p){
+  var id = genId('ast');
+  return db.collection('assistants').doc(id).set({
+    id:id, name:p.name||'', phone:p.phone||'', isAdmin:false,
+    salaryType:p.salaryType||'hourly', defaultWorkTypeId:p.defaultWorkTypeId||'', active:true, createdAt:nowStr()
+  }).then(function(){ return { success:true, id:id }; });
+};
+api.updateAssistant = function(db, p){
+  var data={};
+  ['name','phone','isAdmin','salaryType','defaultWorkTypeId'].forEach(function(k){ if(p[k]!==undefined) data[k]=p[k]; });
+  return db.collection('assistants').doc(String(p.id)).update(data).then(function(){ return { success:true }; });
+};
+api.setAssistantActive = function(db, p){
+  return db.collection('assistants').doc(String(p.id)).update({ active:!!p.active }).then(function(){ return { success:true }; });
+};
+api.deleteAssistant = function(db, p){
+  return db.collection('assistants').doc(String(p.id)).delete().then(function(){ return { success:true }; });
+};
+api.getWorkTypes = function(db){
+  return db.collection('work_types').get().then(function(snap){
+    return { workTypes: docsToArr(snap).sort(function(a,b){return (a.createdAt||'')>(b.createdAt||'')?1:-1;})
+      .map(function(r){ return { id:r.id, name:r.name||'', color:r.color||'#64748b', hourlyRate:Number(r.hourlyRate||0), createdAt:r.createdAt||'' }; }); };
+  });
+};
+api.addWorkType = function(db, p){
+  var id = genId('wt');
+  return db.collection('work_types').doc(id).set({
+    id:id, name:p.name||'', color:p.color||'#64748b', hourlyRate:Number(p.hourlyRate||0), createdAt:nowStr()
+  }).then(function(){ return { success:true, id:id }; });
+};
+api.updateWorkType = function(db, p){
+  var data={};
+  if(p.name!==undefined) data.name=p.name;
+  if(p.color!==undefined) data.color=p.color;
+  if(p.hourlyRate!==undefined) data.hourlyRate=Number(p.hourlyRate);
+  return db.collection('work_types').doc(String(p.id)).update(data).then(function(){ return { success:true }; });
+};
+api.deleteWorkType = function(db, p){
+  return db.collection('work_types').doc(String(p.id)).delete().then(function(){ return { success:true }; });
+};
+api.getWorkLogs = function(db, p){
+  var q = db.collection('work_logs').where('yearMonth','==',String(p.yearMonth||''));
+  if(p.assistantId) q = q.where('assistantId','==',String(p.assistantId));
+  return q.get().then(function(snap){
+    return { logs: docsToArr(snap).sort(function(a,b){return (a.date+a.clockIn)<(b.date+b.clockIn)?-1:1;})
+      .map(function(r){ return { id:r.id, assistantId:r.assistantId||'', date:r.date||'', clockIn:r.clockIn||'',
+        clockOut:r.clockOut||'', workTypeId:r.workTypeId||'', breakMin:Number(r.breakMin||0),
+        memo:r.memo||'', cost:Number(r.cost||0), yearMonth:r.yearMonth||'' }; }); };
+  });
+};
+api.addWorkLog = function(db, p){
+  var id = genId('wlog');
+  return db.collection('work_logs').doc(id).set({
+    id:id, assistantId:String(p.assistantId), date:p.date||'', clockIn:p.clockIn||'', clockOut:p.clockOut||'',
+    workTypeId:String(p.workTypeId||''), breakMin:Number(p.breakMin||0), memo:p.memo||'', cost:Number(p.cost||0),
+    yearMonth:(p.date||'').slice(0,7), createdAt:nowStr()
+  }).then(function(){ return { success:true, id:id }; });
+};
+api.deleteWorkLog = function(db, p){
+  return db.collection('work_logs').doc(String(p.id)).delete().then(function(){ return { success:true }; });
+};
+api.getExpenseLogs = function(db, p){
+  var q = db.collection('expense_logs').where('yearMonth','==',String(p.yearMonth||''));
+  return q.get().then(function(snap){
+    return { logs: docsToArr(snap).map(function(r){
+      return { id:r.id, assistantId:r.assistantId||'', date:r.date||'', amount:Number(r.amount||0), description:r.description||'', memo:r.memo||'' };
+    }) };
+  });
+};
+api.addExpenseLog = function(db, p){
+  var id = genId('exp');
+  return db.collection('expense_logs').doc(id).set({
+    id:id, assistantId:String(p.assistantId), date:p.date||'', amount:Number(p.amount||0),
+    description:p.description||'', memo:p.memo||'', yearMonth:(p.date||'').slice(0,7), createdAt:nowStr()
+  }).then(function(){ return { success:true, id:id }; });
+};
+api.deleteExpenseLog = function(db, p){
+  return db.collection('expense_logs').doc(String(p.id)).delete().then(function(){ return { success:true }; });
+};
+
 /* ---------- 외부 노출 (페이지에서 직접 Firestore 사용) ---------- */
 window.mkdbReady = _dbReady;
 window.mkGenId = genId;

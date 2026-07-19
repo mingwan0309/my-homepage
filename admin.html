@@ -123,6 +123,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('videos',this)"><span class="ni">🎬</span> 영상</div>
+      <div class="nav-item" onclick="showPage('assistants',this)"><span class="ni">👩‍🏫</span> 조교</div>
       <div class="nav-item" onclick="showPage('settings',this)"><span class="ni">⚙️</span> 관리자</div>
     </nav>
     <div style="padding:10px 14px; border-top:1px solid #334155;">
@@ -361,8 +362,148 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       </div>
     </div>
 
+    <!-- 조교 관리 -->
+    <div id="page-assistants" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">조교 관리</div>
+          <div class="tabs">
+            <div class="tab active" onclick="astTab('list',this)">조교 목록</div>
+            <div class="tab" onclick="astTab('logs',this)">근태 기록</div>
+          </div>
+        </div>
+        <div id="ast-tab-btn-area"></div>
+      </div>
+
+      <!-- 조교 목록 탭 -->
+      <div id="ast-tab-list">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <input type="text" id="ast-search" placeholder="🔍 이름/전화번호 검색" oninput="renderAstList()" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;width:220px;">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>조교 이름</th>
+              <th>전화번호</th>
+              <th>관리자 권한</th>
+              <th>급여 유형</th>
+              <th>근무 유형 설정</th>
+              <th>계정 상태</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="ast-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 근태 기록 탭 -->
+      <div id="ast-tab-logs" style="display:none;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-size:13px;font-weight:700;color:#64748b;">날짜</label>
+            <select id="ast-log-month" onchange="loadAstLogs()" style="padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;background:#fff;"></select>
+          </div>
+          <button onclick="exportAstExcel()" style="margin-left:auto;padding:8px 16px;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">⬇ 엑셀로 내보내기</button>
+        </div>
+        <div style="display:flex;gap:20px;align-items:flex-start;">
+          <!-- 조교 목록 (왼쪽) -->
+          <div style="width:280px;flex-shrink:0;background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.07);overflow:hidden;">
+            <div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-size:13px;font-weight:700;">조교 목록</span>
+              <span id="ast-log-total-label" style="font-size:12px;color:#64748b;"></span>
+            </div>
+            <div id="ast-log-list" style="max-height:600px;overflow-y:auto;"></div>
+          </div>
+          <!-- 상세 (오른쪽) -->
+          <div style="flex:1;background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.07);padding:24px 28px;min-height:300px;">
+            <div id="ast-log-detail"><div class="placeholder"><div class="pi">👆</div><h3>왼쪽에서 조교를 선택하세요</h3></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
+
+<!-- 조교 추가/수정 모달 -->
+<div id="ast-modal" class="modal-bg">
+  <div class="modal">
+    <h3 id="ast-modal-title">조교 추가</h3>
+    <input type="hidden" id="ast-edit-id">
+    <div class="fg"><label>이름</label><input type="text" id="ast-name" placeholder="홍길동"></div>
+    <div class="fg"><label>전화번호</label><input type="tel" id="ast-phone" placeholder="010-0000-0000"></div>
+    <div class="fg"><label>급여 유형</label>
+      <select id="ast-salary-type" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;">
+        <option value="hourly">시급</option>
+        <option value="monthly">월급</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="document.getElementById('ast-modal').classList.remove('show')">취소</button>
+      <button class="btn-ok" onclick="saveAssistant()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 근무 유형 추가/수정 모달 -->
+<div id="wt-modal" class="modal-bg">
+  <div class="modal" style="max-width:360px;">
+    <h3 id="wt-modal-title">근무 유형 추가</h3>
+    <input type="hidden" id="wt-edit-id">
+    <div class="fg"><label>유형 이름</label><input type="text" id="wt-name" placeholder="예: Lv1, 행정조교"></div>
+    <div class="fg"><label>시급 (원)</label><input type="number" id="wt-rate" placeholder="예: 11000" min="0"></div>
+    <div class="fg"><label>색상</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="wt-color-picker"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="document.getElementById('wt-modal').classList.remove('show')">취소</button>
+      <button class="btn-ok" onclick="saveWorkType()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 기록 생성 모달 -->
+<div id="wlog-modal" class="modal-bg">
+  <div class="modal" style="max-width:400px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <h3>기록 생성</h3>
+      <button onclick="document.getElementById('wlog-modal').classList.remove('show')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
+    </div>
+    <div class="tabs" style="margin-bottom:16px;">
+      <div class="tab active" id="wlog-tab-work" onclick="wlogTab('work',this)">출퇴근 기록</div>
+      <div class="tab" id="wlog-tab-expense" onclick="wlogTab('expense',this)">비용 청구</div>
+    </div>
+    <!-- 출퇴근 기록 -->
+    <div id="wlog-form-work">
+      <div class="fg"><label>날짜</label><input type="date" id="wlog-date" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;"></div>
+      <div class="fg-row">
+        <div class="fg"><label>출근 시간</label><input type="time" id="wlog-in" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;"></div>
+        <div class="fg"><label>퇴근 시간</label><input type="time" id="wlog-out" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;"></div>
+      </div>
+      <div class="fg"><label>휴식 시간 (분)</label><input type="number" id="wlog-break" value="0" min="0" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;"></div>
+      <div class="fg"><label>근무 유형</label>
+        <select id="wlog-wtype" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;background:#fff;">
+          <option value="">근무 유형을 선택하세요</option>
+        </select>
+      </div>
+      <div class="fg"><label>메모</label><input type="text" id="wlog-memo" placeholder="선택사항"></div>
+    </div>
+    <!-- 비용 청구 -->
+    <div id="wlog-form-expense" style="display:none;">
+      <div class="fg"><label>날짜</label><input type="date" id="exp-date" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;"></div>
+      <div class="fg"><label>금액 (원)</label><input type="number" id="exp-amount" placeholder="예: 5000" min="0" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;"></div>
+      <div class="fg"><label>항목</label><input type="text" id="exp-desc" placeholder="예: 교통비, 식비" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;"></div>
+      <div class="fg"><label>메모</label><input type="text" id="exp-memo" placeholder="선택사항" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="document.getElementById('wlog-modal').classList.remove('show')">취소</button>
+      <button class="btn-ok" onclick="saveWorkLog()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 근무 유형 드롭다운 (조교 목록) -->
+<div id="wt-dropdown" style="display:none;position:fixed;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 0;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:2000;min-width:220px;"></div>
 
 <!-- 예약 현황 모달 -->
 <!-- 신청 내역 모달 -->
@@ -442,6 +583,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 
 <script>
 var SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtDate(v) {
   if (!v) return '-';
   var s = String(v), m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
@@ -471,7 +613,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','students','quiz','clinic','notice','qna','videos','settings'];
+    var validPages = ['classes','students','quiz','clinic','notice','qna','videos','assistants','settings'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
   }
@@ -488,6 +630,7 @@ function showPage(page,el){
   if(page==='notice') loadNotices();
   if(page==='clinic') loadClinics();
   if(page==='videos') initVideoPage();
+  if(page==='assistants') initAstPage();
   location.hash = page;
 }
 
@@ -1249,6 +1392,436 @@ async function delVlib(id){
   if(!confirm('라이브러리에서 삭제할까요?'))return;
   await fetch(SU+'?action=deleteVideoLibrary&id='+encodeURIComponent(id));
   loadVlib();
+}
+
+/* ===== 조교 관리 ===== */
+var astList=[], wtList=[], astCurrentTab='list';
+var astLogMonth='', astLogAstId='', astWorkLogs=[], astExpLogs=[];
+var WT_COLORS=['#2563eb','#0891b2','#16a34a','#d97706','#dc2626','#7c3aed','#db2777','#475569'];
+
+function initAstPage(){
+  var now=new Date();
+  var ym=now.getFullYear()+'-'+(String(now.getMonth()+1).padStart(2,'0'));
+  astLogMonth=ym;
+  fillMonthSelect();
+  loadAstData();
+}
+
+function fillMonthSelect(){
+  var sel=document.getElementById('ast-log-month');
+  if(!sel)return;
+  sel.innerHTML='';
+  var now=new Date();
+  for(var i=0;i<12;i++){
+    var d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    var ym=d.getFullYear()+'-'+(String(d.getMonth()+1).padStart(2,'0'));
+    var label=d.getFullYear()+'년 '+(d.getMonth()+1)+'월';
+    var opt=document.createElement('option');
+    opt.value=ym; opt.textContent=label;
+    if(ym===astLogMonth)opt.selected=true;
+    sel.appendChild(opt);
+  }
+}
+
+async function loadAstData(){
+  var db=await window.mkdbReady();
+  var r1=await fetch(SU+'?action=getAssistants'); var d1=await r1.json();
+  var r2=await fetch(SU+'?action=getWorkTypes'); var d2=await r2.json();
+  astList=(d1.assistants||[]).sort(function(a,b){return a.name<b.name?-1:1;});
+  wtList=d2.workTypes||[];
+  renderAstList();
+  renderWtColorPicker();
+  document.getElementById('ast-tab-btn-area').innerHTML='<button class="btn-primary" onclick="openAstModal(null)">+ 조교 추가</button>';
+}
+
+function astTab(tab,el){
+  astCurrentTab=tab;
+  document.querySelectorAll('#page-assistants .tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('ast-tab-list').style.display=tab==='list'?'block':'none';
+  document.getElementById('ast-tab-logs').style.display=tab==='logs'?'block':'none';
+  if(tab==='list'){
+    document.getElementById('ast-tab-btn-area').innerHTML='<button class="btn-primary" onclick="openAstModal(null)">+ 조교 추가</button>';
+  } else {
+    document.getElementById('ast-tab-btn-area').innerHTML='';
+    loadAstLogs();
+  }
+}
+
+function renderAstList(){
+  var q=(document.getElementById('ast-search')||{}).value||'';
+  var list=astList.filter(function(a){return !q||a.name.includes(q)||a.phone.includes(q);});
+  var tb=document.getElementById('ast-tbody');
+  if(!list.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:#94a3b8;">등록된 조교가 없습니다.</td></tr>';return;}
+  tb.innerHTML=list.map(function(a){
+    var wt=wtList.find(function(w){return w.id===a.defaultWorkTypeId;});
+    var wtBadge=wt?'<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;background:'+wt.color+';">'+escHtml(wt.name)+' ('+wt.hourlyRate.toLocaleString()+'원)</span>':'<span style="color:#94a3b8;font-size:12px;">미설정</span>';
+    var salBadge=a.salaryType==='hourly'?'<span style="background:#0e7490;color:#fff;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">시급</span>':'<span style="background:#7c3aed;color:#fff;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">월급</span>';
+    var toggle=a.active
+      ?'<label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;gap:6px;"><input type="checkbox" checked onchange="toggleAstActive(\''+a.id+'\',false)" style="display:none;"><span style="width:36px;height:20px;background:#22c55e;border-radius:10px;display:inline-block;position:relative;transition:.2s;"><span style="position:absolute;left:18px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;"></span></span><span style="font-size:12px;font-weight:600;color:#16a34a;">활성화</span></label>'
+      :'<label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;gap:6px;"><input type="checkbox" onchange="toggleAstActive(\''+a.id+'\',true)" style="display:none;"><span style="width:36px;height:20px;background:#cbd5e1;border-radius:10px;display:inline-block;position:relative;transition:.2s;"><span style="position:absolute;left:2px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;"></span></span><span style="font-size:12px;font-weight:600;color:#94a3b8;">비활성화</span></label>';
+    return '<tr>'
+      +'<td><div style="display:flex;align-items:center;gap:8px;"><div style="width:32px;height:32px;border-radius:50%;background:'+bc(a.name)+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;">'+escHtml(a.name.charAt(0))+'</div><span style="font-weight:600;">'+escHtml(a.name)+'</span></div></td>'
+      +'<td style="color:#64748b;">'+escHtml(a.phone)+'</td>'
+      +'<td><span style="font-size:12px;color:#64748b;">'+( a.isAdmin?'관리자':'일반')+'</span></td>'
+      +'<td>'+salBadge+'</td>'
+      +'<td><div style="position:relative;display:inline-block;">'+wtBadge+'<button onclick="openWtDropdown(\''+a.id+'\',this)" style="margin-left:6px;background:none;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;font-size:11px;cursor:pointer;color:#64748b;">▼</button></div></td>'
+      +'<td>'+toggle+'</td>'
+      +'<td><button onclick="openAstModal(\''+a.id+'\')" class="btn-sm btn-blue" style="margin-right:4px;">수정</button><button onclick="deleteAst(\''+a.id+'\')" class="btn-sm btn-red">삭제</button></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function openWtDropdown(astId,btn){
+  var dd=document.getElementById('wt-dropdown');
+  var rect=btn.getBoundingClientRect();
+  var ast=astList.find(function(a){return a.id===astId;});
+  dd.style.display='block';
+  dd.style.left=rect.left+'px';
+  dd.style.top=(rect.bottom+4)+'px';
+  dd.innerHTML=wtList.map(function(wt){
+    var sel=ast&&ast.defaultWorkTypeId===wt.id;
+    return '<div style="display:flex;align-items:center;padding:8px 14px;gap:10px;cursor:pointer;" onclick="assignWt(\''+astId+'\',\''+wt.id+'\')">'
+      +'<input type="checkbox" '+(sel?'checked':'')+'  style="accent-color:'+wt.color+';width:15px;height:15px;" onclick="event.stopPropagation();assignWt(\''+astId+'\',\''+wt.id+'\');">'
+      +'<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;background:'+wt.color+';">'+escHtml(wt.name)+' ('+wt.hourlyRate.toLocaleString()+'원)</span>'
+      +'<button onclick="event.stopPropagation();openWtModal(\''+wt.id+'\')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:14px;">✏️</button>'
+      +'</div>';
+  }).join('')+'<div style="padding:8px 14px;cursor:pointer;color:#2563eb;font-weight:700;font-size:13px;border-top:1px solid #f1f5f9;" onclick="openWtModal(null)">+ 새 근무 유형 추가</div>';
+  setTimeout(function(){document.addEventListener('click',closeWtDropdown,{once:true});},10);
+}
+function closeWtDropdown(){document.getElementById('wt-dropdown').style.display='none';}
+
+async function assignWt(astId,wtId){
+  closeWtDropdown();
+  var ast=astList.find(function(a){return a.id===astId;});
+  if(!ast)return;
+  var newWt=ast.defaultWorkTypeId===wtId?'':wtId;
+  ast.defaultWorkTypeId=newWt;
+  await fetch(SU+'?action=updateAssistant&id='+encodeURIComponent(astId)+'&defaultWorkTypeId='+encodeURIComponent(newWt));
+  renderAstList();
+}
+
+async function toggleAstActive(id,active){
+  var ast=astList.find(function(a){return a.id===id;});
+  if(ast)ast.active=active;
+  await fetch(SU+'?action=setAssistantActive&id='+encodeURIComponent(id)+'&active='+(active?'true':'false'));
+  renderAstList();
+}
+
+function openAstModal(id){
+  var ast=id?astList.find(function(a){return a.id===id;}):null;
+  document.getElementById('ast-modal-title').textContent=ast?'조교 수정':'조교 추가';
+  document.getElementById('ast-edit-id').value=ast?ast.id:'';
+  document.getElementById('ast-name').value=ast?ast.name:'';
+  document.getElementById('ast-phone').value=ast?ast.phone:'';
+  document.getElementById('ast-salary-type').value=ast?ast.salaryType:'hourly';
+  document.getElementById('ast-modal').classList.add('show');
+}
+
+async function saveAssistant(){
+  var id=document.getElementById('ast-edit-id').value;
+  var name=document.getElementById('ast-name').value.trim();
+  var phone=document.getElementById('ast-phone').value.trim();
+  var salaryType=document.getElementById('ast-salary-type').value;
+  if(!name){alert('이름을 입력해주세요.');return;}
+  var q='&name='+encodeURIComponent(name)+'&phone='+encodeURIComponent(phone)+'&salaryType='+encodeURIComponent(salaryType);
+  if(id){await fetch(SU+'?action=updateAssistant&id='+encodeURIComponent(id)+q);}
+  else{await fetch(SU+'?action=addAssistant'+q);}
+  document.getElementById('ast-modal').classList.remove('show');
+  await loadAstData();
+}
+
+async function deleteAst(id){
+  if(!confirm('정말 삭제할까요?'))return;
+  await fetch(SU+'?action=deleteAssistant&id='+encodeURIComponent(id));
+  astList=astList.filter(function(a){return a.id!==id;});
+  renderAstList();
+}
+
+/* ---- 근무 유형 ---- */
+function renderWtColorPicker(){
+  var el=document.getElementById('wt-color-picker');
+  if(!el)return;
+  el.innerHTML=WT_COLORS.map(function(c){
+    return '<div onclick="selectWtColor(\''+c+'\')" style="width:28px;height:28px;border-radius:50%;background:'+c+';cursor:pointer;border:3px solid transparent;" data-color="'+c+'"></div>';
+  }).join('');
+}
+var _wtSelectedColor=WT_COLORS[0];
+function selectWtColor(c){
+  _wtSelectedColor=c;
+  document.querySelectorAll('#wt-color-picker div').forEach(function(d){
+    d.style.borderColor=d.dataset.color===c?'#1e293b':'transparent';
+  });
+}
+function getWtSelectedColor(){ return _wtSelectedColor||WT_COLORS[0]; }
+
+function openWtModal(id){
+  closeWtDropdown();
+  var wt=id?wtList.find(function(w){return w.id===id;}):null;
+  document.getElementById('wt-modal-title').textContent=wt?'근무 유형 수정':'근무 유형 추가';
+  document.getElementById('wt-edit-id').value=wt?wt.id:'';
+  document.getElementById('wt-name').value=wt?wt.name:'';
+  document.getElementById('wt-rate').value=wt?wt.hourlyRate:'';
+  renderWtColorPicker();
+  if(wt)selectWtColor(wt.color);
+  document.getElementById('wt-modal').classList.add('show');
+}
+
+async function saveWorkType(){
+  var id=document.getElementById('wt-edit-id').value;
+  var name=document.getElementById('wt-name').value.trim();
+  var rate=document.getElementById('wt-rate').value;
+  var color=getWtSelectedColor();
+  if(!name||!rate){alert('이름과 시급을 입력해주세요.');return;}
+  var q='&name='+encodeURIComponent(name)+'&hourlyRate='+encodeURIComponent(rate)+'&color='+encodeURIComponent(color);
+  if(id){await fetch(SU+'?action=updateWorkType&id='+encodeURIComponent(id)+q);}
+  else{await fetch(SU+'?action=addWorkType'+q);}
+  document.getElementById('wt-modal').classList.remove('show');
+  await loadAstData();
+}
+
+/* ---- 근태 기록 ---- */
+async function loadAstLogs(){
+  var sel=document.getElementById('ast-log-month');
+  if(sel)astLogMonth=sel.value;
+  var r1=await fetch(SU+'?action=getWorkLogs&yearMonth='+encodeURIComponent(astLogMonth));
+  var d1=await r1.json(); astWorkLogs=d1.logs||[];
+  var r2=await fetch(SU+'?action=getExpenseLogs&yearMonth='+encodeURIComponent(astLogMonth));
+  var d2=await r2.json(); astExpLogs=d2.logs||[];
+  renderAstLogList();
+  if(astLogAstId)renderAstLogDetail(astLogAstId);
+}
+
+function calcPay(logs,wts,expLogs,astId){
+  var total=0;
+  (logs||[]).filter(function(l){return l.assistantId===astId;}).forEach(function(l){
+    var wt=wts.find(function(w){return w.id===l.workTypeId;});
+    if(!wt)return;
+    var inM=timeToMin(l.clockIn), outM=timeToMin(l.clockOut);
+    if(outM<=inM)return;
+    var workMin=outM-inM-l.breakMin;
+    if(workMin<0)workMin=0;
+    total+=Math.round((workMin/60)*wt.hourlyRate);
+  });
+  (expLogs||[]).filter(function(l){return l.assistantId===astId;}).forEach(function(l){total+=l.amount;});
+  return total;
+}
+
+function timeToMin(t){
+  if(!t)return 0;
+  var p=t.split(':'); return parseInt(p[0]||0)*60+parseInt(p[1]||0);
+}
+function minToHM(m){
+  var h=Math.floor(Math.abs(m)/60), mn=Math.abs(m)%60;
+  return h+'시간 '+mn+'분';
+}
+function fmt24to12(t){
+  if(!t)return '-';
+  var p=t.split(':'); var h=parseInt(p[0]), m=p[1];
+  var ampm=h<12?'오전':'오후';
+  var h12=h%12; if(h12===0)h12=12;
+  return ampm+' '+String(h12).padStart(2,'0')+':'+m;
+}
+function fmtDateDow(d){
+  if(!d)return '-';
+  var dt=new Date(d); var days=['일','월','화','수','목','금','토'];
+  return d+' ('+days[dt.getDay()]+')';
+}
+
+function renderAstLogList(){
+  var allPay=0;
+  astList.forEach(function(a){allPay+=calcPay(astWorkLogs,wtList,astExpLogs,a.id);});
+  var label=document.getElementById('ast-log-total-label');
+  if(label)label.textContent='총: '+allPay.toLocaleString()+'원';
+  var el=document.getElementById('ast-log-list');
+  if(!el)return;
+  var sorted=astList.slice().sort(function(a,b){return calcPay(astWorkLogs,wtList,astExpLogs,b.id)-calcPay(astWorkLogs,wtList,astExpLogs,a.id);});
+  el.innerHTML=sorted.map(function(a){
+    var pay=calcPay(astWorkLogs,wtList,astExpLogs,a.id);
+    var active=astLogAstId===a.id;
+    return '<div onclick="selectAstLog(\''+a.id+'\')" style="display:flex;align-items:center;gap:10px;padding:12px 18px;cursor:pointer;border-bottom:1px solid #f8fafc;background:'+(active?'#eff6ff':'#fff')+';transition:.15s;">'
+      +'<div style="width:34px;height:34px;border-radius:50%;background:'+(pay?bc(a.name):'#e2e8f0')+';color:'+(pay?'#fff':'#94a3b8')+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0;">'+escHtml(a.name.charAt(0))+'</div>'
+      +'<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:'+(pay?'#1e293b':'#94a3b8')+';">'+escHtml(a.name)+'</div></div>'
+      +'<div style="font-weight:700;font-size:13px;color:'+(pay?'#1e293b':'#94a3b8');+'">'+(pay?pay.toLocaleString()+'원':'0원')+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function selectAstLog(astId){
+  astLogAstId=astId;
+  renderAstLogList();
+  renderAstLogDetail(astId);
+}
+
+function renderAstLogDetail(astId){
+  var ast=astList.find(function(a){return a.id===astId;});
+  if(!ast){document.getElementById('ast-log-detail').innerHTML='<div class="placeholder"><div class="pi">👆</div><h3>왼쪽에서 조교를 선택하세요</h3></div>';return;}
+  var logs=astWorkLogs.filter(function(l){return l.assistantId===astId;});
+  var exps=astExpLogs.filter(function(l){return l.assistantId===astId;});
+  // 통계
+  var dates=new Set(logs.map(function(l){return l.date;}));
+  var totalMin=0, gross=0;
+  logs.forEach(function(l){
+    var wt=wtList.find(function(w){return w.id===l.workTypeId;});
+    var inM=timeToMin(l.clockIn), outM=timeToMin(l.clockOut);
+    var workMin=Math.max(0,outM-inM-l.breakMin);
+    totalMin+=workMin;
+    if(wt)gross+=Math.round((workMin/60)*wt.hourlyRate);
+  });
+  exps.forEach(function(e){gross+=e.amount;});
+  var tax=Math.round(gross*0.033);
+  var net=gross-tax;
+  // 근무 유형 집계
+  var wtUsed={};
+  logs.forEach(function(l){
+    var wt=wtList.find(function(w){return w.id===l.workTypeId;}); if(!wt)return;
+    if(!wtUsed[wt.id])wtUsed[wt.id]={wt:wt,min:0};
+    var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-l.breakMin);
+    wtUsed[wt.id].min+=workMin;
+  });
+  var wtBadges=Object.values(wtUsed).map(function(u){
+    return '<span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;background:'+u.wt.color+';">'+escHtml(u.wt.name)+': '+minToHM(u.min)+'</span>';
+  }).join(' ');
+  // 테이블 rows
+  var rows=logs.map(function(l){
+    var wt=wtList.find(function(w){return w.id===l.workTypeId;});
+    var inM=timeToMin(l.clockIn),outM=timeToMin(l.clockOut);
+    var workMin=Math.max(0,outM-inM-l.breakMin);
+    var pay=wt?Math.round((workMin/60)*wt.hourlyRate):0;
+    var wtBadge=wt?'<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;color:#fff;background:'+wt.color+';">'+escHtml(wt.name)+'</span>':'-';
+    return '<tr>'
+      +'<td style="font-size:12px;color:#475569;">'+fmtDateDow(l.date)+'</td>'
+      +'<td style="font-size:13px;">'+fmt24to12(l.clockIn)+'</td>'
+      +'<td style="font-size:13px;">'+fmt24to12(l.clockOut)+'</td>'
+      +'<td style="font-size:13px;">'+minToHM(workMin)+'</td>'
+      +'<td style="font-size:13px;color:#64748b;">'+l.breakMin+'분</td>'
+      +'<td>'+wtBadge+'</td>'
+      +'<td style="font-size:12px;color:#94a3b8;">-</td>'
+      +'<td style="font-size:13px;font-weight:600;">'+( pay?'₩'+pay.toLocaleString():'₩0')+'</td>'
+      +'<td><button onclick="deleteWlog(\''+l.id+'\')" style="background:none;border:none;cursor:pointer;color:#cbd5e1;font-size:16px;">🗑</button></td>'
+      +'</tr>';
+  }).concat(exps.map(function(e){
+    return '<tr style="background:#fff9f0;">'
+      +'<td style="font-size:12px;color:#475569;">'+fmtDateDow(e.date)+'</td>'
+      +'<td colspan="4" style="font-size:13px;color:#92400e;">비용 청구: '+escHtml(e.description)+'</td>'
+      +'<td>-</td>'
+      +'<td style="font-size:13px;font-weight:600;color:#d97706;">₩'+e.amount.toLocaleString()+'</td>'
+      +'<td></td>'
+      +'<td><button onclick="deleteExpLog(\''+e.id+'\')" style="background:none;border:none;cursor:pointer;color:#cbd5e1;font-size:16px;">🗑</button></td>'
+      +'</tr>';
+  })).join('');
+
+  document.getElementById('ast-log-detail').innerHTML=
+    '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;">'
+    +'<div style="display:flex;align-items:center;gap:12px;"><div style="width:42px;height:42px;border-radius:50%;background:'+bc(ast.name)+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;">'+escHtml(ast.name.charAt(0))+'</div>'
+    +'<div><div style="font-size:17px;font-weight:900;">'+escHtml(ast.name)+'</div>'
+    +'<div style="font-size:12px;color:#64748b;margin-top:2px;">📅 출근일수: '+dates.size+'일 &nbsp;⏱ 총 근무시간: '+minToHM(totalMin)+' &nbsp;💰 총 급여: ₩'+net.toLocaleString()+'</div></div></div>'
+    +'<button onclick="openWlogModal(\''+astId+'\')" class="btn-primary">+ 기록 생성</button>'
+    +'</div>'
+    +(wtBadges?'<div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px;">근무 유형</div><div style="display:flex;gap:6px;flex-wrap:wrap;">'+wtBadges+'</div></div>':'')
+    +'<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr style="background:#f8fafc;">'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">일자</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">출근 시간</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">퇴근 시간</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">근무 시간</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">휴식 시간</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">근무 유형</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">비용</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">급여</th>'
+    +'<th style="padding:8px 10px;border-bottom:1px solid #e2e8f0;">삭제</th>'
+    +'</tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot>'
+    +'<tr><td colspan="7" style="text-align:right;padding:10px;font-size:13px;font-weight:700;border-top:1px solid #e2e8f0;">합계</td><td style="padding:10px;font-size:13px;font-weight:700;border-top:1px solid #e2e8f0;">₩'+gross.toLocaleString()+'</td><td style="border-top:1px solid #e2e8f0;"></td></tr>'
+    +'<tr><td colspan="7" style="text-align:right;padding:6px 10px;font-size:12px;color:#64748b;">세금 공제 (-3.3%)</td><td style="padding:6px 10px;font-size:12px;color:#dc2626;">-₩'+tax.toLocaleString()+'</td><td></td></tr>'
+    +'<tr><td colspan="7" style="text-align:right;padding:10px;font-size:14px;font-weight:900;border-top:2px solid #e2e8f0;">공제 후 총액</td><td style="padding:10px;font-size:14px;font-weight:900;color:#1e293b;border-top:2px solid #e2e8f0;">₩'+net.toLocaleString()+'</td><td></td></tr>'
+    +'</tfoot></table></div>';
+}
+
+function wlogTab(tab,el){
+  document.querySelectorAll('#wlog-modal .tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('wlog-form-work').style.display=tab==='work'?'block':'none';
+  document.getElementById('wlog-form-expense').style.display=tab==='expense'?'block':'none';
+}
+
+function openWlogModal(astId){
+  astLogAstId=astId;
+  var today=new Date().toISOString().slice(0,10);
+  document.getElementById('wlog-date').value=today;
+  document.getElementById('wlog-in').value='';
+  document.getElementById('wlog-out').value='';
+  document.getElementById('wlog-break').value='0';
+  document.getElementById('wlog-memo').value='';
+  document.getElementById('exp-date').value=today;
+  document.getElementById('exp-amount').value='';
+  document.getElementById('exp-desc').value='';
+  document.getElementById('exp-memo').value='';
+  // 근무 유형 select 채우기
+  var sel=document.getElementById('wlog-wtype');
+  var ast=astList.find(function(a){return a.id===astId;});
+  sel.innerHTML='<option value="">근무 유형을 선택하세요</option>'+wtList.map(function(w){
+    var sel2=ast&&ast.defaultWorkTypeId===w.id?' selected':'';
+    return '<option value="'+w.id+'"'+sel2+'>'+w.name+' ('+w.hourlyRate.toLocaleString()+'원/시)</option>';
+  }).join('');
+  // 탭 초기화
+  wlogTab('work',document.getElementById('wlog-tab-work'));
+  document.getElementById('wlog-modal').classList.add('show');
+}
+
+async function saveWorkLog(){
+  var isWork=document.getElementById('wlog-form-work').style.display!=='none';
+  if(isWork){
+    var date=document.getElementById('wlog-date').value;
+    var cin=document.getElementById('wlog-in').value;
+    var cout=document.getElementById('wlog-out').value;
+    var brk=document.getElementById('wlog-break').value||0;
+    var wtId=document.getElementById('wlog-wtype').value;
+    var memo=document.getElementById('wlog-memo').value;
+    if(!date||!cin||!cout||!wtId){alert('날짜, 출퇴근 시간, 근무 유형을 입력해주세요.');return;}
+    await fetch(SU+'?action=addWorkLog&assistantId='+encodeURIComponent(astLogAstId)
+      +'&date='+encodeURIComponent(date)+'&clockIn='+encodeURIComponent(cin)
+      +'&clockOut='+encodeURIComponent(cout)+'&breakMin='+encodeURIComponent(brk)
+      +'&workTypeId='+encodeURIComponent(wtId)+'&memo='+encodeURIComponent(memo));
+  } else {
+    var date2=document.getElementById('exp-date').value;
+    var amt=document.getElementById('exp-amount').value;
+    var desc=document.getElementById('exp-desc').value;
+    var memo2=document.getElementById('exp-memo').value;
+    if(!date2||!amt||!desc){alert('날짜, 금액, 항목을 입력해주세요.');return;}
+    await fetch(SU+'?action=addExpenseLog&assistantId='+encodeURIComponent(astLogAstId)
+      +'&date='+encodeURIComponent(date2)+'&amount='+encodeURIComponent(amt)
+      +'&description='+encodeURIComponent(desc)+'&memo='+encodeURIComponent(memo2));
+  }
+  document.getElementById('wlog-modal').classList.remove('show');
+  await loadAstLogs();
+}
+
+async function deleteWlog(id){
+  if(!confirm('이 기록을 삭제할까요?'))return;
+  await fetch(SU+'?action=deleteWorkLog&id='+encodeURIComponent(id));
+  await loadAstLogs();
+}
+async function deleteExpLog(id){
+  if(!confirm('이 비용 기록을 삭제할까요?'))return;
+  await fetch(SU+'?action=deleteExpenseLog&id='+encodeURIComponent(id));
+  await loadAstLogs();
+}
+
+function exportAstExcel(){
+  if(!astList.length){alert('조교 데이터가 없습니다.');return;}
+  var rows=[['이름','날짜','출근','퇴근','근무시간(분)','근무유형','급여(원)']];
+  astWorkLogs.forEach(function(l){
+    var ast=astList.find(function(a){return a.id===l.assistantId;});
+    var wt=wtList.find(function(w){return w.id===l.workTypeId;});
+    var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-l.breakMin);
+    var pay=wt?Math.round((workMin/60)*wt.hourlyRate):0;
+    rows.push([ast?ast.name:'',l.date,l.clockIn,l.clockOut,workMin,wt?wt.name:'',pay]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'근태기록');
+  XLSX.writeFile(wb,'조교근태_'+astLogMonth+'.xlsx');
 }
 </script>
 </body>
