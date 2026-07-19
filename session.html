@@ -587,14 +587,17 @@ tr:hover td{background:#fafbff;}
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
             <label style="font-size:12px;font-weight:700;color:#64748b;">발송 대상 (<span id="msg-target-count">0</span>명)</label>
           </div>
-          <div id="msg-target-list" style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;"></div>
+          <div id="msg-target-list" style="display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto;"></div>
         </div>
         <div id="msg-preview-list" style="display:none;"></div>
       </div>
     </div>
     <!-- 푸터 -->
     <div style="padding:14px 24px;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#fff;">
-      <div style="font-size:12px;color:#94a3b8;">⚠️ 알림톡 템플릿 심사 완료 후 자동 발송 연결 예정</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div style="font-size:12px;color:#94a3b8;">⚠️ 알림톡 템플릿 심사 완료 후 자동 발송 연결 예정</div>
+        <div id="msg-preview-label" style="font-size:12px;color:#3b6cf7;font-weight:600;"></div>
+      </div>
       <div style="display:flex;gap:8px;">
         <button onclick="copyAllMsgs()" style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#475569;">전체 복사 목록 보기</button>
         <button disabled style="padding:10px 24px;background:#3b6cf7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:not-allowed;opacity:0.5;" id="msg-send-btn"><span id="msg-target-count2">0</span>명에게 알림톡 발송</button>
@@ -1224,15 +1227,33 @@ function renderMsgTargetList(){
   list.innerHTML=ids.map(function(id){
     var st=students.find(function(s){return s.id===id;});
     if(!st)return'';
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border:1px solid #f1f5f9;border-radius:8px;font-size:13px;background:#fff;">'
-      +'<div><span style="font-weight:600;color:#1e293b;">'+escHtml(st.name)+'</span></div>'
-      +'<span style="cursor:pointer;color:#cbd5e1;font-size:16px;" onclick="removeMsgTarget(\''+id+'\')">✕</span></div>';
+    return '<div id="msg-target-row-'+id+'" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border:1px solid #f1f5f9;border-radius:8px;font-size:13px;background:#fff;">'
+      +'<span style="font-weight:600;color:#1e293b;">'+escHtml(st.name)+'</span>'
+      +'<div style="display:flex;align-items:center;gap:6px;">'
+      +'<button onclick="previewMsgFor(\''+id+'\')" style="padding:2px 8px;font-size:11px;border:1px solid #3b6cf7;border-radius:5px;background:#fff;color:#3b6cf7;cursor:pointer;font-weight:600;">미리보기</button>'
+      +'<span style="cursor:pointer;color:#cbd5e1;font-size:16px;line-height:1;" onclick="removeMsgTarget(\''+id+'\')">✕</span>'
+      +'</div></div>';
   }).join('');
 }
 function removeMsgTarget(id){
   delete scoreSelected[id];
   renderScores();
   renderMsgTargetList();
+  renderMsgPreview();
+}
+var msgPreviewTargetId=null;
+function previewMsgFor(id){
+  msgPreviewTargetId=id;
+  // 행 하이라이트
+  document.querySelectorAll('[id^="msg-target-row-"]').forEach(function(el){
+    el.style.borderColor='#f1f5f9';el.style.background='#fff';
+  });
+  var row=document.getElementById('msg-target-row-'+id);
+  if(row){row.style.borderColor='#3b6cf7';row.style.background='#eff4ff';}
+  // 하단 현재 미리보기 표시
+  var label=document.getElementById('msg-preview-label');
+  var st=students.find(function(s){return s.id===id;});
+  if(label&&st)label.textContent='미리보기: '+st.name;
   renderMsgPreview();
 }
 function renderMsgAssessmentOptions(){
@@ -1327,12 +1348,13 @@ function renderMsgPreview(){
   var cnt=document.getElementById('msg-char-count');
   if(cnt)cnt.textContent=template.length;
   // 카카오톡 미리보기 업데이트
-  var firstId=ids[0]||null;
-  var previewName=firstId?(students.find(function(s){return s.id===firstId;})||{}).name||'학생명':'학생명';
+  // 미리보기 대상: previewMsgFor로 선택된 학생 우선, 없으면 첫 번째
+  var previewId=(msgPreviewTargetId&&scoreSelected[msgPreviewTargetId])?msgPreviewTargetId:(ids[0]||null);
+  var previewName=previewId?(students.find(function(s){return s.id===previewId;})||{}).name||'학생명':'학생명';
   document.getElementById('kt-class-name').textContent=classInfo?classInfo.name:'강의명';
   document.getElementById('kt-session-name').textContent=sessionInfo?(sessionInfo.sessionNum+'차시'):'차시';
   document.getElementById('kt-stu-name').textContent=previewName;
-  var previewContent=firstId?fillTemplate(template,computeMsgTokens(firstId)):template;
+  var previewContent=previewId?fillTemplate(template,computeMsgTokens(previewId)):template;
   document.getElementById('kt-content-preview').textContent=previewContent;
   // 발송 대상 수 업데이트
   var cnt2=document.getElementById('msg-target-count2');
