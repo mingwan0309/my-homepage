@@ -582,16 +582,16 @@ tr:hover td{background:#fafbff;}
         </div>
       </div>
       <!-- 3열: 발송 대상 + 미리보기 -->
-      <div style="border-left:1px solid #f1f5f9;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;height:0;min-height:100%;box-sizing:border-box;">
-        <div>
+      <div style="border-left:1px solid #f1f5f9;padding:20px;display:flex;flex-direction:column;gap:16px;height:0;min-height:100%;box-sizing:border-box;">
+        <div style="flex-shrink:0;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
             <label style="font-size:12px;font-weight:700;color:#64748b;">발송 대상 (<span id="msg-target-count">0</span>명)</label>
           </div>
-          <div id="msg-target-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+          <div id="msg-target-list" style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;"></div>
         </div>
-        <div>
-          <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:8px;">학생별 미리보기</div>
-          <div id="msg-preview-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0;">
+          <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:8px;flex-shrink:0;">학생별 미리보기</div>
+          <div id="msg-preview-list" style="display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1;"></div>
         </div>
       </div>
     </div>
