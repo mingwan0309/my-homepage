@@ -736,7 +736,7 @@ api.getAssistants = function(db){
   return db.collection('assistants').get().then(function(snap){
     return { assistants: docsToArr(snap).sort(function(a,b){return (a.createdAt||'')>(b.createdAt||'')?1:-1;})
       .map(function(r){ return { id:r.id, name:r.name||'', phone:r.phone||'', isAdmin:!!r.isAdmin,
-        salaryType:r.salaryType||'hourly', workTypeIds:r.workTypeIds||[], active:r.active!==false, createdAt:r.createdAt||'' }; }); };
+        salaryType:r.salaryType||'hourly', workTypeIds:r.workTypeIds||[], active:r.active!==false, createdAt:r.createdAt||'' }; }) };
   });
 };
 api.addAssistant = function(db, p){
