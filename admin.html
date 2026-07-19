@@ -1454,51 +1454,69 @@ function renderAstList(){
   var tb=document.getElementById('ast-tbody');
   if(!list.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:#94a3b8;">등록된 조교가 없습니다.</td></tr>';return;}
   tb.innerHTML=list.map(function(a){
-    var wt=wtList.find(function(w){return w.id===a.defaultWorkTypeId;});
-    var wtBadge=wt?'<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;background:'+wt.color+';">'+escHtml(wt.name)+' ('+wt.hourlyRate.toLocaleString()+'원)</span>':'<span style="color:#94a3b8;font-size:12px;">미설정</span>';
+    var ids=a.workTypeIds||[];
+    var wtBadges=ids.length
+      ?ids.map(function(wid){var wt=wtList.find(function(w){return w.id===wid;});return wt?'<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;background:'+wt.color+';margin-right:4px;">'+escHtml(wt.name)+' ('+wt.hourlyRate.toLocaleString()+'원)</span>':''}).join('')
+      :'<span style="color:#94a3b8;font-size:12px;">미설정</span>';
     var salBadge=a.salaryType==='hourly'?'<span style="background:#0e7490;color:#fff;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">시급</span>':'<span style="background:#7c3aed;color:#fff;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">월급</span>';
     var toggle=a.active
-      ?'<label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;gap:6px;"><input type="checkbox" checked onchange="toggleAstActive(\''+a.id+'\',false)" style="display:none;"><span style="width:36px;height:20px;background:#22c55e;border-radius:10px;display:inline-block;position:relative;transition:.2s;"><span style="position:absolute;left:18px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;"></span></span><span style="font-size:12px;font-weight:600;color:#16a34a;">활성화</span></label>'
-      :'<label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;gap:6px;"><input type="checkbox" onchange="toggleAstActive(\''+a.id+'\',true)" style="display:none;"><span style="width:36px;height:20px;background:#cbd5e1;border-radius:10px;display:inline-block;position:relative;transition:.2s;"><span style="position:absolute;left:2px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;"></span></span><span style="font-size:12px;font-weight:600;color:#94a3b8;">비활성화</span></label>';
+      ?'<label style="display:inline-flex;align-items:center;cursor:pointer;gap:6px;" onclick="toggleAstActive(\''+a.id+'\',false)"><span style="width:36px;height:20px;background:#22c55e;border-radius:10px;display:inline-block;position:relative;"><span style="position:absolute;left:18px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;"></span></span><span style="font-size:12px;font-weight:600;color:#16a34a;">활성화</span></label>'
+      :'<label style="display:inline-flex;align-items:center;cursor:pointer;gap:6px;" onclick="toggleAstActive(\''+a.id+'\',true)"><span style="width:36px;height:20px;background:#cbd5e1;border-radius:10px;display:inline-block;position:relative;"><span style="position:absolute;left:2px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;"></span></span><span style="font-size:12px;font-weight:600;color:#94a3b8;">비활성화</span></label>';
     return '<tr>'
       +'<td><div style="display:flex;align-items:center;gap:8px;"><div style="width:32px;height:32px;border-radius:50%;background:'+bc(a.name)+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;">'+escHtml(a.name.charAt(0))+'</div><span style="font-weight:600;">'+escHtml(a.name)+'</span></div></td>'
       +'<td style="color:#64748b;">'+escHtml(a.phone)+'</td>'
-      +'<td><span style="font-size:12px;color:#64748b;">'+( a.isAdmin?'관리자':'일반')+'</span></td>'
+      +'<td><span style="font-size:12px;color:#64748b;">'+(a.isAdmin?'관리자':'일반')+'</span></td>'
       +'<td>'+salBadge+'</td>'
-      +'<td><div style="position:relative;display:inline-block;">'+wtBadge+'<button onclick="openWtDropdown(\''+a.id+'\',this)" style="margin-left:6px;background:none;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;font-size:11px;cursor:pointer;color:#64748b;">▼</button></div></td>'
+      +'<td><div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">'+wtBadges+'<button onclick="openWtDropdown(\''+a.id+'\',this)" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;color:#64748b;white-space:nowrap;">+ 설정</button></div></td>'
       +'<td>'+toggle+'</td>'
       +'<td><button onclick="openAstModal(\''+a.id+'\')" class="btn-sm btn-blue" style="margin-right:4px;">수정</button><button onclick="deleteAst(\''+a.id+'\')" class="btn-sm btn-red">삭제</button></td>'
       +'</tr>';
   }).join('');
 }
 
+var _wtDropAstId='';
 function openWtDropdown(astId,btn){
+  _wtDropAstId=astId;
   var dd=document.getElementById('wt-dropdown');
   var rect=btn.getBoundingClientRect();
   var ast=astList.find(function(a){return a.id===astId;});
+  var ids=ast?(ast.workTypeIds||[]):[];
   dd.style.display='block';
-  dd.style.left=rect.left+'px';
+  dd.style.left=Math.min(rect.left, window.innerWidth-240)+'px';
   dd.style.top=(rect.bottom+4)+'px';
   dd.innerHTML=wtList.map(function(wt){
-    var sel=ast&&ast.defaultWorkTypeId===wt.id;
-    return '<div style="display:flex;align-items:center;padding:8px 14px;gap:10px;cursor:pointer;" onclick="assignWt(\''+astId+'\',\''+wt.id+'\')">'
-      +'<input type="checkbox" '+(sel?'checked':'')+'  style="accent-color:'+wt.color+';width:15px;height:15px;" onclick="event.stopPropagation();assignWt(\''+astId+'\',\''+wt.id+'\');">'
+    var sel=ids.indexOf(wt.id)>=0;
+    return '<div style="display:flex;align-items:center;padding:8px 14px;gap:10px;cursor:pointer;user-select:none;" onclick="toggleWt(\''+astId+'\',\''+wt.id+'\')">'
+      +'<input type="checkbox" '+(sel?'checked':'')+' style="accent-color:'+wt.color+';width:15px;height:15px;pointer-events:none;">'
       +'<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;background:'+wt.color+';">'+escHtml(wt.name)+' ('+wt.hourlyRate.toLocaleString()+'원)</span>'
-      +'<button onclick="event.stopPropagation();openWtModal(\''+wt.id+'\')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:14px;">✏️</button>'
+      +'<button onclick="event.stopPropagation();openWtModal(\''+wt.id+'\')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:14px;padding:0 4px;">✏️</button>'
       +'</div>';
   }).join('')+'<div style="padding:8px 14px;cursor:pointer;color:#2563eb;font-weight:700;font-size:13px;border-top:1px solid #f1f5f9;" onclick="openWtModal(null)">+ 새 근무 유형 추가</div>';
   setTimeout(function(){document.addEventListener('click',closeWtDropdown,{once:true});},10);
 }
 function closeWtDropdown(){document.getElementById('wt-dropdown').style.display='none';}
 
-async function assignWt(astId,wtId){
-  closeWtDropdown();
+async function toggleWt(astId,wtId){
   var ast=astList.find(function(a){return a.id===astId;});
   if(!ast)return;
-  var newWt=ast.defaultWorkTypeId===wtId?'':wtId;
-  ast.defaultWorkTypeId=newWt;
-  await fetch(SU+'?action=updateAssistant&id='+encodeURIComponent(astId)+'&defaultWorkTypeId='+encodeURIComponent(newWt));
+  var ids=ast.workTypeIds?ast.workTypeIds.slice():[];
+  var idx=ids.indexOf(wtId);
+  if(idx>=0)ids.splice(idx,1); else ids.push(wtId);
+  ast.workTypeIds=ids;
+  await fetch(SU+'?action=updateAssistant&id='+encodeURIComponent(astId)+'&workTypeIds='+encodeURIComponent(JSON.stringify(ids)));
   renderAstList();
+  // 드롭다운 체크박스 업데이트 (열린 상태 유지)
+  var dd=document.getElementById('wt-dropdown');
+  if(dd.style.display!=='none'){
+    dd.querySelectorAll('div[onclick^="toggleWt"]').forEach(function(row){
+      var cb=row.querySelector('input[type=checkbox]');
+      if(!cb)return;
+      var badge=row.querySelector('span[style*="border-radius:20px"]');
+      // wtId 추출: onclick="toggleWt('astId','wtId')"
+      var m=row.getAttribute('onclick').match(/toggleWt\('[^']+','([^']+)'\)/);
+      if(m)cb.checked=ids.indexOf(m[1])>=0;
+    });
+  }
 }
 
 async function toggleAstActive(id,active){
@@ -1524,11 +1542,14 @@ async function saveAssistant(){
   var phone=document.getElementById('ast-phone').value.trim();
   var salaryType=document.getElementById('ast-salary-type').value;
   if(!name){alert('이름을 입력해주세요.');return;}
-  var q='&name='+encodeURIComponent(name)+'&phone='+encodeURIComponent(phone)+'&salaryType='+encodeURIComponent(salaryType);
-  if(id){await fetch(SU+'?action=updateAssistant&id='+encodeURIComponent(id)+q);}
-  else{await fetch(SU+'?action=addAssistant'+q);}
-  document.getElementById('ast-modal').classList.remove('show');
-  await loadAstData();
+  try{
+    var q='&name='+encodeURIComponent(name)+'&phone='+encodeURIComponent(phone)+'&salaryType='+encodeURIComponent(salaryType);
+    var r=await fetch(SU+'?action='+(id?'updateAssistant&id='+encodeURIComponent(id):'addAssistant')+q);
+    var d=await r.json();
+    if(d.success===false){alert('저장 실패: '+(d.error||'알 수 없는 오류'));return;}
+    document.getElementById('ast-modal').classList.remove('show');
+    await loadAstData();
+  }catch(e){alert('오류가 발생했습니다: '+e.message);}
 }
 
 async function deleteAst(id){

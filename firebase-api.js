@@ -736,19 +736,23 @@ api.getAssistants = function(db){
   return db.collection('assistants').get().then(function(snap){
     return { assistants: docsToArr(snap).sort(function(a,b){return (a.createdAt||'')>(b.createdAt||'')?1:-1;})
       .map(function(r){ return { id:r.id, name:r.name||'', phone:r.phone||'', isAdmin:!!r.isAdmin,
-        salaryType:r.salaryType||'hourly', defaultWorkTypeId:r.defaultWorkTypeId||'', active:r.active!==false, createdAt:r.createdAt||'' }; }); };
+        salaryType:r.salaryType||'hourly', workTypeIds:r.workTypeIds||[], active:r.active!==false, createdAt:r.createdAt||'' }; }); };
   });
 };
 api.addAssistant = function(db, p){
   var id = genId('ast');
   return db.collection('assistants').doc(id).set({
     id:id, name:p.name||'', phone:p.phone||'', isAdmin:false,
-    salaryType:p.salaryType||'hourly', defaultWorkTypeId:p.defaultWorkTypeId||'', active:true, createdAt:nowStr()
+    salaryType:p.salaryType||'hourly', workTypeIds:[], active:true, createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };
 api.updateAssistant = function(db, p){
   var data={};
-  ['name','phone','isAdmin','salaryType','defaultWorkTypeId'].forEach(function(k){ if(p[k]!==undefined) data[k]=p[k]; });
+  if(p.name!==undefined) data.name=p.name;
+  if(p.phone!==undefined) data.phone=p.phone;
+  if(p.isAdmin!==undefined) data.isAdmin=p.isAdmin;
+  if(p.salaryType!==undefined) data.salaryType=p.salaryType;
+  if(p.workTypeIds!==undefined) data.workTypeIds=Array.isArray(p.workTypeIds)?p.workTypeIds:JSON.parse(p.workTypeIds||'[]');
   return db.collection('assistants').doc(String(p.id)).update(data).then(function(){ return { success:true }; });
 };
 api.setAssistantActive = function(db, p){
