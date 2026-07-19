@@ -1353,10 +1353,18 @@ function openStudentDetail(studentId){
   document.getElementById('stu-panel').classList.add('open');
   document.getElementById('stu-panel-backdrop').classList.add('open');
 }
+function formatPhone(val){
+  var d=val.replace(/\D/g,'');
+  if(d.length<=3) return d;
+  if(d.length<=7) return d.slice(0,3)+'-'+d.slice(3);
+  return d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7,11);
+}
 function startEditPhone(field){
   document.getElementById('sp-val-'+field).style.display='none';
   document.getElementById('sp-edit-'+field).style.display='';
-  document.getElementById('sp-input-'+field).focus();
+  var inp=document.getElementById('sp-input-'+field);
+  inp.oninput=function(){inp.value=formatPhone(inp.value);};
+  inp.focus();
 }
 function cancelEditPhone(field){
   document.getElementById('sp-val-'+field).style.display='';
