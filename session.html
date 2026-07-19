@@ -1326,9 +1326,25 @@ function openStudentDetail(studentId){
     return '<div class="stu-info-item"><div class="stu-info-label">'+label+'</div>'
       +'<div class="stu-info-val">'+escHtml(val||'-')+(copy&&val?'<button class="copy-btn" onclick="copyText(\''+val+'\')" title="복사">📋</button>':'')+'</div></div>';
   }
+  function phoneItem(label,val,field){
+    return '<div class="stu-info-item" id="sp-field-'+field+'" style="position:relative;">'
+      +'<div class="stu-info-label">'+label+'</div>'
+      +'<div class="stu-info-val" id="sp-val-'+field+'">'
+      +escHtml(val||'-')
+      +(val?'<button class="copy-btn" onclick="copyText(\''+val+'\')" title="복사">📋</button>':'')
+      +'<button class="copy-btn" onclick="startEditPhone(\''+field+'\')" title="수정" style="margin-left:2px;">✏️</button>'
+      +'</div>'
+      +'<div id="sp-edit-'+field+'" style="display:none;">'
+      +'<input id="sp-input-'+field+'" type="text" value="'+escHtml(val||'')+'" style="width:100%;box-sizing:border-box;padding:5px 8px;border:1.5px solid #3b6cf7;border-radius:6px;font-size:13px;margin-top:4px;">'
+      +'<div style="display:flex;gap:6px;margin-top:6px;">'
+      +'<button onclick="savePhone(\''+field+'\')" style="flex:1;padding:4px 0;background:#3b6cf7;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">저장</button>'
+      +'<button onclick="cancelEditPhone(\''+field+'\')" style="flex:1;padding:4px 0;background:#f1f5f9;color:#64748b;border:none;border-radius:6px;font-size:12px;cursor:pointer;">취소</button>'
+      +'</div></div>'
+      +'</div>';
+  }
   document.getElementById('sp-info-grid').innerHTML=
-    infoItem('학부모 전화번호',st.parentPhone,true)
-    +infoItem('학생 전화번호',st.studentPhone||st.id,true)
+    phoneItem('학부모 전화번호',st.parentPhone,'parentPhone')
+    +phoneItem('학생 전화번호',st.studentPhone||st.id,'studentPhone')
     +infoItem('학교',st.school,false)
     +infoItem('학년',st.grade,false)
     +infoItem('성별',st.gender,false)
@@ -1336,6 +1352,32 @@ function openStudentDetail(studentId){
   switchStuTab('score', document.querySelector('.stu-ptab'));
   document.getElementById('stu-panel').classList.add('open');
   document.getElementById('stu-panel-backdrop').classList.add('open');
+}
+function startEditPhone(field){
+  document.getElementById('sp-val-'+field).style.display='none';
+  document.getElementById('sp-edit-'+field).style.display='';
+  document.getElementById('sp-input-'+field).focus();
+}
+function cancelEditPhone(field){
+  document.getElementById('sp-val-'+field).style.display='';
+  document.getElementById('sp-edit-'+field).style.display='none';
+}
+async function savePhone(field){
+  var val=document.getElementById('sp-input-'+field).value.trim();
+  var st=students.find(function(s){return s.id===currentStuId;});
+  if(!st)return;
+  var update={};update[field]=val;
+  try{
+    var r=await fetch(SU+'?action=updateStudentInfo&id='+encodeURIComponent(currentStuId)+'&'+field+'='+encodeURIComponent(val)).then(function(r){return r.json();});
+    if(r&&r.success){
+      st[field]=val;
+      cancelEditPhone(field);
+      var el=document.getElementById('sp-val-'+field);
+      el.innerHTML=escHtml(val||'-')
+        +(val?'<button class="copy-btn" onclick="copyText(\''+val+'\')" title="복사">📋</button>':'')
+        +'<button class="copy-btn" onclick="startEditPhone(\''+field+'\')" title="수정" style="margin-left:2px;">✏️</button>';
+    } else {alert('저장 실패');}
+  }catch(e){alert('오류: '+e.message);}
 }
 function closeStudentDetail(){
   document.getElementById('stu-panel').classList.remove('open');
