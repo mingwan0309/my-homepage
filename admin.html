@@ -1424,7 +1424,6 @@ function fillMonthSelect(){
 }
 
 async function loadAstData(){
-  var db=await window.mkdbReady();
   var r1=await fetch(SU+'?action=getAssistants'); var d1=await r1.json();
   var r2=await fetch(SU+'?action=getWorkTypes'); var d2=await r2.json();
   astList=(d1.assistants||[]).sort(function(a,b){return a.name<b.name?-1:1;});
