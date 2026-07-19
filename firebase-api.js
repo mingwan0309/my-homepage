@@ -764,7 +764,7 @@ api.deleteAssistant = function(db, p){
 api.getWorkTypes = function(db){
   return db.collection('work_types').get().then(function(snap){
     return { workTypes: docsToArr(snap).sort(function(a,b){return (a.createdAt||'')>(b.createdAt||'')?1:-1;})
-      .map(function(r){ return { id:r.id, name:r.name||'', color:r.color||'#64748b', hourlyRate:Number(r.hourlyRate||0), createdAt:r.createdAt||'' }; }); };
+      .map(function(r){ return { id:r.id, name:r.name||'', color:r.color||'#64748b', hourlyRate:Number(r.hourlyRate||0), createdAt:r.createdAt||'' }; }) };
   });
 };
 api.addWorkType = function(db, p){
@@ -790,7 +790,7 @@ api.getWorkLogs = function(db, p){
     return { logs: docsToArr(snap).sort(function(a,b){return (a.date+a.clockIn)<(b.date+b.clockIn)?-1:1;})
       .map(function(r){ return { id:r.id, assistantId:r.assistantId||'', date:r.date||'', clockIn:r.clockIn||'',
         clockOut:r.clockOut||'', workTypeId:r.workTypeId||'', breakMin:Number(r.breakMin||0),
-        memo:r.memo||'', cost:Number(r.cost||0), yearMonth:r.yearMonth||'' }; }); };
+        memo:r.memo||'', cost:Number(r.cost||0), yearMonth:r.yearMonth||'' }; }) };
   });
 };
 api.addWorkLog = function(db, p){
