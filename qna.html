@@ -353,7 +353,7 @@ function renderList() {
       + '<div class="qna-main">'
       + '<div class="qna-title-row"><span class="qna-title">' + esc(q.title) + lock + '</span></div>'
       + (q.contentPreview ? '<div class="qna-preview">' + esc(q.contentPreview) + '</div>' : '')
-      + '<div class="qna-meta">' + esc(q.studentName) + ' · ' + q.createdAt + '</div>'
+      + '<div class="qna-meta">' + esc(q.studentName) + ' · ' + (q.date||q.createdAt||'') + '</div>'
       + '</div>'
       + '<div class="qna-status">' + badge + '</div>'
       + '</div>';
