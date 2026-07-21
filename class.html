@@ -251,8 +251,8 @@ tr:hover td{background:#fafbff;}
       </div>
     </div>
     <table>
-      <thead><tr id="stu-thead-tr"><th style="width:34px;">#</th><th>이름</th><th>학부모 전화번호</th><th>학생 전화번호</th><th>학교</th><th>출결 이력</th></tr></thead>
-      <tbody id="stu-tbody"><tr><td colspan="6" class="empty">불러오는 중...</td></tr></tbody>
+      <thead><tr id="stu-thead-tr"><th style="width:34px;">#</th><th>이름</th><th>학부모 전화번호</th><th>학생 전화번호</th><th>학교</th><th>출결 이력</th><th>관리</th></tr></thead>
+      <tbody id="stu-tbody"><tr><td colspan="7" class="empty">불러오는 중...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -574,11 +574,11 @@ var attMapGlobal={};
 
 function renderStudents(){
   const tbody=document.getElementById('stu-tbody');
-  if(!students.length){tbody.innerHTML='<tr><td colspan="6" class="empty">등록된 수강생이 없습니다</td></tr>';return;}
+  if(!students.length){tbody.innerHTML='<tr><td colspan="7" class="empty">등록된 수강생이 없습니다</td></tr>';return;}
   var isTeacher=session.role==='teacher';
   students.sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ko');});
   var list=isTeacher?students:students.filter(function(st){return st.id===session.id;});
-  if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">정보가 없습니다</td></tr>';return;}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="7" class="empty">정보가 없습니다</td></tr>';return;}
   if(!isTeacher){
     document.getElementById('stu-thead-tr').innerHTML='<th>이름</th><th>최근 출결</th>';
     tbody.innerHTML=list.map(function(st){
@@ -596,6 +596,9 @@ function renderStudents(){
         +'<td class="stu-phone">'+(st.studentPhone?'<span class="phone-copy" onclick="copyText(\''+st.studentPhone+'\')" title="클릭하여 복사">'+st.studentPhone+'</span>':'-')+'</td>'
         +'<td style="font-size:12px;color:#475569;">'+(st.school||'-')+'</td>'
         +'<td style="padding:8px 14px;"><div class="att-chips-wrap" id="att-'+st.id+'"><span style="color:#cbd5e1;font-size:10px;">로딩...</span></div></td>'
+        +'<td style="padding:8px 10px;white-space:nowrap;">'
+        +'<button onclick="delStuFromClass(\''+st.id+'\',\''+escHtml(st.name)+'\')" style="background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">🗑 삭제</button>'
+        +'</td>'
         +'</tr>';
     }).join('');
   }
@@ -1216,6 +1219,19 @@ async function loadStudentQna(studentId){
     }).join('');
     el.dataset.loaded=studentId;
   }catch(e){el.innerHTML='<div style="color:#dc2626;font-size:13px;text-align:center;padding:20px;">불러오기 실패</div>';}
+}
+
+// ── 학생 삭제 ──
+async function delStuFromClass(id, name){
+  if(!confirm(name+' 학생을 삭제하시겠습니까?\n\n삭제하면 해당 학생의 계정과 정보가 완전히 제거됩니다.')) return;
+  try{
+    var res=await fetch(SU+'?action=deleteStudentAccount&id='+encodeURIComponent(id));
+    var data=await res.json();
+    if(data.success){
+      students=students.filter(function(s){return s.id!==id;});
+      renderStudents();
+    } else { alert('삭제 실패. 다시 시도해주세요.'); }
+  } catch(e){ alert('오류가 발생했습니다.'); }
 }
 
 // ── 학생 추가 ──
