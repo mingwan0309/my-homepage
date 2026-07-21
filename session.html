@@ -595,13 +595,13 @@ tr:hover td{background:#fafbff;}
     <!-- 푸터 -->
     <div style="padding:14px 24px;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#fff;">
       <div style="display:flex;flex-direction:column;gap:4px;">
-        <div style="font-size:12px;color:#94a3b8;">⚠️ 알림톡 템플릿 심사 완료 후 자동 발송 연결 예정</div>
+        <div style="font-size:12px;color:#64748b;">📱 학부모 전화번호로 카카오 알림톡 발송</div>
         <div id="msg-preview-label" style="font-size:12px;color:#3b6cf7;font-weight:600;"></div>
       </div>
       <div style="display:flex;gap:8px;">
         <button onclick="copyAllAtOnce()" style="padding:10px 20px;border:1.5px solid #3b6cf7;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#3b6cf7;">📋 전체 한번에 복사</button>
         <button onclick="copyAllMsgs()" style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#475569;">학생별 복사 목록</button>
-        <button disabled style="padding:10px 24px;background:#3b6cf7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:not-allowed;opacity:0.5;" id="msg-send-btn"><span id="msg-target-count2">0</span>명에게 알림톡 발송</button>
+        <button onclick="doSendAlimtalk()" style="padding:10px 24px;background:#3b6cf7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;" id="msg-send-btn"><span id="msg-target-count2">0</span>명에게 알림톡 발송</button>
       </div>
     </div>
   </div>
@@ -1157,6 +1157,33 @@ function toggleAllScoreSel(checked){
 var MSG_TOKENS_COMMON=[['이름','{이름}'],['출결','{출결}'],['반','{반}'],['차시','{차시}']];
 var MSG_TOKENS_EXAM=[['점수','{점수}'],['등급','{등급}'],['등수','{등수}'],['평균','{평균}'],['최고점','{최고점}'],['통과여부','{통과여부}'],['피드백','{피드백}']];
 var MSG_TOKENS_HW=[['상태','{상태}'],['코멘트','{코멘트}']];
+
+async function doSendAlimtalk(){
+  var ids=Object.keys(scoreSelected);
+  if(!ids.length){alert('발송 대상이 없습니다.');return;}
+  var template=document.getElementById('msg-template').value.trim();
+  if(!template){alert('전달사항 내용을 입력해주세요.');return;}
+  var className=classInfo?classInfo.name:'';
+  var sessionNum=sessionInfo?(sessionInfo.sessionNum+'차시'):'';
+  var messages=ids.map(function(id){
+    var st=students.find(function(s){return s.id===id;});
+    if(!st)return null;
+    var phone=(st.parentPhone||st.studentPhone||'').replace(/[^0-9]/g,'');
+    if(!phone)return null;
+    return {phone:phone,name:st.name,className:className,sessionNum:sessionNum,message:fillTemplate(template,computeMsgTokens(id))};
+  }).filter(Boolean);
+  if(!messages.length){alert('전화번호가 등록된 학생이 없습니다.');return;}
+  if(!confirm(messages.length+'명에게 카카오 알림톡을 발송합니다.\n계속하시겠습니까?'))return;
+  var btn=document.getElementById('msg-send-btn');
+  btn.disabled=true;btn.textContent='발송 중...';
+  try{
+    var res=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:messages})});
+    var data=await res.json();
+    if(data.success){alert('✅ '+messages.length+'명에게 알림톡을 발송했습니다!');closeMsgModal();}
+    else{alert('발송 실패: '+(data.msg||'알 수 없는 오류'));}
+  }catch(e){alert('오류: '+e.message);}
+  btn.disabled=false;btn.innerHTML='<span id="msg-target-count2">'+ids.length+'</span>명에게 알림톡 발송';
+}
 
 function openMsgModal(){
   if(!Object.keys(scoreSelected).length){alert('학생을 먼저 선택해주세요.');return;}

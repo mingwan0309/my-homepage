@@ -861,8 +861,8 @@ window.fetch = function(url, opts){
       var bodyObj = {};
       try { bodyObj = JSON.parse(bodyStr); } catch(e) {}
       var postAction = bodyObj.action || '';
-      // 파일 업로드(uploadFile)만 진짜 Apps Script로 통과
-      if (postAction === 'uploadFile' || !postAction) {
+      // 파일 업로드(uploadFile)와 알림톡 발송(sendAlimtalk)만 진짜 Apps Script로 통과
+      if (postAction === 'uploadFile' || postAction === 'sendAlimtalk' || !postAction) {
         return _origFetch(url, opts);
       }
       // 나머지 POST(submitQuestion, submitAnswer 등)는 Firestore로 처리
