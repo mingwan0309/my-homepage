@@ -101,18 +101,23 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 .denied { text-align:center; padding:80px 20px; }
 .denied h2 { font-size:20px; font-weight:800; color:#dc2626; margin-bottom:10px; }
 
+/* 모바일 햄버거 버튼 */
+.mob-topbar{display:none;}
 @media (max-width:768px){
   html,body{overflow-x:hidden;}
-  /* 사이드바 → 하단 탭바로 전환 */
-  .sidebar{width:100%;min-height:unset;height:auto;position:fixed;bottom:0;top:auto;flex-direction:row;z-index:200;border-top:1px solid #334155;}
-  .sidebar-logo{display:none;}
-  .sidebar-nav{display:flex;flex-direction:row;padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch;}
-  .nav-item{flex-direction:column;gap:2px;padding:8px 12px;font-size:10px;border-left:none;border-top:3px solid transparent;white-space:nowrap;flex-shrink:0;}
-  .nav-item.active{border-left:none;border-top-color:#60a5fa;}
-  .nav-item .ni{font-size:18px;width:auto;}
-  .sidebar-bottom{display:none;}
+  /* 사이드바 숨기고 모바일 상단바 표시 */
+  .sidebar{display:none;}
+  .mob-topbar{display:flex;align-items:center;gap:12px;background:#1e293b;color:#fff;padding:0 16px;height:52px;position:sticky;top:0;z-index:300;}
+  .mob-topbar-logo{font-size:15px;font-weight:900;flex:1;}
+  .mob-topbar-logo span{color:#60a5fa;}
+  .mob-hamburger{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px 8px;}
+  .mob-drawer{display:none;position:fixed;inset:0;z-index:400;}
+  .mob-drawer.open{display:block;}
+  .mob-drawer-bg{position:absolute;inset:0;background:rgba(0,0,0,0.5);}
+  .mob-drawer-panel{position:absolute;left:0;top:0;bottom:0;width:220px;background:#1e293b;display:flex;flex-direction:column;padding:20px 0;}
+  .mob-drawer-close{align-self:flex-end;margin-right:16px;margin-bottom:10px;background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;}
   /* 메인 콘텐츠 */
-  .main{margin-left:0;padding:16px 14px 80px;}
+  .main{margin-left:0;padding:16px 14px;}
   /* 표 */
   .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   table{font-size:12px;}
@@ -141,6 +146,33 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 </div>
 
 <div id="dashboard" style="display:none;width:100%;">
+
+  <!-- 모바일 상단바 -->
+  <div class="mob-topbar">
+    <span class="mob-topbar-logo">김민관 <span>수학</span></span>
+    <button class="mob-hamburger" onclick="document.getElementById('mob-drawer').classList.add('open')">☰</button>
+  </div>
+  <!-- 모바일 드로어 -->
+  <div class="mob-drawer" id="mob-drawer">
+    <div class="mob-drawer-bg" onclick="document.getElementById('mob-drawer').classList.remove('open')"></div>
+    <div class="mob-drawer-panel">
+      <button class="mob-drawer-close" onclick="document.getElementById('mob-drawer').classList.remove('open')">✕</button>
+      <div class="nav-item active" onclick="showPage('classes',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📚</span> 반</div>
+      <div class="nav-item" onclick="showPage('students',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">👨‍🎓</span> 학생</div>
+      <div class="nav-item" onclick="showPage('quiz',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 데일리퀴즈</div>
+      <div class="nav-item" onclick="showPage('clinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🏥</span> 클리닉</div>
+      <div class="nav-item" onclick="showPage('notice',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📢</span> 공지</div>
+      <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
+      <div class="nav-item" onclick="showPage('videos',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🎬</span> 영상</div>
+      <div class="nav-item" onclick="showPage('assistants',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">👩‍🏫</span> 조교</div>
+      <div class="nav-item" onclick="showPage('settings',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">⚙️</span> 관리자</div>
+      <div style="margin-top:auto;padding:14px;border-top:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">
+        <span id="sb-user-mob" style="font-size:12px;color:#94a3b8;"></span>
+        <button class="btn-logout-s" onclick="logout()">로그아웃</button>
+      </div>
+    </div>
+  </div>
+
   <aside class="sidebar">
     <a href="index.html" class="sidebar-logo" style="display:block;text-decoration:none;color:#fff;cursor:pointer;">김민관 <span>수학</span></a>
     <nav class="sidebar-nav">
