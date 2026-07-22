@@ -622,7 +622,7 @@ tr:hover td{background:#fafbff;}
 <div class="modal-bg" id="msg-load-modal" onclick="if(event.target===this)closeMsgLoadModal()" style="z-index:1100;">
   <div class="modal" style="max-width:560px;width:94%;max-height:80vh;display:flex;flex-direction:column;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <h3 style="margin:0;">저장된 메시지 불러오기</h3>
+      <h3 style="margin:0;">지난 메시지 불러오기</h3>
       <button onclick="closeMsgLoadModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
     </div>
     <div id="msg-load-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;"></div>
@@ -1179,7 +1179,7 @@ async function doSendAlimtalk(){
   try{
     var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:messages})});
     var data=await res.json();
-    if(data.success){alert('✅ '+messages.length+'명에게 알림톡을 발송했습니다!');closeMsgModal();}
+    if(data.success){saveMsgHistoryEntry(template,'send');alert('✅ '+messages.length+'명에게 알림톡을 발송했습니다!');closeMsgModal();}
     else{alert('발송 실패: '+(data.msg||'알 수 없는 오류'));}
   }catch(e){alert('오류: '+e.message);}
   btn.disabled=false;btn.innerHTML='<span id="msg-target-count2">'+ids.length+'</span>명에게 알림톡 발송';
@@ -1199,33 +1199,53 @@ function closeMsgModal(){
   document.getElementById('msg-modal').classList.remove('show');
 }
 var MSG_SAVE_KEY='mkmath_msg_templates';
+function saveMsgHistoryEntry(text,source){
+  var list=JSON.parse(localStorage.getItem(MSG_SAVE_KEY)||'[]');
+  list.unshift({
+    text:text,
+    savedAt:new Date().toISOString(),
+    source:source,
+    className:classInfo?classInfo.name:'',
+    sessionNum:sessionInfo?(sessionInfo.sessionNum+'차시'):''
+  });
+  if(list.length>50)list=list.slice(0,50);
+  localStorage.setItem(MSG_SAVE_KEY,JSON.stringify(list));
+}
 function saveMsgTemplate(){
   var text=document.getElementById('msg-template').value.trim();
   if(!text){alert('저장할 메시지를 입력해주세요.');return;}
-  var list=JSON.parse(localStorage.getItem(MSG_SAVE_KEY)||'[]');
-  list.unshift({text:text,savedAt:new Date().toISOString()});
-  if(list.length>30)list=list.slice(0,30);
-  localStorage.setItem(MSG_SAVE_KEY,JSON.stringify(list));
+  saveMsgHistoryEntry(text,'manual');
   alert('저장됐습니다.');
 }
 function openMsgLoadModal(){
   var list=JSON.parse(localStorage.getItem(MSG_SAVE_KEY)||'[]');
   var el=document.getElementById('msg-load-list');
   if(!list.length){
-    el.innerHTML='<div style="color:#94a3b8;text-align:center;padding:40px;font-size:14px;">저장된 메시지가 없습니다.</div>';
+    el.innerHTML='<div style="color:#94a3b8;text-align:center;padding:40px;font-size:14px;">지난 메시지가 없습니다.</div>';
   } else {
-    el.innerHTML=list.map(function(item,i){
+    var html='',lastDateKey='';
+    list.forEach(function(item,i){
       var dt=new Date(item.savedAt);
-      var dtStr=dt.getFullYear()+'.'+(dt.getMonth()+1).toString().padStart(2,'0')+'.'+dt.getDate().toString().padStart(2,'0')+' '+dt.getHours().toString().padStart(2,'0')+':'+dt.getMinutes().toString().padStart(2,'0');
+      var dateKey=dt.getFullYear()+'.'+(dt.getMonth()+1).toString().padStart(2,'0')+'.'+dt.getDate().toString().padStart(2,'0');
+      var timeStr=dt.getHours().toString().padStart(2,'0')+':'+dt.getMinutes().toString().padStart(2,'0');
+      if(dateKey!==lastDateKey){
+        html+='<div style="font-size:12px;font-weight:700;color:#3b6cf7;margin:'+(html?'10px':'0')+' 0 2px;">'+dateKey+'</div>';
+        lastDateKey=dateKey;
+      }
+      var tag=item.source==='send'?'<span style="background:#eef2ff;color:#3b6cf7;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;">📨 발송</span>':'<span style="background:#f1f5f9;color:#64748b;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;">💾 저장</span>';
+      var ctx=(item.className||item.sessionNum)?('<span style="color:#94a3b8;font-size:11px;">'+escHtml([item.className,item.sessionNum].filter(Boolean).join(' · '))+'</span>'):'';
       var preview=item.text.length>60?item.text.substring(0,60)+'…':item.text;
-      return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;cursor:pointer;background:#fff;" onclick="loadMsgTemplate('+i+')">'
-        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
-        +'<span style="font-size:12px;color:#94a3b8;">'+dtStr+'</span>'
+      html+='<div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;cursor:pointer;background:#fff;" onclick="loadMsgTemplate('+i+')">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;">'
+        +'<div style="display:flex;align-items:center;gap:6px;min-width:0;">'+tag+ctx+'</div>'
+        +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'
+        +'<span style="font-size:12px;color:#94a3b8;">'+timeStr+'</span>'
         +'<button onclick="event.stopPropagation();deleteMsgTemplate('+i+')" style="background:none;border:none;color:#94a3b8;font-size:14px;cursor:pointer;">🗑</button>'
-        +'</div>'
+        +'</div></div>'
         +'<div style="font-size:13px;color:#1e293b;white-space:pre-wrap;line-height:1.5;">'+escHtml(preview)+'</div>'
         +'</div>';
-    }).join('');
+    });
+    el.innerHTML=html;
   }
   document.getElementById('msg-load-modal').classList.add('show');
 }
