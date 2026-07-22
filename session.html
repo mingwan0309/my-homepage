@@ -221,6 +221,42 @@ tr:hover td{background:#fafbff;}
 .att-row-date{font-size:12px;color:#64748b;flex:1;}
 .sp-score-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f8fafc;}
 .sp-score-row:last-child{border-bottom:none;}
+
+@media (max-width:768px){
+  html,body{overflow-x:hidden;}
+  /* 헤더 */
+  .header{padding:0 10px;gap:6px;height:48px;}
+  .header-class{font-size:13px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .stat-box .stat-label{font-size:10px;}
+  .stat-box .stat-val{font-size:12px;}
+  #header-stats{gap:8px;}
+  /* 탭바 */
+  .tabs-bar{padding:0 10px;}
+  .tab-item{padding:10px 10px;font-size:13px;}
+  /* 콘텐츠 */
+  .content{padding:0 8px;margin:12px auto;}
+  /* 테이블 */
+  .score-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  table{font-size:12px;}
+  th,td{padding:8px 8px;white-space:nowrap;}
+  .memo-input{width:120px;}
+  /* 슬라이드 패널 */
+  .score-panel{width:100%;right:-100%;}
+  .score-panel.open{right:0;}
+  .stu-panel{width:100%;right:-100%;}
+  .stu-panel.open{right:0;}
+  /* 학생추가 모달 */
+  .sam-wrap{width:100%;height:90vh;flex-direction:column;}
+  .sam-right{width:100%;height:200px;flex-shrink:0;}
+  /* 메시지 발송 모달 */
+  .msg-modal-wrap{width:96% !important;max-height:90vh !important;overflow-y:auto;}
+  /* 선택바 */
+  .sel-bar{gap:6px;}
+  .sel-bar-btn{padding:6px 10px;font-size:12px;}
+  /* 카드 헤더 */
+  .card-header{flex-wrap:wrap;gap:6px;}
+  .card-header .card-title{font-size:14px;}
+}
 </style>
 </head>
 <body>

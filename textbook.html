@@ -73,15 +73,26 @@ body { font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothi
 
 @media (max-width:768px){
   html,body{overflow-x:hidden;}
+  .topbar{padding:10px 14px;}
+  .topbar-user{display:none;}
   .book-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
   .book-card{padding:16px 8px;}
   .book-card-icon{font-size:24px;}
+  .book-card-name{font-size:13px;}
   .subject-tabs{gap:6px;}
+  .subject-tab{padding:7px 14px;font-size:12px;}
+  .grade-tab{padding:8px 18px;font-size:13px;}
+  .grade-tabs{gap:6px;flex-wrap:wrap;}
   .card-header{flex-wrap:wrap;gap:8px;}
-  .container{padding:20px 14px;}
+  .container{padding:16px 12px;}
+  .page-title{font-size:20px;}
+  .video-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
+  /* 영상 모달 */
+  #yt-modal-wrap{width:100% !important;max-width:100% !important;border-radius:0 !important;}
 }
 @media (max-width:400px){
   .book-grid{grid-template-columns:1fr;}
+  .video-grid{grid-template-columns:1fr 1fr;}
 }
 
 #page-denied { display:none; text-align:center; padding:80px 20px; }
