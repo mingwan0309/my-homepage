@@ -1158,14 +1158,17 @@ var MSG_TOKENS_COMMON=[['이름','{이름}'],['출결','{출결}'],['반','{반}
 var MSG_TOKENS_EXAM=[['점수','{점수}'],['등급','{등급}'],['등수','{등수}'],['평균','{평균}'],['최고점','{최고점}'],['통과여부','{통과여부}'],['피드백','{피드백}']];
 var MSG_TOKENS_HW=[['상태','{상태}'],['코멘트','{코멘트}']];
 
-// 학생 1명당 학부모+학생 전화번호(중복 제외)를 모두 반환
-function getMsgRecipientPhones(st){
+// 학생 1명당 학부모+학생 전화번호(중복 제외)를 라벨과 함께 모두 반환
+function getMsgRecipients(st){
   var pPhone=(st.parentPhone||'').replace(/[^0-9]/g,'');
   var sPhone=(st.studentPhone||'').replace(/[^0-9]/g,'');
-  var phones=[];
-  if(pPhone)phones.push(pPhone);
-  if(sPhone&&sPhone!==pPhone)phones.push(sPhone);
-  return phones;
+  var list=[];
+  if(pPhone)list.push({label:'학부모',phone:pPhone});
+  if(sPhone&&sPhone!==pPhone)list.push({label:'학생',phone:sPhone});
+  return list;
+}
+function getMsgRecipientPhones(st){
+  return getMsgRecipients(st).map(function(r){return r.phone;});
 }
 
 async function doSendAlimtalk(){
@@ -1281,23 +1284,33 @@ function renderMsgTargetList(){
   var ids=Object.keys(scoreSelected);
   var recipientCount=ids.reduce(function(sum,id){
     var st=students.find(function(s){return s.id===id;});
-    return sum+(st?getMsgRecipientPhones(st).length:0);
+    return sum+(st?getMsgRecipients(st).length:0);
   },0);
   document.getElementById('msg-target-count').textContent=recipientCount;
   var cnt2=document.getElementById('msg-target-count2');
   if(cnt2)cnt2.textContent=recipientCount;
   var list=document.getElementById('msg-target-list');
   if(!ids.length){list.innerHTML='<div style="padding:16px;color:#94a3b8;font-size:13px;text-align:center;">선택된 학생이 없습니다.</div>';return;}
-  list.innerHTML=ids.map(function(id){
+  var html='';
+  ids.forEach(function(id){
     var st=students.find(function(s){return s.id===id;});
-    if(!st)return'';
-    return '<div id="msg-target-row-'+id+'" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border:1px solid #f1f5f9;border-radius:8px;font-size:13px;background:#fff;">'
-      +'<span style="font-weight:600;color:#1e293b;">'+escHtml(st.name)+'</span>'
-      +'<div style="display:flex;align-items:center;gap:6px;">'
-      +'<button onclick="previewMsgFor(\''+id+'\')" style="padding:2px 8px;font-size:11px;border:1px solid #3b6cf7;border-radius:5px;background:#fff;color:#3b6cf7;cursor:pointer;font-weight:600;">미리보기</button>'
-      +'<span style="cursor:pointer;color:#cbd5e1;font-size:16px;line-height:1;" onclick="removeMsgTarget(\''+id+'\')">✕</span>'
-      +'</div></div>';
-  }).join('');
+    if(!st)return;
+    var recipients=getMsgRecipients(st);
+    if(!recipients.length)recipients=[{label:'번호없음',phone:''}];
+    recipients.forEach(function(r){
+      var tagColor=r.label==='번호없음'?'background:#fef2f2;color:#ef4444;':'background:#eef2ff;color:#3b6cf7;';
+      html+='<div id="msg-target-row-'+id+'" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border:1px solid #f1f5f9;border-radius:8px;font-size:13px;background:#fff;">'
+        +'<div style="display:flex;align-items:center;gap:6px;min-width:0;">'
+        +'<span style="font-weight:600;color:#1e293b;">'+escHtml(st.name)+'</span>'
+        +'<span style="'+tagColor+'padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;flex-shrink:0;">'+r.label+'</span>'
+        +'</div>'
+        +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
+        +'<button onclick="previewMsgFor(\''+id+'\')" style="padding:2px 8px;font-size:11px;border:1px solid #3b6cf7;border-radius:5px;background:#fff;color:#3b6cf7;cursor:pointer;font-weight:600;">미리보기</button>'
+        +'<span style="cursor:pointer;color:#cbd5e1;font-size:16px;line-height:1;" onclick="removeMsgTarget(\''+id+'\')">✕</span>'
+        +'</div></div>';
+    });
+  });
+  list.innerHTML=html;
 }
 function removeMsgTarget(id){
   delete scoreSelected[id];
