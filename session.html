@@ -555,7 +555,10 @@ tr:hover td{background:#fafbff;}
     <!-- 헤더 -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #f1f5f9;flex-shrink:0;">
       <h3 style="margin:0;font-size:16px;">수업 결과 발송</h3>
-      <button onclick="closeMsgModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button onclick="openMsgSendHistoryModal()" style="padding:6px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;cursor:pointer;background:#f8fafc;color:#475569;">📜 발송 이력</button>
+        <button onclick="closeMsgModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
+      </div>
     </div>
     <!-- 바디 3단 -->
     <div style="display:grid;grid-template-columns:280px 1fr 260px;gap:0;flex:1;overflow:hidden;min-height:0;">
@@ -662,6 +665,18 @@ tr:hover td{background:#fafbff;}
       <button onclick="closeMsgLoadModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
     </div>
     <div id="msg-load-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;"></div>
+  </div>
+</div>
+
+<!-- 발송 이력 모달 -->
+<div class="modal-bg" id="msg-send-history-modal" onclick="if(event.target===this)closeMsgSendHistoryModal()" style="z-index:1300;">
+  <div class="modal" style="max-width:640px;width:94%;max-height:84vh;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <h3 style="margin:0;">발송 이력</h3>
+      <button onclick="closeMsgSendHistoryModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
+    </div>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:14px;">※ 성공/실패는 발송 요청이 정상 접수됐는지 여부예요. 카카오톡이 실제로 도착했는지까지는 확인이 어려울 수 있어요.</div>
+    <div id="msg-send-history-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;"></div>
   </div>
 </div>
 
@@ -1219,8 +1234,8 @@ async function doSendAlimtalk(){
     var st=students.find(function(s){return s.id===id;});
     if(!st)return;
     var msgText=fillTemplate(template,computeMsgTokens(id));
-    getMsgRecipientPhones(st).forEach(function(phone){
-      messages.push({phone:phone,name:st.name,className:className,sessionNum:sessionNum,message:msgText});
+    getMsgRecipients(st).forEach(function(r){
+      messages.push({phone:r.phone,name:st.name,label:r.label,className:className,sessionNum:sessionNum,message:msgText});
     });
   });
   if(!messages.length){alert('전화번호가 등록된 학생이 없습니다.');return;}
@@ -1230,10 +1245,84 @@ async function doSendAlimtalk(){
   try{
     var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:messages})});
     var data=await res.json();
-    if(data.success){saveMsgHistoryEntry(template,'send');alert('✅ '+messages.length+'건 알림톡을 발송했습니다!');closeMsgModal();}
-    else{alert('발송 실패: '+(data.msg||'알 수 없는 오류'));}
-  }catch(e){alert('오류: '+e.message);}
+    if(data.success){
+      saveMsgHistoryEntry(template,'send');
+      saveMsgSendHistory(messages,true,'');
+      alert('✅ '+messages.length+'건 알림톡을 발송했습니다!');closeMsgModal();
+    } else {
+      saveMsgSendHistory(messages,false,data.msg||'알 수 없는 오류');
+      alert('발송 실패: '+(data.msg||'알 수 없는 오류'));
+    }
+  }catch(e){
+    saveMsgSendHistory(messages,false,e.message);
+    alert('오류: '+e.message);
+  }
   btn.disabled=false;btn.innerHTML='<span id="msg-target-count2">'+messages.length+'</span>건 알림톡 발송';
+}
+var MSG_SEND_HISTORY_KEY='mkmath_msg_send_history';
+function saveMsgSendHistory(messages,success,errorMsg){
+  var list=JSON.parse(localStorage.getItem(MSG_SEND_HISTORY_KEY)||'[]');
+  list.unshift({
+    sentAt:new Date().toISOString(),
+    className:classInfo?classInfo.name:'',
+    sessionNum:sessionInfo?(sessionInfo.sessionNum+'차시'):'',
+    success:success,
+    errorMsg:errorMsg||'',
+    recipients:messages.map(function(m){return {name:m.name,label:m.label||'',phone:m.phone,message:m.message};})
+  });
+  if(list.length>50)list=list.slice(0,50);
+  localStorage.setItem(MSG_SEND_HISTORY_KEY,JSON.stringify(list));
+}
+function openMsgSendHistoryModal(){
+  var list=JSON.parse(localStorage.getItem(MSG_SEND_HISTORY_KEY)||'[]');
+  var el=document.getElementById('msg-send-history-list');
+  if(!list.length){
+    el.innerHTML='<div style="color:#94a3b8;text-align:center;padding:40px;font-size:14px;">발송 이력이 없습니다.</div>';
+  } else {
+    var html='',lastDateKey='';
+    list.forEach(function(item,i){
+      var dt=new Date(item.sentAt);
+      var dateKey=dt.getFullYear()+'.'+(dt.getMonth()+1).toString().padStart(2,'0')+'.'+dt.getDate().toString().padStart(2,'0');
+      var timeStr=dt.getHours().toString().padStart(2,'0')+':'+dt.getMinutes().toString().padStart(2,'0');
+      if(dateKey!==lastDateKey){
+        html+='<div style="font-size:12px;font-weight:700;color:#3b6cf7;margin:'+(html?'10px':'0')+' 0 2px;">'+dateKey+'</div>';
+        lastDateKey=dateKey;
+      }
+      var badge=item.success
+        ?'<span style="background:#ecfdf5;color:#059669;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">✅ 성공</span>'
+        :'<span style="background:#fef2f2;color:#ef4444;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">❌ 실패</span>';
+      var ctx=(item.className||item.sessionNum)?escHtml([item.className,item.sessionNum].filter(Boolean).join(' · ')):'';
+      html+='<div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;background:#fff;">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">'
+        +'<div style="display:flex;align-items:center;gap:8px;min-width:0;">'+badge+'<span style="color:#94a3b8;font-size:12px;">'+ctx+'</span></div>'
+        +'<span style="font-size:12px;color:#94a3b8;flex-shrink:0;">'+timeStr+' · '+item.recipients.length+'건</span>'
+        +'</div>'
+        +(item.success?'':'<div style="font-size:12px;color:#ef4444;margin-bottom:8px;">오류: '+escHtml(item.errorMsg)+'</div>')
+        +'<div style="cursor:pointer;color:#3b6cf7;font-size:12px;font-weight:600;" onclick="toggleMsgHistoryDetail('+i+')">받는 사람·내용 보기 ▾</div>'
+        +'<div id="msg-history-detail-'+i+'" style="display:none;margin-top:8px;flex-direction:column;gap:6px;">'
+        +item.recipients.map(function(r){
+          return '<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;">'
+            +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
+            +'<span style="font-weight:700;font-size:12px;color:#1e293b;">'+escHtml(r.name)+'</span>'
+            +'<span style="background:#eef2ff;color:#3b6cf7;padding:0 6px;border-radius:4px;font-size:10px;font-weight:700;">'+escHtml(r.label||'')+'</span>'
+            +'</div>'
+            +'<div style="font-size:12px;color:#475569;white-space:pre-wrap;line-height:1.5;">'+escHtml(r.message)+'</div>'
+            +'</div>';
+        }).join('')
+        +'</div>'
+        +'</div>';
+    });
+    el.innerHTML=html;
+  }
+  document.getElementById('msg-send-history-modal').classList.add('show');
+}
+function closeMsgSendHistoryModal(){
+  document.getElementById('msg-send-history-modal').classList.remove('show');
+}
+function toggleMsgHistoryDetail(i){
+  var el=document.getElementById('msg-history-detail-'+i);
+  if(!el)return;
+  el.style.display=(el.style.display==='none')?'flex':'none';
 }
 
 function openMsgModal(){
