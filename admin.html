@@ -132,7 +132,14 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
   .page-title{font-size:18px;}
   /* 엑셀 버튼 줄 */
   .excel-row{flex-wrap:wrap;}
-}
+}.chat-thread-item{display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #f1f5f9;}
+.chat-thread-item:hover{background:#f8fafc;}
+.chat-thread-item.active{background:#eff6ff;}
+.chat-thread-avatar{width:38px;height:38px;border-radius:50%;background:#3b6cf7;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;}
+.chat-thread-badge{background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;flex-shrink:0;}
+.chat-msg-bubble{max-width:75%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;}
+.chat-msg-bubble.me{align-self:flex-end;background:#2563eb;color:#fff;border-bottom-right-radius:4px;}
+.chat-msg-bubble.other{align-self:flex-start;background:#fff;color:#1e293b;border:1px solid #e2e8f0;border-bottom-left-radius:4px;}
 </style>
 </head>
 <body>
@@ -163,6 +170,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('clinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🏥</span> 클리닉</div>
       <div class="nav-item" onclick="showPage('notice',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
+      <div class="nav-item" onclick="showPage('chat',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('videos',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🎬</span> 영상</div>
       <div class="nav-item" onclick="showPage('assistants',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">👩‍🏫</span> 조교</div>
       <div class="nav-item" onclick="showPage('settings',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">⚙️</span> 관리자</div>
@@ -182,6 +190,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('clinic',this)"><span class="ni">🏥</span> 클리닉</div>
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
+      <div class="nav-item" onclick="showPage('chat',this)"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('videos',this)"><span class="ni">🎬</span> 영상</div>
       <div class="nav-item" onclick="showPage('assistants',this)"><span class="ni">👩‍🏫</span> 조교</div>
       <div class="nav-item" onclick="showPage('settings',this)"><span class="ni">⚙️</span> 관리자</div>
@@ -343,6 +352,27 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div style="font-size:16px;font-weight:800;margin-bottom:8px;">질의응답 관리 페이지로 이동</div>
         <div style="font-size:13px;color:#64748b;margin-bottom:24px;">학생들의 질문 확인 및 답변 작성</div>
         <a href="qna.html" style="background:#2563eb;color:#fff;padding:12px 28px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;">질의응답 관리하러 가기 →</a>
+      </div>
+    </div>
+
+    <!-- 채팅 -->
+    <div id="page-chat" class="page">
+      <div class="page-header"><div class="page-title">채팅</div></div>
+      <div style="display:grid;grid-template-columns:280px 1fr;gap:0;background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,0.07);overflow:hidden;height:600px;">
+        <div style="border-right:1px solid #f1f5f9;overflow-y:auto;">
+          <div id="chat-thread-list"><div style="padding:20px;color:#94a3b8;font-size:13px;text-align:center;">불러오는 중...</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;">
+          <div id="chat-empty-state" style="flex:1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:14px;">왼쪽에서 학생을 선택하세요.</div>
+          <div id="chat-active-view" style="display:none;flex-direction:column;flex:1;">
+            <div style="padding:14px 20px;border-bottom:1px solid #f1f5f9;font-weight:800;font-size:15px;" id="chat-active-name"></div>
+            <div id="chat-msg-body" style="flex:1;overflow-y:auto;padding:16px;background:#f8fafc;display:flex;flex-direction:column;gap:10px;"></div>
+            <div style="display:flex;border-top:1px solid #f1f5f9;padding:10px;gap:8px;">
+              <input id="chat-teacher-input" placeholder="메시지 입력..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:20px;padding:10px 16px;font-size:14px;outline:none;font-family:inherit;">
+              <button onclick="sendTeacherMsg()" style="background:#2563eb;color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:16px;cursor:pointer;flex-shrink:0;">➤</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -673,9 +703,10 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','students','quiz','clinic','notice','qna','videos','assistants','settings'];
+    var validPages = ['classes','students','quiz','clinic','notice','qna','chat','videos','assistants','settings'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
+    initChatPage();
   }
 });
 
@@ -689,6 +720,7 @@ function showPage(page,el){
   if(page==='settings') loadRv();
   if(page==='notice') loadNotices();
   if(page==='clinic') loadClinics();
+  if(page==='chat') initChatPage();
   if(page==='videos') initVideoPage();
   if(page==='assistants') initAstPage();
   location.hash = page;
@@ -1389,6 +1421,88 @@ async function openBookingsModal(clinicId, clinicName) {
 }
 
 // ── 영상 라이브러리 ──
+// ── 채팅 ──
+var chatThreadsUnsub=null, chatMsgsUnsub=null, chatThreadsCache=[], activeChatStudentId=null;
+
+function initChatPage(){
+  if(chatThreadsUnsub) return; // 이미 리스너 켜짐
+  window.mkdbReady.then(function(db){
+    chatThreadsUnsub=db.collection('chat_threads').onSnapshot(function(snap){
+      chatThreadsCache=[];
+      snap.forEach(function(doc){chatThreadsCache.push(doc.data());});
+      chatThreadsCache.sort(function(a,b){return (a.lastAt||'')<(b.lastAt||'')?1:-1;});
+      renderChatThreads();
+      updateChatNavBadge();
+    });
+  });
+}
+function updateChatNavBadge(){
+  var total=chatThreadsCache.reduce(function(sum,t){return sum+(t.unreadForTeacher||0);},0);
+  [document.getElementById('chat-nav-badge'),document.getElementById('chat-nav-badge-m')].forEach(function(b){
+    if(!b)return;
+    if(total>0){b.textContent=total>9?'9+':total;b.style.display='flex';}
+    else b.style.display='none';
+  });
+}
+function renderChatThreads(){
+  var box=document.getElementById('chat-thread-list');
+  if(!chatThreadsCache.length){box.innerHTML='<div style="padding:20px;color:#94a3b8;font-size:13px;text-align:center;">아직 채팅이 없습니다.</div>';return;}
+  box.innerHTML=chatThreadsCache.map(function(t){
+    var unread=t.unreadForTeacher||0;
+    var initial=(t.studentName||t.studentId||'?').slice(0,1);
+    return '<div class="chat-thread-item'+(t.studentId===activeChatStudentId?' active':'')+'" onclick="openChatThread(\''+t.studentId+'\')">'
+      +'<div class="chat-thread-avatar">'+initial+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-size:13px;font-weight:700;color:#1e293b;">'+(t.studentName||t.studentId)+'</div>'
+      +'<div style="font-size:12px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(t.lastMessage||'')+'</div>'
+      +'</div>'
+      +(unread>0?'<span class="chat-thread-badge">'+(unread>9?'9+':unread)+'</span>':'')
+      +'</div>';
+  }).join('');
+}
+async function openChatThread(studentId){
+  activeChatStudentId=studentId;
+  renderChatThreads();
+  document.getElementById('chat-empty-state').style.display='none';
+  document.getElementById('chat-active-view').style.display='flex';
+  var thread=chatThreadsCache.find(function(t){return t.studentId===studentId;});
+  document.getElementById('chat-active-name').textContent=thread?(thread.studentName||studentId):studentId;
+  if(chatMsgsUnsub){chatMsgsUnsub();chatMsgsUnsub=null;}
+  var db=await window.mkdbReady;
+  chatMsgsUnsub=db.collection('chat_messages').where('studentId','==',studentId).onSnapshot(function(snap){
+    var msgs=[];
+    snap.forEach(function(doc){msgs.push(doc.data());});
+    msgs.sort(function(a,b){return (a.createdAt||'')<(b.createdAt||'')?-1:1;});
+    var body=document.getElementById('chat-msg-body');
+    body.innerHTML=msgs.map(function(m){
+      return '<div class="chat-msg-bubble '+(m.sender==='teacher'?'me':'other')+'">'+escHtml(m.text)+'</div>';
+    }).join('');
+    body.scrollTop=body.scrollHeight;
+  });
+  db.collection('chat_threads').doc(studentId).set({unreadForTeacher:0},{merge:true}).catch(function(){});
+}
+async function sendTeacherMsg(){
+  if(!activeChatStudentId)return;
+  var input=document.getElementById('chat-teacher-input');
+  var text=input.value.trim();
+  if(!text)return;
+  input.value='';
+  var db=await window.mkdbReady;
+  var id=window.mkGenId('msg');
+  var thread=chatThreadsCache.find(function(t){return t.studentId===activeChatStudentId;});
+  await db.collection('chat_messages').doc(id).set({
+    id:id, studentId:activeChatStudentId, sender:'teacher', text:text, createdAt:window.mkNowStr()
+  });
+  await db.collection('chat_threads').doc(activeChatStudentId).set({
+    studentId:activeChatStudentId, studentName:thread?thread.studentName:activeChatStudentId,
+    lastMessage:text, lastAt:window.mkNowStr(),
+    unreadForStudent: firebase.firestore.FieldValue.increment(1)
+  },{merge:true});
+}
+document.addEventListener('keydown', function(e){
+  if(e.target && e.target.id==='chat-teacher-input' && e.key==='Enter'){ e.preventDefault(); sendTeacherMsg(); }
+});
+
 async function initVideoPage(){
   loadVlib();
 }
