@@ -238,9 +238,42 @@ document.addEventListener('DOMContentLoaded', async function(){
 
   document.getElementById('page-main').style.display = 'block';
 
+  // 세션 id가 하이픈 없는 형식이거나 예전 형식이어도, 실제 존재하는 학생 문서를 찾아 교정한다(자가 치유)
+  await normalizeSessionId();
+
 loadInfo();
   loadAttendance();
 });
+
+// 로그인 계정(auth)에 맞는 실제 학생 문서 id를 찾아 session.id 를 교정
+function dashPhone(id){
+  var d = String(id).replace(/[-\s]/g,'');
+  if(/^\d{11}$/.test(d)) return d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
+  if(/^\d{10}$/.test(d)) return d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6);
+  return String(id);
+}
+async function normalizeSessionId(){
+  try {
+    var db = await window.mkdbReady;
+    // 후보: 현재 id, 하이픈 추가, 하이픈 제거 (중복 제거)
+    var cands = [];
+    [session.id, dashPhone(session.id), String(session.id).replace(/[-\s]/g,'')].forEach(function(c){
+      if (c && cands.indexOf(c) < 0) cands.push(c);
+    });
+    for (var i=0;i<cands.length;i++){
+      try {
+        var d = await db.collection('students').doc(cands[i]).get();
+        if (d.exists) {
+          if (cands[i] !== session.id) {
+            session.id = cands[i];
+            localStorage.setItem('mkmath_session', JSON.stringify(session));
+          }
+          return;
+        }
+      } catch(e) { /* 권한거부(내 문서 아님) → 다음 후보 시도 */ }
+    }
+  } catch(e) {}
+}
 
 // ── 탭 전환 ──
 let loaded = {};
@@ -277,7 +310,7 @@ async function loadInfo() {
       infoItem('학생 번호', session.id) +
       infoItem('학부모 번호', d.parentPhone || '—');
   } catch(e) {
-    document.getElementById('info-grid').innerHTML = '<p style="color:#dc2626;font-size:13px;">불러오기 실패: ' + (e && e.message ? e.message : String(e)) + ' / session.id=' + session.id + ' / auth=' + (firebase && firebase.auth().currentUser ? firebase.auth().currentUser.email : 'none') + '</p>';
+    document.getElementById('info-grid').innerHTML = '<p style="color:#dc2626;font-size:13px;">불러오기 실패</p>';
   }
 }
 function infoItem(label, value) {
