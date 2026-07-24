@@ -78,7 +78,7 @@ function fetchProfileAfterAuth(db, loginId){
     var u = doc.data();
     if (u.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
     var role = u.role || 'student';
-    var result = { success:true, role:role, name:u.name || u.id, classId:'', className:'' };
+    var result = { success:true, role:role, name:u.name || u.id, classId:'', className:'', studentId:loginId };
     if (role === 'student' && u.classId) {
       result.classId = String(u.classId);
       return db.collection('classes').doc(String(u.classId)).get().then(function(c){
