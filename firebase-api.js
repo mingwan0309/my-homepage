@@ -94,56 +94,51 @@ api.login = function(db, p){
   var loginId = String(p.id);
   var password = String(p.password);
   var auth = firebase.auth();
-  var normId = loginId.replace(/[-\s]/g,'');
 
-  var dashedId = addPhoneDashes(loginId);
-  // Firestore에서 시도할 ID 후보 (입력값, 하이픈 추가, 하이픈 제거)
-  var idCandidates = [loginId];
-  if (dashedId !== loginId) idCandidates.push(dashedId);
-  if (normId !== loginId) idCandidates.push(normId);
+  // 하이픈 제거 버전, 하이픈 추가 버전 미리 계산
+  var stripped = loginId.replace(/[-\s]/g,'');
+  var dashed = addPhoneDashes(stripped);
+
+  // Auth 시도 후보: 입력값, 하이픈 추가, 하이픈 제거 (중복 제거)
+  var authIds = [loginId];
+  if (dashed !== loginId) authIds.push(dashed);
+  if (stripped !== loginId) authIds.push(stripped);
+
+  // Firestore 조회 후보: 같은 목록
+  var fsIds = authIds.slice();
 
   var afterSignIn = function(){
-    // 후보 ID들로 Firestore students 문서 순서대로 조회
-    var tryDocId = function(i){
-      if (i >= idCandidates.length) {
-        // 학부모 번호인 경우 fallback
+    var tryDoc = function(i){
+      if (i >= fsIds.length) {
+        // 학부모 번호 fallback
         return db.collection('students').where('parentPhone','==',loginId).limit(1).get().then(function(snap){
           if (snap.empty) return { success:false };
-          var studentDoc = snap.docs[0];
-          var u = studentDoc.data();
+          var u = snap.docs[0].data(); var sid = snap.docs[0].id;
           if (u.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
-          var result = { success:true, role:'student', name:u.name||u.id, classId:'', className:'', studentId: studentDoc.id };
-          if (u.classId) {
-            result.classId = String(u.classId);
-            return db.collection('classes').doc(String(u.classId)).get().then(function(c){
-              if (c.exists) result.className = c.data().name||'';
-              return result;
-            });
-          }
-          return result;
+          var res = { success:true, role:'student', name:u.name||sid, classId:'', className:'', studentId:sid };
+          if (!u.classId) return res;
+          res.classId = String(u.classId);
+          return db.collection('classes').doc(res.classId).get().then(function(c){
+            if (c.exists) res.className = c.data().name||'';
+            return res;
+          });
         });
       }
-      return db.collection('students').doc(idCandidates[i]).get().then(function(doc){
-        if (doc.exists) return fetchProfileAfterAuth(db, idCandidates[i]);
-        return tryDocId(i+1);
+      return db.collection('students').doc(fsIds[i]).get().then(function(doc){
+        if (doc.exists) return fetchProfileAfterAuth(db, fsIds[i]);
+        return tryDoc(i+1);
       });
     };
-    return tryDocId(0);
+    return tryDoc(0);
   };
 
-  var dashedId = addPhoneDashes(loginId);
-  // 시도 순서: 원본 → 하이픈 추가 버전 → 하이픈 제거 버전
-  var candidates = [loginId];
-  if (dashedId !== loginId) candidates.push(dashedId);
-  if (normId !== loginId) candidates.push(normId);
-
-  var tryNext = function(i){
-    if (i >= candidates.length) return Promise.resolve({ success:false });
-    return auth.signInWithEmailAndPassword(toAuthEmail(candidates[i]), toAuthPassword(password))
+  var tryAuth = function(i){
+    if (i >= authIds.length) return Promise.resolve({ success:false });
+    return auth.signInWithEmailAndPassword(toAuthEmail(authIds[i]), toAuthPassword(password))
       .then(afterSignIn)
-      .catch(function(){ return tryNext(i+1); });
+      .catch(function(){ return tryAuth(i+1); });
   };
-  return tryNext(0);
+  return tryAuth(0);
 };
 
 api.addStudent = function(db, p){
