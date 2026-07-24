@@ -41,7 +41,13 @@ var _dbReady = new Promise(function(resolve, reject){
 
 var AUTH_DOMAIN_SUFFIX = '@mkmath.local';
 function toAuthEmail(loginId){ return loginId + AUTH_DOMAIN_SUFFIX; }
-function toAuthEmailNorm(loginId){ return loginId.replace(/[-\s]/g,'') + AUTH_DOMAIN_SUFFIX; }
+// 하이픈 없는 번호 → 하이픈 있는 번호 변환 (010-XXXX-XXXX)
+function addPhoneDashes(id){
+  var d = id.replace(/[-\s]/g,'');
+  if(/^\d{11}$/.test(d)) return d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
+  if(/^\d{10}$/.test(d)) return d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6);
+  return id;
+}
 // Firebase 로그인은 비밀번호 6자 이상이 필요함. 짧은 비번(예: 1234)은 뒤에 0을 채워서 맞춤.
 function toAuthPassword(pw){
   pw = String(pw);
@@ -116,15 +122,19 @@ api.login = function(db, p){
     });
   };
 
-  // 입력값 그대로 시도 → 실패하면 하이픈 제거 버전으로 재시도
-  return auth.signInWithEmailAndPassword(toAuthEmail(loginId), toAuthPassword(password))
-    .then(afterSignIn)
-    .catch(function(){
-      if (normId === loginId) return { success:false };
-      return auth.signInWithEmailAndPassword(toAuthEmail(normId), toAuthPassword(password))
-        .then(afterSignIn)
-        .catch(function(){ return { success:false }; });
-    });
+  var dashedId = addPhoneDashes(loginId);
+  // 시도 순서: 원본 → 하이픈 추가 버전 → 하이픈 제거 버전
+  var candidates = [loginId];
+  if (dashedId !== loginId) candidates.push(dashedId);
+  if (normId !== loginId) candidates.push(normId);
+
+  var tryNext = function(i){
+    if (i >= candidates.length) return Promise.resolve({ success:false });
+    return auth.signInWithEmailAndPassword(toAuthEmail(candidates[i]), toAuthPassword(password))
+      .then(afterSignIn)
+      .catch(function(){ return tryNext(i+1); });
+  };
+  return tryNext(0);
 };
 
 api.addStudent = function(db, p){
