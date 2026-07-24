@@ -107,11 +107,17 @@ api.login = function(db, p){
   // Firestore 조회 후보: 같은 목록
   var fsIds = authIds.slice();
 
-  var afterSignIn = function(){
+  // 성공한 authId를 기준으로 Firestore 조회 (보안규칙: 본인 ID 문서만 읽기 가능)
+  var afterSignIn = function(authId){
+    var docIds = [authId];
+    var altDashed = addPhoneDashes(authId.replace(/[-\s]/g,''));
+    if (altDashed !== authId) docIds.push(altDashed);
+    var altStripped = authId.replace(/[-\s]/g,'');
+    if (altStripped !== authId) docIds.push(altStripped);
+
     var tryDoc = function(i){
-      if (i >= fsIds.length) {
-        // 학부모 번호 fallback
-        return db.collection('students').where('parentPhone','==',loginId).limit(1).get().then(function(snap){
+      if (i >= docIds.length) {
+        return db.collection('students').where('parentPhone','==',authId).limit(1).get().then(function(snap){
           if (snap.empty) return { success:false };
           var u = snap.docs[0].data(); var sid = snap.docs[0].id;
           if (u.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
@@ -124,8 +130,8 @@ api.login = function(db, p){
           });
         });
       }
-      return db.collection('students').doc(fsIds[i]).get().then(function(doc){
-        if (doc.exists) return fetchProfileAfterAuth(db, fsIds[i]);
+      return db.collection('students').doc(docIds[i]).get().then(function(doc){
+        if (doc.exists) return fetchProfileAfterAuth(db, docIds[i]);
         return tryDoc(i+1);
       });
     };
@@ -135,7 +141,7 @@ api.login = function(db, p){
   var tryAuth = function(i){
     if (i >= authIds.length) return Promise.resolve({ success:false });
     return auth.signInWithEmailAndPassword(toAuthEmail(authIds[i]), toAuthPassword(password))
-      .then(function(){ return afterSignIn(); }, function(){ return tryAuth(i+1); });
+      .then(function(){ return afterSignIn(authIds[i]); }, function(){ return tryAuth(i+1); });
   };
   return tryAuth(0);
 };
