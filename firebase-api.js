@@ -135,8 +135,7 @@ api.login = function(db, p){
   var tryAuth = function(i){
     if (i >= authIds.length) return Promise.resolve({ success:false });
     return auth.signInWithEmailAndPassword(toAuthEmail(authIds[i]), toAuthPassword(password))
-      .then(afterSignIn)
-      .catch(function(){ return tryAuth(i+1); });
+      .then(function(){ return afterSignIn(); }, function(){ return tryAuth(i+1); });
   };
   return tryAuth(0);
 };
