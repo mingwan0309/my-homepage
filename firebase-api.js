@@ -96,13 +96,17 @@ api.login = function(db, p){
   var auth = firebase.auth();
   var normId = loginId.replace(/[-\s]/g,'');
 
+  var dashedId = addPhoneDashes(loginId);
+  // Firestore에서 시도할 ID 후보 (입력값, 하이픈 추가, 하이픈 제거)
+  var idCandidates = [loginId];
+  if (dashedId !== loginId) idCandidates.push(dashedId);
+  if (normId !== loginId) idCandidates.push(normId);
+
   var afterSignIn = function(){
-    // 학생 번호로 직접 조회 (원본 or 정규화된 번호 둘 다 시도)
-    return db.collection('students').doc(loginId).get().then(function(doc){
-      if (doc.exists) return fetchProfileAfterAuth(db, loginId);
-      return db.collection('students').doc(normId).get().then(function(doc2){
-        if (doc2.exists) return fetchProfileAfterAuth(db, normId);
-        // 학부모 번호인 경우
+    // 후보 ID들로 Firestore students 문서 순서대로 조회
+    var tryDocId = function(i){
+      if (i >= idCandidates.length) {
+        // 학부모 번호인 경우 fallback
         return db.collection('students').where('parentPhone','==',loginId).limit(1).get().then(function(snap){
           if (snap.empty) return { success:false };
           var studentDoc = snap.docs[0];
@@ -118,8 +122,13 @@ api.login = function(db, p){
           }
           return result;
         });
+      }
+      return db.collection('students').doc(idCandidates[i]).get().then(function(doc){
+        if (doc.exists) return fetchProfileAfterAuth(db, idCandidates[i]);
+        return tryDocId(i+1);
       });
-    });
+    };
+    return tryDocId(0);
   };
 
   var dashedId = addPhoneDashes(loginId);
