@@ -41,6 +41,7 @@ var _dbReady = new Promise(function(resolve, reject){
 
 var AUTH_DOMAIN_SUFFIX = '@mkmath.local';
 function toAuthEmail(loginId){ return loginId + AUTH_DOMAIN_SUFFIX; }
+function toAuthEmailNorm(loginId){ return loginId.replace(/[-\s]/g,'') + AUTH_DOMAIN_SUFFIX; }
 // Firebase 로그인은 비밀번호 6자 이상이 필요함. 짧은 비번(예: 1234)은 뒤에 0을 채워서 맞춤.
 function toAuthPassword(pw){
   pw = String(pw);
@@ -87,12 +88,15 @@ api.login = function(db, p){
   var loginId = String(p.id);
   var password = String(p.password);
   var auth = firebase.auth();
-  return auth.signInWithEmailAndPassword(toAuthEmail(loginId), toAuthPassword(password))
-    .then(function(){
-      // 학생 번호로 직접 조회
-      return db.collection('students').doc(loginId).get().then(function(doc){
-        if (doc.exists) return fetchProfileAfterAuth(db, loginId);
-        // 학부모 번호인 경우: parentPhone 필드로 학생 검색
+  var normId = loginId.replace(/[-\s]/g,'');
+
+  var afterSignIn = function(){
+    // 학생 번호로 직접 조회 (원본 or 정규화된 번호 둘 다 시도)
+    return db.collection('students').doc(loginId).get().then(function(doc){
+      if (doc.exists) return fetchProfileAfterAuth(db, loginId);
+      return db.collection('students').doc(normId).get().then(function(doc2){
+        if (doc2.exists) return fetchProfileAfterAuth(db, normId);
+        // 학부모 번호인 경우
         return db.collection('students').where('parentPhone','==',loginId).limit(1).get().then(function(snap){
           if (snap.empty) return { success:false };
           var studentDoc = snap.docs[0];
@@ -109,8 +113,18 @@ api.login = function(db, p){
           return result;
         });
       });
-    })
-    .catch(function(){ return { success:false }; });
+    });
+  };
+
+  // 입력값 그대로 시도 → 실패하면 하이픈 제거 버전으로 재시도
+  return auth.signInWithEmailAndPassword(toAuthEmail(loginId), toAuthPassword(password))
+    .then(afterSignIn)
+    .catch(function(){
+      if (normId === loginId) return { success:false };
+      return auth.signInWithEmailAndPassword(toAuthEmail(normId), toAuthPassword(password))
+        .then(afterSignIn)
+        .catch(function(){ return { success:false }; });
+    });
 };
 
 api.addStudent = function(db, p){
