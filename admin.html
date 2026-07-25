@@ -265,8 +265,12 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
           <div class="card-title" style="margin:0;">학생 목록 <span id="stu-count" style="color:#94a3b8;font-weight:400;font-size:13px;"></span></div>
-          <input type="text" id="stu-search" placeholder="🔍 이름/전화번호 검색" oninput="renderStu()" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;width:220px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button onclick="checkAllParentAccounts()" id="btn-check-parents" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;background:#fff;cursor:pointer;color:#3b6cf7;font-weight:600;">🔍 학부모 계정 전체 점검</button>
+            <input type="text" id="stu-search" placeholder="🔍 이름/전화번호 검색" oninput="renderStu()" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;width:220px;">
+          </div>
         </div>
+        <div id="parent-check-result" style="display:none;margin-bottom:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:14px;"></div>
         <div id="stu-bulk-bar" style="display:none;align-items:center;gap:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:10px 14px;margin-bottom:12px;flex-wrap:wrap;">
           <span id="stu-sel-count" style="font-size:13px;font-weight:700;color:#1e3a8a;"></span>
           <button class="btn-ob" style="padding:6px 14px;font-size:12px;" onclick="openEditStudent()">✏️ 정보 수정</button>
@@ -888,6 +892,35 @@ async function retryParentAccount(id){
   var r=await fetch(SU+'?action=createParentAccount&id='+encodeURIComponent(id)).then(function(r){return r.json();});
   if(r.success) alert('학부모 로그인 계정이 생성됐어요! 기본 비밀번호는 123456입니다.');
   else alert(r.msg||'생성 실패');
+  checkAllParentAccounts(true);
+}
+async function checkAllParentAccounts(silent){
+  var btn=document.getElementById('btn-check-parents');
+  var box=document.getElementById('parent-check-result');
+  if(!silent){ btn.disabled=true; btn.textContent='점검 중...'; box.style.display='block'; box.innerHTML='<div style="color:#94a3b8;font-size:13px;">학부모 계정을 하나씩 확인하고 있어요...</div>'; }
+  await window.mkdbReady;
+  var targets=allStudents.filter(function(s){return s.parentPhone;});
+  var problems=[];
+  for(var i=0;i<targets.length;i++){
+    var s=targets[i];
+    try{
+      var methods=await firebase.auth().fetchSignInMethodsForEmail(s.parentPhone+'@mkmath.local');
+      if(!methods||!methods.length) problems.push(s);
+    }catch(e){}
+  }
+  if(!silent){ btn.disabled=false; btn.textContent='🔍 학부모 계정 전체 점검'; }
+  box.style.display='block';
+  if(!problems.length){
+    box.innerHTML='<div style="color:#16a34a;font-size:13px;font-weight:700;">✅ 학부모 번호가 등록된 학생 '+targets.length+'명 모두 계정 정상이에요!</div>';
+    return;
+  }
+  box.innerHTML='<div style="color:#c2410c;font-weight:700;font-size:13px;margin-bottom:8px;">⚠️ 계정 생성이 안 된 학생 '+problems.length+'명</div>'
+    +problems.map(function(s){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:13px;border-top:1px solid #fed7aa;">'
+        +'<span>'+(s.name||s.id)+' (학부모: '+s.parentPhone+')</span>'
+        +'<button onclick="retryParentAccount(\''+s.id+'\')" style="background:#ea580c;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;">재발급</button>'
+        +'</div>';
+    }).join('');
 }
 function toggleStuSel(id,checked){
   if(checked) stuSelected[id]=true; else delete stuSelected[id];
