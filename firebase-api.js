@@ -225,9 +225,12 @@ api.createParentAccount = function(db, p){
       .catch(function(err){
         return secondary.auth().signOut().catch(function(){}).then(function(){
           if (err.code === 'auth/email-already-in-use') {
-            return { success:false, msg:'이미 사용 중인 번호예요. Firebase 콘솔 Authentication에서 '+parentPhone+'@mkmath.local 계정을 먼저 삭제해주세요 (예전 삭제된 학생의 고아 계정일 수 있어요).' };
+            return { success:false, code:err.code, msg:'이미 사용 중인 번호예요. Firebase 콘솔 Authentication에서 '+parentPhone+'@mkmath.local 계정을 먼저 삭제해주세요 (예전 삭제된 학생의 고아 계정일 수 있어요).' };
           }
-          return { success:false, msg:err.message||'생성 실패' };
+          if (err.code === 'auth/too-many-requests') {
+            return { success:false, code:err.code, msg:'요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.' };
+          }
+          return { success:false, code:err.code||'', msg:(err.code||'')+' '+(err.message||'생성 실패') };
         });
       });
   });

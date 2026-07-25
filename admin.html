@@ -926,6 +926,10 @@ async function checkAllParentAccounts(silent){
         +'</div>';
     }).join('');
 }
+function sleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+async function createParentAccountOnce(id){
+  return fetch(SU+'?action=createParentAccount&id='+encodeURIComponent(id)).then(function(r){return r.json();});
+}
 async function retryAllParentAccounts(){
   var problems=window._parentCheckProblems||[];
   if(!problems.length)return;
@@ -935,9 +939,18 @@ async function retryAllParentAccounts(){
     btn.textContent='처리 중... ('+(i+1)+'/'+problems.length+')';
     var s=problems[i];
     try{
-      var r=await fetch(SU+'?action=createParentAccount&id='+encodeURIComponent(s.id)).then(function(r){return r.json();});
-      if(r.success) ok++; else fail.push(s.name||s.id);
+      var r=await createParentAccountOnce(s.id);
+      if(r.success){ ok++; }
+      else if(r.code==='auth/too-many-requests'){
+        // 너무 빠른 요청으로 막혔으면 잠시 기다렸다가 한 번 더 시도
+        await sleep(3000);
+        var r2=await createParentAccountOnce(s.id);
+        if(r2.success) ok++; else fail.push(s.name||s.id);
+      } else {
+        fail.push(s.name||s.id);
+      }
     }catch(e){ fail.push(s.name||s.id); }
+    await sleep(600); // 계정 생성 사이 간격을 둬서 파이어베이스 속도 제한 회피
   }
   alert('완료! 성공 '+ok+'명'+(fail.length?', 실패 '+fail.length+'명('+fail.join(', ')+')':''));
   checkAllParentAccounts(true);
