@@ -208,6 +208,31 @@ api.deleteStudentAccount = function(db, p){
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
+// 학부모 로그인 계정이 (고아 계정 충돌 등으로) 안 만들어졌을 때 다시 시도
+api.createParentAccount = function(db, p){
+  return db.collection('students').doc(String(p.id)).get().then(function(doc){
+    if (!doc.exists) return { success:false, msg:'학생을 찾을 수 없습니다.' };
+    var u = doc.data();
+    var parentPhone = String(u.parentPhone || '');
+    if (!parentPhone) return { success:false, msg:'학부모 전화번호가 등록되어 있지 않습니다.' };
+    var secondary;
+    try { secondary = firebase.app('mk-secondary'); }
+    catch(e) { secondary = firebase.initializeApp(firebase.app().options, 'mk-secondary'); }
+    return secondary.auth().createUserWithEmailAndPassword(toAuthEmail(parentPhone), toAuthPassword('123456'))
+      .then(function(){
+        return secondary.auth().signOut().then(function(){ return { success:true }; });
+      })
+      .catch(function(err){
+        return secondary.auth().signOut().catch(function(){}).then(function(){
+          if (err.code === 'auth/email-already-in-use') {
+            return { success:false, msg:'이미 사용 중인 번호예요. Firebase 콘솔 Authentication에서 '+parentPhone+'@mkmath.local 계정을 먼저 삭제해주세요 (예전 삭제된 학생의 고아 계정일 수 있어요).' };
+          }
+          return { success:false, msg:err.message||'생성 실패' };
+        });
+      });
+  });
+};
+
 api.changePassword = function(db, p){
   var studentId = String(p.id);
   var authId = String(p.authId || p.id); // 로그인에 쓴 번호 (학생 또는 학부모 번호)

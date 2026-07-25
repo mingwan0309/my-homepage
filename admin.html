@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=10"></script>
+<script src="firebase-api.js?v=11"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -871,7 +871,7 @@ function renderStu(){
       +'<td style="padding:8px 6px;"><input type="checkbox" '+checked+' onchange="toggleStuSel(\''+s.id+'\',this.checked)"></td>'
       +'<td style="padding:8px 10px;font-weight:700;">'+(s.name||'-')+'</td>'
       +'<td style="padding:8px 10px;color:#64748b;">'+(s.studentPhone||s.id||'-')+'</td>'
-      +'<td style="padding:8px 10px;color:#64748b;">'+(s.parentPhone||'-')+'</td>'
+      +'<td style="padding:8px 10px;color:#64748b;">'+(s.parentPhone||'-')+(s.parentPhone?' <button onclick="retryParentAccount(\''+s.id+'\')" style="background:none;border:none;color:#3b6cf7;font-size:11px;cursor:pointer;text-decoration:underline;">계정 재발급</button>':'')+'</td>'
       +'<td style="padding:8px 10px;color:#64748b;">'+(s.school||'미입력')+'</td>'
       +'<td style="padding:8px 10px;color:#64748b;">'+(s.grade||'미입력')+'</td>'
       +'<td style="padding:8px 10px;color:#64748b;">'+(s.gender||'미입력')+'</td>'
@@ -883,6 +883,11 @@ function renderStu(){
       +'</tr>';
   }).join('');
   updateStuBulkBar();
+}
+async function retryParentAccount(id){
+  var r=await fetch(SU+'?action=createParentAccount&id='+encodeURIComponent(id)).then(function(r){return r.json();});
+  if(r.success) alert('학부모 로그인 계정이 생성됐어요! 기본 비밀번호는 123456입니다.');
+  else alert(r.msg||'생성 실패');
 }
 function toggleStuSel(id,checked){
   if(checked) stuSelected[id]=true; else delete stuSelected[id];
