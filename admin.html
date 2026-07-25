@@ -914,13 +914,33 @@ async function checkAllParentAccounts(silent){
     box.innerHTML='<div style="color:#16a34a;font-size:13px;font-weight:700;">✅ 학부모 번호가 등록된 학생 '+targets.length+'명 모두 계정 정상이에요!</div>';
     return;
   }
-  box.innerHTML='<div style="color:#c2410c;font-weight:700;font-size:13px;margin-bottom:8px;">⚠️ 계정 생성이 안 된 학생 '+problems.length+'명</div>'
+  window._parentCheckProblems = problems;
+  box.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+    +'<span style="color:#c2410c;font-weight:700;font-size:13px;">⚠️ 계정 생성이 안 된 학생 '+problems.length+'명</span>'
+    +'<button id="btn-retry-all-parents" onclick="retryAllParentAccounts()" style="background:#ea580c;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">전체 재발급 ('+problems.length+'명)</button>'
+    +'</div>'
     +problems.map(function(s){
       return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:13px;border-top:1px solid #fed7aa;">'
         +'<span>'+(s.name||s.id)+' (학부모: '+s.parentPhone+')</span>'
         +'<button onclick="retryParentAccount(\''+s.id+'\')" style="background:#ea580c;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;">재발급</button>'
         +'</div>';
     }).join('');
+}
+async function retryAllParentAccounts(){
+  var problems=window._parentCheckProblems||[];
+  if(!problems.length)return;
+  var btn=document.getElementById('btn-retry-all-parents');
+  var ok=0, fail=[];
+  for(var i=0;i<problems.length;i++){
+    btn.textContent='처리 중... ('+(i+1)+'/'+problems.length+')';
+    var s=problems[i];
+    try{
+      var r=await fetch(SU+'?action=createParentAccount&id='+encodeURIComponent(s.id)).then(function(r){return r.json();});
+      if(r.success) ok++; else fail.push(s.name||s.id);
+    }catch(e){ fail.push(s.name||s.id); }
+  }
+  alert('완료! 성공 '+ok+'명'+(fail.length?', 실패 '+fail.length+'명('+fail.join(', ')+')':''));
+  checkAllParentAccounts(true);
 }
 function toggleStuSel(id,checked){
   if(checked) stuSelected[id]=true; else delete stuSelected[id];
