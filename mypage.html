@@ -383,7 +383,7 @@ async function loadAttendance() {
     ]);
     var sessions = [];
     sesSnap.forEach(function(d){ sessions.push(d.data()); });
-    sessions.sort(function(a,b){ return Number(b.sessionNum)-Number(a.sessionNum); });
+    sessions.sort(function(a,b){ return Number(a.sessionNum)-Number(b.sessionNum); });
     var attMap = {};
     attSnap.forEach(function(d){ var v=d.data(); attMap[v.sessionId]=v.status; });
     var recent = sessions.slice(0,10);
