@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>김민관 수학</title>
-<script src="firebase-api.js?v=10"></script>
+<script src="firebase-api.js?v=11"></script>
 <script src="chat-widget.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
@@ -1287,17 +1287,9 @@
       if (session.role === 'student') {
         document.getElementById('nav-mypage-btn').style.display = 'inline-block';
       }
-      if (session.role === 'student' && session.classId) {
-        classLink.style.display = 'block';
-        classLink.textContent = '📚 내 반: ' + (session.className || session.classId);
-        classLink.href = 'class.html?id=' + encodeURIComponent(session.classId);
-        mobileClassLink.style.display = 'block';
-        mobileClassLink.textContent = '📚 내 반: ' + (session.className || session.classId);
-        mobileClassLink.href = 'class.html?id=' + encodeURIComponent(session.classId);
-      } else {
-        classLink.style.display = 'none';
-        mobileClassLink.style.display = 'none';
-      }
+      // 학생 '내 반'은 마이페이지로 통합됨 — 별도 링크 숨김
+      if (classLink) classLink.style.display = 'none';
+      if (mobileClassLink) mobileClassLink.style.display = 'none';
     } else {
       btn.textContent = '🔐 로그인';
       btn.style.background = '';

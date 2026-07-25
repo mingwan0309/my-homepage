@@ -97,6 +97,38 @@ a{text-decoration:none;}
 
 .empty-msg{text-align:center;padding:32px 0;color:#94a3b8;font-size:13px;}
 .spinner{text-align:center;padding:24px 0;color:#94a3b8;font-size:13px;}
+
+/* 강의 자료실 (내 정보 통합) */
+.mat-cat-block{margin-bottom:22px;}
+.mat-cat-block:last-child{margin-bottom:0;}
+.mat-cat-head{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;color:#334155;margin-bottom:10px;padding-bottom:7px;border-bottom:1.5px solid #f1f5f9;}
+.mat-cat-head .cnt{background:#eef2ff;color:#3b6cf7;font-size:11px;font-weight:800;border-radius:20px;padding:1px 9px;}
+.mat-file-row{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid #eef2f6;border-radius:11px;margin-bottom:8px;background:#fff;transition:.12s;}
+.mat-file-row:hover{border-color:#c7d2fe;background:#f8faff;}
+.mat-file-row .ic{font-size:20px;flex-shrink:0;}
+.mat-file-row .body{flex:1;min-width:0;}
+.mat-file-row .nm{font-size:13.5px;font-weight:700;color:#1e293b;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
+.mat-file-row .nm:hover{color:#3b6cf7;}
+.mat-file-row .sub{font-size:11px;color:#94a3b8;margin-top:2px;}
+.mat-file-row .open{flex-shrink:0;background:#3b6cf7;color:#fff;font-size:11px;font-weight:700;border-radius:8px;padding:6px 12px;text-decoration:none;white-space:nowrap;}
+.mv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.mv-card{border:1px solid #eef2f6;border-radius:12px;overflow:hidden;cursor:pointer;background:#fff;transition:.12s;}
+.mv-card:hover{border-color:#c7d2fe;box-shadow:0 3px 12px rgba(59,108,247,.1);}
+.mv-thumb{position:relative;aspect-ratio:16/9;background:#0f172a;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.mv-thumb img{width:100%;height:100%;object-fit:cover;}
+.mv-play{position:absolute;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;padding-left:2px;}
+.mv-info{padding:9px 11px;}
+.mv-title{font-size:12.5px;font-weight:700;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mv-badge{display:inline-block;background:#eef2ff;color:#3b6cf7;font-size:10px;font-weight:800;border-radius:5px;padding:1px 7px;margin-top:5px;}
+.mv-memo{font-size:11px;color:#94a3b8;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* 유튜브 재생 모달 */
+.yt-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center;}
+.yt-modal-bg.show{display:flex;}
+
+@media (max-width:768px){
+  .mv-grid{grid-template-columns:1fr;}
+}
 .msg-box{padding:10px 14px;border-radius:10px;font-size:13px;margin-top:10px;display:none;}
 .msg-success{background:#dcfce7;color:#16a34a;}
 .msg-error{background:#fee2e2;color:#dc2626;}
@@ -110,7 +142,6 @@ a{text-decoration:none;}
   <a href="clinic.html">🏥 클리닉 신청</a>
   <a href="qna.html">💬 질의응답</a>
   <a href="textbook.html">📖 부교재 해설 강의</a>
-  <a id="snav-myclass" href="#">📚 내 반</a>
   <a href="mypage.html" class="active">👤 마이페이지</a>
 </div>
 
@@ -155,6 +186,10 @@ a{text-decoration:none;}
       <div class="card">
         <div class="card-title"><span>📅</span> 최근 출결</div>
         <div id="att-list"><div class="spinner">불러오는 중...</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>📚</span> 강의 자료실</div>
+        <div id="mat-area"><div class="spinner">불러오는 중...</div></div>
       </div>
     </div>
 
@@ -216,6 +251,24 @@ a{text-decoration:none;}
   </div>
 </div>
 
+<!-- 유튜브 재생 모달 (class.html과 동일한 전체 차단 구조) -->
+<div class="yt-modal-bg" id="yt-player-modal" onclick="closeYtModal()">
+  <div id="yt-player-wrap" style="position:relative;width:90%;max-width:860px;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;" onclick="event.stopPropagation()">
+    <iframe id="yt-player-iframe" src="" frameborder="0" allow="autoplay;encrypted-media" style="width:100%;height:100%;"></iframe>
+    <div style="position:absolute;bottom:0;right:0;width:100%;height:52px;background:linear-gradient(transparent,#000);pointer-events:none;"></div>
+    <div style="position:absolute;bottom:0;right:0;width:220px;height:52px;background:#000;pointer-events:none;"></div>
+    <div style="position:absolute;bottom:0;left:0;width:100%;height:52px;background:linear-gradient(transparent,#000);pointer-events:none;"></div>
+    <div style="position:absolute;bottom:0;left:0;width:170px;height:52px;background:#000;pointer-events:none;"></div>
+    <div id="yt-click-shield" onclick="toggleYtPlay()" style="position:absolute;inset:0;cursor:pointer;"></div>
+    <div id="yt-seek-bar" onclick="seekYt(event)" style="position:absolute;bottom:8px;left:12px;right:12px;height:5px;background:rgba(255,255,255,0.3);border-radius:3px;cursor:pointer;z-index:5;">
+      <div id="yt-seek-fill" style="height:100%;width:0%;background:#ff3b3b;border-radius:3px;pointer-events:none;"></div>
+    </div>
+    <button id="yt-speed-btn" onclick="cycleYtSpeed(event)" style="position:absolute;bottom:18px;right:46px;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;height:28px;padding:0 8px;font-size:12px;font-weight:700;cursor:pointer;z-index:5;">1.0x</button>
+    <button onclick="toggleYtFullscreen()" style="position:absolute;bottom:18px;right:8px;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;width:32px;height:28px;font-size:14px;cursor:pointer;z-index:5;">⛶</button>
+    <button onclick="closeYtModal()" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;line-height:1;z-index:5;">✕</button>
+  </div>
+</div>
+
 <script>
 const SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 let session = null;
@@ -228,8 +281,6 @@ document.addEventListener('DOMContentLoaded', async function(){
   }
   // 네비바
   document.getElementById('student-nav').style.display = 'flex';
-  var mc = document.getElementById('snav-myclass');
-  if (mc && session.classId) mc.href = 'class.html?id=' + session.classId;
 
   // 프로필 헤더 (기본값 먼저)
   document.getElementById('ph-name').textContent = session.name || '—';
@@ -243,6 +294,7 @@ document.addEventListener('DOMContentLoaded', async function(){
 
 loadInfo();
   loadAttendance();
+  loadClassMaterials();
 });
 
 // 로그인 계정(auth)에 맞는 실제 학생 문서 id를 찾아 session.id 를 교정
@@ -351,6 +403,184 @@ async function loadAttendance() {
   } catch(e) {
     document.getElementById('att-list').innerHTML = '<div class="empty-msg">출결 정보를 불러올 수 없습니다.</div>';
   }
+}
+
+// ── 강의 자료실 (내 정보 통합) ──
+var matList = [];
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function ytId(url){
+  if(!url)return'';
+  var m=url.match(/[?&]v=([^&]+)/)||url.match(/youtu\.be\/([^?]+)/)||url.match(/embed\/([^?]+)/);
+  return m?m[1]:'';
+}
+async function loadClassMaterials(){
+  var area = document.getElementById('mat-area');
+  if(!session.classId){ area.innerHTML='<div class="empty-msg">배정된 반이 없습니다.</div>'; return; }
+  try{
+    var r = await fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(session.classId));
+    var d = await r.json();
+    matList = (d.materials||[]).map(function(m){
+      if(m.category==='자습용 자료'||m.category==='암기자료') m.category='PDF 자료';
+      return m;
+    });
+    renderMats();
+  }catch(e){
+    area.innerHTML='<div class="empty-msg">자료를 불러올 수 없습니다.</div>';
+  }
+}
+function renderMats(){
+  var area = document.getElementById('mat-area');
+  if(!matList.length){ area.innerHTML='<div class="empty-msg">등록된 강의 자료가 없습니다.</div>'; return; }
+  var cats = [
+    {key:'PDF 자료', icon:'📄'},
+    {key:'손필기 자료', icon:'✏️'},
+    {key:'영상 자료', icon:'🎬'}
+  ];
+  var html = '';
+  cats.forEach(function(c){
+    var list = matList.filter(function(m){ return m.category===c.key; });
+    if(!list.length) return;
+    html += '<div class="mat-cat-block">'
+      + '<div class="mat-cat-head">'+c.icon+' '+c.key+' <span class="cnt">'+list.length+'</span></div>';
+    if(c.key==='영상 자료'){
+      html += '<div class="mv-grid">' + list.map(function(m){
+        var vid = ytId(m.url);
+        var thumb = vid ? '<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg" onerror="this.style.display=\'none\'">' : '';
+        return '<div class="mv-card" onclick="openVideo(\''+m.url+'\',\''+m.id+'\')">'
+          + '<div class="mv-thumb">'+thumb+'<div class="mv-play">▶</div></div>'
+          + '<div class="mv-info"><div class="mv-title">'+escHtml(m.name)+'</div>'
+          + '<div class="mv-badge">강의 영상</div>'
+          + (m.memo?'<div class="mv-memo">'+escHtml(m.memo)+'</div>':'')
+          + '</div></div>';
+      }).join('') + '</div>';
+    } else {
+      html += list.map(function(m){
+        return '<div class="mat-file-row">'
+          + '<span class="ic">📄</span>'
+          + '<div class="body">'
+          + '<a class="nm" href="'+m.url+'" target="_blank" rel="noopener" onclick="onMatOpen(\''+m.id+'\')">'+escHtml(m.name)+'</a>'
+          + '<div class="sub">'+(m.uploadDate||'').substring(0,10)+(m.memo?' · '+escHtml(m.memo):'')+'</div>'
+          + '</div>'
+          + '<a class="open" href="'+m.url+'" target="_blank" rel="noopener" onclick="onMatOpen(\''+m.id+'\')">열기</a>'
+          + '</div>';
+      }).join('');
+    }
+    html += '</div>';
+  });
+  area.innerHTML = html || '<div class="empty-msg">등록된 강의 자료가 없습니다.</div>';
+}
+function onMatOpen(id){
+  fetch(SU+'?action=incDownload&id='+encodeURIComponent(id));
+  markViewed(id, 100);
+}
+
+// ── 자료 확인/시청 기록 ──
+async function markViewed(matId, progress){
+  if(!session || session.role!=='student' || !session.classId) return;
+  try{
+    var db = await window.mkdbReady;
+    var key = String(matId)+'__'+String(session.id);
+    var ref = db.collection('material_views').doc(key);
+    var doc = await ref.get();
+    var prev = doc.exists ? Number(doc.data().progress||0) : 0;
+    await ref.set({
+      materialId:String(matId), classId:String(session.classId),
+      studentId:String(session.id), studentName:session.name||String(session.id),
+      viewedAt:new Date().toISOString().slice(0,16).replace('T',' '),
+      progress:Math.max(prev, Math.round(progress||0))
+    },{merge:true});
+  }catch(e){}
+}
+
+// ── 유튜브 재생 (class.html과 동일 구조) ──
+var ytApiPromise=null;
+function loadYtApi(){
+  if(ytApiPromise) return ytApiPromise;
+  ytApiPromise=new Promise(function(resolve){
+    if(window.YT&&window.YT.Player){resolve();return;}
+    window.onYouTubeIframeAPIReady=function(){resolve();};
+    var s=document.createElement('script');
+    s.src='https://www.youtube.com/iframe_api';
+    document.head.appendChild(s);
+  });
+  return ytApiPromise;
+}
+var ytPlayer=null, ytProgressTimer=null, ytWatchingMatId=null, ytMaxPct=0, ytReady=false;
+var YT_SPEEDS=[0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0];
+var ytSpeedIdx=2;
+function openVideo(url,id){
+  var vid=ytId(url);
+  if(vid){
+    ytWatchingMatId=id; ytMaxPct=0; ytReady=false; ytSpeedIdx=2;
+    document.getElementById('yt-speed-btn').textContent='1.0x';
+    document.getElementById('yt-seek-fill').style.width='0%';
+    document.getElementById('yt-player-iframe').src='https://www.youtube.com/embed/'+vid+'?autoplay=1&modestbranding=1&rel=0&controls=0&enablejsapi=1&origin='+encodeURIComponent(location.origin);
+    document.getElementById('yt-player-modal').classList.add('show');
+    markViewed(id, 0);
+    loadYtApi().then(function(){
+      ytPlayer=new YT.Player('yt-player-iframe',{ events:{ onReady:function(){ ytReady=true; } } });
+      ytProgressTimer=setInterval(function(){
+        try{
+          if(!ytPlayer||!ytPlayer.getDuration) return;
+          var dur=ytPlayer.getDuration(), cur=ytPlayer.getCurrentTime();
+          if(dur>0){
+            var pct=Math.min(100, Math.round(cur/dur*100));
+            document.getElementById('yt-seek-fill').style.width=pct+'%';
+            if(pct>ytMaxPct){ ytMaxPct=pct; markViewed(ytWatchingMatId, pct); }
+          }
+        }catch(e){}
+      }, 1000);
+    });
+  } else {
+    window.open(url,'_blank');
+  }
+}
+function closeYtModal(){
+  if(document.fullscreenElement) document.exitFullscreen();
+  if(ytProgressTimer){clearInterval(ytProgressTimer);ytProgressTimer=null;}
+  if(ytPlayer&&ytWatchingMatId){
+    try{
+      var dur=ytPlayer.getDuration(), cur=ytPlayer.getCurrentTime();
+      if(dur>0){
+        var pct=Math.min(100, Math.round(cur/dur*100));
+        if(pct>ytMaxPct) markViewed(ytWatchingMatId, pct);
+      }
+    }catch(e){}
+  }
+  ytPlayer=null; ytWatchingMatId=null; ytReady=false;
+  document.getElementById('yt-player-iframe').src='';
+  document.getElementById('yt-player-modal').classList.remove('show');
+}
+function toggleYtPlay(){
+  if(!ytPlayer||!ytReady) return;
+  try{
+    var state=ytPlayer.getPlayerState();
+    if(state===1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
+  }catch(e){}
+}
+function seekYt(e){
+  if(!ytPlayer||!ytReady) return;
+  e.stopPropagation();
+  try{
+    var bar=document.getElementById('yt-seek-bar');
+    var rect=bar.getBoundingClientRect();
+    var frac=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width));
+    var dur=ytPlayer.getDuration();
+    if(dur>0){ ytPlayer.seekTo(dur*frac,true); document.getElementById('yt-seek-fill').style.width=(frac*100)+'%'; }
+  }catch(e){}
+}
+function cycleYtSpeed(e){
+  e.stopPropagation();
+  if(!ytPlayer||!ytReady) return;
+  ytSpeedIdx=(ytSpeedIdx+1)%YT_SPEEDS.length;
+  var rate=YT_SPEEDS[ytSpeedIdx];
+  try{ ytPlayer.setPlaybackRate(rate); }catch(err){}
+  document.getElementById('yt-speed-btn').textContent=rate.toFixed(1)+'x';
+}
+function toggleYtFullscreen(){
+  var wrap=document.getElementById('yt-player-wrap');
+  if(!document.fullscreenElement) wrap.requestFullscreen();
+  else document.exitFullscreen();
 }
 
 // ── 클리닉 예약 ──

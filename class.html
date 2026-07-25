@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>반 정보 — 김민관 수학</title>
-<script src="firebase-api.js?v=10"></script>
+<script src="firebase-api.js?v=11"></script>
 <script src="chat-widget.js" defer></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -214,7 +214,6 @@ tr:hover td{background:#fafbff;}
   <a href="clinic.html">🏥 클리닉 신청</a>
   <a href="qna.html">💬 질의응답</a>
   <a href="textbook.html">📖 부교재 해설 강의</a>
-  <a id="snav-myclass" href="#">📚 내 반</a>
   <a href="mypage.html">👤 마이페이지</a>
 </div>
 
@@ -498,13 +497,10 @@ const params = new URLSearchParams(location.search);
 const classId = params.get('id');
 
 if(!session){location.href='homework.html';}
+// 학생은 이 페이지(관리 전용)에 접근하지 않고 마이페이지로 이동 — 강의 자료/출결은 마이페이지 내 정보에서 확인
+if(session && session.role==='student'){ location.href='mypage.html'; }
 
 document.getElementById('topbar-user').textContent = (session.role==='teacher'?'👨‍🏫 ':'🎓 ')+(session.name||session.id);
-if(session.role==='student'){
-  document.getElementById('student-nav').style.display='flex';
-  var myclassLink=document.getElementById('snav-myclass');
-  if(myclassLink&&session.classId) myclassLink.href='class.html?id='+session.classId;
-}
 if(session.role==='teacher'){
   document.getElementById('btn-admin').style.display='';
   var stuAddBtns=document.getElementById('stu-add-btns');
