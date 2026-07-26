@@ -7,6 +7,7 @@
 <script src="firebase-api.js?v=11"></script>
 <script src="chat-widget.js" defer></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <style>
 :root{--primary:#3b6cf7;--bg:#f1f5f9;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -967,6 +968,53 @@ function addFileToQueue(file){
   renderMatQueue();
   uploadFileToServer(item);
 }
+function fileToBase64(file){
+  return new Promise(function(resolve,reject){
+    var reader=new FileReader();
+    reader.onload=function(e){resolve(e.target.result.split(',')[1]);};
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+// 로고 PNG 바이트 캐시
+var _logoBytes=null;
+async function getLogoBytes(){
+  if(_logoBytes) return _logoBytes;
+  var res=await fetch('logo.png');
+  _logoBytes=await res.arrayBuffer();
+  return _logoBytes;
+}
+function bytesToBase64(bytes){
+  var bin='', chunk=0x8000;
+  for(var i=0;i<bytes.length;i+=chunk){
+    bin+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
+  }
+  return btoa(bin);
+}
+// PDF에 로고 워터마크(흐리게, 타일 형태)를 찍어 base64 반환. 실패 시 원본 반환.
+async function watermarkPdfToBase64(file){
+  try{
+    if(!window.PDFLib) return await fileToBase64(file);
+    var buf=await file.arrayBuffer();
+    var pdfDoc=await PDFLib.PDFDocument.load(buf,{ignoreEncryption:true});
+    var png=await pdfDoc.embedPng(await getLogoBytes());
+    var pages=pdfDoc.getPages();
+    for(var p=0;p<pages.length;p++){
+      var page=pages[p];
+      var sz=page.getSize();
+      var w=130, h=w*png.height/png.width;
+      for(var y=-40;y<sz.height+120;y+=190){
+        for(var x=-40;x<sz.width+120;x+=200){
+          page.drawImage(png,{x:x,y:y,width:w,height:h,opacity:0.07,rotate:PDFLib.degrees(30)});
+        }
+      }
+    }
+    var out=await pdfDoc.save();
+    return bytesToBase64(out);
+  }catch(e){
+    return await fileToBase64(file);
+  }
+}
 async function uploadFileToServer(item){
   item.status='uploading';
   renderMatQueue();
@@ -975,12 +1023,8 @@ async function uploadFileToServer(item){
       item.status='error';item.errMsg='파일이 너무 큽니다 (25MB 초과)';
       renderMatQueue();return;
     }
-    var base64 = await new Promise(function(resolve,reject){
-      var reader=new FileReader();
-      reader.onload=function(e){resolve(e.target.result.split(',')[1]);};
-      reader.onerror=reject;
-      reader.readAsDataURL(item.file);
-    });
+    var isPdf = (item.file.type==='application/pdf') || /\.pdf$/i.test(item.file.name);
+    var base64 = isPdf ? await watermarkPdfToBase64(item.file) : await fileToBase64(item.file);
     var res=await fetch(SU,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
