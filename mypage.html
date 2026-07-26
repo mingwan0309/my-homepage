@@ -8,6 +8,7 @@
 <title>마이페이지 — 김민관 수학</title>
 <script src="firebase-api.js?v=14"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="chat-widget.js" defer></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'맑은 고딕','Apple SD Gothic Neo',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;}
@@ -104,6 +105,40 @@ a{text-decoration:none;}
 .empty-msg{text-align:center;padding:32px 0;color:#94a3b8;font-size:13px;}
 .spinner{text-align:center;padding:24px 0;color:#94a3b8;font-size:13px;}
 
+/* ── 앱 대시보드 ── */
+.dash-head{background:#fff;border-radius:18px;padding:20px;margin-bottom:16px;text-align:center;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+.dash-logo img{width:96px;height:auto;display:inline-block;margin-bottom:10px;}
+.dash-hello{font-size:17px;color:#334155;font-weight:600;}
+.dash-hello b{color:#1d4ed8;font-weight:800;}
+.dash-sub{font-size:12px;color:#94a3b8;margin-top:4px;}
+.dash-sec-head{display:flex;align-items:center;margin-bottom:12px;}
+.dash-class{font-size:16px;font-weight:800;color:#1e293b;}
+.att-row{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid #f4f6f9;font-size:14px;}
+.att-row:last-child{border-bottom:none;}
+.att-badge{min-width:44px;text-align:center;}
+.dash-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+.dash-bigbtn{background:#fff;border-radius:16px;padding:18px;box-shadow:0 1px 6px rgba(0,0,0,.06);display:flex;align-items:center;justify-content:space-between;gap:8px;transition:.15s;}
+.dash-bigbtn:hover{box-shadow:0 4px 16px rgba(59,108,247,.14);}
+.dash-bigbtn-t{font-size:15px;font-weight:800;color:#1e293b;line-height:1.35;}
+.dash-bigbtn-ic{font-size:30px;flex-shrink:0;}
+.dash-icons{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.dash-ic{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#475569;padding:6px 2px;}
+.dash-ic .ic{font-size:26px;}
+.dash-ic:hover{color:#3b6cf7;}
+.dash-home{display:block;text-align:center;background:#eef2ff;color:#3b6cf7;font-weight:800;border-radius:12px;padding:14px;margin-bottom:14px;font-size:14px;}
+.dash-foot{text-align:center;padding:6px 0 10px;color:#cbd5e1;font-size:13px;}
+.dash-foot button{background:none;border:none;color:#64748b;font-size:13px;font-weight:700;cursor:pointer;padding:4px 10px;font-family:inherit;}
+.dash-foot button:hover{color:#dc2626;}
+/* 출결 상태 색 (추가) */
+.att-현장,.att-출석{background:#dcfce7;color:#16a34a;}
+.att-영상대체,.att-영상{background:#e0e7ff;color:#4f46e5;}
+.att-보강{background:#fef3c7;color:#b45309;}
+.att-조퇴,.att-부재{background:#fee2e2;color:#dc2626;}
+/* 비밀번호 모달 */
+.pw-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1001;align-items:center;justify-content:center;padding:20px;}
+.pw-modal-bg.show{display:flex;}
+.pw-modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:340px;}
+
 /* 강의 자료실 (내 정보 통합) */
 .mat-cat-block{margin-bottom:22px;}
 .mat-cat-block:last-child{margin-bottom:0;}
@@ -162,102 +197,68 @@ a{text-decoration:none;}
 <div id="page-main" style="display:none;">
   <div class="container">
 
-    <!-- 프로필 헤더 -->
-    <div class="profile-header">
-      <div class="profile-avatar">👤</div>
-      <div>
-        <div class="profile-name" id="ph-name">—</div>
-        <div class="profile-sub" id="ph-sub">—</div>
-        <div class="profile-badge" id="ph-badge">—</div>
+    <!-- 헤더 -->
+    <div class="dash-head">
+      <div class="dash-logo"><img src="logo.png" alt="로고"></div>
+      <div class="dash-hello">반가워요, <b id="ph-name">—</b>님!</div>
+      <div class="dash-sub" id="ph-sub">—</div>
+    </div>
+
+    <!-- 내 반 · 차시별 출결 -->
+    <div class="card">
+      <div class="dash-sec-head"><span class="dash-class" id="dash-class">내 반</span></div>
+      <div id="att-list"><div class="spinner">불러오는 중...</div></div>
+    </div>
+
+    <!-- 예약 / 채팅 -->
+    <div class="dash-row2">
+      <a href="clinic.html" class="dash-bigbtn">
+        <div class="dash-bigbtn-t">클리닉<br>예약하기</div><div class="dash-bigbtn-ic">🏥</div>
+      </a>
+      <a href="#" onclick="openChat();return false;" class="dash-bigbtn">
+        <div class="dash-bigbtn-t">선생님과<br>채팅하기</div><div class="dash-bigbtn-ic">💬</div>
+      </a>
+    </div>
+
+    <!-- 강의 자료 -->
+    <div class="card">
+      <div class="card-title"><span>📚</span> 강의 자료</div>
+      <div id="mat-area"><div class="spinner">불러오는 중...</div></div>
+    </div>
+
+    <!-- 하단 아이콘 -->
+    <div class="card">
+      <div class="dash-icons">
+        <a href="notice.html" class="dash-ic"><div class="ic">📢</div><div>공지사항</div></a>
+        <a href="qna.html" class="dash-ic"><div class="ic">💬</div><div>질의응답</div></a>
+        <a href="index.html?home=1#reviews" class="dash-ic"><div class="ic">😊</div><div>수강후기</div></a>
+        <a href="textbook.html" class="dash-ic"><div class="ic">📖</div><div>부교재 강의</div></a>
       </div>
     </div>
 
-    <!-- 바로가기 -->
-    <div class="quick-links">
-      <a href="index.html?home=1" class="quick-btn">🏠 홈으로</a>
+    <a href="index.html?home=1" class="dash-home">🏠 김민관 홈페이지 보기</a>
+
+    <!-- 푸터 -->
+    <div class="dash-foot">
+      <button onclick="openPwModal()">비밀번호 변경</button>
+      <span>|</span>
+      <button onclick="doLogout()">로그아웃</button>
     </div>
 
-    <!-- 탭 -->
-    <div class="tab-nav">
-      <button class="active" data-tab="info" onclick="switchTab('info')">📋 내 정보</button>
-      <button data-tab="clinic" onclick="switchTab('clinic')">🏥 클리닉 예약</button>
-      <button onclick="location.href='textbook.html'">📖 부교재 해설 강의</button>
-      <button data-tab="quiz" onclick="switchTab('quiz')">📝 퀴즈 기록</button>
-      <button data-tab="qna" onclick="switchTab('qna')">💬 질의응답</button>
-      <button data-tab="settings" onclick="switchTab('settings')">⚙️ 설정</button>
-    </div>
+  </div>
+</div>
 
-    <!-- 내 정보 탭 -->
-    <div id="tab-info">
-      <div class="card">
-        <div class="card-title"><span>🙋</span> 학생 정보</div>
-        <div class="info-grid" id="info-grid">
-          <div class="spinner">불러오는 중...</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title"><span>📅</span> 최근 출결</div>
-        <div id="att-list"><div class="spinner">불러오는 중...</div></div>
-      </div>
-      <div class="card">
-        <div class="card-title"><span>📚</span> 강의 자료실</div>
-        <div id="mat-area"><div class="spinner">불러오는 중...</div></div>
-      </div>
+<!-- 비밀번호 변경 모달 -->
+<div id="pw-modal" class="pw-modal-bg" onclick="if(event.target===this)closePwModal()">
+  <div class="pw-modal">
+    <div style="font-weight:800;font-size:16px;margin-bottom:14px;">🔑 비밀번호 변경</div>
+    <input type="password" id="old-pw" class="setting-input" placeholder="현재 비밀번호" style="margin-bottom:10px;">
+    <input type="password" id="new-pw" class="setting-input" placeholder="새 비밀번호 (6자 이상)">
+    <div id="pw-msg" class="msg-box"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button onclick="closePwModal()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;background:#fff;border-radius:10px;font-weight:700;color:#64748b;cursor:pointer;">취소</button>
+      <button onclick="changePw()" style="flex:1;padding:11px;border:none;background:#3b6cf7;color:#fff;border-radius:10px;font-weight:700;cursor:pointer;">변경</button>
     </div>
-
-    <!-- 클리닉 예약 탭 -->
-    <div id="tab-clinic" style="display:none;">
-      <div class="card">
-        <div class="card-title" style="justify-content:space-between;">
-          <span style="display:flex;align-items:center;gap:8px;"><span>🏥</span> 클리닉 예약 내역</span>
-          <button onclick="location.href='clinic.html'" style="background:#3b6cf7;color:#fff;border:none;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;">＋ 클리닉 신청하기</button>
-        </div>
-        <div id="booking-list"><div class="spinner">불러오는 중...</div></div>
-      </div>
-    </div>
-
-    <!-- 퀴즈 기록 탭 -->
-    <div id="tab-quiz" style="display:none;">
-      <div class="card">
-        <div class="card-title"><span>📝</span> 데일리 퀴즈 기록</div>
-        <div id="quiz-summary-box"></div>
-        <div id="quiz-list"><div class="spinner">불러오는 중...</div></div>
-      </div>
-    </div>
-
-    <!-- 질의응답 탭 -->
-    <div id="tab-qna" style="display:none;">
-      <div class="card">
-        <div class="card-title" style="justify-content:space-between;">
-          <span style="display:flex;align-items:center;gap:8px;"><span>💬</span> 질의응답 내역</span>
-          <button onclick="location.href='qna.html'" style="background:#3b6cf7;color:#fff;border:none;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;">질의응답 하러가기 →</button>
-        </div>
-        <div id="qna-list"><div class="spinner">불러오는 중...</div></div>
-      </div>
-    </div>
-
-    <!-- 설정 탭 -->
-    <div id="tab-settings" style="display:none;">
-      <div class="card">
-        <div class="card-title"><span>🔑</span> 비밀번호 변경</div>
-    <div class="setting-section">
-          <div class="setting-label">현재 비밀번호</div>
-          <input type="password" id="old-pw" class="setting-input" placeholder="현재 비밀번호">
-        </div>
-        <div class="setting-section">
-          <div class="setting-label">새 비밀번호</div>
-          <input type="password" id="new-pw" class="setting-input" placeholder="새 비밀번호 (6자 이상)">
-          <div class="setting-hint">※ 새 비밀번호는 6자 이상으로 설정해주세요.</div>
-        </div>
-        <button class="btn-primary" onclick="changePw()">비밀번호 변경</button>
-        <div id="pw-msg" class="msg-box"></div>
-      </div>
-      <div class="card">
-        <div class="card-title"><span>🚪</span> 계정</div>
-        <button onclick="doLogout()" style="width:100%;padding:11px;border:1.5px solid #e2e8f0;background:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;color:#64748b;">로그아웃</button>
-      </div>
-    </div>
-
   </div>
 </div>
 
@@ -291,10 +292,11 @@ document.addEventListener('DOMContentLoaded', async function(){
   }
   // 상단 네비바는 마이페이지에서 표시하지 않음 (탭/버튼으로 이동)
 
-  // 프로필 헤더 (기본값 먼저)
-  document.getElementById('ph-name').textContent = session.name || '—';
-  document.getElementById('ph-sub').textContent = session.className ? session.className + ' 수강 중' : '반 미배정';
-  document.getElementById('ph-badge').textContent = session.authId && session.authId !== session.id ? '학부모 로그인 중' : '학생 계정';
+  // 헤더 기본값
+  document.getElementById('ph-name').textContent = session.name || '학생';
+  document.getElementById('ph-sub').textContent = session.className ? session.className + ' 수강 중' : '';
+  var dc0 = document.getElementById('dash-class');
+  if (dc0) dc0.textContent = session.className || '내 반';
 
   document.getElementById('page-main').style.display = 'block';
 
@@ -353,29 +355,33 @@ function switchTab(name) {
   }
 }
 
-// ── 내 정보 ──
+// ── 내 정보 (대시보드 헤더/반 이름) ──
 async function loadInfo() {
+  var dc = document.getElementById('dash-class');
+  if (dc) dc.textContent = session.className || '내 반';
   try {
     var db = await window.mkdbReady;
     var doc = await db.collection('students').doc(session.id).get();
     if (!doc.exists) return;
     var d = doc.data();
-    document.getElementById('ph-sub').textContent =
-      (d.school || '') + (d.grade ? ' ' + d.grade : '') + (session.className ? ' · ' + session.className : '');
-    document.getElementById('info-grid').innerHTML =
-      infoItem('이름', d.name || '—') +
-      infoItem('학교', d.school || '—') +
-      infoItem('학년', d.grade || '—') +
-      infoItem('반', session.className || '미배정') +
-      infoItem('학생 번호', session.id) +
-      infoItem('학부모 번호', d.parentPhone || '—');
-  } catch(e) {
-    document.getElementById('info-grid').innerHTML = '<p style="color:#dc2626;font-size:13px;">불러오기 실패</p>';
-  }
+    var sub = (d.school || '') + (d.grade ? ' ' + d.grade : '') + (session.className ? ' · ' + session.className : '');
+    document.getElementById('ph-sub').textContent = sub || '오늘도 화이팅!';
+  } catch(e) {}
 }
-function infoItem(label, value) {
-  return '<div class="info-item"><div class="info-label">'+label+'</div><div class="info-value">'+value+'</div></div>';
+
+// ── 채팅 / 비밀번호 모달 ──
+function openChat(){
+  var b = document.getElementById('mk-chat-bubble');
+  if (b) b.click();
+  else alert('채팅을 불러오는 중입니다. 잠시 후 다시 눌러주세요.');
 }
+function openPwModal(){
+  document.getElementById('pw-msg').style.display='none';
+  document.getElementById('old-pw').value='';
+  document.getElementById('new-pw').value='';
+  document.getElementById('pw-modal').classList.add('show');
+}
+function closePwModal(){ document.getElementById('pw-modal').classList.remove('show'); }
 
 // ── 출결 ──
 async function loadAttendance() {
@@ -830,6 +836,7 @@ async function changePw() {
       showMsg(msgEl, '✅ 비밀번호가 변경되었습니다!', 'success');
       document.getElementById('old-pw').value = '';
       document.getElementById('new-pw').value = '';
+      setTimeout(closePwModal, 1200);
     } else {
       showMsg(msgEl, data.msg || '현재 비밀번호가 틀렸습니다', 'error');
     }
