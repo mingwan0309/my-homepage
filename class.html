@@ -1350,9 +1350,25 @@ async function loadStudentQna(studentId){
 }
 
 // ── 학생 삭제 ──
+// 이 반 차시들에 남아있는 해당 학생의 출석/성적 기록을 정리 (고아 기록 방지)
+async function purgeStudentClassData(id){
+  try{
+    var db=await window.mkdbReady;
+    var sesIds=sessions.map(function(s){return String(s.id);});
+    if(!sesIds.length) return;
+    var dels=[];
+    var attSnap=await db.collection('attendance').where('studentId','==',String(id)).get();
+    attSnap.forEach(function(doc){ if(sesIds.indexOf(String(doc.data().sessionId))>=0) dels.push(doc.ref.delete()); });
+    var scSnap=await db.collection('scores').where('studentId','==',String(id)).get();
+    scSnap.forEach(function(doc){ if(sesIds.indexOf(String(doc.data().sessionId))>=0) dels.push(doc.ref.delete()); });
+    await Promise.all(dels);
+  }catch(e){}
+}
+
 async function delStuFromClass(id, name){
   if(!confirm(name+' 학생을 삭제하시겠습니까?\n\n삭제하면 해당 학생의 계정과 정보가 완전히 제거됩니다.')) return;
   try{
+    await purgeStudentClassData(id);  // 출석/성적 기록도 함께 정리
     var res=await fetch(SU+'?action=deleteStudentAccount&id='+encodeURIComponent(id));
     var data=await res.json();
     if(data.success){
@@ -1419,7 +1435,10 @@ async function addExistingStudents(){
   });
   if(moving.length && !confirm(moving.length+'명은 이미 다른 반 소속입니다. 이 반으로 옮기시겠습니까?')) return;
   for(var i=0;i<checked.length;i++){
-    try{ await fetch(SU+'?action=assignStudentClass&studentId='+encodeURIComponent(checked[i])+'&classId='+encodeURIComponent(classId)); }catch(e){}
+    try{
+      await fetch(SU+'?action=assignStudentClass&studentId='+encodeURIComponent(checked[i])+'&classId='+encodeURIComponent(classId));
+      await purgeStudentClassData(checked[i]);  // 새로 들어온 학생은 이 반 출석/성적 기록을 깨끗이 시작
+    }catch(e){}
   }
   closeAddStudent();
   var cr=await fetch(SU+'?action=getClassStudents&classId='+encodeURIComponent(classId)).then(function(r){return r.json();});
@@ -1443,7 +1462,7 @@ async function saveStudent(){
       body:JSON.stringify({action:'addStudent',sid:phone,sname:name,spw:pw,parentPhone:parentPhone,school:school,grade:grade,gender:gender,classId:classId})});
     var d=await r.json();
     if(d.success){
-      // classId 업데이트 (addStudent에서 이미 저장되지만 혹시 API 버전 차이를 대비해 updateStudentInfo도 호출)
+      await purgeStudentClassData(phone);  // 같은 번호의 옛 출석/성적 기록이 남아있으면 정리
       msgEl.textContent='등록 완료!';msgEl.style.color='#16a34a';
       setTimeout(async function(){
         closeAddStudent();
