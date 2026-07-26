@@ -666,7 +666,7 @@ api.getMaterials = function(db, p){
     var mats = docsToArr(snap).sort(function(a,b){ return (a.uploadDate||'') < (b.uploadDate||'') ? -1 : 1; })
       .map(function(r){
         return { id:String(r.id), classId:String(r.classId), category:r.category||'', name:r.name||'', url:r.url||'',
-                 size:r.size||'', uploadDate:r.uploadDate||'', downloadCount:Number(r.downloadCount||0), memo:r.memo||'' };
+                 size:r.size||'', uploadDate:r.uploadDate||'', downloadCount:Number(r.downloadCount||0), memo:r.memo||'', wmLevel:r.wmLevel||'0' };
       });
     return { materials: mats };
   });
@@ -676,8 +676,13 @@ api.addMaterial = function(db, p){
   var id = genId('mat');
   return db.collection('materials').doc(id).set({
     id:id, classId:String(p.classId), category:p.category||'자습용 자료', name:p.name||'', url:p.url||'',
-    size:p.size||'', uploadDate:nowStr(), downloadCount:0, memo:p.memo||''
+    size:p.size||'', uploadDate:nowStr(), downloadCount:0, memo:p.memo||'', wmLevel:p.wmLevel||'0'
   }).then(function(){ return { success:true, id:id }; });
+};
+
+api.setMaterialWm = function(db, p){
+  return db.collection('materials').doc(String(p.id)).update({ wmLevel:String(p.wmLevel||'0') })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
 api.deleteMaterial = function(db, p){
@@ -923,7 +928,7 @@ window.fetch = function(url, opts){
       try { bodyObj = JSON.parse(bodyStr); } catch(e) {}
       var postAction = bodyObj.action || '';
       // 파일 업로드(uploadFile)와 알림톡 발송(sendAlimtalk)만 진짜 Apps Script로 통과
-      if (postAction === 'uploadFile' || postAction === 'sendAlimtalk' || !postAction) {
+      if (postAction === 'uploadFile' || postAction === 'sendAlimtalk' || postAction === 'getFileBase64' || !postAction) {
         return _origFetch(url, opts);
       }
       // 나머지 POST(submitQuestion, submitAnswer 등)는 Firestore로 처리

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mkmath-game",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8768", "--directory", "G:\\내 드라이브\\김민관수학게임"],
+      "port": 8768
+    }
+  ]
+}

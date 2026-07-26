@@ -1,6 +1,18 @@
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
+    if (data.action === 'sendAlimtalk') return sendAlimtalk(data);
+    if (data.action === 'getFileBase64') {
+      var gid = data.fileId;
+      var gfile = DriveApp.getFileById(gid);
+      var gblob = gfile.getBlob();
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        base64: Utilities.base64Encode(gblob.getBytes()),
+        mimeType: gblob.getContentType() || 'application/octet-stream',
+        name: gfile.getName()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
     if (data.action === 'uploadFile') {
       var folderName = 'MKMath 자료실';
       var folders = DriveApp.getFoldersByName(folderName);
@@ -575,6 +587,53 @@ function incDownload(params) {
     }
   }
   return json({ success: false });
+}
+
+// ── 솔라피 카카오 알림톡 발송 ──
+function sendAlimtalk(data) {
+  var SOLAPI_API_KEY    = 'NCSEJXE3QUXKS9BN';
+  var SOLAPI_API_SECRET = 'BSRANAXM4UFOYGSD1OX9VOTE5FORTCOL';
+  var FROM        = '01062519244';
+  var PF_ID       = 'KA01PF2607190425102129N0TXUNtwry';
+  var TEMPLATE_ID = 'KA01TP2607190503373353cDTp0aqGdv';
+
+  var messages = (data.messages || []).filter(function(m){ return m.phone; }).map(function(m){
+    return {
+      to:   String(m.phone).replace(/[^0-9]/g, ''),
+      from: FROM,
+      kakaoOptions: {
+        pfId:       PF_ID,
+        templateId: TEMPLATE_ID,
+        variables: {
+          '#{강의}':    String(m.className  || ''),
+          '#{차시}':    String(m.sessionNum || ''),
+          '#{이름}':    String(m.name       || ''),
+          '#{전달사항}': String(m.message    || '')
+        }
+      }
+    };
+  });
+
+  if (!messages.length) return json({ success: false, msg: '유효한 발송 대상이 없습니다.' });
+
+  var date  = new Date().toISOString();
+  var salt  = Utilities.getUuid();
+  var sigBytes = Utilities.computeHmacSha256Signature(date + salt, SOLAPI_API_SECRET);
+  var signature = sigBytes.map(function(b){ return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
+  var authHeader = 'HMAC-SHA256 apiKey=' + SOLAPI_API_KEY + ', date=' + date + ', salt=' + salt + ', signature=' + signature;
+
+  var response = UrlFetchApp.fetch('https://api.solapi.com/messages/v4/send-many/detail', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+    payload: JSON.stringify({ messages: messages }),
+    muteHttpExceptions: true
+  });
+
+  var code = response.getResponseCode();
+  var result = {};
+  try { result = JSON.parse(response.getContentText()); } catch(e) {}
+  if (code === 200) return json({ success: true, count: messages.length });
+  return json({ success: false, msg: result.errorMessage || result.message || ('HTTP ' + code) });
 }
 
 // ── 영상 라이브러리 ──

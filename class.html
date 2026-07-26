@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>반 정보 — 김민관 수학</title>
-<script src="firebase-api.js?v=11"></script>
+<script src="firebase-api.js?v=12"></script>
 <script src="chat-widget.js" defer></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
@@ -329,16 +329,7 @@ tr:hover td{background:#fafbff;}
     <div class="vmod-body">
       <!-- 업로드 탭 -->
       <div id="mattab-upload">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
-          <span style="font-size:13px;font-weight:700;color:#475569;">PDF 워터마크</span>
-          <div class="wm-seg" style="display:inline-flex;border:1.5px solid #e2e8f0;border-radius:9px;overflow:hidden;">
-            <button type="button" class="wm-opt" onclick="setWmLevel('0',this)">없음</button>
-            <button type="button" class="wm-opt" onclick="setWmLevel('1',this)">1단계</button>
-            <button type="button" class="wm-opt active" onclick="setWmLevel('2',this)">2단계</button>
-            <button type="button" class="wm-opt" onclick="setWmLevel('3',this)">3단계</button>
-          </div>
-          <span style="font-size:11px;color:#94a3b8;">1단계=상하단만 · 2단계=중간중간 · 3단계=빽빽</span>
-        </div>
+        <p style="font-size:12px;color:#94a3b8;margin-bottom:10px;">업로드 후 목록에서 파일별로 워터마크 단계를 설정할 수 있어요.</p>
         <input type="file" id="mat-file-input" multiple style="display:none;" onchange="onFilePick(this)">
         <div class="drag-area" onclick="document.getElementById('mat-file-input').click()" style="cursor:pointer;"
           ondragover="event.preventDefault();this.style.borderColor='#3b6cf7';this.style.background='#eff4ff'" ondragleave="this.style.borderColor='';this.style.background=''"
@@ -784,12 +775,21 @@ function renderMaterials(){
       var color=st.seen>=st.total&&st.total>0?'#16a34a':'#3b6cf7';
       viewBadge='<button onclick="showViews(\''+m.id+'\',false)" style="background:none;border:1.5px solid '+color+';color:'+color+';font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;cursor:pointer;white-space:nowrap;margin-right:6px;">확인 '+st.seen+'/'+st.total+'</button>';
     }
+    var wmSel='';
+    if(session.role==='teacher'){
+      var lv=m.wmLevel||'0';
+      var labels={'0':'워터마크 없음','1':'1단계(상하단)','2':'2단계(중간)','3':'3단계(빽빽)'};
+      wmSel='<select onchange="setMatWm(\''+m.id+'\',this.value)" style="font-size:11px;padding:4px 6px;border:1.5px solid #e2e8f0;border-radius:7px;margin-right:6px;cursor:pointer;">'
+        +['0','1','2','3'].map(function(v){return '<option value="'+v+'"'+(lv===v?' selected':'')+'>'+labels[v]+'</option>';}).join('')
+        +'</select>';
+    }
+    var dlBtn='<button onclick="downloadMat(\''+m.id+'\')" style="background:#eef2ff;color:#3b6cf7;border:1.5px solid #c7d2fe;font-size:11px;font-weight:700;padding:4px 12px;border-radius:7px;cursor:pointer;white-space:nowrap;margin-right:6px;">다운로드</button>';
     return '<tr>'+
-      '<td><a class="mat-link mat-name" href="'+m.url+'" target="_blank" onclick="countDl(\''+m.id+'\')">'+escHtml(m.name)+'</a></td>'+
+      '<td><span class="mat-name">'+escHtml(m.name)+'</span></td>'+
       '<td style="font-size:12px;color:#94a3b8;">'+(m.uploadDate||'').substring(0,10)+'</td>'+
       '<td style="font-size:12px;color:#64748b;text-align:center;">'+m.downloadCount+'</td>'+
       '<td style="font-size:12px;color:#64748b;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(m.memo||'')+'</td>'+
-      '<td style="white-space:nowrap;">'+viewBadge+delBtn+'</td></tr>';
+      '<td style="white-space:nowrap;">'+wmSel+viewBadge+dlBtn+delBtn+'</td></tr>';
   }).join('');
 }
 
@@ -1004,15 +1004,7 @@ function bytesToBase64(bytes){
   }
   return btoa(bin);
 }
-// 워터마크 단계: '0'없음 / '1'상하단만 / '2'중간중간 / '3'빽빽
-var wmLevel='2';
-function setWmLevel(lvl, el){
-  wmLevel=lvl;
-  var box=el.parentNode;
-  box.querySelectorAll('.wm-opt').forEach(function(b){b.classList.remove('active');});
-  el.classList.add('active');
-}
-// 단계별로 로고를 찍을 위치 목록 계산
+// 단계별로 로고를 찍을 위치 목록 계산 ('1'상하단만 / '2'중간중간 / '3'빽빽)
 function wmPositions(level, W, H, w, h){
   var pos=[];
   if(level==='1'){
@@ -1032,29 +1024,63 @@ function wmPositions(level, W, H, w, h){
   }
   return pos;
 }
-// PDF에 로고 워터마크(흐리게)를 단계별로 찍어 base64 반환. 실패/없음 시 원본 반환.
-async function watermarkPdfToBase64(file){
+function base64ToBytes(b64){
+  var bin=atob(b64), len=bin.length, bytes=new Uint8Array(len);
+  for(var i=0;i<len;i++) bytes[i]=bin.charCodeAt(i);
+  return bytes;
+}
+function extractDriveId(url){
+  if(!url) return '';
+  var m=url.match(/\/d\/([^\/]+)/)||url.match(/[?&]id=([^&]+)/);
+  return m?m[1]:'';
+}
+function triggerDownload(blob, filename){
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename||'file';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+// PDF 바이트에 로고 워터마크를 단계별로 적용. 실패/없음/비PDF면 원본 그대로 반환.
+async function applyWatermark(bytes, level, name){
+  if(!level || level==='0' || !window.PDFLib) return bytes;
+  if(!/\.pdf$/i.test(name||'')) return bytes;
   try{
-    if(wmLevel==='0' || !window.PDFLib) return await fileToBase64(file);
-    var op = wmLevel==='1'?0.16 : wmLevel==='2'?0.13 : 0.11;
-    var buf=await file.arrayBuffer();
-    var pdfDoc=await PDFLib.PDFDocument.load(buf,{ignoreEncryption:true});
+    var op = level==='1'?0.16 : level==='2'?0.13 : 0.11;
+    var pdfDoc=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true});
     var png=await pdfDoc.embedPng(await getLogoBytes());
     var pages=pdfDoc.getPages();
     for(var p=0;p<pages.length;p++){
-      var page=pages[p];
-      var sz=page.getSize();
+      var page=pages[p], sz=page.getSize();
       var w=130, h=w*png.height/png.width;
-      var pos=wmPositions(wmLevel, sz.width, sz.height, w, h);
-      pos.forEach(function(pt){
+      wmPositions(level, sz.width, sz.height, w, h).forEach(function(pt){
         page.drawImage(png,{x:pt.x,y:pt.y,width:w,height:h,opacity:op,rotate:PDFLib.degrees(30)});
       });
     }
-    var out=await pdfDoc.save();
-    return bytesToBase64(out);
-  }catch(e){
-    return await fileToBase64(file);
-  }
+    return await pdfDoc.save();
+  }catch(e){ return bytes; }
+}
+// 자료 다운로드: 드라이브 원본을 받아 워터마크(단계) 적용 후 저장
+async function downloadMat(id){
+  var m=materials.find(function(x){return x.id===id;});
+  if(!m) return;
+  var fileId=extractDriveId(m.url);
+  if(!fileId){ window.open(m.url,'_blank'); return; }
+  try{
+    var res=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getFileBase64',fileId:fileId})});
+    var d=await res.json();
+    if(!d.success){ window.open(m.url,'_blank'); return; }
+    var bytes=base64ToBytes(d.base64);
+    var out=await applyWatermark(bytes, m.wmLevel, d.name||m.name);
+    triggerDownload(new Blob([out],{type:d.mimeType||'application/pdf'}), d.name||m.name);
+    countDl(id);
+  }catch(e){ window.open(m.url,'_blank'); }
+}
+// 파일별 워터마크 단계 변경 (선생님)
+async function setMatWm(id, level){
+  var m=materials.find(function(x){return x.id===id;});
+  if(m) m.wmLevel=level;
+  try{ await fetch(SU+'?action=setMaterialWm&id='+encodeURIComponent(id)+'&wmLevel='+encodeURIComponent(level)); }catch(e){}
 }
 async function uploadFileToServer(item){
   item.status='uploading';
@@ -1064,8 +1090,7 @@ async function uploadFileToServer(item){
       item.status='error';item.errMsg='파일이 너무 큽니다 (25MB 초과)';
       renderMatQueue();return;
     }
-    var isPdf = (item.file.type==='application/pdf') || /\.pdf$/i.test(item.file.name);
-    var base64 = isPdf ? await watermarkPdfToBase64(item.file) : await fileToBase64(item.file);
+    var base64 = await fileToBase64(item.file);
     var res=await fetch(SU,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
