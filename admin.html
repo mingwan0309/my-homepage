@@ -266,6 +266,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
           <div class="card-title" style="margin:0;">학생 목록 <span id="stu-count" style="color:#94a3b8;font-weight:400;font-size:13px;"></span></div>
           <div style="display:flex;gap:8px;align-items:center;">
+            <button onclick="bulkFixParentAccounts()" id="btn-bulk-parent" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;background:#fff;cursor:pointer;color:#3b6cf7;font-weight:600;">👪 학부모 로그인 계정 일괄 처리</button>
             <input type="text" id="stu-search" placeholder="🔍 이름/전화번호 검색" oninput="renderStu()" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;width:220px;">
           </div>
         </div>
@@ -873,7 +874,7 @@ function renderStu(){
       +'<td style="padding:8px 6px;"><input type="checkbox" '+checked+' onchange="toggleStuSel(\''+s.id+'\',this.checked)"></td>'
       +'<td style="padding:8px 10px;font-weight:700;">'+(s.name||'-')+'</td>'
       +'<td style="padding:8px 10px;color:#64748b;">'+(s.studentPhone||s.id||'-')+'</td>'
-      +'<td style="padding:8px 10px;color:#64748b;">'+(s.parentPhone||'-')+(s.parentPhone?' <button onclick="retryParentAccount(\''+s.id+'\')" style="background:none;border:none;color:#3b6cf7;font-size:11px;cursor:pointer;text-decoration:underline;">로그인 안될 때</button>':'')+'</td>'
+      +'<td style="padding:8px 10px;color:#64748b;">'+(s.parentPhone||'-')+'</td>'
       +'<td style="padding:8px 10px;color:#64748b;">'+(s.school||'미입력')+'</td>'
       +'<td style="padding:8px 10px;color:#64748b;">'+(s.grade||'미입력')+'</td>'
       +'<td style="padding:8px 10px;color:#64748b;">'+(s.gender||'미입력')+'</td>'
@@ -886,10 +887,34 @@ function renderStu(){
   }).join('');
   updateStuBulkBar();
 }
-async function retryParentAccount(id){
-  var r=await fetch(SU+'?action=createParentAccount&id='+encodeURIComponent(id)).then(function(r){return r.json();});
-  if(r.success) alert('학부모 로그인 계정이 생성됐어요! 기본 비밀번호는 123456입니다.');
-  else alert(r.msg||'생성 실패');
+function sleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+async function bulkFixParentAccounts(){
+  var btn=document.getElementById('btn-bulk-parent');
+  var targets=allStudents.filter(function(s){return s.parentPhone;});
+  if(!targets.length){ alert('학부모 번호가 등록된 학생이 없습니다.'); return; }
+  if(!confirm('학부모 번호가 등록된 학생 '+targets.length+'명의 로그인 계정을 확인/생성합니다. 이미 있는 계정은 건드리지 않아요. 계속할까요?')) return;
+  btn.disabled=true;
+  var made=0, fail=[];
+  for(var i=0;i<targets.length;i++){
+    var s=targets[i];
+    btn.textContent='처리 중... ('+(i+1)+'/'+targets.length+')';
+    try{
+      var r=await fetch(SU+'?action=createParentAccount&id='+encodeURIComponent(s.id)).then(function(r){return r.json();});
+      if(r.success){ made++; }
+      else if(r.code==='auth/too-many-requests'){
+        await sleep(3000);
+        var r2=await fetch(SU+'?action=createParentAccount&id='+encodeURIComponent(s.id)).then(function(r){return r.json();});
+        if(r2.success) made++;
+        else if(r2.code!=='auth/email-already-in-use') fail.push(s.name||s.id);
+      } else if(r.code!=='auth/email-already-in-use'){
+        fail.push(s.name||s.id);
+      }
+    }catch(e){ fail.push(s.name||s.id); }
+    await sleep(600);
+  }
+  btn.disabled=false;
+  btn.textContent='👪 학부모 로그인 계정 일괄 처리';
+  alert('처리 완료! 새로 생성 '+made+'명'+(fail.length?', 확인 필요 '+fail.length+'명('+fail.join(', ')+')':', 나머지는 이미 정상이었어요.'));
 }
 function toggleStuSel(id,checked){
   if(checked) stuSelected[id]=true; else delete stuSelected[id];
