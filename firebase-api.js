@@ -208,30 +208,40 @@ api.deleteStudentAccount = function(db, p){
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
-// 학부모 로그인 계정이 (고아 계정 충돌 등으로) 안 만들어졌을 때 다시 시도
+// 학부모 로그인 계정이 (고아 계정 충돌 등으로) 안 만들어졌을 때 다시 시도.
+// status: 'created'(새로 생성됨) / 'ok'(이미 있고 123456으로 정상 로그인 확인됨) /
+//         'wrong_password'(계정은 있는데 123456으로 로그인 안 됨 → 콘솔에서 삭제 후 재시도 필요) / 'error'
 api.createParentAccount = function(db, p){
   return db.collection('students').doc(String(p.id)).get().then(function(doc){
-    if (!doc.exists) return { success:false, msg:'학생을 찾을 수 없습니다.' };
+    if (!doc.exists) return { success:false, status:'error', msg:'학생을 찾을 수 없습니다.' };
     var u = doc.data();
     var parentPhone = String(u.parentPhone || '');
-    if (!parentPhone) return { success:false, msg:'학부모 전화번호가 등록되어 있지 않습니다.' };
+    if (!parentPhone) return { success:false, status:'error', msg:'학부모 전화번호가 등록되어 있지 않습니다.' };
     var secondary;
     try { secondary = firebase.app('mk-secondary'); }
     catch(e) { secondary = firebase.initializeApp(firebase.app().options, 'mk-secondary'); }
-    return secondary.auth().createUserWithEmailAndPassword(toAuthEmail(parentPhone), toAuthPassword('123456'))
+    var email = toAuthEmail(parentPhone);
+    return secondary.auth().createUserWithEmailAndPassword(email, toAuthPassword('123456'))
       .then(function(){
-        return secondary.auth().signOut().then(function(){ return { success:true }; });
+        return secondary.auth().signOut().then(function(){ return { success:true, status:'created', parentPhone:parentPhone }; });
       })
       .catch(function(err){
-        return secondary.auth().signOut().catch(function(){}).then(function(){
-          if (err.code === 'auth/email-already-in-use') {
-            return { success:false, code:err.code, msg:'이 학부모 번호는 이미 로그인 계정이 있어요(정상). 그래도 로그인이 안 되면 비밀번호(기본 123456) 문제일 수 있어요. 정말 안 되면 Firebase 콘솔 Authentication에서 '+parentPhone+'@mkmath.local 계정을 삭제 후 다시 시도해보세요.' };
-          }
-          if (err.code === 'auth/too-many-requests') {
-            return { success:false, code:err.code, msg:'요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.' };
-          }
-          return { success:false, code:err.code||'', msg:(err.code||'')+' '+(err.message||'생성 실패') };
-        });
+        if (err.code === 'auth/too-many-requests') {
+          return { success:false, status:'error', code:err.code, msg:'요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.' };
+        }
+        if (err.code !== 'auth/email-already-in-use') {
+          return { success:false, status:'error', code:err.code||'', msg:(err.code||'')+' '+(err.message||'생성 실패') };
+        }
+        // 이미 계정이 있음 → 실제로 123456 비밀번호로 로그인이 되는지 검증
+        return secondary.auth().signInWithEmailAndPassword(email, toAuthPassword('123456'))
+          .then(function(){
+            return secondary.auth().signOut().then(function(){ return { success:true, status:'ok', parentPhone:parentPhone }; });
+          })
+          .catch(function(){
+            return secondary.auth().signOut().catch(function(){}).then(function(){
+              return { success:false, status:'wrong_password', parentPhone:parentPhone, msg:'계정은 있는데 123456으로 로그인이 안 돼요. Firebase 콘솔에서 '+email+' 계정을 삭제 후 다시 시도해주세요.' };
+            });
+          });
       });
   });
 };
