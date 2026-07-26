@@ -911,6 +911,10 @@ api.deleteExpenseLog = function(db, p){
 window.mkdbReady = _dbReady;
 window.mkGenId = genId;
 window.mkNowStr = nowStr;
+// 모바일(폰/태블릿) 기기 판별 — 학생 자동 로그아웃을 폰에서만 끄기 위해 사용
+window.mkIsMobile = function(){
+  return /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile|BlackBerry|Windows Phone/i.test(navigator.userAgent || '');
+};
 
 /* ---------- fetch 가로채기 ---------- */
 var _origFetch = window.fetch.bind(window);

@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>김민관 수학</title>
-<script src="firebase-api.js?v=13"></script>
+<script src="firebase-api.js?v=14"></script>
 <script src="chat-widget.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
@@ -1087,17 +1087,21 @@
       .catch(function(){});
   })();
 
-  // 세션 만료 체크 (학생은 만료 없음 — 한 번 로그인하면 계속 유지. 교사만 60분)
+  // 세션 만료 체크: 폰 학생은 만료 없음, 컴퓨터 학생은 30분, 교사는 어디서나 60분
   (function() {
     const s = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
-    if (s && s.role === 'teacher') {
-      const last = parseInt(localStorage.getItem('mkmath_last_active') || '0');
-      if (last && Date.now() - last > 60*60*1000) {
-        localStorage.removeItem('mkmath_session');
-        localStorage.removeItem('mkmath_last_active');
-      } else {
-        localStorage.setItem('mkmath_last_active', Date.now());
-      }
+    if (!s) return;
+    const isMobile = window.mkIsMobile && window.mkIsMobile();
+    let limit = 0;
+    if (s.role === 'teacher') limit = 60*60*1000;
+    else if (!isMobile) limit = 30*60*1000; // 학생 + 컴퓨터
+    if (!limit) return; // 폰 학생 → 유지
+    const last = parseInt(localStorage.getItem('mkmath_last_active') || '0');
+    if (last && Date.now() - last > limit) {
+      localStorage.removeItem('mkmath_session');
+      localStorage.removeItem('mkmath_last_active');
+    } else {
+      localStorage.setItem('mkmath_last_active', Date.now());
     }
   })();
 

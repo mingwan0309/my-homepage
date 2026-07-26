@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>숙제 | 김민관 수학</title>
-<script src="firebase-api.js?v=13"></script>
+<script src="firebase-api.js?v=14"></script>
 <script src="chat-widget.js" defer></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -920,19 +920,30 @@ function getIdleLimit() {
   return currentUser && currentUser.role === 'teacher' ? TIMEOUT_TEACHER : TIMEOUT_STUDENT;
 }
 
+// 자동 로그아웃 대상? 교사는 항상, 학생은 컴퓨터에서만(폰은 유지)
+function shouldAutoLogout() {
+  if (!currentUser) return false;
+  if (currentUser.role === 'teacher') return true;
+  return !(window.mkIsMobile && window.mkIsMobile());
+}
+
 function resetIdleTimer() {
   if (!currentUser) return;
   localStorage.setItem('mkmath_last_active', Date.now());
   clearTimeout(idleTimer);
-  // 학생은 자동 로그아웃 없음 — 교사만 타이머 작동
-  if (currentUser.role === 'teacher') idleTimer = setTimeout(showTimeoutWarning, getIdleLimit());
+  if (shouldAutoLogout()) idleTimer = setTimeout(showTimeoutWarning, getIdleLimit());
 }
 
 function checkSessionExpiry() {
   const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
-  if (!session || session.role !== 'teacher') return; // 학생은 만료 없음(계속 로그인 유지)
+  if (!session) return;
+  const isMobile = window.mkIsMobile && window.mkIsMobile();
+  let limit = 0;
+  if (session.role === 'teacher') limit = TIMEOUT_TEACHER;
+  else if (!isMobile) limit = TIMEOUT_STUDENT; // 학생 + 컴퓨터
+  if (!limit) return; // 폰 학생 → 유지
   const last = parseInt(localStorage.getItem('mkmath_last_active') || '0');
-  if (last && Date.now() - last > TIMEOUT_TEACHER) {
+  if (last && Date.now() - last > limit) {
     localStorage.removeItem('mkmath_session');
     localStorage.removeItem('mkmath_last_active');
     location.reload();
