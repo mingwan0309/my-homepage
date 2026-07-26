@@ -1017,7 +1017,7 @@
   </div>
 </div>
 
-<div id="login-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+<div id="login-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100001; align-items:center; justify-content:center;">
   <div style="background:#fff; border-radius:20px; padding:36px; width:90%; max-width:400px; position:relative;">
     <button onclick="closeLoginModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">✕</button>
     <h3 style="font-size:20px; font-weight:900; margin-bottom:6px;">로그인</h3>
@@ -1265,8 +1265,9 @@
       document.getElementById('mobile-gate').style.display = 'flex';
     }catch(e){}
   })();
+  function hideSchedulePopup(){ var sp=document.getElementById('schedule-popup'); if(sp) sp.style.display='none'; }
   function gateGoHome(){ document.getElementById('mobile-gate').style.display = 'none'; }
-  function gateGoMypage(){ document.getElementById('mobile-gate').style.display = 'none'; openLoginModal(); }
+  function gateGoMypage(){ document.getElementById('mobile-gate').style.display = 'none'; hideSchedulePopup(); openLoginModal(); }
 
   function openLoginModal() {
     document.getElementById('login-modal').style.display = 'flex';
