@@ -1087,13 +1087,12 @@
       .catch(function(){});
   })();
 
-  // 세션 만료 체크
+  // 세션 만료 체크 (학생은 만료 없음 — 한 번 로그인하면 계속 유지. 교사만 60분)
   (function() {
     const s = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
-    if (s) {
+    if (s && s.role === 'teacher') {
       const last = parseInt(localStorage.getItem('mkmath_last_active') || '0');
-      const limit = s.role === 'teacher' ? 60*60*1000 : 30*60*1000;
-      if (last && Date.now() - last > limit) {
+      if (last && Date.now() - last > 60*60*1000) {
         localStorage.removeItem('mkmath_session');
         localStorage.removeItem('mkmath_last_active');
       } else {

@@ -924,15 +924,15 @@ function resetIdleTimer() {
   if (!currentUser) return;
   localStorage.setItem('mkmath_last_active', Date.now());
   clearTimeout(idleTimer);
-  idleTimer = setTimeout(showTimeoutWarning, getIdleLimit());
+  // 학생은 자동 로그아웃 없음 — 교사만 타이머 작동
+  if (currentUser.role === 'teacher') idleTimer = setTimeout(showTimeoutWarning, getIdleLimit());
 }
 
 function checkSessionExpiry() {
   const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
-  if (!session) return;
+  if (!session || session.role !== 'teacher') return; // 학생은 만료 없음(계속 로그인 유지)
   const last = parseInt(localStorage.getItem('mkmath_last_active') || '0');
-  const limit = session.role === 'teacher' ? TIMEOUT_TEACHER : TIMEOUT_STUDENT;
-  if (last && Date.now() - last > limit) {
+  if (last && Date.now() - last > TIMEOUT_TEACHER) {
     localStorage.removeItem('mkmath_session');
     localStorage.removeItem('mkmath_last_active');
     location.reload();
