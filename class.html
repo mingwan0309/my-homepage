@@ -459,7 +459,25 @@ tr:hover td{background:#fafbff;}
 <div class="modal-bg" id="add-stu-modal" onclick="if(event.target===this)closeAddStudent()">
   <div class="modal">
     <h3>학생 추가</h3>
-    <form id="add-stu-form" onsubmit="event.preventDefault();saveStudent();">
+    <div style="display:flex;gap:0;border-bottom:1.5px solid #e2e8f0;margin-bottom:16px;">
+      <div class="astu-tab active" onclick="switchAddStuTab('existing',this)" style="padding:9px 16px;font-size:13px;font-weight:700;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1.5px;">기존 학생에서 추가</div>
+      <div class="astu-tab" onclick="switchAddStuTab('new',this)" style="padding:9px 16px;font-size:13px;font-weight:700;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1.5px;">새 학생 등록</div>
+    </div>
+
+    <!-- 기존 학생에서 추가 -->
+    <div id="astu-existing">
+      <input id="astu-search" oninput="renderExistingStudents()" placeholder="이름/전화번호 검색" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;margin-bottom:10px;box-sizing:border-box;">
+      <div id="astu-existing-list" style="max-height:300px;overflow-y:auto;border:1px solid #eef2f6;border-radius:10px;margin-bottom:12px;">
+        <div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px;">불러오는 중...</div>
+      </div>
+      <div class="modal-btns">
+        <button type="button" class="btn-cl" onclick="closeAddStudent()">취소</button>
+        <button type="button" class="btn-ok" onclick="addExistingStudents()">선택 학생 추가</button>
+      </div>
+    </div>
+
+    <!-- 새 학생 등록 -->
+    <form id="add-stu-form" style="display:none;" onsubmit="event.preventDefault();saveStudent();">
       <div class="fg"><label>이름 *</label><input id="as-name" placeholder="홍길동" required></div>
       <div class="fg"><label>학생 전화번호 * (로그인 아이디)</label><input id="as-phone" placeholder="01012345678" required></div>
       <div class="fg"><label>학부모 전화번호</label><input id="as-parent" placeholder="01098765432"></div>
@@ -1345,12 +1363,69 @@ async function delStuFromClass(id, name){
 }
 
 // ── 학생 추가 ──
+var allGlobalStudents=[];
 function openAddStudent(){
   document.getElementById('add-stu-form').reset();
   document.getElementById('add-stu-msg').textContent='';
+  // 기본 탭: 기존 학생에서 추가
+  document.querySelectorAll('.astu-tab').forEach(function(t,i){t.classList.toggle('active',i===0);t.style.color=i===0?'#3b6cf7':'#94a3b8';t.style.borderBottomColor=i===0?'#3b6cf7':'transparent';});
+  document.getElementById('astu-existing').style.display='';
+  document.getElementById('add-stu-form').style.display='none';
+  document.getElementById('astu-search').value='';
   document.getElementById('add-stu-modal').classList.add('show');
+  loadGlobalStudents();
 }
 function closeAddStudent(){document.getElementById('add-stu-modal').classList.remove('show');}
+function switchAddStuTab(tab,el){
+  document.querySelectorAll('.astu-tab').forEach(function(t){t.classList.remove('active');t.style.color='#94a3b8';t.style.borderBottomColor='transparent';});
+  el.classList.add('active');el.style.color='#3b6cf7';el.style.borderBottomColor='#3b6cf7';
+  document.getElementById('astu-existing').style.display=tab==='existing'?'':'none';
+  document.getElementById('add-stu-form').style.display=tab==='new'?'':'none';
+}
+async function loadGlobalStudents(){
+  try{
+    var r=await fetch(SU+'?action=getStudents');
+    var d=await r.json();
+    allGlobalStudents=d.students||[];
+  }catch(e){ allGlobalStudents=[]; }
+  renderExistingStudents();
+}
+function renderExistingStudents(){
+  var box=document.getElementById('astu-existing-list');
+  var q=(document.getElementById('astu-search').value||'').trim().toLowerCase();
+  var inClass={}; students.forEach(function(s){inClass[String(s.id)]=true;});
+  var list=allGlobalStudents.filter(function(s){
+    if(inClass[String(s.id)]) return false;                 // 이미 이 반에 있는 학생 제외
+    if(String(s.classId)===String(classId)) return false;   // 이미 이 반 소속 제외
+    if(!q) return true;
+    return (s.name||'').toLowerCase().indexOf(q)>=0 || String(s.id).indexOf(q)>=0 || (s.parentPhone||'').indexOf(q)>=0;
+  });
+  if(!list.length){ box.innerHTML='<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px;">추가할 수 있는 학생이 없습니다.<br>(모두 이 반에 있거나 다른 반 소속)</div>'; return; }
+  box.innerHTML=list.map(function(s){
+    var cls=s.classId?'<span style="font-size:11px;color:#f59e0b;">다른 반 소속</span>':'<span style="font-size:11px;color:#94a3b8;">반 미배정</span>';
+    return '<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;">'
+      +'<input type="checkbox" class="astu-chk" value="'+escHtml(String(s.id))+'" style="width:16px;height:16px;">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;">'+escHtml(s.name||s.id)+'</div>'
+      +'<div style="font-size:11px;color:#94a3b8;">'+escHtml(String(s.id))+(s.school?' · '+escHtml(s.school):'')+'</div></div>'
+      +cls+'</label>';
+  }).join('');
+}
+async function addExistingStudents(){
+  var checked=Array.prototype.slice.call(document.querySelectorAll('.astu-chk:checked')).map(function(c){return c.value;});
+  if(!checked.length){ alert('추가할 학생을 선택해주세요.'); return; }
+  var moving=checked.filter(function(id){
+    var s=allGlobalStudents.find(function(x){return String(x.id)===String(id);});
+    return s && s.classId;
+  });
+  if(moving.length && !confirm(moving.length+'명은 이미 다른 반 소속입니다. 이 반으로 옮기시겠습니까?')) return;
+  for(var i=0;i<checked.length;i++){
+    try{ await fetch(SU+'?action=assignStudentClass&studentId='+encodeURIComponent(checked[i])+'&classId='+encodeURIComponent(classId)); }catch(e){}
+  }
+  closeAddStudent();
+  var cr=await fetch(SU+'?action=getClassStudents&classId='+encodeURIComponent(classId)).then(function(r){return r.json();});
+  students=cr.students||[]; renderStudents();
+  document.getElementById('stu-count-badge').textContent=students.length+'명';
+}
 
 async function saveStudent(){
   var name=document.getElementById('as-name').value.trim();
@@ -1372,10 +1447,10 @@ async function saveStudent(){
       msgEl.textContent='등록 완료!';msgEl.style.color='#16a34a';
       setTimeout(async function(){
         closeAddStudent();
-        var cr=await fetch(SU+'?action=getClass&classId='+encodeURIComponent(classId)).then(r=>r.json());
+        var cr=await fetch(SU+'?action=getClassStudents&classId='+encodeURIComponent(classId)).then(r=>r.json());
         students=cr.students||[];
         renderStudents();
-        document.getElementById('stu-count-badge').textContent='('+students.length+')';
+        document.getElementById('stu-count-badge').textContent=students.length+'명';
       },800);
     } else {
       msgEl.textContent=d.msg||'등록 실패';msgEl.style.color='#dc2626';
