@@ -63,6 +63,7 @@
 - **학생 비밀번호를 선생님이 강제로 재설정하는 기능은 기술적으로 불가능** (Admin SDK/Cloud Functions 없이는 타인 비밀번호 변경 불가, 유료 Blaze 요금제 필요). 학생이 비번을 잊으면 계정 삭제 후 재등록이 유일한 방법. 학생 본인은 homework.html 설정 탭에서 직접 변경 가능.
 - 학생 개별/엑셀 일괄 추가 시 **초기 비밀번호 기본값은 `123456`** (admin.html 개별 추가 입력창 기본값, 엑셀 양식 예시값, 엑셀 업로드 시 3번째 칸 비었을 때의 기본값 전부 동일하게 맞춰져 있음).
 - Firestore 보안 규칙 요약: `students`는 본인 또는 교사만 읽기/쓰기, 나머지 대부분은 로그인한 사람이면 읽기 가능하고 쓰기는 교사만 가능. `qna`의 "비밀글"은 클라이언트 단에서만 가려짐 (서버 강제 아님 — 알려진 한계).
+- **학부모 로그인은 보안 규칙에 학부모 조항이 있어야 작동한다 (2026-07-27 추가).** 학부모 계정은 auth 이메일이 `{parentPhone}@mkmath.local`인데, 로그인 직후 `students`에서 `where('parentPhone','==', 번호)`로 자녀를 찾는다. 규칙에 `isParentOf(sid)` 헬퍼(= 그 학생 문서의 parentPhone == 로그인 번호)를 두고 `students`/`attendance`/`hw_status`/`material_views`의 read에 이 조항을 추가해야 학부모가 자녀 정보를 읽을 수 있다. 이 조항이 없으면 인증은 되지만 자녀 조회에서 `permission-denied`가 나서 "아이디/비번 틀림"으로 보인다. **규칙을 새로 배포할 때 이 학부모 조항을 절대 빼지 말 것.** 또한 firebase-api `api.login`은 입력 번호를 하이픈 유무 여러 형식으로 auth·조회 시도한다(저장된 parentPhone 형식과 안 맞아도 찾도록).
 
 ## 역할별 접근 규칙 (하드 룰)
 - 로그인 세션은 localStorage `mkmath_session`에 저장 (role, name, classId 포함). Firebase Auth 세션은 별도로 브라우저에 유지됨.
