@@ -175,16 +175,16 @@ a{text-decoration:none;}
     <!-- 바로가기 -->
     <div class="quick-links">
       <a href="index.html" class="quick-btn">🏠 홈으로</a>
-      <a href="textbook.html" class="quick-btn">📖 부교재 해설 강의</a>
     </div>
 
     <!-- 탭 -->
     <div class="tab-nav">
-      <button class="active" onclick="switchTab('info')">📋 내 정보</button>
-      <button onclick="switchTab('clinic')">🏥 클리닉 예약</button>
-      <button onclick="switchTab('quiz')">📝 퀴즈 기록</button>
-      <button onclick="switchTab('qna')">💬 질의응답</button>
-      <button onclick="switchTab('settings')">⚙️ 설정</button>
+      <button class="active" data-tab="info" onclick="switchTab('info')">📋 내 정보</button>
+      <button data-tab="clinic" onclick="switchTab('clinic')">🏥 클리닉 예약</button>
+      <button onclick="location.href='textbook.html'">📖 부교재 해설 강의</button>
+      <button data-tab="quiz" onclick="switchTab('quiz')">📝 퀴즈 기록</button>
+      <button data-tab="qna" onclick="switchTab('qna')">💬 질의응답</button>
+      <button data-tab="settings" onclick="switchTab('settings')">⚙️ 설정</button>
     </div>
 
     <!-- 내 정보 탭 -->
@@ -342,14 +342,13 @@ function switchTab(name) {
   ['info','clinic','quiz','qna','settings'].forEach(function(t){
     document.getElementById('tab-'+t).style.display = t===name ? '' : 'none';
   });
-  document.querySelectorAll('.tab-nav button').forEach(function(btn, i){
-    btn.classList.toggle('active', i === ['info','clinic','quiz','qna','settings'].indexOf(name));
+  document.querySelectorAll('.tab-nav button').forEach(function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === name);
   });
   if (!loaded[name]) {
     loaded[name] = true;
     if (name === 'clinic') loadBookings();
     if (name === 'quiz') loadQuiz();
-    if (name === 'video') loadVideos();
     if (name === 'qna') loadQna();
   }
 }
