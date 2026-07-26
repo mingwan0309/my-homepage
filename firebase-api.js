@@ -115,25 +115,33 @@ api.login = function(db, p){
     var altStripped = authId.replace(/[-\s]/g,'');
     if (altStripped !== authId) docIds.push(altStripped);
 
-    var tryDoc = function(i){
-      if (i >= docIds.length) {
-        return db.collection('students').where('parentPhone','==',authId).limit(1).get().then(function(snap){
-          if (snap.empty) return { success:false };
-          var u = snap.docs[0].data(); var sid = snap.docs[0].id;
-          if (u.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
-          var res = { success:true, role:'student', name:u.name||sid, classId:'', className:'', studentId:sid };
-          if (!u.classId) return res;
-          res.classId = String(u.classId);
-          return db.collection('classes').doc(res.classId).get().then(function(c){
-            if (c.exists) res.className = c.data().name||'';
-            return res;
-          });
+    // 학부모 번호로 로그인한 경우: 저장된 학부모번호 형식(하이픈 유무)이 달라도 찾도록 여러 형식으로 조회
+    var parentCands = [];
+    [authId, addPhoneDashes(authId.replace(/[-\s]/g,'')), authId.replace(/[-\s]/g,'')].forEach(function(c){
+      if (c && parentCands.indexOf(c) < 0) parentCands.push(c);
+    });
+    var tryParent = function(j){
+      if (j >= parentCands.length) return { success:false };
+      return db.collection('students').where('parentPhone','==',parentCands[j]).limit(1).get().then(function(snap){
+        if (snap.empty) return tryParent(j+1);
+        var u = snap.docs[0].data(); var sid = snap.docs[0].id;
+        if (u.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
+        var res = { success:true, role:'student', name:u.name||sid, classId:'', className:'', studentId:sid };
+        if (!u.classId) return res;
+        res.classId = String(u.classId);
+        return db.collection('classes').doc(res.classId).get().then(function(c){
+          if (c.exists) res.className = c.data().name||'';
+          return res;
         });
-      }
+      }, function(){ return tryParent(j+1); });  // 권한거부 등도 다음 형식 시도
+    };
+
+    var tryDoc = function(i){
+      if (i >= docIds.length) return tryParent(0);
       return db.collection('students').doc(docIds[i]).get().then(function(doc){
         if (doc.exists) return fetchProfileAfterAuth(db, docIds[i]);
         return tryDoc(i+1);
-      });
+      }, function(){ return tryDoc(i+1); });
     };
     return tryDoc(0);
   };
