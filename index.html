@@ -466,9 +466,10 @@
 
 <!-- 폰 입장 선택 화면 (로그인 안 한 모바일 사용자에게만) -->
 <div id="mobile-gate" style="display:none; position:fixed; inset:0; z-index:100000; background:linear-gradient(160deg,#0f172a,#1e3a8a); flex-direction:column; align-items:center; justify-content:center; padding:32px;">
-  <img src="logo.png" alt="로고" style="width:120px; height:auto; margin-bottom:18px; filter:brightness(0) invert(1); opacity:.95;">
-  <div style="color:#fff; font-size:20px; font-weight:800; margin-bottom:6px;">김민관 수학</div>
-  <div style="color:#cbd5e1; font-size:13px; margin-bottom:36px;">어디로 들어갈까요?</div>
+  <div style="background:#fff; border-radius:18px; padding:16px 22px; margin-bottom:22px; box-shadow:0 6px 24px rgba(0,0,0,0.25);">
+    <img src="logo.png" alt="로고" style="width:130px; height:auto; display:block;">
+  </div>
+  <div style="color:#fff; font-size:20px; font-weight:800; margin-bottom:36px;">김민관 수학</div>
   <button onclick="gateGoMypage()" style="width:100%; max-width:320px; padding:17px; margin-bottom:12px; border:none; border-radius:14px; background:#3b6cf7; color:#fff; font-size:16px; font-weight:800; cursor:pointer;">👤 마이페이지 (로그인)</button>
   <button onclick="gateGoHome()" style="width:100%; max-width:320px; padding:17px; border:none; border-radius:14px; background:rgba(255,255,255,0.12); color:#fff; font-size:16px; font-weight:800; cursor:pointer;">📖 김민관 홈페이지</button>
 </div>
