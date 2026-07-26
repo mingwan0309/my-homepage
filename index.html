@@ -7,6 +7,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>김민관 수학</title>
 <script src="firebase-api.js?v=14"></script>
+<script>
+  // 폰에서 이미 로그인한 학생은 홍보 홈페이지 대신 바로 마이페이지로 (깜빡임 최소화 위해 head에서 즉시 실행)
+  (function(){
+    try{
+      if (window.mkIsMobile && window.mkIsMobile() && location.search.indexOf('home=1') < 0){
+        var s = JSON.parse(localStorage.getItem('mkmath_session')||'null');
+        if (s && s.role === 'student'){ location.replace('mypage.html'); }
+      }
+    }catch(e){}
+  })();
+</script>
 <script src="chat-widget.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
@@ -452,6 +463,15 @@
 </style>
 </head>
 <body>
+
+<!-- 폰 입장 선택 화면 (로그인 안 한 모바일 사용자에게만) -->
+<div id="mobile-gate" style="display:none; position:fixed; inset:0; z-index:100000; background:linear-gradient(160deg,#0f172a,#1e3a8a); flex-direction:column; align-items:center; justify-content:center; padding:32px;">
+  <img src="logo.png" alt="로고" style="width:120px; height:auto; margin-bottom:18px; filter:brightness(0) invert(1); opacity:.95;">
+  <div style="color:#fff; font-size:20px; font-weight:800; margin-bottom:6px;">김민관 수학</div>
+  <div style="color:#cbd5e1; font-size:13px; margin-bottom:36px;">어디로 들어갈까요?</div>
+  <button onclick="gateGoMypage()" style="width:100%; max-width:320px; padding:17px; margin-bottom:12px; border:none; border-radius:14px; background:#3b6cf7; color:#fff; font-size:16px; font-weight:800; cursor:pointer;">👤 마이페이지 (로그인)</button>
+  <button onclick="gateGoHome()" style="width:100%; max-width:320px; padding:17px; border:none; border-radius:14px; background:rgba(255,255,255,0.12); color:#fff; font-size:16px; font-weight:800; cursor:pointer;">📖 김민관 홈페이지</button>
+</div>
 
 <!-- 시간표 팝업 -->
 <div id="schedule-popup" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:99999; align-items:center; justify-content:center;">
@@ -1235,6 +1255,18 @@
   }
 </script>
 <script>
+  // ── 폰 입장 선택 화면 (로그인 안 한 모바일에게만) ──
+  (function(){
+    try{
+      if (!(window.mkIsMobile && window.mkIsMobile())) return;
+      var s = JSON.parse(localStorage.getItem('mkmath_session')||'null');
+      if (s && s.role === 'student') return; // 이미 head에서 마이페이지로 이동함
+      document.getElementById('mobile-gate').style.display = 'flex';
+    }catch(e){}
+  })();
+  function gateGoHome(){ document.getElementById('mobile-gate').style.display = 'none'; }
+  function gateGoMypage(){ document.getElementById('mobile-gate').style.display = 'none'; openLoginModal(); }
+
   function openLoginModal() {
     document.getElementById('login-modal').style.display = 'flex';
     document.getElementById('login-modal-msg').innerHTML = '';
@@ -1260,6 +1292,8 @@
         localStorage.setItem('mkmath_session', JSON.stringify({ id: sessionId, authId: id, role: data.role, name: data.name, classId: data.classId || '', className: data.className || '' }));
         closeLoginModal();
         updateLoginBtn();
+        // 폰에서 학생이 로그인하면 바로 마이페이지로
+        if (data.role === 'student' && window.mkIsMobile && window.mkIsMobile()) { location.href = 'mypage.html'; return; }
       } else {
         msg.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">아이디 또는 비밀번호가 틀렸습니다</p>';
       }
