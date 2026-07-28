@@ -51,6 +51,7 @@
 - `problems`: 데일리 퀴즈 문제 (title, content, image, solution, solutionImage, total)
 - `clinics` / `clinic_bookings`: 클리닉 정보 및 예약
 - `qna` / `qna_answers` / `reviews`: 질의응답, 후기
+- `chat_messages` / `chat_threads`: 학생↔선생님 1:1 실시간 채팅. `chat_messages`(id, studentId, sender(student/teacher), text, createdAt), `chat_threads`(문서ID=studentId, studentName, lastMessage, lastAt, unreadForTeacher, unreadForStudent). 학생용 플로팅 버블은 `chat-widget.js`(mypage/homework/clinic/qna/class/textbook/index에 삽입), 선생님은 admin.html 채팅 탭. **보안 규칙에 반드시 채팅 조항이 있어야 학생이 전송 가능** — 기본 규칙이 "쓰기는 교사만"이라 조항 없으면 학생 메시지가 permission-denied로 막힌다. `chat_messages`는 학생 본인(studentId==loginId)만 create/read, `chat_threads`는 isOwner(id)만 read/write, 선생님은 둘 다 전부 허용. **규칙 새로 배포할 때 이 채팅 조항을 절대 빼지 말 것.**
 
 ## 로그인 / 인증 (하드 룰 — 중요)
 - **Firebase Authentication(이메일/비밀번호)** 사용. 실제 로그인 아이디는 전화번호 등 임의 문자열이라, `{아이디}@mkmath.local`이라는 가짜 이메일로 변환해서 Firebase Auth 계정을 만든다 (`toAuthEmail()`).
