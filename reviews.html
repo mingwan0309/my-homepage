@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<style>html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;}</style>
+<script>['gesturestart','gesturechange','gestureend'].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();},{passive:false});});</script>
+<title>수강후기 — 김민관 수학</title>
+<script src="firebase-api.js?v=14"></script>
+<script src="chat-widget.js" defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','맑은 고딕',sans-serif;}
+body{background:#eff6ff;color:#1e293b;min-height:100vh;}
+a{text-decoration:none;}
+
+/* 상단 학생 네비 */
+#student-nav{display:none;background:#fff;border-bottom:1px solid #e2e8f0;padding:0 20px;gap:4px;align-items:center;position:sticky;top:0;z-index:99;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+#student-nav a{color:#475569;font-size:13px;font-weight:600;text-decoration:none;padding:12px 14px;white-space:nowrap;flex-shrink:0;}
+#student-nav a.home-btn{background:#3b6cf7;color:#fff;border-radius:7px;padding:6px 12px;font-size:12px;margin-right:8px;}
+#student-nav a.active{color:#3b6cf7;border-bottom:2px solid #3b6cf7;}
+
+.container{max-width:960px;margin:0 auto;padding:28px 16px 80px;}
+
+.page-head{background:#fff;border-radius:18px;padding:26px 24px;margin-bottom:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);text-align:center;}
+.page-head .label{font-size:12px;font-weight:800;color:#3b6cf7;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
+.page-head h1{font-size:22px;font-weight:900;color:#1e293b;margin-bottom:8px;}
+.page-head p{font-size:13px;color:#64748b;margin-bottom:18px;}
+.write-btn{background:#2563eb;color:#fff;border:none;border-radius:10px;padding:13px 26px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;}
+.write-btn:hover{background:#1d4ed8;}
+
+/* 후기 목록 (세로 카드, 데스크탑에선 2단 masonry) */
+.review-list{column-count:2;column-gap:16px;}
+.review-card{break-inside:avoid;display:inline-block;width:100%;background:#fff;border:1px solid #e5edff;border-radius:16px;padding:20px 22px;margin-bottom:16px;box-shadow:0 1px 6px rgba(30,64,175,.05);}
+.review-card p{font-size:14px;line-height:1.75;color:#334155;word-break:break-word;white-space:pre-wrap;}
+.review-card strong{color:#2563eb;font-weight:800;}
+.empty-msg{text-align:center;color:#94a3b8;font-size:13px;padding:30px 0;}
+
+@media (max-width:768px){
+  .review-list{column-count:1;}
+  .container{padding:20px 14px 80px;}
+  .page-head h1{font-size:20px;}
+}
+
+/* 후기 모달 */
+#review-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;padding:20px;}
+#review-modal .modal-box{background:#fff;border-radius:20px;padding:32px 28px;width:100%;max-width:440px;position:relative;}
+#review-modal .close-x{position:absolute;top:16px;right:16px;background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;}
+#review-modal h3{font-size:20px;font-weight:900;margin-bottom:6px;}
+#review-modal .sub{font-size:13px;color:#64748b;margin-bottom:24px;}
+#review-modal label{font-size:13px;font-weight:700;color:#475569;display:block;margin-bottom:6px;}
+#review-modal input,#review-modal textarea{width:100%;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:15px;margin-bottom:14px;box-sizing:border-box;outline:none;font-family:inherit;}
+#review-modal textarea{font-size:14px;line-height:1.7;resize:none;margin-bottom:20px;}
+#review-modal input:focus,#review-modal textarea:focus{border-color:#3b6cf7;}
+#review-modal .modal-btn{width:100%;padding:14px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;}
+#review-modal .modal-btn:hover{background:#1d4ed8;}
+#review-username{font-size:13px;color:#2563eb;font-weight:700;margin-bottom:20px;}
+</style>
+</head>
+<body>
+
+<div id="student-nav">
+  <a href="index.html" class="home-btn">🏠 홈</a>
+  <a href="homework.html">📝 데일리 퀴즈</a>
+  <a href="clinic.html">🏥 클리닉 신청</a>
+  <a href="qna.html">💬 질의응답</a>
+  <a href="textbook.html">📖 부교재 해설 강의</a>
+  <a href="mypage.html">👤 마이페이지</a>
+</div>
+
+<div class="container">
+  <div class="page-head">
+    <div class="label">Review</div>
+    <h1>수강생 생생 후기</h1>
+    <p>직접 다닌 학생들이 남긴 진짜 후기입니다.</p>
+    <button class="write-btn" onclick="openReviewLogin()">✏️ 후기 남기기</button>
+  </div>
+
+  <div class="review-list" id="review-list">
+    <div class="review-card"><p>고등학교 1학년, 2학년 1학기까지 수학은 혼자 풀면 되겠다 생각했는데 성적이 안나와서 왔습니다. 다니면서 <strong>오기를 잘한거 같다는 생각이 들었습니다.</strong> 항상 수업전에 1시간씩 클리닉 시간도 좋고 감잡기와 적용하기로 다진후에 실모와 타임어택을 반복하는 수업방식이 좋은것 같습니다. <strong>쌤 덕분에 성적이 확 올랐습니다.</strong></p></div>
+    <div class="review-card"><p><strong>선생님 덕분에 이번에 또 100점을 받게 되었습니다.</strong> 수강 전에는 고난도 문제를 풀지 못했는데, 감잡기&amp;적용하기로 다양한 문제를 접하고 새로운 풀이를 배우면서 실모나 타임어택을 빠르게 풀어낼 실력을 길렀습니다. <strong>중하위권 학생들에게 성적을 크게 끌어올릴 수 있는 수업이라고 추천하고 싶습니다!</strong> 피스~🕊</p></div>
+    <div class="review-card"><p>2학년 2학기 들어서 등급을 올려야 한다는 압박감이 있었는데 쌤께서 기본 문제부터 차근차근 주셔서 <strong>기초부터 탄탄히 쌓을 수 있었고 덕분에 시험에서 덜 틀릴 수 있었어요!</strong> 부교재 손글씨도 다른 풀이와 팁이 있어서 많은 도움이 되었어요. <strong>등급도 하나 더 올랐습니다!</strong></p></div>
+    <div class="review-card"><p>부교재에 나오는 문제만 보는게 아니라 <strong>직접 엄선하신 문제들도 보고 다양한 문제들을 접할 수 있어서 좋았습니다.</strong> 짧은 시간 내에 문제 푸는 연습도 할 수 있게 해주셔서 좋았고 변형문제도 많이 주셔서 도움 많이 됐습니다!</p></div>
+    <div class="review-card"><p>고3이라는 시간은 생각보다 많이 버거운 시간이었습니다. 그 속에서 <strong>선생님의 수학 수업은 단순한 공부 시간이 아니라 잠시 숨을 고를 수 있는 시간이기도 했습니다.</strong> 선생님의 격려가 저를 다시금 도전하게 만들었습니다. <strong>힘들었던 고3의 시간 속에서 좋은 선생님을 만날 수 있어 감사했습니다.</strong></p></div>
+    <div class="review-card"><p><strong>수학은 역시 귀요밍가니!!!!</strong></p></div>
+    <div class="review-card"><p>개념설명을 하나씩 자세히 설명해주셔서 <strong>굳이 여러바퀴 안돌리고 1바퀴만 돌리고 시험봐도 충분히 2등급은 나올정도로</strong> 설명을 깔끔히 잘 해주시고 학생 개개인마다 난이도에 맞는 문제를 주셔서 숙제도 부담없이 할 수 있어요.</p></div>
+    <div class="review-card"><p>이번 내신을 준비하며 감잡기 단계에서 여러 접근 방식들을 알려주셔서 <strong>더 잘 맞는 풀이법을 선택할 수 있었고 문제를 볼 때 생각하는 방향이 확실하게 잡혔습니다!</strong> 민관쌤 덕분에 혼자 공부할 때도 막막하지 않았고, <strong>항상 격려해주셔서 너무 감사합니당☺️</strong></p></div>
+    <div class="review-card"><p>내신 수업에선 <strong>다양한 유형이랑 심화된 문제를 풀어주시는 감잡기가 정말정말 좋았고</strong> 타임어택도 실전에서 시간 관리 하는 데 도움이 많이 됐습니다! 수능 수업도 매번 새롭고 다양한 문제에 가장 적합한 풀이 방법을 알려주셔서 좋았습니다!</p></div>
+    <div class="review-card"><p><strong>여기 다니면 성적 수직 상승 쌉가능 🚀</strong></p></div>
+    <div class="review-card"><p>민관 쌤은 <strong>어려운 고등 수학을 쉽고 다정하게 설명해 주시고,</strong> 조교 선생님들도 친절하고 꼼꼼하게 질의응답 해주셔서 공부하기 너무 좋아요. <strong>고등수학은 민관 쌤이 ㄹㅇ입니다.</strong></p></div>
+    <div class="review-card"><p>수업에서는 학생들이 생각할 수 있는 시간을 충분히 주면서 수업했고 <strong>이해하지 못하는 학생이 있으면 선생님께서 그 학생에 맞춰 설명을 해주셔서</strong> 더욱 깊게 개념을 이해할 수 있었습니다!!</p></div>
+    <div class="review-card"><p>중학교때 수학학원에 다녔지만 점수가 잘 안 올랐었는데, 이곳으로 옮기고 <strong>몇 달 하지 않았지만 점수가 엄청 많이 올랐어요!</strong> 감사합니당.</p></div>
+    <div class="review-card"><p>수학은 항상 긴장감 속에서 실력을 발휘 못했는데, <strong>실전 모의고사를 반복해서 풀게 해주신 점이 큰 도움이 되었습니다.</strong> 무엇보다 <strong>선생님의 따뜻한 응원과 격려로 자신감을 북돋아 주셨고,</strong> 정서적인 부분까지 세심하게 신경 써주신 점이 정말 감사했어요.</p></div>
+    <div class="review-card"><p>벌써 쌤 수업 들은지 1년 가까이 되었는데요, <strong>듣기전보다는 수학에 대한 거부감이 좀 사라진것 같아요.</strong> 가끔가다 한번씩은 문제 푸는데 쾌감을 느낄때가 있어요..!! <strong>선생님의 강의력 정말 최고!!</strong></p></div>
+    <div class="review-card"><p>1학기 기말에 커리어 로우를 찍고 절망했었는데, <strong>2학기를 마무리하며 최종 등급을 올리는데 성공했습니다..🥺</strong> 부교재 변형을 미리 주셔서 준비하는 데 도움이 됐고, 클리닉 시스템도 부족한 거 채울 수 있어서 도움이 되었습니다!</p></div>
+    <div class="review-card"><p><strong>1학년 2학기 기말고사 때 5등급을 받았었는데 민관쌤이랑 방학 때 열심히 해서 처음으로 2등급을 받았어요😎</strong></p></div>
+    <div class="review-card"><p>원래는 수학을 평균을 항상 못 넘을정도로 제일 못했는데 <strong>여름방학부터 수강하고 2학기 내내 평균 이상 점수는 나왔고 1학기때보다 2등급 상승했어욤ㅎㅎ</strong> 겨울방학땐 더 열심히 하겠습니당 👍👍</p></div>
+    <div class="review-card"><p>항상 믿고 있습니다 선생님 <strong>꼭 열심히 해서 점수로 보답 드리도록 하겠습니다 사랑합니다 선생님!!!!!!!!!</strong></p></div>
+    <div class="review-card"><p>선생님 학원을 다닌지 5개월 정도 됐는데, 친절히 빠르게 답장 주시고, 줌 독서실도 운영해주시고, <strong>자료가 난이도별·개념별·유형별로 잘 정리되어있어서 수학 실력을 차곡차곡 쌓을 수 있었습니다.</strong></p></div>
+    <div class="review-card"><p>개념설명이 꼼꼼해서 좋았다. <strong>개념을 정확하게 이해하는 것에서 그치지 않고 문제풀이에 효율적으로 적용될 수 있는 개념을 추가로 알려주셔서 좋았다.</strong></p></div>
+  </div>
+</div>
+
+<!-- 후기 모달 -->
+<div id="review-modal">
+  <div class="modal-box">
+    <button class="close-x" onclick="closeReviewModal()">✕</button>
+
+    <!-- 로그인 단계 -->
+    <div id="review-step-login">
+      <h3>후기 남기기</h3>
+      <p class="sub">학생 계정으로 로그인하세요</p>
+      <div id="review-login-msg"></div>
+      <label>아이디</label>
+      <input id="review-id" type="text" placeholder="아이디 입력">
+      <label>비밀번호</label>
+      <input id="review-pw" type="password" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')reviewLogin()">
+      <button class="modal-btn" onclick="reviewLogin()">로그인</button>
+    </div>
+
+    <!-- 후기 작성 단계 -->
+    <div id="review-step-write" style="display:none;">
+      <h3>후기 작성</h3>
+      <p id="review-username"></p>
+      <div id="review-write-msg"></div>
+      <label>후기 내용</label>
+      <textarea id="review-text" rows="5" placeholder="수업 후기를 자유롭게 작성해주세요 :)"></textarea>
+      <button class="modal-btn" onclick="submitReview()">후기 제출</button>
+    </div>
+
+    <!-- 완료 단계 -->
+    <div id="review-step-done" style="display:none; text-align:center; padding:20px 0;">
+      <div style="font-size:48px; margin-bottom:16px;">🎉</div>
+      <h3>후기가 등록되었어요!</h3>
+      <p class="sub" style="margin-bottom:24px;">소중한 후기 감사합니다.</p>
+      <button class="modal-btn" style="width:auto;padding:12px 32px;" onclick="closeReviewModal()">확인</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+let reviewUser = null;
+
+document.addEventListener('DOMContentLoaded', function(){
+  // 학생이면 상단 네비 표시
+  var session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+  if (session && session.role === 'student') {
+    document.getElementById('student-nav').style.display = 'flex';
+  }
+  // 학생이 제출한 후기 불러오기 (기본 후기 뒤에 추가)
+  fetch(SCRIPT_URL + '?action=getReviews')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var reviews = (data.reviews || []).filter(function(r){ return r.studentId && r.studentId !== ''; });
+      if (!reviews.length) return;
+      var list = document.getElementById('review-list');
+      reviews.forEach(function(r){
+        var div = document.createElement('div');
+        div.className = 'review-card';
+        div.innerHTML = '<p>' + r.text + '</p>';
+        list.appendChild(div);
+      });
+    })
+    .catch(function(){});
+});
+
+function openReviewLogin() {
+  document.getElementById('review-modal').style.display = 'flex';
+  document.getElementById('review-login-msg').innerHTML = '';
+  document.getElementById('review-id').value = '';
+  document.getElementById('review-pw').value = '';
+  var session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+  if (session && (session.role === 'student' || session.role === 'teacher')) {
+    reviewUser = { id: session.id || session.name, name: session.name };
+    document.getElementById('review-step-login').style.display = 'none';
+    document.getElementById('review-step-write').style.display = 'block';
+    document.getElementById('review-step-done').style.display = 'none';
+    var greet = session.role === 'teacher' ? session.name + ' 선생님 안녕하세요 👋' : session.name + ' 학생 안녕하세요 👋';
+    document.getElementById('review-username').textContent = greet;
+    document.getElementById('review-text').value = '';
+    document.getElementById('review-write-msg').innerHTML = '';
+    return;
+  }
+  document.getElementById('review-step-login').style.display = 'block';
+  document.getElementById('review-step-write').style.display = 'none';
+  document.getElementById('review-step-done').style.display = 'none';
+}
+
+function closeReviewModal() {
+  document.getElementById('review-modal').style.display = 'none';
+  reviewUser = null;
+}
+
+async function reviewLogin() {
+  var id = document.getElementById('review-id').value.trim();
+  var pw = document.getElementById('review-pw').value;
+  var msgEl = document.getElementById('review-login-msg');
+  if (!id || !pw) { msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">아이디와 비밀번호를 입력하세요</p>'; return; }
+  msgEl.innerHTML = '<p style="color:#64748b;font-size:13px;margin-bottom:12px;">로그인 중...</p>';
+  try {
+    var res = await fetch(SCRIPT_URL + '?action=login&id=' + encodeURIComponent(id) + '&password=' + encodeURIComponent(pw));
+    var data = await res.json();
+    if (data.success) {
+      reviewUser = { id: id, name: data.name };
+      document.getElementById('review-step-login').style.display = 'none';
+      document.getElementById('review-step-write').style.display = 'block';
+      var greeting = data.role === 'teacher' ? data.name + ' 선생님 안녕하세요 👋' : data.name + ' 학생 안녕하세요 👋';
+      document.getElementById('review-username').textContent = greeting;
+      document.getElementById('review-text').value = '';
+      document.getElementById('review-write-msg').innerHTML = '';
+    } else {
+      msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">아이디 또는 비밀번호가 틀렸습니다</p>';
+    }
+  } catch(e) {
+    msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">연결 오류가 발생했습니다</p>';
+  }
+}
+
+async function submitReview() {
+  var text = document.getElementById('review-text').value.trim();
+  var msgEl = document.getElementById('review-write-msg');
+  if (!text) { msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">후기 내용을 입력해주세요</p>'; return; }
+  msgEl.innerHTML = '<p style="color:#64748b;font-size:13px;margin-bottom:12px;">제출 중...</p>';
+  try {
+    await fetch(SCRIPT_URL + '?action=submitReview&id=' + encodeURIComponent(reviewUser.id) + '&name=' + encodeURIComponent(reviewUser.name) + '&text=' + encodeURIComponent(text));
+    document.getElementById('review-step-write').style.display = 'none';
+    document.getElementById('review-step-done').style.display = 'block';
+  } catch(e) {
+    msgEl.innerHTML = '<p style="color:#dc2626;font-size:13px;margin-bottom:12px;">오류가 발생했습니다. 다시 시도해주세요</p>';
+  }
+}
+</script>
+</body>
+</html>
