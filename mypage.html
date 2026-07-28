@@ -4,14 +4,15 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <style>*{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}</style>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>마이페이지 — 김민관 수학</title>
 <script src="firebase-api.js?v=14"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="chat-widget.js" defer></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'맑은 고딕','Apple SD Gothic Neo',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;}
+html{touch-action:manipulation;-webkit-text-size-adjust:100%;}
+body{font-family:'맑은 고딕','Apple SD Gothic Neo',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;touch-action:manipulation;-webkit-text-size-adjust:100%;}
 a{text-decoration:none;}
 
 /* ── 상단 네비 ── */
@@ -164,6 +165,14 @@ a{text-decoration:none;}
 .mv-badge{display:inline-block;background:#eef2ff;color:#3b6cf7;font-size:10px;font-weight:800;border-radius:5px;padding:1px 7px;margin-top:5px;}
 .mv-memo{font-size:11px;color:#94a3b8;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
+/* 영상 자료 드롭다운 (반 이름 바) */
+.vid-drop-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f8fafc;border:1px solid #eef2f6;border-radius:11px;padding:13px 15px;font-size:14px;font-weight:800;color:#334155;cursor:pointer;font-family:inherit;text-align:left;}
+.vid-drop-head:hover{border-color:#c7d2fe;background:#f4f7ff;}
+.vid-drop-head .cnt{background:#eef2ff;color:#3b6cf7;font-size:11px;font-weight:800;border-radius:20px;padding:1px 9px;margin-left:6px;}
+.vid-drop-arrow{transition:transform .2s;color:#94a3b8;font-size:13px;flex-shrink:0;}
+.vid-drop-head.open .vid-drop-arrow{transform:rotate(180deg);}
+.vid-drop-body{margin-top:12px;}
+
 /* 유튜브 재생 모달 */
 .yt-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center;}
 .yt-modal-bg.show{display:flex;}
@@ -283,6 +292,22 @@ a{text-decoration:none;}
 <script>
 const SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 let session = null;
+
+// ── 확대(핀치 줌·더블탭 줌) 방지 — 앱처럼 화면 고정 ──
+(function preventZoom(){
+  ['gesturestart','gesturechange','gestureend'].forEach(function(ev){
+    document.addEventListener(ev, function(e){ e.preventDefault(); }, {passive:false});
+  });
+})();
+
+// ── 영상 자료 드롭다운 열고 닫기 ──
+function toggleVidDrop(btn){
+  var body = btn.nextElementSibling;
+  if(!body) return;
+  var isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'grid';
+  btn.classList.toggle('open', !isOpen);
+}
 
 document.addEventListener('DOMContentLoaded', async function(){
   session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
@@ -451,13 +476,18 @@ function renderMats(){
     {key:'영상 자료', icon:'🎬'}
   ];
   var html = '';
+  var className = (session && session.className) ? session.className : '내 반';
   cats.forEach(function(c){
     var list = matList.filter(function(m){ return m.category===c.key; });
     if(!list.length) return;
-    html += '<div class="mat-cat-block">'
-      + '<div class="mat-cat-head">'+c.icon+' '+c.key+' <span class="cnt">'+list.length+'</span></div>';
     if(c.key==='영상 자료'){
-      html += '<div class="mv-grid">' + list.map(function(m){
+      // 반 이름으로 된 드롭다운 바 — 기본 접힘, 누르면 펼쳐짐
+      html += '<div class="mat-cat-block">'
+        + '<button type="button" class="vid-drop-head" onclick="toggleVidDrop(this)">'
+        +   '<span>🎬 '+escHtml(className)+' <span class="cnt">'+list.length+'</span></span>'
+        +   '<span class="vid-drop-arrow">▾</span>'
+        + '</button>'
+        + '<div class="mv-grid vid-drop-body" style="display:none;">' + list.map(function(m){
         var vid = ytId(m.url);
         var thumb = vid ? '<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg" onerror="this.style.display=\'none\'">' : '';
         return '<div class="mv-card" onclick="openVideo(\''+m.url+'\',\''+m.id+'\')">'
@@ -468,6 +498,8 @@ function renderMats(){
           + '</div></div>';
       }).join('') + '</div>';
     } else {
+      html += '<div class="mat-cat-block">'
+        + '<div class="mat-cat-head">'+c.icon+' '+c.key+' <span class="cnt">'+list.length+'</span></div>';
       html += list.map(function(m){
         return '<div class="mat-file-row">'
           + '<span class="ic">📄</span>'
