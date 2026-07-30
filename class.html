@@ -1080,21 +1080,26 @@ async function applyWatermark(bytes, level, name){
     return await pdfDoc.save();
   }catch(e){ return bytes; }
 }
-// 자료 다운로드: 드라이브 원본을 받아 워터마크(단계) 적용 후 저장
+function driveDirectDownload(fileId){
+  window.location.href = 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(fileId);
+}
+// 자료 다운로드: 워터마크 없으면 드라이브에서 바로, 있으면 원본 받아 워터마크 적용(실패 시 원본 그대로)
 async function downloadMat(id){
   var m=materials.find(function(x){return x.id===id;});
   if(!m) return;
   var fileId=extractDriveId(m.url);
   if(!fileId){ window.open(m.url,'_blank'); return; }
+  countDl(id);
+  var needWm = m.wmLevel && m.wmLevel!=='0' && /\.pdf$/i.test(m.name||'');
+  if(!needWm){ driveDirectDownload(fileId); return; }
   try{
     var res=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getFileBase64',fileId:fileId})});
     var d=await res.json();
-    if(!d.success){ window.open(m.url,'_blank'); return; }
+    if(!d.success || !d.base64) throw new Error('no data');
     var bytes=base64ToBytes(d.base64);
     var out=await applyWatermark(bytes, m.wmLevel, d.name||m.name);
     triggerDownload(new Blob([out],{type:d.mimeType||'application/pdf'}), d.name||m.name);
-    countDl(id);
-  }catch(e){ window.open(m.url,'_blank'); }
+  }catch(e){ driveDirectDownload(fileId); }
 }
 // 파일별 워터마크 단계 변경 (선생님)
 async function setMatWm(id, level){

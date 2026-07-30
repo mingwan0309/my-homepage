@@ -569,23 +569,31 @@ async function applyWatermark(bytes, level, name){
     return await pdfDoc.save();
   }catch(e){ return bytes; }
 }
+function driveDirectDownload(fileId){
+  window.location.href = 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(fileId);
+}
 async function downloadMat(id){
   var m=matList.find(function(x){return x.id===id;});
   if(!m) return;
   var btn=document.getElementById('dlbtn-'+id);
   var fileId=extractDriveId(m.url);
   if(!fileId){ window.open(m.url,'_blank'); return; }
+  // 다운로드/확인 기록
+  fetch(SU+'?action=incDownload&id='+encodeURIComponent(id));
+  markViewed(id, 100);
+  // 워터마크 없거나 PDF 아니면 → 드라이브에서 바로 다운로드 (빠르고 용량 제한 없음)
+  var needWm = m.wmLevel && m.wmLevel!=='0' && /\.pdf$/i.test(m.name||'');
+  if(!needWm){ driveDirectDownload(fileId); return; }
+  // 워터마크 필요 → 원본 받아 처리, 실패(큰 파일 등) 시 원본 그대로 다운로드
   if(btn){ btn.disabled=true; btn.textContent='받는 중...'; }
   try{
     var res=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getFileBase64',fileId:fileId})});
     var d=await res.json();
-    if(!d.success){ window.open(m.url,'_blank'); return; }
+    if(!d.success || !d.base64) throw new Error('no data');
     var bytes=base64ToBytes(d.base64);
     var out=await applyWatermark(bytes, m.wmLevel, d.name||m.name);
     triggerDownload(new Blob([out],{type:d.mimeType||'application/pdf'}), d.name||m.name);
-    fetch(SU+'?action=incDownload&id='+encodeURIComponent(id));
-    markViewed(id, 100);
-  }catch(e){ window.open(m.url,'_blank'); }
+  }catch(e){ driveDirectDownload(fileId); }
   finally{ if(btn){ btn.disabled=false; btn.textContent='다운로드'; } }
 }
 

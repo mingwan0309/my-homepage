@@ -1,0 +1,14 @@
+# 개발 도구/스킬 (사이트와 무관 — 저장소에 올리지 않음)
+.agents/
+.claude/
+skills-lock.json
+
+# 소개영상 원본(대용량, 사이트에서 직접 안 씀 — 유튜브/드라이브로 서비스)
+homepage-intro-video/
+
+# 작업용 미리보기 파일
+_*.html
+
+# OS/기타
+.DS_Store
+Thumbs.db
