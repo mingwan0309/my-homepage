@@ -166,6 +166,8 @@
       <p class="section-title">문제 등록</p>
       <label>문제 제목</label>
       <input type="text" id="t-title" placeholder="예: 6월 2주차 숙제">
+      <label>유형 (같은 유형끼리 묶여서, 틀리면 자동으로 다음 문제가 이어져요)</label>
+      <input type="text" id="t-category" placeholder="예: 인수분해, 이차함수 최댓값">
       <label>문제 내용</label>
       <textarea id="t-content" rows="6" placeholder="문제 내용을 입력하세요"></textarea>
       <label>문제 사진 첨부 (선택)</label>
@@ -314,6 +316,9 @@
         <p style="font-weight:700; margin-bottom:10px">📝 해설</p>
         <div class="feedback" id="result-solution"></div>
         <div id="result-solution-img" style="margin-top:10px;"></div>
+      </div>
+      <div id="result-next-wrap" style="display:none; margin-top:20px;">
+        <button class="btn" id="btn-next-category" style="background:#ea580c;"></button>
       </div>
     </div>
   </div>
@@ -552,6 +557,7 @@ function resizeImageFile(file, maxW) {
 // 문제 저장/불러오기 (Firebase)
 async function saveProblems() {
   const title = document.getElementById('t-title').value.trim();
+  const category = document.getElementById('t-category').value.trim();
   const content = document.getElementById('t-content').value.trim();
   const total = parseInt(document.getElementById('t-total').value);
   const solution = document.getElementById('t-solution').value.trim();
@@ -570,7 +576,7 @@ async function saveProblems() {
     const db = await window.mkdbReady;
     const id = 'prob_' + Date.now();
     await db.collection('problems').doc(id).set({
-      id, title, content, total,
+      id, title, category: category || '', content, total,
       image: image || null,
       solution: solution || '',
       solutionImage: solutionImage || null,
@@ -586,6 +592,7 @@ async function saveProblems() {
 
 function resetProblemForm(msgEl) {
   document.getElementById('t-title').value = '';
+  document.getElementById('t-category').value = '';
   document.getElementById('t-content').value = '';
   document.getElementById('t-total').value = '';
   document.getElementById('t-image').value = '';
@@ -616,7 +623,7 @@ async function loadProblemList() {
     area.innerHTML = '<p style="font-weight:700;margin-bottom:12px">등록된 문제</p>' +
       problems.map(p => `
         <div class="student-row">
-          <span>${p.title} (${p.total}문항)${p.solution || p.solutionImage ? ' 📝해설' : ''}</span>
+          <span>${p.category ? '['+p.category+'] ' : ''}${p.title} (${p.total}문항)${p.solution || p.solutionImage ? ' 📝해설' : ''}</span>
           <button class="btn danger sm" onclick="deleteProblem('${p.id}')">삭제</button>
         </div>`).join('');
   } catch(e) {
@@ -641,16 +648,21 @@ async function loadProblems() {
       return;
     }
     area.innerHTML = '<ul class="problem-list">' +
-      problems.map(p => `<li onclick="selectProblem('${p.id}')" id="prob-${p.id}">${p.title}</li>`).join('') + '</ul>';
+      problems.map(p => `<li onclick="selectProblem('${p.id}')" id="prob-${p.id}">${p.category ? '['+p.category+'] ' : ''}${p.title}</li>`).join('') + '</ul>';
   } catch(e) {
     area.innerHTML = '<p style="color:#dc2626;font-size:14px">불러오기 실패</p>';
   }
 }
 
 function selectProblem(id) {
-  selectedProblem = problems.find(p => p.id === id);
   document.querySelectorAll('.problem-list li').forEach(li => li.classList.remove('selected'));
-  document.getElementById('prob-' + id).classList.add('selected');
+  const li = document.getElementById('prob-' + id);
+  if (li) li.classList.add('selected');
+  renderSolveArea(problems.find(p => p.id === id));
+}
+
+function renderSolveArea(problem) {
+  selectedProblem = problem;
   document.getElementById('solve-title').textContent = selectedProblem.title;
   const contentEl = document.getElementById('solve-content');
   contentEl.innerHTML = '';
@@ -669,6 +681,21 @@ function selectProblem(id) {
   document.getElementById('solve-area').style.display = 'block';
   initCanvas();
   window.scrollTo(0, document.getElementById('solve-area').offsetTop - 20);
+}
+
+// 틀렸을 때 같은 유형의 다른 문제로 이어서 풀기
+function findNextCategoryProblem() {
+  if (!selectedProblem || !selectedProblem.category) return null;
+  const candidates = problems.filter(p => p.category === selectedProblem.category && p.id !== selectedProblem.id);
+  if (!candidates.length) return null;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function startNextCategoryProblem(id) {
+  const next = problems.find(p => p.id === id);
+  if (!next) return;
+  show('page-student');
+  renderSolveArea(next);
 }
 
 // 학생 관리
@@ -875,6 +902,18 @@ async function submitAnswer() {
         ? `<img src="${selectedProblem.solutionImage}" style="max-width:100%; border-radius:8px; border:1.5px solid #e2e8f0;">` : '';
     } else {
       solWrap.style.display = 'none';
+    }
+
+    // 틀린 문제가 있으면(만점 아니면) 같은 유형의 다른 문제로 바로 이어갈 수 있게 버튼 노출
+    const nextWrap = document.getElementById('result-next-wrap');
+    const scoreNum = parseInt(score), totalNum = parseInt(total);
+    const nextProblem = (!isNaN(scoreNum) && !isNaN(totalNum) && scoreNum < totalNum) ? findNextCategoryProblem() : null;
+    if (nextProblem) {
+      nextWrap.style.display = 'block';
+      document.getElementById('btn-next-category').setAttribute('onclick', `startNextCategoryProblem('${nextProblem.id}')`);
+      document.getElementById('btn-next-category').textContent = `🔁 같은 유형(${nextProblem.category}) 문제 이어서 풀기`;
+    } else {
+      nextWrap.style.display = 'none';
     }
     show('page-result');
   } catch(e) {
