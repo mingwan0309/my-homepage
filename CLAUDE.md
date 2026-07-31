@@ -48,7 +48,7 @@
 - `material_views`: 자료 확인/영상 시청 진도 기록 (materialId__studentId 키, progress %)
 - `video_library`: id, name, url, memo, createdAt, subject, type (반 자료실용 영상 라이브러리)
 - `textbook_videos`: id, grade, subject, book, name, url, memo, createdAt (부교재 해설 강의용)
-- `problems`: 데일리 퀴즈 문제 (title, content, image, solution, solutionImage, total)
+- `problems`: 데일리 퀴즈 문제 (title, category(유형 태그, 선생님이 직접 입력), content, image, solution, solutionImage, total). 학생이 틀리면(만점 미만) 같은 category의 다른 문제를 결과 화면에서 "🔁 같은 유형 문제 이어서 풀기" 버튼으로 바로 이어서 풀 수 있음(homework.html `findNextCategoryProblem`/`startNextCategoryProblem`). AI 채점은 Gemini Flash 무료 API(`GEMINI_KEY`, homework.html에 하드코딩)로 손글씨 캔버스 이미지 + 정답/해설을 비교해서 채점 — 100% 정확하진 않음(글씨 지저분하거나 다단계 풀이는 오채점 가능), 무료 한도는 소규모 학원 사용량에는 충분함.
 - `clinics` / `clinic_bookings`: 클리닉 정보 및 예약
 - `qna` / `qna_answers` / `reviews`: 질의응답, 후기
 - `chat_messages` / `chat_threads`: 학생↔선생님 1:1 실시간 채팅. `chat_messages`(id, studentId, sender(student/teacher), text, createdAt), `chat_threads`(문서ID=studentId, studentName, lastMessage, lastAt, unreadForTeacher, unreadForStudent). 학생용 플로팅 버블은 `chat-widget.js`(mypage/homework/clinic/qna/class/textbook/index에 삽입), 선생님은 admin.html 채팅 탭. **보안 규칙에 반드시 채팅 조항이 있어야 학생이 전송 가능** — 기본 규칙이 "쓰기는 교사만"이라 조항 없으면 학생 메시지가 permission-denied로 막힌다. `chat_messages`는 학생 본인(studentId==loginId)만 create/read, `chat_threads`는 isOwner(id)만 read/write, 선생님은 둘 다 전부 허용. **규칙 새로 배포할 때 이 채팅 조항을 절대 빼지 말 것.**
