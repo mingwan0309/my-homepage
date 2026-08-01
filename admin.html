@@ -1579,9 +1579,47 @@ function renderVlib(videos){
       +tags
       +(v.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+v.memo+'</div>':'')
       +'</div>'
-      +'<button onclick="delVlib(\''+v.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;font-weight:700;flex-shrink:0;">삭제</button>'
+      +'<div style="display:flex;gap:10px;flex-shrink:0;">'
+      +'<button onclick="openEditVlib(\''+v.id+'\')" style="background:none;border:none;color:#3b6cf7;cursor:pointer;font-size:12px;font-weight:700;">수정</button>'
+      +'<button onclick="delVlib(\''+v.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;font-weight:700;">삭제</button>'
+      +'</div>'
       +'</div>';
   }).join('');
+}
+
+function openEditVlib(id){
+  var v=vlibAll.find(function(x){return x.id===id;});
+  if(!v) return;
+  var subjOptions=['','공통수학1','공통수학2','대수','미적분1','미적분2','기하','확률과통계'];
+  var typeOptions=['','개념강의','문제풀이강의'];
+  var box=document.createElement('div');
+  box.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  box.innerHTML='<div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;">'
+    +'<div style="font-weight:700;font-size:16px;margin-bottom:14px;">강의 정보 수정</div>'
+    +'<div class="fg"><label>과목</label><select id="ev-subject" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">'
+    +subjOptions.map(function(o){return '<option value="'+o+'"'+(o===v.subject?' selected':'')+'>'+(o||'과목 선택')+'</option>';}).join('')+'</select></div>'
+    +'<div class="fg" style="margin-top:10px;"><label>강의 유형</label><select id="ev-type" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">'
+    +typeOptions.map(function(o){return '<option value="'+o+'"'+(o===v.type?' selected':'')+'>'+(o||'유형 선택')+'</option>';}).join('')+'</select></div>'
+    +'<div class="fg" style="margin-top:10px;"><label>영상 이름</label><input type="text" id="ev-name" value="'+(v.name||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>'
+    +'<div class="fg" style="margin-top:10px;"><label>YouTube 링크</label><input type="url" id="ev-url" value="'+(v.url||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>'
+    +'<div class="fg" style="margin-top:10px;"><label>메모</label><input type="text" id="ev-memo" value="'+(v.memo||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>'
+    +'<div style="display:flex;gap:8px;margin-top:16px;">'
+    +'<button class="btn-primary" style="flex:1;" onclick="saveEditVlib(\''+id+'\')">저장</button>'
+    +'<button style="flex:1;background:#f1f5f9;color:#334155;border:none;border-radius:9px;font-weight:700;cursor:pointer;" onclick="this.closest(\'div[style*=fixed]\').remove()">취소</button>'
+    +'</div></div>';
+  document.body.appendChild(box);
+}
+
+async function saveEditVlib(id){
+  var name=document.getElementById('ev-name').value.trim();
+  var url=document.getElementById('ev-url').value.trim();
+  if(!name||!url){alert('이름과 링크를 입력해주세요.');return;}
+  var memo=document.getElementById('ev-memo').value.trim();
+  var subject=document.getElementById('ev-subject').value;
+  var type=document.getElementById('ev-type').value;
+  await fetch(SU+'?action=updateVideoLibrary&id='+encodeURIComponent(id)+'&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&memo='+encodeURIComponent(memo)+'&subject='+encodeURIComponent(subject)+'&type='+encodeURIComponent(type));
+  document.querySelectorAll('div[style*="position:fixed"]').forEach(function(d){ if(d.style.zIndex==='999') d.remove(); });
+  loadVlib();
 }
 
 async function addVlib(){

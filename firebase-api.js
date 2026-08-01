@@ -739,6 +739,13 @@ api.deleteVideoLibrary = function(db, p){
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
+api.updateVideoLibrary = function(db, p){
+  var data = {};
+  ['name','url','memo','subject','type'].forEach(function(k){ if (p[k] !== undefined) data[k] = p[k]; });
+  return db.collection('video_library').doc(String(p.id)).update(data)
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
 /* === 클리닉 === */
 api.getClinics = function(db){
   return db.collection('clinics').get().then(function(snap){
