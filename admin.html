@@ -749,7 +749,14 @@ window.addEventListener('DOMContentLoaded',function(){
   } else if(s.role==='assistant'){
     cu=s;
     document.getElementById('dashboard').style.display='flex';
-    var sbEl=document.querySelector('.sidebar'); if(sbEl) sbEl.style.display='none';
+    document.querySelectorAll('.sidebar-nav .nav-item, .mob-drawer-panel .nav-item').forEach(function(n){
+      var oc=n.getAttribute('onclick')||'';
+      if(oc.indexOf("'mclinic'")<0){
+        n.removeAttribute('onclick');
+        n.style.opacity='0.4';
+        n.style.cursor='not-allowed';
+      }
+    });
     showPage('mclinic');
     var regCard=document.getElementById('mc-register-card'); if(regCard) regCard.style.display='none';
     var mc=document.getElementById('page-mclinic');
