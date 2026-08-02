@@ -746,6 +746,35 @@ api.updateVideoLibrary = function(db, p){
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
+/* === 의무클리닉 (정규 시간 변경 학생 명단 + 출결) === */
+api.getMandatoryClinic = function(db){
+  return db.collection('mandatory_clinic').get().then(function(snap){
+    var list = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; });
+    return { list: list };
+  });
+};
+
+api.addMandatoryClinic = function(db, p){
+  var id = genId('mclinic');
+  return db.collection('mandatory_clinic').doc(id).set({
+    id:id, studentId:String(p.studentId||''), name:p.name||'', day:p.day||'', time:p.time||'', memo:p.memo||'',
+    attendance:{}, createdAt:nowStr()
+  }).then(function(){ return { success:true, id:id }; });
+};
+
+api.deleteMandatoryClinic = function(db, p){
+  return db.collection('mandatory_clinic').doc(String(p.id)).delete()
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
+api.setMandatoryClinicAttendance = function(db, p){
+  var field = 'attendance.' + String(p.date);
+  var data = {};
+  data[field] = p.status || '';
+  return db.collection('mandatory_clinic').doc(String(p.id)).update(data)
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
 /* === 클리닉 === */
 api.getClinics = function(db){
   return db.collection('clinics').get().then(function(snap){

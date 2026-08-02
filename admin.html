@@ -168,6 +168,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('students',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">👨‍🎓</span> 학생</div>
       <div class="nav-item" onclick="showPage('quiz',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 데일리퀴즈</div>
       <div class="nav-item" onclick="showPage('clinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🏥</span> 클리닉</div>
+      <div class="nav-item" onclick="showPage('mclinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">⏰</span> 의무클리닉</div>
       <div class="nav-item" onclick="showPage('notice',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('chat',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
@@ -188,6 +189,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('students',this)"><span class="ni">👨‍🎓</span> 학생</div>
       <div class="nav-item" onclick="showPage('quiz',this)"><span class="ni">📋</span> 데일리퀴즈</div>
       <div class="nav-item" onclick="showPage('clinic',this)"><span class="ni">🏥</span> 클리닉</div>
+      <div class="nav-item" onclick="showPage('mclinic',this)"><span class="ni">⏰</span> 의무클리닉</div>
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('chat',this)"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
@@ -336,6 +338,35 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <button class="btn-primary" onclick="openClinicModal(null)">+ 새 클리닉 추가</button>
       </div>
       <div id="clinic-list-area"><div style="text-align:center;padding:40px;color:#94a3b8;">불러오는 중...</div></div>
+    </div>
+
+    <!-- 의무클리닉 -->
+    <div id="page-mclinic" class="page">
+      <div class="page-header"><div class="page-title">의무클리닉 관리</div></div>
+      <div class="card">
+        <div class="card-title">시간대 변경 학생 등록</div>
+        <p style="font-size:12px;color:#94a3b8;margin:-6px 0 12px;">수업 전 1시간 의무클리닉을 정규 시간이 아닌 다른 요일/시간에 오는 학생을 등록하세요.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div class="fg"><label>학생</label>
+            <select id="mc-student" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;"><option value="">학생 선택</option></select>
+          </div>
+          <div class="fg"><label>요일</label>
+            <select id="mc-day" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+              <option>월</option><option>화</option><option>수</option><option>목</option><option>금</option><option>토</option><option>일</option>
+            </select>
+          </div>
+          <div class="fg"><label>시간</label><input type="text" id="mc-time" placeholder="예) 17:00" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        </div>
+        <div class="fg"><label>메모 (선택)</label><input type="text" id="mc-memo" placeholder="예) 학원 셔틀 시간 때문에 변경" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <button class="btn-primary" style="margin-top:14px;" onclick="addMclinic()">등록</button>
+        <div id="mc-msg" style="margin-top:8px;font-size:13px;color:#16a34a;"></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="card-title" style="margin:0;">등록된 학생 <span style="color:#94a3b8;font-weight:400;font-size:13px;">— 오늘(<span id="mc-today-label"></span>) 출결 체크</span></div>
+        </div>
+        <div id="mc-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
+      </div>
     </div>
 
     <!-- 공지 -->
@@ -706,7 +737,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','students','quiz','clinic','notice','qna','chat','videos','assistants','settings'];
+    var validPages = ['classes','students','quiz','clinic','mclinic','notice','qna','chat','videos','assistants','settings'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
@@ -723,6 +754,7 @@ function showPage(page,el){
   if(page==='settings') loadRv();
   if(page==='notice') loadNotices();
   if(page==='clinic') loadClinics();
+  if(page==='mclinic') loadMclinic();
   if(page==='chat') initChatPage();
   if(page==='videos') initVideoPage();
   if(page==='assistants') initAstPage();
@@ -1456,6 +1488,87 @@ async function openBookingsModal(clinicId, clinicName) {
   } catch(e) {
     document.getElementById('bm-body').innerHTML = '<div style="text-align:center;padding:30px;color:#dc2626;">불러오기 실패</div>';
   }
+}
+
+// ── 의무클리닉 ──
+var mcList=[], mcStudents=[];
+var MC_DAY_NAMES=['일','월','화','수','목','금','토'];
+function mcTodayInfo(){
+  var d=new Date();
+  return { dateStr: d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'), dayName: MC_DAY_NAMES[d.getDay()] };
+}
+async function loadMclinic(){
+  document.getElementById('mc-today-label').textContent=mcTodayInfo().dayName+'요일';
+  var listEl=document.getElementById('mc-list');
+  listEl.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  try{
+    var [sr, mr] = await Promise.all([
+      fetch(SU+'?action=getStudents').then(function(r){return r.json();}),
+      fetch(SU+'?action=getMandatoryClinic').then(function(r){return r.json();})
+    ]);
+    mcStudents=sr.students||[];
+    var sel=document.getElementById('mc-student');
+    sel.innerHTML='<option value="">학생 선택</option>'+mcStudents.map(function(s){return '<option value="'+s.id+'">'+(s.name||s.id)+'</option>';}).join('');
+    mcList=mr.list||[];
+    renderMcList();
+  }catch(e){
+    listEl.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
+  }
+}
+async function addMclinic(){
+  var studentId=document.getElementById('mc-student').value;
+  var day=document.getElementById('mc-day').value;
+  var time=document.getElementById('mc-time').value.trim();
+  var memo=document.getElementById('mc-memo').value.trim();
+  var msg=document.getElementById('mc-msg');
+  if(!studentId||!time){msg.textContent='학생과 시간을 입력해주세요.';msg.style.color='#dc2626';return;}
+  var student=mcStudents.find(function(s){return s.id===studentId;});
+  await fetch(SU+'?action=addMandatoryClinic&studentId='+encodeURIComponent(studentId)+'&name='+encodeURIComponent(student?student.name:studentId)+'&day='+encodeURIComponent(day)+'&time='+encodeURIComponent(time)+'&memo='+encodeURIComponent(memo));
+  document.getElementById('mc-student').value='';document.getElementById('mc-time').value='';document.getElementById('mc-memo').value='';
+  msg.textContent='등록됐어요!';msg.style.color='#16a34a';
+  setTimeout(function(){msg.textContent='';},2000);
+  loadMclinic();
+}
+async function delMclinic(id){
+  if(!confirm('이 학생을 의무클리닉 명단에서 삭제할까요?'))return;
+  await fetch(SU+'?action=deleteMandatoryClinic&id='+encodeURIComponent(id));
+  loadMclinic();
+}
+function renderMcList(){
+  var el=document.getElementById('mc-list');
+  if(!mcList.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">등록된 학생이 없습니다.</div>';return;}
+  var today=mcTodayInfo();
+  el.innerHTML=mcList.map(function(m){
+    var status=(m.attendance&&m.attendance[today.dateStr])||'';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;">'
+      +'<div style="min-width:160px;"><span style="font-weight:700;font-size:14px;">'+m.name+'</span>'
+      +'<span style="margin-left:8px;font-size:12px;color:#64748b;">'+m.day+'요일 '+m.time+'</span>'
+      +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+m.memo+'</div>':'')+'</div>'
+      +'<div style="display:flex;gap:6px;">'
+      +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'출석\')" style="padding:6px 12px;border-radius:7px;border:1.5px solid '+(status==='출석'?'#16a34a':'#e2e8f0')+';background:'+(status==='출석'?'#16a34a':'#fff')+';color:'+(status==='출석'?'#fff':'#475569')+';font-size:12px;font-weight:700;cursor:pointer;">출석</button>'
+      +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'결석\')" style="padding:6px 12px;border-radius:7px;border:1.5px solid '+(status==='결석'?'#dc2626':'#e2e8f0')+';background:'+(status==='결석'?'#dc2626':'#fff')+';color:'+(status==='결석'?'#fff':'#475569')+';font-size:12px;font-weight:700;cursor:pointer;">결석</button>'
+      +'</div>'
+      +'<button onclick="delMclinic(\''+m.id+'\')" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:12px;">삭제</button>'
+      +'</div>';
+  }).join('');
+}
+async function markMcAttendance(id, studentId, name, status){
+  var today=mcTodayInfo();
+  await fetch(SU+'?action=setMandatoryClinicAttendance&id='+encodeURIComponent(id)+'&date='+encodeURIComponent(today.dateStr)+'&status='+encodeURIComponent(status));
+  if(status==='결석'){
+    if(!confirm(name+' 학생 학부모께 결석 알림톡을 바로 보낼까요?')) { loadMclinic(); return; }
+    var student=mcStudents.find(function(s){return s.id===studentId;});
+    var msgs=[];
+    if(student&&student.studentPhone) msgs.push({phone:student.studentPhone, name:name, className:'의무클리닉', sessionNum:today.dateStr, message:name+' 학생이 오늘('+today.dateStr+') 의무클리닉에 오지 않았습니다. 확인 부탁드립니다.'});
+    if(student&&student.parentPhone) msgs.push({phone:student.parentPhone, name:name, className:'의무클리닉', sessionNum:today.dateStr, message:name+' 학생이 오늘('+today.dateStr+') 의무클리닉에 오지 않았습니다. 확인 부탁드립니다.'});
+    if(msgs.length){
+      try{
+        var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+        if(r.success) alert('알림톡 발송 완료!'); else alert('발송 실패: '+(r.msg||''));
+      }catch(e){ alert('발송 중 오류: '+e.message); }
+    }
+  }
+  loadMclinic();
 }
 
 // ── 영상 라이브러리 ──
