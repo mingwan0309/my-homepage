@@ -50,7 +50,7 @@
 - `textbook_videos`: id, grade, subject, book, name, url, memo, createdAt (부교재 해설 강의용)
 - `problems`: 데일리 퀴즈 문제 (title, category(유형 태그, 선생님이 직접 입력), content, image, solution, solutionImage, total). 학생이 틀리면(만점 미만) 같은 category의 다른 문제를 결과 화면에서 "🔁 같은 유형 문제 이어서 풀기" 버튼으로 바로 이어서 풀 수 있음(homework.html `findNextCategoryProblem`/`startNextCategoryProblem`). AI 채점은 Gemini Flash 무료 API(`GEMINI_KEY`, homework.html에 하드코딩)로 손글씨 캔버스 이미지 + 정답/해설을 비교해서 채점 — 100% 정확하진 않음(글씨 지저분하거나 다단계 풀이는 오채점 가능), 무료 한도는 소규모 학원 사용량에는 충분함.
 - `clinics` / `clinic_bookings`: 클리닉 정보 및 예약
-- `mandatory_clinic`: 의무클리닉(수업 전 1시간, 정규 시간이 아닌 다른 요일/시간에 오는 학생 명단). id, studentId, name, day, time, memo, attendance(날짜별 출석/결석 맵, 예: `attendance["2026-08-02"]="결석"`), createdAt. admin.html "의무클리닉" 탭에서 등록/출결체크. 교사 전용(학생 접근 없음). 결석 체크 시 확인창 후 **실제 카카오 알림톡이 학생·학부모 번호로 자동 발송됨**(아래 솔라피 연동 재사용).
+- `mandatory_clinic`: 의무클리닉(수업 전 1시간, 정규 시간이 아닌 다른 요일/시간에 오는 학생 명단). id, studentId, name, day(실제로 오는 요일), targetDay(이 클리닉이 어느 요일 몫인지 — 등록할 때 선생님이 매번 직접 선택, 예: 월/금반인데 수요일에 왔으면 "월요일 보충"인지 "금요일 선행"인지), time, memo, attendance(날짜별 출석/결석 맵, 예: `attendance["2026-08-02"]="결석"`), createdAt. admin.html "의무클리닉" 탭에서 등록/출결체크(교사+조교 접근 가능). 결석 체크 시 확인창 후 **실제 카카오 알림톡이 학생·학부모 번호로 자동 발송됨**(아래 솔라피 연동 재사용). 또한 session.html의 "수업 결과 발송" 메시지 작성창에서, 발송 대상 중 의무클리닉 등록된 학생이 있으면 **{의무클리닉} 데이터 삽입 토큰이 추가로 나타나** 해당 학생의 오늘 출결 상태를 문구에 자동으로 넣을 수 있음(`mcListSession` 전역변수, `computeMsgTokens`/`renderMsgTokenBar`).
 - `qna` / `qna_answers` / `reviews`: 질의응답, 후기
 - `chat_messages` / `chat_threads`: 학생↔선생님 1:1 실시간 채팅. `chat_messages`(id, studentId, sender(student/teacher), text, createdAt), `chat_threads`(문서ID=studentId, studentName, lastMessage, lastAt, unreadForTeacher, unreadForStudent). 학생용 플로팅 버블은 `chat-widget.js`(mypage/homework/clinic/qna/class/textbook/index에 삽입), 선생님은 admin.html 채팅 탭. **보안 규칙에 반드시 채팅 조항이 있어야 학생이 전송 가능** — 기본 규칙이 "쓰기는 교사만"이라 조항 없으면 학생 메시지가 permission-denied로 막힌다. `chat_messages`는 학생 본인(studentId==loginId)만 create/read, `chat_threads`는 isOwner(id)만 read/write, 선생님은 둘 다 전부 허용. **규칙 새로 배포할 때 이 채팅 조항을 절대 빼지 말 것.**
 
@@ -66,6 +66,8 @@
 - 학생 개별/엑셀 일괄 추가 시 **초기 비밀번호 기본값은 `123456`** (admin.html 개별 추가 입력창 기본값, 엑셀 양식 예시값, 엑셀 업로드 시 3번째 칸 비었을 때의 기본값 전부 동일하게 맞춰져 있음).
 - Firestore 보안 규칙 요약: `students`는 본인 또는 교사만 읽기/쓰기, 나머지 대부분은 로그인한 사람이면 읽기 가능하고 쓰기는 교사만 가능. `qna`의 "비밀글"은 클라이언트 단에서만 가려짐 (서버 강제 아님 — 알려진 한계).
 - **학부모 로그인은 보안 규칙에 학부모 조항이 있어야 작동한다 (2026-07-27 추가).** 학부모 계정은 auth 이메일이 `{parentPhone}@mkmath.local`인데, 로그인 직후 `students`에서 `where('parentPhone','==', 번호)`로 자녀를 찾는다. 규칙에 `isParentOf(sid)` 헬퍼(= 그 학생 문서의 parentPhone == 로그인 번호)를 두고 `students`/`attendance`/`hw_status`/`material_views`의 read에 이 조항을 추가해야 학부모가 자녀 정보를 읽을 수 있다. 이 조항이 없으면 인증은 되지만 자녀 조회에서 `permission-denied`가 나서 "아이디/비번 틀림"으로 보인다. **규칙을 새로 배포할 때 이 학부모 조항을 절대 빼지 말 것.** 또한 firebase-api `api.login`은 입력 번호를 하이픈 유무 여러 형식으로 auth·조회 시도한다(저장된 parentPhone 형식과 안 맞아도 찾도록).
+
+- **조교(assistant) 로그인 (2026-08-02 추가).** `assistants` 컬렉션 문서 ID를 **전화번호 그 자체**로 통일(학생과 동일한 방식) — 로그인 조회가 `doc(전화번호).get()`으로 단순 조회되게 하기 위함(보안 규칙의 `isAssistant()`도 같은 방식으로 존재 확인). admin.html "조교 관리"에서 조교 추가 시 전화번호+초기 비밀번호를 입력하면 `mk-secondary` 앱으로 Auth 계정이 자동 생성됨. 로그인하면 role='assistant'로 세션 저장되고, admin.html은 사이드바 다른 메뉴를 모두 숨기고 **"의무클리닉" 화면만** 강제로 띄움(다른 페이지 접근 차단). Firestore 규칙상 조교는 `students`(읽기만) + `mandatory_clinic`(읽기/쓰기)만 접근 가능.
 
 ## 역할별 접근 규칙 (하드 룰)
 - 로그인 세션은 localStorage `mkmath_session`에 저장 (role, name, classId 포함). Firebase Auth 세션은 별도로 브라우저에 유지됨.
