@@ -50,6 +50,7 @@
 - `textbook_videos`: id, grade, subject, book, name, url, memo, createdAt (부교재 해설 강의용)
 - `problems`: 데일리 퀴즈 문제 (title, category(유형 태그, 선생님이 직접 입력), content, image, solution, solutionImage, total). 학생이 틀리면(만점 미만) 같은 category의 다른 문제를 결과 화면에서 "🔁 같은 유형 문제 이어서 풀기" 버튼으로 바로 이어서 풀 수 있음(homework.html `findNextCategoryProblem`/`startNextCategoryProblem`). AI 채점은 Gemini Flash 무료 API(`GEMINI_KEY`, homework.html에 하드코딩)로 손글씨 캔버스 이미지 + 정답/해설을 비교해서 채점 — 100% 정확하진 않음(글씨 지저분하거나 다단계 풀이는 오채점 가능), 무료 한도는 소규모 학원 사용량에는 충분함.
 - `clinics` / `clinic_bookings`: 클리닉 정보 및 예약
+- `mandatory_clinic`: 의무클리닉(수업 전 1시간, 정규 시간이 아닌 다른 요일/시간에 오는 학생 명단). id, studentId, name, day, time, memo, attendance(날짜별 출석/결석 맵, 예: `attendance["2026-08-02"]="결석"`), createdAt. admin.html "의무클리닉" 탭에서 등록/출결체크. 교사 전용(학생 접근 없음). 결석 체크 시 확인창 후 **실제 카카오 알림톡이 학생·학부모 번호로 자동 발송됨**(아래 솔라피 연동 재사용).
 - `qna` / `qna_answers` / `reviews`: 질의응답, 후기
 - `chat_messages` / `chat_threads`: 학생↔선생님 1:1 실시간 채팅. `chat_messages`(id, studentId, sender(student/teacher), text, createdAt), `chat_threads`(문서ID=studentId, studentName, lastMessage, lastAt, unreadForTeacher, unreadForStudent). 학생용 플로팅 버블은 `chat-widget.js`(mypage/homework/clinic/qna/class/textbook/index에 삽입), 선생님은 admin.html 채팅 탭. **보안 규칙에 반드시 채팅 조항이 있어야 학생이 전송 가능** — 기본 규칙이 "쓰기는 교사만"이라 조항 없으면 학생 메시지가 permission-denied로 막힌다. `chat_messages`는 학생 본인(studentId==loginId)만 create/read, `chat_threads`는 isOwner(id)만 read/write, 선생님은 둘 다 전부 허용. **규칙 새로 배포할 때 이 채팅 조항을 절대 빼지 말 것.**
 
