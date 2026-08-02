@@ -507,7 +507,7 @@
 
 <!-- ADMIN BAR (선생님만 보임) -->
 <div id="admin-bar" style="display:none; background:#1e293b; color:#fff; padding:10px 56px; justify-content:space-between; align-items:center;">
-  <span style="font-size:13px;">👨‍🏫 선생님 모드</span>
+  <span id="admin-bar-label" style="font-size:13px;">👨‍🏫 선생님 모드</span>
   <a href="admin.html" style="background:#2563eb; color:#fff; padding:6px 18px; border-radius:6px; font-size:13px; font-weight:700; text-decoration:none;">관리 페이지</a>
 </div>
 
@@ -1324,6 +1324,10 @@
       if (session.role === 'teacher') {
         document.getElementById('admin-bar').style.display = 'flex';
         document.getElementById('review-manage-btn').style.display = 'block';
+      }
+      if (session.role === 'assistant') {
+        document.getElementById('admin-bar').style.display = 'flex';
+        document.getElementById('admin-bar-label').textContent = '👩‍🏫 조교 모드';
       }
       if (session.role === 'student') {
         document.getElementById('nav-mypage-btn').style.display = 'inline-block';

@@ -120,8 +120,17 @@ api.login = function(db, p){
     [authId, addPhoneDashes(authId.replace(/[-\s]/g,'')), authId.replace(/[-\s]/g,'')].forEach(function(c){
       if (c && parentCands.indexOf(c) < 0) parentCands.push(c);
     });
-    var tryParent = function(j){
+    var tryAssistant = function(j){
       if (j >= parentCands.length) return { success:false };
+      return db.collection('assistants').where('phone','==',parentCands[j]).limit(1).get().then(function(snap){
+        if (snap.empty) return tryAssistant(j+1);
+        var a = snap.docs[0].data();
+        if (a.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
+        return { success:true, role:'assistant', name:a.name||a.id, classId:'', className:'', studentId:a.id };
+      }, function(){ return tryAssistant(j+1); });
+    };
+    var tryParent = function(j){
+      if (j >= parentCands.length) return tryAssistant(0);
       return db.collection('students').where('parentPhone','==',parentCands[j]).limit(1).get().then(function(snap){
         if (snap.empty) return tryParent(j+1);
         var u = snap.docs[0].data(); var sid = snap.docs[0].id;
@@ -757,7 +766,7 @@ api.getMandatoryClinic = function(db){
 api.addMandatoryClinic = function(db, p){
   var id = genId('mclinic');
   return db.collection('mandatory_clinic').doc(id).set({
-    id:id, studentId:String(p.studentId||''), name:p.name||'', day:p.day||'', time:p.time||'', memo:p.memo||'',
+    id:id, studentId:String(p.studentId||''), name:p.name||'', day:p.day||'', targetDay:p.targetDay||'', time:p.time||'', memo:p.memo||'',
     attendance:{}, createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };
@@ -861,10 +870,21 @@ api.getAssistants = function(db){
 };
 api.addAssistant = function(db, p){
   var id = genId('ast');
+  var phone = String(p.phone||'');
+  var pw = String(p.pw||'123456');
   return db.collection('assistants').doc(id).set({
-    id:id, name:p.name||'', phone:p.phone||'', isAdmin:false,
+    id:id, name:p.name||'', phone:phone, isAdmin:false,
     salaryType:p.salaryType||'hourly', workTypeIds:[], active:true, createdAt:nowStr()
-  }).then(function(){ return { success:true, id:id }; });
+  }).then(function(){
+    if(!phone) return { success:true, id:id };
+    var secondary;
+    try { secondary = firebase.app('mk-secondary'); }
+    catch(e) { secondary = firebase.initializeApp(firebase.app().options, 'mk-secondary'); }
+    return secondary.auth().createUserWithEmailAndPassword(toAuthEmail(phone), toAuthPassword(pw))
+      .then(function(){ return secondary.auth().signOut(); })
+      .catch(function(){})
+      .then(function(){ return { success:true, id:id }; });
+  });
 };
 api.updateAssistant = function(db, p){
   var data={};

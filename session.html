@@ -1325,12 +1325,18 @@ function toggleMsgHistoryDetail(i){
   el.style.display=(el.style.display==='none')?'flex':'none';
 }
 
-function openMsgModal(){
+var mcListSession={};
+async function openMsgModal(){
   if(!Object.keys(scoreSelected).length){alert('학생을 먼저 선택해주세요.');return;}
   renderMsgAssessmentOptions();
   document.getElementById('msg-class-input').value=classInfo?classInfo.name:'';
   document.getElementById('msg-session-input').value=sessionInfo?(sessionInfo.sessionNum+'차시'):'';
   renderMsgTargetList();
+  try{
+    var r=await fetch(SU+'?action=getMandatoryClinic').then(function(r){return r.json();});
+    mcListSession={};
+    (r.list||[]).forEach(function(m){ mcListSession[m.studentId]=m; });
+  }catch(e){ mcListSession={}; }
   renderMsgTokenBar();
   renderMsgPreview();
   document.getElementById('msg-modal').classList.add('show');
@@ -1479,6 +1485,8 @@ function renderMsgTokenBar(){
   var tokens=MSG_TOKENS_COMMON.slice();
   if(type==='exam') tokens=tokens.concat(MSG_TOKENS_EXAM);
   if(type==='hw') tokens=tokens.concat(MSG_TOKENS_HW);
+  var hasMc=Object.keys(scoreSelected).some(function(id){return mcListSession[id];});
+  if(hasMc) tokens.push(['의무클리닉','{의무클리닉}']);
   document.getElementById('msg-token-bar').innerHTML=tokens.map(function(t){
     return '<button type="button" onclick="insertMsgToken(\''+t[1]+'\')" style="padding:6px 12px;background:#eff6ff;color:#2563eb;border:none;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;">'+t[0]+'</button>';
   }).join('');
@@ -1500,6 +1508,14 @@ function computeMsgTokens(studentId){
     '{반}': classInfo?classInfo.name:'',
     '{차시}': sessionInfo?(sessionInfo.sessionNum+'차시'):''
   };
+  var mc=mcListSession[studentId];
+  if(mc){
+    var todayStr=new Date().toISOString().slice(0,10);
+    var status=(mc.attendance&&mc.attendance[todayStr])||'미체크';
+    tokens['{의무클리닉}']=mc.day+'요일 '+mc.time+' 의무클리닉'+(mc.targetDay?'('+mc.targetDay+'요일 몫)':'')+' — 오늘 '+status;
+  } else {
+    tokens['{의무클리닉}']='해당없음';
+  }
   var selVal=document.getElementById('msg-assessment').value;
   if(!selVal)return tokens;
   var parts=selVal.split(':'), type=parts[0], id=parts[1];

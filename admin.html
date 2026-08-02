@@ -350,14 +350,24 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           <div class="fg"><label>학생</label>
             <select id="mc-student" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;"><option value="">학생 선택</option></select>
           </div>
-          <div class="fg"><label>요일</label>
+          <div class="fg"><label>실제로 오는 요일</label>
             <select id="mc-day" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
               <option>월</option><option>화</option><option>수</option><option>목</option><option>금</option><option>토</option><option>일</option>
             </select>
           </div>
           <div class="fg"><label>시간</label><input type="text" id="mc-time" placeholder="예) 17:00" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         </div>
-        <div class="fg"><label>메모 (선택)</label><input type="text" id="mc-memo" placeholder="예) 학원 셔틀 시간 때문에 변경" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <div class="fg"><label>이 클리닉은 어느 요일 몫인가요?</label>
+          <select id="mc-target-day" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+            <option value="">해당 없음 (보충/선행 아님)</option>
+            <option value="월">월요일 결석분 보충</option><option value="화">화요일 결석분 보충</option>
+            <option value="수">수요일 결석분 보충</option><option value="목">목요일 결석분 보충</option>
+            <option value="금">금요일 결석분 보충</option><option value="토">토요일 결석분 보충</option>
+            <option value="일">일요일 결석분 보충</option>
+          </select>
+          <p style="font-size:11px;color:#94a3b8;margin-top:4px;">예: 월/금반인데 수요일에 오는 학생이면, 그게 "월요일 못 온 거 보충"인지 "금요일 걸 미리 당겨서 하는 것"인지 선택하세요.</p>
+        </div>
+        <div class="fg" style="margin-top:10px;"><label>메모 (선택)</label><input type="text" id="mc-memo" placeholder="예) 학원 셔틀 시간 때문에 변경" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         <button class="btn-primary" style="margin-top:14px;" onclick="addMclinic()">등록</button>
         <div id="mc-msg" style="margin-top:8px;font-size:13px;color:#16a34a;"></div>
       </div>
@@ -555,7 +565,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <h3 id="ast-modal-title">조교 추가</h3>
     <input type="hidden" id="ast-edit-id">
     <div class="fg"><label>이름</label><input type="text" id="ast-name" placeholder="홍길동"></div>
-    <div class="fg"><label>전화번호</label><input type="tel" id="ast-phone" placeholder="010-0000-0000"></div>
+    <div class="fg"><label>전화번호 (로그인 아이디로 사용됨)</label><input type="tel" id="ast-phone" placeholder="010-0000-0000"></div>
+    <div class="fg" id="ast-pw-wrap"><label>초기 비밀번호</label><input type="text" id="ast-pw" placeholder="예: 123456"></div>
     <div class="fg"><label>급여 유형</label>
       <select id="ast-salary-type" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;">
         <option value="hourly">시급</option>
@@ -730,8 +741,16 @@ function bc(n) { var c=0; for(var i=0;i<n.length;i++)c+=n.charCodeAt(i); return 
 
 window.addEventListener('DOMContentLoaded',function(){
   var s = JSON.parse(localStorage.getItem('mkmath_session')||'null');
-  if(!s||s.role!=='teacher'){
+  if(!s||(s.role!=='teacher'&&s.role!=='assistant')){
     document.getElementById('access-denied').style.display='flex';
+  } else if(s.role==='assistant'){
+    cu=s;
+    document.getElementById('dashboard').style.display='flex';
+    document.getElementById('sb-user').textContent=s.name||s.id;
+    document.querySelectorAll('.sidebar-nav .nav-item, .mob-drawer-panel .nav-item').forEach(function(n){
+      if(n.getAttribute('onclick')&&n.getAttribute('onclick').indexOf("'mclinic'")<0) n.style.display='none';
+    });
+    showPage('mclinic');
   } else {
     cu=s;
     document.getElementById('dashboard').style.display='flex';
@@ -1518,13 +1537,14 @@ async function loadMclinic(){
 async function addMclinic(){
   var studentId=document.getElementById('mc-student').value;
   var day=document.getElementById('mc-day').value;
+  var targetDay=document.getElementById('mc-target-day').value;
   var time=document.getElementById('mc-time').value.trim();
   var memo=document.getElementById('mc-memo').value.trim();
   var msg=document.getElementById('mc-msg');
   if(!studentId||!time){msg.textContent='학생과 시간을 입력해주세요.';msg.style.color='#dc2626';return;}
   var student=mcStudents.find(function(s){return s.id===studentId;});
-  await fetch(SU+'?action=addMandatoryClinic&studentId='+encodeURIComponent(studentId)+'&name='+encodeURIComponent(student?student.name:studentId)+'&day='+encodeURIComponent(day)+'&time='+encodeURIComponent(time)+'&memo='+encodeURIComponent(memo));
-  document.getElementById('mc-student').value='';document.getElementById('mc-time').value='';document.getElementById('mc-memo').value='';
+  await fetch(SU+'?action=addMandatoryClinic&studentId='+encodeURIComponent(studentId)+'&name='+encodeURIComponent(student?student.name:studentId)+'&day='+encodeURIComponent(day)+'&targetDay='+encodeURIComponent(targetDay)+'&time='+encodeURIComponent(time)+'&memo='+encodeURIComponent(memo));
+  document.getElementById('mc-student').value='';document.getElementById('mc-time').value='';document.getElementById('mc-memo').value='';document.getElementById('mc-target-day').value='';
   msg.textContent='등록됐어요!';msg.style.color='#16a34a';
   setTimeout(function(){msg.textContent='';},2000);
   loadMclinic();
@@ -1543,6 +1563,7 @@ function renderMcList(){
     return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;">'
       +'<div style="min-width:160px;"><span style="font-weight:700;font-size:14px;">'+m.name+'</span>'
       +'<span style="margin-left:8px;font-size:12px;color:#64748b;">'+m.day+'요일 '+m.time+'</span>'
+      +(m.targetDay?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#3b6cf7;background:#eff6ff;padding:2px 7px;border-radius:20px;">'+m.targetDay+'요일 몫</span>':'')
       +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+m.memo+'</div>':'')+'</div>'
       +'<div style="display:flex;gap:6px;">'
       +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'출석\')" style="padding:6px 12px;border-radius:7px;border:1.5px solid '+(status==='출석'?'#16a34a':'#e2e8f0')+';background:'+(status==='출석'?'#16a34a':'#fff')+';color:'+(status==='출석'?'#fff':'#475569')+';font-size:12px;font-weight:700;cursor:pointer;">출석</button>'
@@ -1904,6 +1925,8 @@ function openAstModal(id){
   document.getElementById('ast-edit-id').value=ast?ast.id:'';
   document.getElementById('ast-name').value=ast?ast.name:'';
   document.getElementById('ast-phone').value=ast?ast.phone:'';
+  document.getElementById('ast-pw').value='';
+  document.getElementById('ast-pw-wrap').style.display=ast?'none':'block';
   document.getElementById('ast-salary-type').value=ast?ast.salaryType:'hourly';
   document.getElementById('ast-modal').classList.add('show');
 }
@@ -1912,13 +1935,16 @@ async function saveAssistant(){
   var id=document.getElementById('ast-edit-id').value;
   var name=document.getElementById('ast-name').value.trim();
   var phone=document.getElementById('ast-phone').value.trim();
+  var pw=document.getElementById('ast-pw').value.trim();
   var salaryType=document.getElementById('ast-salary-type').value;
   if(!name){alert('이름을 입력해주세요.');return;}
+  if(!id&&(!phone||!pw)){alert('로그인용 전화번호와 초기 비밀번호를 입력해주세요.');return;}
   try{
     var q='&name='+encodeURIComponent(name)+'&phone='+encodeURIComponent(phone)+'&salaryType='+encodeURIComponent(salaryType);
+    if(!id) q+='&pw='+encodeURIComponent(pw);
     var r=await fetch(SU+'?action='+(id?'updateAssistant&id='+encodeURIComponent(id):'addAssistant')+q);
     var d=await r.json();
-    if(d.success===false){alert('저장 실패: '+(d.error||'알 수 없는 오류'));return;}
+    if(d.success===false){alert('저장 실패: '+(d.msg||d.error||'알 수 없는 오류'));return;}
     document.getElementById('ast-modal').classList.remove('show');
     await loadAstData();
   }catch(e){alert('오류가 발생했습니다: '+e.message);}
