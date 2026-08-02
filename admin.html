@@ -372,8 +372,11 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div id="mc-msg" style="margin-top:8px;font-size:13px;color:#16a34a;"></div>
       </div>
       <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <div class="card-title" style="margin:0;">등록된 학생 <span style="color:#94a3b8;font-weight:400;font-size:13px;">— 오늘(<span id="mc-today-label"></span>) 출결 체크</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <div class="card-title" style="margin:0;">오늘(<span id="mc-today-label"></span>) 의무클리닉 대상 학생</div>
+          <label id="mc-showall-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;">
+            <input type="checkbox" id="mc-showall" onchange="toggleMcShowAll(this.checked)"> 등록된 학생 전체 보기(관리용)
+          </label>
         </div>
         <div id="mc-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
@@ -1518,7 +1521,8 @@ async function openBookingsModal(clinicId, clinicName) {
 }
 
 // ── 의무클리닉 ──
-var mcList=[], mcStudents=[];
+var mcList=[], mcStudents=[], mcShowAll=false;
+function toggleMcShowAll(checked){ mcShowAll=checked; renderMcList(); }
 var MC_DAY_NAMES=['일','월','화','수','목','금','토'];
 function mcTodayInfo(){
   var d=new Date();
@@ -1526,6 +1530,8 @@ function mcTodayInfo(){
 }
 async function loadMclinic(){
   document.getElementById('mc-today-label').textContent=mcTodayInfo().dayName+'요일';
+  var showAllWrap=document.getElementById('mc-showall-wrap');
+  if(showAllWrap) showAllWrap.style.display=(cu&&cu.role==='teacher')?'flex':'none';
   var listEl=document.getElementById('mc-list');
   listEl.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
   try{
@@ -1564,9 +1570,13 @@ async function delMclinic(id){
 }
 function renderMcList(){
   var el=document.getElementById('mc-list');
-  if(!mcList.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">등록된 학생이 없습니다.</div>';return;}
   var today=mcTodayInfo();
-  el.innerHTML=mcList.map(function(m){
+  var list=mcShowAll?mcList:mcList.filter(function(m){return m.day===today.dayName;});
+  if(!list.length){
+    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">'+(mcShowAll?'등록된 학생이 없습니다.':'오늘('+today.dayName+'요일)은 의무클리닉 대상 학생이 없습니다.')+'</div>';
+    return;
+  }
+  el.innerHTML=list.map(function(m){
     var status=(m.attendance&&m.attendance[today.dateStr])||'';
     return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;">'
       +'<div style="min-width:160px;"><span style="font-weight:700;font-size:14px;">'+m.name+'</span>'
