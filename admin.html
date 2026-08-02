@@ -763,9 +763,13 @@ window.addEventListener('DOMContentLoaded',function(){
     header.innerHTML='<div><div style="font-size:15px;font-weight:800;color:#1e293b;">👩‍🏫 '+(s.name||s.id)+'님, 의무클리닉 관리</div><div style="font-size:12px;color:#94a3b8;margin-top:2px;">오늘 담당 학생들의 출결을 체크해주세요</div></div>'
       +'<div style="display:flex;gap:8px;align-items:center;">'
       +'<button onclick="logout()" style="background:#f1f5f9;border:none;color:#475569;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;">로그아웃</button>'
-      +'<button onclick="location.href=\'index.html\'" title="닫기" style="background:none;border:none;color:#94a3b8;font-size:20px;line-height:1;cursor:pointer;padding:4px 6px;">✕</button>'
+      +'<button onclick="closeAssistantPopup()" title="닫기" style="background:none;border:none;color:#94a3b8;font-size:20px;line-height:1;cursor:pointer;padding:4px 6px;">✕</button>'
       +'</div>';
     mc.insertBefore(header, mc.firstChild);
+    window.closeAssistantPopup=function(){
+      var bd=document.getElementById('assistant-popup-backdrop'); if(bd) bd.remove();
+      mc.style.display='none';
+    };
   } else {
     cu=s;
     document.getElementById('dashboard').style.display='flex';
