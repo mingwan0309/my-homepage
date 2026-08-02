@@ -343,7 +343,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <!-- 의무클리닉 -->
     <div id="page-mclinic" class="page">
       <div class="page-header"><div class="page-title">의무클리닉 관리</div></div>
-      <div class="card">
+      <div class="card" id="mc-register-card">
         <div class="card-title">시간대 변경 학생 등록</div>
         <p style="font-size:12px;color:#94a3b8;margin:-6px 0 12px;">수업 전 1시간 의무클리닉을 정규 시간이 아닌 다른 요일/시간에 오는 학생을 등록하세요.</p>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
@@ -367,7 +367,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           </select>
           <p style="font-size:11px;color:#94a3b8;margin-top:4px;">예: 월/금반인데 수요일에 오는 학생이면, 그게 "월요일 못 온 거 보충"인지 "금요일 걸 미리 당겨서 하는 것"인지 선택하세요.</p>
         </div>
-        <div class="fg" style="margin-top:10px;"><label>메모 (선택)</label><input type="text" id="mc-memo" placeholder="예) 학원 셔틀 시간 때문에 변경" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <div class="fg" style="margin-top:10px;"><label>메모 (선택)</label><input type="text" id="mc-memo" placeholder="예) 학원 셔틀 시간 때문에 변경" autocomplete="off" name="mc-memo-nofill" readonly onfocus="this.removeAttribute('readonly')" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         <button class="btn-primary" style="margin-top:14px;" onclick="addMclinic()">등록</button>
         <div id="mc-msg" style="margin-top:8px;font-size:13px;color:#16a34a;"></div>
       </div>
@@ -748,6 +748,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     var sbEl=document.querySelector('.sidebar'); if(sbEl) sbEl.style.display='none';
     showPage('mclinic');
+    var regCard=document.getElementById('mc-register-card'); if(regCard) regCard.style.display='none';
     var mc=document.getElementById('page-mclinic');
     var backdrop=document.createElement('div');
     backdrop.id='assistant-popup-backdrop';
