@@ -122,9 +122,9 @@ api.login = function(db, p){
     });
     var tryAssistant = function(j){
       if (j >= parentCands.length) return { success:false };
-      return db.collection('assistants').where('phone','==',parentCands[j]).limit(1).get().then(function(snap){
-        if (snap.empty) return tryAssistant(j+1);
-        var a = snap.docs[0].data();
+      return db.collection('assistants').doc(parentCands[j]).get().then(function(doc){
+        if (!doc.exists) return tryAssistant(j+1);
+        var a = doc.data();
         if (a.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
         return { success:true, role:'assistant', name:a.name||a.id, classId:'', className:'', studentId:a.id };
       }, function(){ return tryAssistant(j+1); });
@@ -869,8 +869,8 @@ api.getAssistants = function(db){
   });
 };
 api.addAssistant = function(db, p){
-  var id = genId('ast');
   var phone = String(p.phone||'');
+  var id = phone || genId('ast');
   var pw = String(p.pw||'123456');
   return db.collection('assistants').doc(id).set({
     id:id, name:p.name||'', phone:phone, isAdmin:false,
