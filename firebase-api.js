@@ -766,7 +766,8 @@ api.getMandatoryClinic = function(db){
 api.addMandatoryClinic = function(db, p){
   var id = genId('mclinic');
   return db.collection('mandatory_clinic').doc(id).set({
-    id:id, studentId:String(p.studentId||''), name:p.name||'', day:p.day||'', targetDay:p.targetDay||'', time:p.time||'', memo:p.memo||'',
+    id:id, studentId:String(p.studentId||''), name:p.name||'', type:p.type||'regular', date:p.date||'',
+    day:p.day||'', targetDay:p.targetDay||'', time:p.time||'', memo:p.memo||'',
     attendance:{}, createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };

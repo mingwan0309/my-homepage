@@ -346,14 +346,23 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="card" id="mc-register-card">
         <div class="card-title">시간대 변경 학생 등록</div>
         <p style="font-size:12px;color:#94a3b8;margin:-6px 0 12px;">수업 전 1시간 의무클리닉을 정규 시간이 아닌 다른 요일/시간에 오는 학생을 등록하세요.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div class="fg"><label>변경 유형</label>
+          <select id="mc-type" onchange="toggleMcTypeFields()" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+            <option value="regular">정규 변경 (매주 계속 이 요일에 옴)</option>
+            <option value="temp">이번 주만 임시 변경 (특정 날짜 하루만)</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:10px 0;">
           <div class="fg"><label>학생</label>
             <select id="mc-student" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;"><option value="">학생 선택</option></select>
           </div>
-          <div class="fg"><label>실제로 오는 요일</label>
+          <div class="fg" id="mc-day-wrap"><label>실제로 오는 요일</label>
             <select id="mc-day" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
               <option>월</option><option>화</option><option>수</option><option>목</option><option>금</option><option>토</option><option>일</option>
             </select>
+          </div>
+          <div class="fg" id="mc-date-wrap" style="display:none;"><label>날짜</label>
+            <input type="date" id="mc-date" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;">
           </div>
           <div class="fg"><label>시간</label><input type="text" id="mc-time" placeholder="예) 17:00" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         </div>
@@ -1554,6 +1563,11 @@ function mcTodayInfo(){
   var d=new Date();
   return { dateStr: d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'), dayName: MC_DAY_NAMES[d.getDay()] };
 }
+function toggleMcTypeFields(){
+  var isTemp=document.getElementById('mc-type').value==='temp';
+  document.getElementById('mc-day-wrap').style.display=isTemp?'none':'block';
+  document.getElementById('mc-date-wrap').style.display=isTemp?'block':'none';
+}
 async function loadMclinic(){
   document.getElementById('mc-today-label').textContent=mcTodayInfo().dayName+'요일';
   var showAllWrap=document.getElementById('mc-showall-wrap');
@@ -1576,15 +1590,18 @@ async function loadMclinic(){
 }
 async function addMclinic(){
   var studentId=document.getElementById('mc-student').value;
-  var day=document.getElementById('mc-day').value;
+  var type=document.getElementById('mc-type').value;
+  var date=document.getElementById('mc-date').value;
+  var day=type==='temp'?MC_DAY_NAMES[new Date(date+'T00:00:00').getDay()]:document.getElementById('mc-day').value;
   var targetDay=document.getElementById('mc-target-day').value;
   var time=document.getElementById('mc-time').value.trim();
   var memo=document.getElementById('mc-memo').value.trim();
   var msg=document.getElementById('mc-msg');
   if(!studentId||!time){msg.textContent='학생과 시간을 입력해주세요.';msg.style.color='#dc2626';return;}
+  if(type==='temp'&&!date){msg.textContent='날짜를 선택해주세요.';msg.style.color='#dc2626';return;}
   var student=mcStudents.find(function(s){return s.id===studentId;});
-  await fetch(SU+'?action=addMandatoryClinic&studentId='+encodeURIComponent(studentId)+'&name='+encodeURIComponent(student?student.name:studentId)+'&day='+encodeURIComponent(day)+'&targetDay='+encodeURIComponent(targetDay)+'&time='+encodeURIComponent(time)+'&memo='+encodeURIComponent(memo));
-  document.getElementById('mc-student').value='';document.getElementById('mc-time').value='';document.getElementById('mc-memo').value='';document.getElementById('mc-target-day').value='';
+  await fetch(SU+'?action=addMandatoryClinic&studentId='+encodeURIComponent(studentId)+'&name='+encodeURIComponent(student?student.name:studentId)+'&type='+encodeURIComponent(type)+'&date='+encodeURIComponent(date)+'&day='+encodeURIComponent(day)+'&targetDay='+encodeURIComponent(targetDay)+'&time='+encodeURIComponent(time)+'&memo='+encodeURIComponent(memo));
+  document.getElementById('mc-student').value='';document.getElementById('mc-time').value='';document.getElementById('mc-memo').value='';document.getElementById('mc-target-day').value='';document.getElementById('mc-date').value='';
   msg.textContent='등록됐어요!';msg.style.color='#16a34a';
   setTimeout(function(){msg.textContent='';},2000);
   loadMclinic();
@@ -1597,7 +1614,9 @@ async function delMclinic(id){
 function renderMcList(){
   var el=document.getElementById('mc-list');
   var today=mcTodayInfo();
-  var list=mcShowAll?mcList:mcList.filter(function(m){return m.day===today.dayName;});
+  var list=mcShowAll?mcList:mcList.filter(function(m){
+    return m.type==='temp' ? m.date===today.dateStr : m.day===today.dayName;
+  });
   if(!list.length){
     el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">'+(mcShowAll?'등록된 학생이 없습니다.':'오늘('+today.dayName+'요일)은 의무클리닉 대상 학생이 없습니다.')+'</div>';
     return;
@@ -1606,7 +1625,10 @@ function renderMcList(){
     var status=(m.attendance&&m.attendance[today.dateStr])||'';
     return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;">'
       +'<div style="min-width:160px;"><span style="font-weight:700;font-size:14px;">'+m.name+'</span>'
-      +'<span style="margin-left:8px;font-size:12px;color:#64748b;">'+m.day+'요일 '+m.time+'</span>'
+      +'<span style="margin-left:8px;font-size:12px;color:#64748b;">'+(m.type==='temp'?m.date:m.day+'요일')+' '+m.time+'</span>'
+      +(m.type==='temp'
+        ?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#c2410c;background:#fff7ed;padding:2px 7px;border-radius:20px;">이번 주만</span>'
+        :'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#0891b2;background:#ecfeff;padding:2px 7px;border-radius:20px;">정규 변경</span>')
       +(m.targetDay?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#3b6cf7;background:#eff6ff;padding:2px 7px;border-radius:20px;">'+m.targetDay+'요일 몫</span>':'')
       +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+m.memo+'</div>':'')+'</div>'
       +'<div style="display:flex;gap:6px;">'
