@@ -917,10 +917,27 @@ async function callAdd(sp,pp,pw,name,school,grade,gender){
 }
 function dlTemplate(){
   var wb=XLSX.utils.book_new();
-  var ws=XLSX.utils.aoa_to_sheet([['학생 전화번호','학부모 전화번호','초기 비밀번호'],['010-0000-0000','010-0000-0000','123456'],['010-0000-0000','010-0000-0000','123456']]);
-  ws['!cols']=[{wch:18},{wch:18},{wch:14}];
+  var ws=XLSX.utils.aoa_to_sheet([
+    ['이름','학생 전화번호','학부모 전화번호','학교','학년','성별','반 이름(선택, 없으면 미배정)','초기 비밀번호'],
+    ['홍길동','010-0000-0000','010-0000-0000','명덕여고','2','남자','월금고1','123456'],
+    ['김철수','010-0000-0000','010-0000-0000','','','','','123456']
+  ]);
+  ws['!cols']=[{wch:10},{wch:16},{wch:16},{wch:12},{wch:8},{wch:8},{wch:20},{wch:12}];
   XLSX.utils.book_append_sheet(wb,ws,'학생목록');
   XLSX.writeFile(wb,'학생추가_양식.xlsx');
+}
+async function findOrCreateClassId(name){
+  name=(name||'').trim();
+  if(!name) return '';
+  var found=allClasses.find(function(c){return c.name===name;});
+  if(found) return found.id;
+  var r=await fetch(SU+'?action=addClass&name='+encodeURIComponent(name)+'&time=&start=&end=').then(function(r){return r.json();});
+  if(r&&r.success){
+    var newClass={id:r.id,name:name,time:'',start:'',end:'',status:'active'};
+    allClasses.push(newClass);
+    return r.id;
+  }
+  return '';
 }
 async function uploadXl(input){
   var file=input.files[0]; if(!file)return;
@@ -930,10 +947,31 @@ async function uploadXl(input){
     try{
       var wb=XLSX.read(e.target.result,{type:'array'});
       var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});
-      var dr=rows.slice(1).filter(function(r){return r[0]&&r[1];});
+      // 새 양식(8열: 이름/학생전화/학부모전화/학교/학년/성별/반이름/비밀번호) 또는 예전 양식(3열: 학생전화/학부모전화/비밀번호) 둘 다 지원
+      var isOldFormat = rows[0] && String(rows[0][0]||'').indexOf('전화번호')>=0;
+      var dr=rows.slice(1).filter(function(r){return isOldFormat?(r[0]&&r[1]):(r[0]&&r[1]);});
       if(!dr.length){showMsg(m,'데이터가 없습니다','error');return;}
       var ok=0,fail=0;
-      for(var i=0;i<dr.length;i++){var r=dr[i];var res=await callAdd(String(r[0]).trim(),String(r[1]).trim(),r[2]?String(r[2]).trim():'123456');res?ok++:fail++;}
+      for(var i=0;i<dr.length;i++){
+        var r=dr[i];
+        var name,sp,pp,school,grade,gender,className,pw,res,studentId;
+        if(isOldFormat){
+          sp=String(r[0]).trim(); pp=String(r[1]).trim(); pw=r[2]?String(r[2]).trim():'123456';
+          res=await callAdd(sp,pp,pw);
+        } else {
+          name=String(r[0]).trim(); sp=String(r[1]).trim(); pp=r[2]?String(r[2]).trim():'';
+          school=r[3]?String(r[3]).trim():''; grade=r[4]?String(r[4]).trim():''; gender=r[5]?String(r[5]).trim():'';
+          className=r[6]?String(r[6]).trim():''; pw=r[7]?String(r[7]).trim():'123456';
+          res=await callAdd(sp,pp,pw,name,school,grade,gender);
+        }
+        if(res){
+          ok++;
+          if(!isOldFormat && className){
+            var clsId=await findOrCreateClassId(className);
+            if(clsId) await assignClass(sp,clsId);
+          }
+        } else fail++;
+      }
       loadStu(); showMsg(m,'완료! 성공 '+ok+'명'+(fail?', 실패 '+fail+'명':''),ok>0?'success':'error');
     }catch(err){showMsg(m,'파일 오류','error');}
     input.value='';
