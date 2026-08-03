@@ -780,9 +780,9 @@ window.addEventListener('DOMContentLoaded',function(){
     backdrop.id='assistant-popup-backdrop';
     backdrop.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:900;';
     document.body.appendChild(backdrop);
-    mc.style.cssText='display:block;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:901;background:#f8fafc;width:92%;max-width:720px;max-height:88vh;overflow-y:auto;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:26px;';
+    mc.style.cssText='display:block;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:901;background:#f8fafc;width:94vw;max-width:720px;max-height:88vh;overflow-y:auto;box-sizing:border-box;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:18px;';
     var header=document.createElement('div');
-    header.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:14px;border-bottom:1.5px solid #e2e8f0;';
+    header.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:14px;border-bottom:1.5px solid #e2e8f0;flex-wrap:wrap;gap:8px;';
     header.innerHTML='<div><div style="font-size:15px;font-weight:800;color:#1e293b;">👩‍🏫 '+(s.name||s.id)+'님, 의무클리닉 관리</div><div style="font-size:12px;color:#94a3b8;margin-top:2px;">오늘 담당 학생들의 출결을 체크해주세요</div></div>'
       +'<div style="display:flex;gap:8px;align-items:center;">'
       +'<label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#94a3b8;cursor:pointer;font-weight:400;"><input type="checkbox" id="mc-hide-today"> 오늘 하루 안 보기</label>'
@@ -1621,8 +1621,10 @@ function renderMcList(){
     el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">'+(mcShowAll?'등록된 학생이 없습니다.':'오늘('+today.dayName+'요일)은 의무클리닉 대상 학생이 없습니다.')+'</div>';
     return;
   }
+  var isTeacher=cu&&cu.role==='teacher';
   el.innerHTML=list.map(function(m){
     var status=(m.attendance&&m.attendance[today.dateStr])||'';
+    var markedBy=(m.attendanceBy&&m.attendanceBy[today.dateStr])||'';
     return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;">'
       +'<div style="min-width:160px;"><span style="font-weight:700;font-size:14px;">'+m.name+'</span>'
       +'<span style="margin-left:8px;font-size:12px;color:#64748b;">'+(m.type==='temp'?m.date:m.day+'요일')+' '+m.time+'</span>'
@@ -1630,25 +1632,29 @@ function renderMcList(){
         ?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#c2410c;background:#fff7ed;padding:2px 7px;border-radius:20px;">이번 주만</span>'
         :'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#0891b2;background:#ecfeff;padding:2px 7px;border-radius:20px;">정규 변경</span>')
       +(m.targetDay?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#3b6cf7;background:#eff6ff;padding:2px 7px;border-radius:20px;">'+m.targetDay+'요일 몫</span>':'')
-      +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+m.memo+'</div>':'')+'</div>'
+      +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+m.memo+'</div>':'')
+      +(isTeacher&&markedBy?'<div style="font-size:10px;color:#94a3b8;margin-top:2px;">✓ '+markedBy+'님이 체크함</div>':'')+'</div>'
       +'<div style="display:flex;gap:6px;">'
       +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'출석\')" style="padding:6px 12px;border-radius:7px;border:1.5px solid '+(status==='출석'?'#16a34a':'#e2e8f0')+';background:'+(status==='출석'?'#16a34a':'#fff')+';color:'+(status==='출석'?'#fff':'#475569')+';font-size:12px;font-weight:700;cursor:pointer;">출석</button>'
       +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'결석\')" style="padding:6px 12px;border-radius:7px;border:1.5px solid '+(status==='결석'?'#dc2626':'#e2e8f0')+';background:'+(status==='결석'?'#dc2626':'#fff')+';color:'+(status==='결석'?'#fff':'#475569')+';font-size:12px;font-weight:700;cursor:pointer;">결석</button>'
       +'</div>'
-      +'<button onclick="delMclinic(\''+m.id+'\')" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:12px;">삭제</button>'
+      +(isTeacher?'<button onclick="delMclinic(\''+m.id+'\')" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:12px;">삭제</button>':'')
       +'</div>';
   }).join('');
 }
 async function markMcAttendance(id, studentId, name, status){
   var today=mcTodayInfo();
-  await fetch(SU+'?action=setMandatoryClinicAttendance&id='+encodeURIComponent(id)+'&date='+encodeURIComponent(today.dateStr)+'&status='+encodeURIComponent(status));
+  var by=(cu&&(cu.name||cu.id))||'';
+  await fetch(SU+'?action=setMandatoryClinicAttendance&id='+encodeURIComponent(id)+'&date='+encodeURIComponent(today.dateStr)+'&status='+encodeURIComponent(status)+'&by='+encodeURIComponent(by));
   if(status==='결석'){
     if(!confirm(name+' 학생 학부모께 결석 알림톡을 바로 보낼까요?')) { loadMclinic(); return; }
     var student=mcStudents.find(function(s){return s.id===studentId;});
     var msgs=[];
     if(student&&student.studentPhone) msgs.push({phone:student.studentPhone, name:name, className:'의무클리닉', sessionNum:today.dateStr, message:name+' 학생이 오늘('+today.dateStr+') 의무클리닉에 오지 않았습니다. 확인 부탁드립니다.'});
     if(student&&student.parentPhone) msgs.push({phone:student.parentPhone, name:name, className:'의무클리닉', sessionNum:today.dateStr, message:name+' 학생이 오늘('+today.dateStr+') 의무클리닉에 오지 않았습니다. 확인 부탁드립니다.'});
-    if(msgs.length){
+    if(!msgs.length){
+      alert('⚠️ '+name+' 학생은 등록된 전화번호(학생·학부모)가 없어서 알림톡을 보낼 수 없어요. 학생 관리에서 전화번호를 등록해주세요.');
+    } else {
       try{
         var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
         if(r.success) alert('알림톡 발송 완료!'); else alert('발송 실패: '+(r.msg||''));

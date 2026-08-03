@@ -92,7 +92,8 @@ function init(){
       snap.forEach(function(doc){ msgs.push(doc.data()); });
       msgs.sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; });
       var body=document.getElementById('mk-chat-body');
-      body.innerHTML=msgs.map(function(m){
+      var hint=msgs.length?'':'<div style="text-align:center;font-size:12px;color:#94a3b8;padding:10px 6px;">여기는 선생님과 1:1로만 보이는 대화예요.<br>다른 학생도 궁금해할 문제 질문은 <a href="qna.html" style="color:#2563eb;font-weight:700;">질의응답</a>에 남겨주세요.</div>';
+      body.innerHTML=hint+msgs.map(function(m){
         return '<div class="mk-msg '+(m.sender==='student'?'me':'other')+'">'+escapeHtml(m.text)+'</div>';
       }).join('');
       body.scrollTop=body.scrollHeight;

@@ -763,12 +763,20 @@ api.getMandatoryClinic = function(db){
   });
 };
 
+// 학생/학부모 본인이 자기 의무클리닉 등록 현황만 조회 (마이페이지용)
+api.getMyMandatoryClinic = function(db, p){
+  return db.collection('mandatory_clinic').where('studentId','==',String(p.id||p.studentId||'')).get().then(function(snap){
+    var list = docsToArr(snap);
+    return { list: list };
+  });
+};
+
 api.addMandatoryClinic = function(db, p){
   var id = genId('mclinic');
   return db.collection('mandatory_clinic').doc(id).set({
     id:id, studentId:String(p.studentId||''), name:p.name||'', type:p.type||'regular', date:p.date||'',
     day:p.day||'', targetDay:p.targetDay||'', time:p.time||'', memo:p.memo||'',
-    attendance:{}, createdAt:nowStr()
+    attendance:{}, attendanceBy:{}, createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };
 
@@ -779,8 +787,10 @@ api.deleteMandatoryClinic = function(db, p){
 
 api.setMandatoryClinicAttendance = function(db, p){
   var field = 'attendance.' + String(p.date);
+  var byField = 'attendanceBy.' + String(p.date);
   var data = {};
   data[field] = p.status || '';
+  data[byField] = p.by || '';
   return db.collection('mandatory_clinic').doc(String(p.id)).update(data)
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };

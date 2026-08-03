@@ -219,6 +219,12 @@ a{text-decoration:none;}
       <div id="att-list"><div class="spinner">불러오는 중...</div></div>
     </div>
 
+    <!-- 의무클리닉 (해당되는 학생만 노출) -->
+    <div class="card" id="mc-status-card" style="display:none;">
+      <div class="card-title"><span>⏰</span> 의무클리닉</div>
+      <div id="mc-status-area"></div>
+    </div>
+
     <!-- 예약 / 채팅 -->
     <div class="dash-row2">
       <a href="clinic.html" class="dash-bigbtn">
@@ -331,7 +337,33 @@ document.addEventListener('DOMContentLoaded', async function(){
 loadInfo();
   loadAttendance();
   loadClassMaterials();
+  loadMyMandatoryClinic();
 });
+
+async function loadMyMandatoryClinic(){
+  try{
+    var r=await fetch(SU+'?action=getMyMandatoryClinic&id='+encodeURIComponent(session.id)).then(function(r){return r.json();});
+    var list=r.list||[];
+    if(!list.length) return;
+    var card=document.getElementById('mc-status-card');
+    var area=document.getElementById('mc-status-area');
+    var today=new Date();
+    var dayNames=['일','월','화','수','목','금','토'];
+    var todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+    var todayDayName=dayNames[today.getDay()];
+    area.innerHTML=list.map(function(m){
+      var isToday=m.type==='temp'?m.date===todayStr:m.day===todayDayName;
+      var status=(m.attendance&&m.attendance[todayStr])||'';
+      var whenText=m.type==='temp'?(m.date+' (하루만)'):(m.day+'요일마다');
+      return '<div style="padding:12px 14px;background:'+(isToday?'#eff6ff':'#f8fafc')+';border-radius:10px;margin-bottom:8px;">'
+        +'<div style="font-weight:700;font-size:14px;color:#1e293b;">'+whenText+' '+m.time+' 의무클리닉'+(m.targetDay?' <span style="font-size:11px;font-weight:700;color:#3b6cf7;">('+m.targetDay+'요일 몫)</span>':'')+'</div>'
+        +(isToday?'<div style="font-size:12px;color:#2563eb;font-weight:700;margin-top:4px;">오늘 해당돼요'+(status?' — 오늘 '+status:'')+'</div>':'<div style="font-size:12px;color:#94a3b8;margin-top:4px;">오늘은 해당 없음</div>')
+        +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+m.memo+'</div>':'')
+        +'</div>';
+    }).join('');
+    card.style.display='block';
+  }catch(e){}
+}
 
 // 로그인 계정(auth)에 맞는 실제 학생 문서 id를 찾아 session.id 를 교정
 function dashPhone(id){
