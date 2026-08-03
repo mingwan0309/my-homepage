@@ -384,6 +384,13 @@ window.addEventListener('DOMContentLoaded', function() {
       loadProblemList();
       checkTabParam();
     } else {
+      // 예전에 저장된 바로가기/카톡 링크로 이 페이지에 곧장 들어온 경우(사이트 안에서 '데일리 퀴즈' 메뉴를 눌러서 온 게 아님)
+      // → 학생의 메인 화면은 이제 마이페이지이므로 그쪽으로 보낸다. 사이트 내부 이동(nav 클릭)은 referrer로 구분해서 그대로 둠.
+      var cameFromSite = document.referrer && document.referrer.indexOf(location.origin) === 0;
+      if (!cameFromSite) {
+        location.replace('mypage.html');
+        return;
+      }
       document.getElementById('student-greeting').textContent = session.name + ' 학생';
       var snav=document.getElementById('student-nav');
       if(snav){snav.style.display='flex';var mc=document.getElementById('snav-myclass');if(mc&&session.classId)mc.href='class.html?id='+session.classId;}
@@ -423,9 +430,9 @@ async function login() {
         show('page-teacher');
         loadProblemList();
       } else {
-        document.getElementById('student-greeting').textContent = data.name + ' 학생';
-        show('page-student');
-        loadProblems();
+        // 학생은 로그인하면 이제 마이페이지(메인 화면)로 이동. 데일리 퀴즈는 거기서 눌러서 들어옴.
+        location.href = 'mypage.html';
+        return;
       }
       startIdleWatcher();
     } else {
