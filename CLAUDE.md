@@ -125,6 +125,8 @@
   - 여러 단 그리드(예: session.html 알림톡 발송 모달의 3단)는 모바일에서 **1열로 쌓기**. 인라인 style로 grid를 준 경우 클래스를 붙이고 미디어쿼리에서 `!important`로 덮어쓴다(`.msg-body-grid`가 그 예).
   - admin.html 등 교사 페이지도 폰에서 쓰므로 동일 기준 적용(햄버거 드로어 폭 270px, 메뉴 항목 52px).
   - 점검 방법: 브라우저를 390px로 놓고 ①가로 넘침(scrollWidth > clientWidth) ②높이 40px 미만 버튼 ③12px 미만 글씨 를 스크립트로 훑으면 문제를 빠르게 찾을 수 있다.
+  - **단, 스크립트 검사만 믿지 말고 반드시 스크린샷으로 눈으로 확인할 것.** 2026-07-27에 admin.html 상단바가 본문 옆에 세로로 찌그러져 있었는데(원인: `body{display:flex}` + JS가 `#dashboard`를 `display:flex`로 켜서 모바일 상단바가 본문과 가로로 나란히 배치됨), 넘침·터치크기 스크립트는 전부 통과해서 못 잡았다. 사용자가 스크린샷으로 지적해서 발견. → 모바일에서 `#dashboard{flex-direction:column}` + `body{display:block}`으로 해결.
+  - 같은 이유로 놓쳤던 것 2건 더: qna.html 검색 버튼과 '내 글만 보기' 토글이 서로 **겹쳐 있었고**(모바일에서 `.filter-bar{flex-direction:column}`으로 해결), homework.html은 바깥 `.container`와 `#page-student > .container` **양쪽에 상단 여백이 이중 적용**돼 콘텐츠가 고정 네비바에 가리거나 과하게 떨어졌다(바깥 20px + 안쪽 98px = 118px로 정리, 고정바 높이 110px).
 
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
