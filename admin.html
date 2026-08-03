@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=15"></script>
+<script src="firebase-api.js?v=16"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -1786,8 +1786,13 @@ function renderHwManageList(){
   el.innerHTML=hwmanageList.map(function(h){
     var badgeColor = h.pass==='incomplete' ? '#dc2626' : '#ca8a04';
     var badgeBg = h.pass==='incomplete' ? '#fee2e2' : '#fef9c3';
-    var photoHtml = h.submissionUrl
-      ? '<a href="'+h.submissionUrl+'" target="_blank" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;padding:5px 10px;border-radius:7px;text-decoration:none;margin-top:6px;">📷 제출 사진 보기 ('+(h.submittedAt||'')+')</a>'
+    var subUrls = h.submissionUrls||[];
+    var photoHtml = subUrls.length
+      ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">'
+        + subUrls.map(function(url,i){
+            return '<a href="'+url+'" target="_blank" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;padding:5px 10px;border-radius:7px;text-decoration:none;">📷 사진 '+(i+1)+'</a>';
+          }).join('')
+        + '</div><div style="font-size:11px;color:#94a3b8;margin-top:4px;">총 '+subUrls.length+'장 제출 · 마지막 제출 '+(h.submittedAt||'')+'</div>'
       : '';
     var lastRem = h.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재촉: '+h.lastReminderAt+(h.lastReminderBy?' · '+h.lastReminderBy:'')+'</div>' : '';
     return '<div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#fff;">'

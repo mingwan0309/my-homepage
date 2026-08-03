@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>마이페이지 — 김민관 수학</title>
-<script src="firebase-api.js?v=15"></script>
+<script src="firebase-api.js?v=16"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="chat-widget.js" defer></script>
 <style>
@@ -79,6 +79,11 @@ a{text-decoration:none;}
 .hw-submitted-box{display:flex;align-items:center;gap:8px;background:#eff6ff;border-radius:9px;padding:9px 12px;margin-top:8px;font-size:12.5px;color:#1d4ed8;font-weight:700;}
 .hw-upload-btn{width:100%;margin-top:8px;padding:11px;border:1.5px dashed #93c5fd;background:#f8faff;color:#2563eb;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
 .hw-upload-btn:disabled{opacity:.6;cursor:default;}
+.hw-photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;}
+.hw-photo-item{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;}
+.hw-photo-item img{width:100%;height:100%;object-fit:cover;display:block;}
+.hw-photo-del{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:rgba(15,23,42,.65);color:#fff;border:none;font-size:13px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.hw-photo-count{font-size:11.5px;color:#94a3b8;margin-top:4px;}
 
 /* 예약 카드 */
 .booking-item{border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
@@ -289,7 +294,7 @@ a{text-decoration:none;}
       <div class="card-title"><span>📝</span> 내 숙제 <span id="hw-badge" class="hw-badge-count" style="display:none;"></span></div>
       <div id="hw-list"></div>
     </div>
-    <input type="file" id="hw-file-input" accept="image/*" capture="environment" style="display:none;" onchange="onHwFileSelected(event)">
+    <input type="file" id="hw-file-input" accept="image/*" multiple style="display:none;" onchange="onHwFileSelected(event)">
 
     <!-- 의무클리닉 (해당되는 학생만 노출) -->
     <div class="card" id="mc-status-card" style="display:none;">
@@ -450,6 +455,7 @@ async function loadMyHomework(){
     renderMyHomework();
   }catch(e){}
 }
+var HW_MAX_PHOTOS=6;
 function renderMyHomework(){
   var list=document.getElementById('hw-list');
   var needsAction=myHwItems.filter(function(h){return h.pass==='incomplete'||h.pass==='partial'||h.pass==='notsub';});
@@ -461,25 +467,38 @@ function renderMyHomework(){
     var badgeLabel=HW_STATUS_LABEL[h.pass]||'확인중';
     var whereTxt=(h.className||'')+(h.sessionNum?' · '+h.sessionNum+'차시':'')+(h.sessionDate?' · '+h.sessionDate:'');
     var canUpload=h.pass!=='complete';
-    var submittedBox = h.submissionUrl
-      ? '<div class="hw-submitted-box">📷 제출됨 — 선생님 확인 대기중 ('+(h.submittedAt||'')+')</div>'
+    var urls=h.submissionUrls||[];
+    var photoList = urls.length
+      ? '<div class="hw-photo-count">📷 '+urls.length+'/'+HW_MAX_PHOTOS+'장 제출됨'+(h.submittedAt?' · 마지막 제출 '+h.submittedAt:'')+'</div>'
+        + urls.map(function(url,i){
+            return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#eff6ff;border-radius:9px;padding:8px 12px;margin-top:6px;">'
+              +'<a href="'+url+'" target="_blank" rel="noopener" style="color:#1d4ed8;font-weight:700;font-size:12.5px;text-decoration:none;">📷 사진 '+(i+1)+' 보기</a>'
+              +(canUpload?'<button onclick="deleteHwPhoto(\''+h.id+'\',\''+url+'\')" style="background:none;border:none;color:#94a3b8;font-size:16px;cursor:pointer;line-height:1;padding:2px 6px;">✕</button>':'')
+              +'</div>';
+          }).join('')
       : '';
-    var uploadBtn = canUpload
-      ? '<button class="hw-upload-btn" id="hw-upload-btn-'+h.id+'" onclick="triggerHwUpload(\''+h.id+'\')">📷 '+(h.submissionUrl?'다시 올리기':'사진/파일 올리기')+'</button>'
-      : '';
+    var uploadBtn = canUpload && urls.length<HW_MAX_PHOTOS
+      ? '<button class="hw-upload-btn" id="hw-upload-btn-'+h.id+'" onclick="triggerHwUpload(\''+h.id+'\')">📷 '+(urls.length?'사진 추가 올리기':'사진/파일 올리기')+'</button>'
+      : (canUpload && urls.length>=HW_MAX_PHOTOS ? '<div class="hw-photo-count" style="margin-top:6px;">최대 '+HW_MAX_PHOTOS+'장까지 올렸어요. 더 올리려면 먼저 하나를 지워주세요.</div>' : '');
     return '<div class="hw-item">'
       +'<div class="hw-item-top"><span class="hw-item-name">'+escHtml(h.hwName)+'</span>'
       +'<span class="hw-status-badge '+badgeCls+'">'+badgeLabel+'</span></div>'
       +'<div class="hw-item-sub">'+escHtml(whereTxt)+'</div>'
       +(h.feedback?'<div class="hw-feedback">'+escHtml(h.feedback)+'</div>':'')
-      +submittedBox+uploadBtn
+      +photoList+uploadBtn
       +'</div>';
   }).join('');
 }
 function triggerHwUpload(id){
+  var item=myHwItems.find(function(h){return h.id===id;});
+  if(!item) return;
+  var remain=HW_MAX_PHOTOS-(item.submissionUrls||[]).length;
+  if(remain<=0){ alert('사진은 최대 '+HW_MAX_PHOTOS+'장까지만 올릴 수 있어요.'); return; }
   hwUploadTargetId=id;
-  document.getElementById('hw-file-input').value='';
-  document.getElementById('hw-file-input').click();
+  var input=document.getElementById('hw-file-input');
+  input.value='';
+  input.dataset.remain=remain;
+  input.click();
 }
 function hwFileToBase64(file){
   return new Promise(function(resolve,reject){
@@ -489,23 +508,45 @@ function hwFileToBase64(file){
     reader.readAsDataURL(file);
   });
 }
+async function submitHwProofUrls(item, urls){
+  await fetch(SU+'?action=submitHwProof&sessionId='+encodeURIComponent(item.sessionId)+'&studentId='+encodeURIComponent(session.id)+'&hwId='+encodeURIComponent(item.hwId)+'&urls='+encodeURIComponent(JSON.stringify(urls)));
+  await loadMyHomework();
+}
+async function deleteHwPhoto(id, url){
+  var item=myHwItems.find(function(h){return h.id===id;});
+  if(!item) return;
+  if(!confirm('이 사진을 삭제할까요?')) return;
+  var urls=(item.submissionUrls||[]).filter(function(u){return u!==url;});
+  try{ await submitHwProofUrls(item, urls); }
+  catch(e){ alert('삭제 중 오류가 발생했어요.'); }
+}
 async function onHwFileSelected(e){
-  var file=e.target.files && e.target.files[0];
-  if(!file || !hwUploadTargetId) return;
+  var files=Array.prototype.slice.call(e.target.files||[]);
+  var input=document.getElementById('hw-file-input');
+  var remain=parseInt(input.dataset.remain||HW_MAX_PHOTOS,10);
+  if(!files.length || !hwUploadTargetId) return;
   var item=myHwItems.find(function(h){return h.id===hwUploadTargetId;});
   if(!item) return;
+  if(files.length>remain){ alert('사진을 '+remain+'장까지만 더 올릴 수 있어서, 앞의 '+remain+'장만 올릴게요.'); files=files.slice(0,remain); }
   var btn=document.getElementById('hw-upload-btn-'+hwUploadTargetId);
-  if(btn){ btn.disabled=true; btn.textContent='업로드 중...'; }
+  if(btn){ btn.disabled=true; btn.textContent='업로드 중... (0/'+files.length+')'; }
+  var newUrls=[];
   try{
-    if(file.size > 15*1024*1024){ alert('파일이 너무 큽니다 (15MB 이하로 올려주세요).'); return; }
-    var base64=await hwFileToBase64(file);
-    var up=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({action:'uploadFile',fileName:(item.hwName||'숙제')+'_'+session.id+'_'+Date.now(),mimeType:file.type||'image/jpeg',fileData:base64})
-    }).then(function(r){return r.json();});
-    if(!up.success){ alert('업로드 실패: '+(up.error||'')); return; }
-    await fetch(SU+'?action=submitHwProof&sessionId='+encodeURIComponent(item.sessionId)+'&studentId='+encodeURIComponent(session.id)+'&hwId='+encodeURIComponent(item.hwId)+'&url='+encodeURIComponent(up.url));
-    await loadMyHomework();
-    alert('✅ 제출했어요! 선생님이 확인하시면 완료로 바뀌어요.');
+    for(var i=0;i<files.length;i++){
+      var file=files[i];
+      if(file.size > 15*1024*1024){ alert(file.name+' 파일이 너무 큽니다 (15MB 이하로 올려주세요). 건너뜁니다.'); continue; }
+      var base64=await hwFileToBase64(file);
+      var up=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'uploadFile',fileName:(item.hwName||'숙제')+'_'+session.id+'_'+Date.now()+'_'+i,mimeType:file.type||'image/jpeg',fileData:base64})
+      }).then(function(r){return r.json();});
+      if(up.success){ newUrls.push(up.url); if(btn) btn.textContent='업로드 중... ('+newUrls.length+'/'+files.length+')'; }
+      else{ alert(file.name+' 업로드 실패: '+(up.error||'')); }
+    }
+    if(newUrls.length){
+      var merged=(item.submissionUrls||[]).concat(newUrls).slice(0,HW_MAX_PHOTOS);
+      await submitHwProofUrls(item, merged);
+      alert('✅ '+newUrls.length+'장 제출했어요! 선생님이 확인하시면 완료로 바뀌어요.');
+    }
   }catch(err){ alert('업로드 중 오류가 발생했어요. 다시 시도해주세요.'); }
   finally{ hwUploadTargetId=''; }
 }
