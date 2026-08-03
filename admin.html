@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=14"></script>
+<script src="firebase-api.js?v=15"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -40,6 +40,7 @@ tr:hover td { background:#f8fafc; }
 .badge { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:9px; font-size:11px; font-weight:800; color:#fff; margin-right:10px; flex-shrink:0; }
 .class-cell { display:flex; align-items:center; }
 .btn-primary { background:#2563eb; color:#fff; border:none; padding:10px 18px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.hw-action-btn { padding:9px 14px; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; min-height:40px; font-family:inherit; }
 .btn-primary:hover { background:#1d4ed8; }
 .btn-sm { padding:5px 12px; font-size:12px; font-weight:700; border-radius:6px; cursor:pointer; border:none; }
 .btn-red { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
@@ -150,6 +151,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
   /* 채팅 */
   .chat-thread-item{padding:15px 16px;}
   .chat-msg-bubble{max-width:82%;font-size:14px;}
+  /* 숙제관리 */
+  .hw-action-btn{min-height:46px;padding:12px 16px;font-size:13.5px;}
   /* 검색창 */
   input[type="text"],input[type="search"],input[type="date"],input[type="tel"],select{font-size:16px;}
 }.chat-thread-item{display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #f1f5f9;}
@@ -189,6 +192,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('quiz',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 데일리퀴즈</div>
       <div class="nav-item" onclick="showPage('clinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🏥</span> 클리닉</div>
       <div class="nav-item" onclick="showPage('mclinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">⏰</span> 의무클리닉</div>
+      <div class="nav-item" onclick="showPage('hwmanage',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('notice',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('chat',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
@@ -210,6 +214,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('quiz',this)"><span class="ni">📋</span> 데일리퀴즈</div>
       <div class="nav-item" onclick="showPage('clinic',this)"><span class="ni">🏥</span> 클리닉</div>
       <div class="nav-item" onclick="showPage('mclinic',this)"><span class="ni">⏰</span> 의무클리닉</div>
+      <div class="nav-item" onclick="showPage('hwmanage',this)"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('chat',this)"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
@@ -409,6 +414,13 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         </div>
         <div id="mc-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
+    </div>
+
+    <!-- 숙제관리 (미이행/일부미이행 학생 확인·재촉·완료처리) -->
+    <div id="page-hwmanage" class="page">
+      <div class="page-header"><div class="page-title">숙제관리</div></div>
+      <p style="font-size:12px;color:#94a3b8;margin:-10px 0 14px;">'일부미이행' 또는 '미이행'으로 표시된 과제만 모아서 보여줘요. 완료로 바뀌면 이 목록에서 자동으로 빠져요.</p>
+      <div id="hwmanage-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
     </div>
 
     <!-- 공지 -->
@@ -778,7 +790,7 @@ window.addEventListener('DOMContentLoaded',function(){
   } else if(s.role==='assistant'){
     cu=s;
     document.getElementById('dashboard').style.display='flex';
-    var mcAllowedPages=['classes','students','mclinic','qna','settings'];
+    var mcAllowedPages=['classes','students','mclinic','hwmanage','qna','settings'];
     document.querySelectorAll('.sidebar-nav .nav-item, .mob-drawer-panel .nav-item').forEach(function(n){
       var oc=n.getAttribute('onclick')||'';
       var allowed=mcAllowedPages.some(function(p){return oc.indexOf("'"+p+"'")>=0;});
@@ -789,6 +801,7 @@ window.addEventListener('DOMContentLoaded',function(){
       }
     });
     showPage('mclinic');
+    refreshHwNavBadge();
     var regCard=document.getElementById('mc-register-card'); if(regCard) regCard.style.display='none';
     var mc=document.getElementById('page-mclinic');
     var todayStr=new Date().toISOString().slice(0,10);
@@ -822,10 +835,11 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','students','quiz','clinic','mclinic','notice','qna','chat','videos','assistants','settings'];
+    var validPages = ['classes','students','quiz','clinic','mclinic','hwmanage','notice','qna','chat','videos','assistants','settings'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
+    refreshHwNavBadge();
   }
 });
 
@@ -841,6 +855,7 @@ function showPage(page,el){
   if(page==='notice') loadNotices();
   if(page==='clinic') loadClinics();
   if(page==='mclinic') loadMclinic();
+  if(page==='hwmanage') loadHwManage();
   if(page==='chat') initChatPage();
   if(page==='videos') initVideoPage();
   if(page==='assistants') initAstPage();
@@ -1734,6 +1749,90 @@ async function markMcAttendance(id, studentId, name, status){
     }
   }
   loadMclinic();
+}
+
+// ── 숙제관리 (미이행/일부미이행 재촉·확인) ──
+var hwmanageList=[];
+var HW_STATUS_LABEL_ADMIN={complete:'완료',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
+async function refreshHwNavBadge(){
+  try{
+    var r=await fetch(SU+'?action=getIncompleteHomeworks').then(function(r){return r.json();});
+    var n=(r.items||[]).length;
+    [document.getElementById('hw-nav-badge'),document.getElementById('hw-nav-badge-m')].forEach(function(b){
+      if(!b)return;
+      if(n>0){b.textContent=n>9?'9+':n;b.style.display='flex';}
+      else b.style.display='none';
+    });
+  }catch(e){}
+}
+async function loadHwManage(){
+  var el=document.getElementById('hwmanage-list');
+  el.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  try{
+    var r=await fetch(SU+'?action=getIncompleteHomeworks').then(function(r){return r.json();});
+    hwmanageList=r.items||[];
+    renderHwManageList();
+    refreshHwNavBadge();
+  }catch(e){
+    el.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
+  }
+}
+function renderHwManageList(){
+  var el=document.getElementById('hwmanage-list');
+  if(!hwmanageList.length){
+    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">🎉 미이행/일부미이행 과제가 없어요.</div>';
+    return;
+  }
+  el.innerHTML=hwmanageList.map(function(h){
+    var badgeColor = h.pass==='incomplete' ? '#dc2626' : '#ca8a04';
+    var badgeBg = h.pass==='incomplete' ? '#fee2e2' : '#fef9c3';
+    var photoHtml = h.submissionUrl
+      ? '<a href="'+h.submissionUrl+'" target="_blank" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;padding:5px 10px;border-radius:7px;text-decoration:none;margin-top:6px;">📷 제출 사진 보기 ('+(h.submittedAt||'')+')</a>'
+      : '';
+    var lastRem = h.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재촉: '+h.lastReminderAt+(h.lastReminderBy?' · '+h.lastReminderBy:'')+'</div>' : '';
+    return '<div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#fff;">'
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
+      +'<div>'
+      +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;">'+escHtml(h.studentName)+' <span style="font-weight:400;color:#94a3b8;font-size:12px;">'+escHtml(h.className||'')+(h.sessionNum?' · '+h.sessionNum+'차시':'')+'</span></div>'
+      +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(h.hwName)+'</div>'
+      +(h.feedback?'<div style="font-size:12px;color:#94a3b8;margin-top:4px;white-space:pre-wrap;">'+escHtml(h.feedback)+'</div>':'')
+      +photoHtml+lastRem
+      +'</div>'
+      +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+HW_STATUS_LABEL_ADMIN[h.pass]+'</span>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
+      +'<button class="hw-action-btn" onclick="sendHwReminder(\''+h.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 재촉 알림 보내기</button>'
+      +'<button class="hw-action-btn" onclick="markHwComplete(\''+h.id+'\')" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;">✓ 완료 처리</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+async function sendHwReminder(id){
+  var h=hwmanageList.find(function(x){return x.id===id;});
+  if(!h)return;
+  if(!confirm(h.studentName+' 학생에게 "'+h.hwName+'" 숙제 재촉 알림톡을 보낼까요?\n(카카오 알림톡 발송 - 비용이 발생합니다)'))return;
+  var msgs=[];
+  var text='['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 사진을 찍어 마이페이지에서 제출해주세요!';
+  if(h.studentPhone) msgs.push({phone:h.studentPhone, name:h.studentName, className:h.className||'숙제 알림', sessionNum:h.hwName, message:text});
+  if(h.parentPhone) msgs.push({phone:h.parentPhone, name:h.studentName, className:h.className||'숙제 알림', sessionNum:h.hwName, message:text});
+  if(!msgs.length){ alert('⚠️ 등록된 전화번호가 없어서 알림톡을 보낼 수 없어요.'); return; }
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+    if(r.success){
+      await fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||''));
+      alert('알림톡 발송 완료!');
+      loadHwManage();
+    } else {
+      alert('발송 실패: '+(r.msg||''));
+    }
+  }catch(e){ alert('발송 중 오류: '+e.message); }
+}
+async function markHwComplete(id){
+  var h=hwmanageList.find(function(x){return x.id===id;});
+  if(!h)return;
+  if(!confirm(h.studentName+' 학생의 "'+h.hwName+'" 과제를 완료로 처리할까요?'))return;
+  await fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass=complete&feedback='+encodeURIComponent('제출하신 과제가 [완료] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!'));
+  loadHwManage();
 }
 
 // ── 영상 라이브러리 ──

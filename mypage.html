@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>마이페이지 — 김민관 수학</title>
-<script src="firebase-api.js?v=14"></script>
+<script src="firebase-api.js?v=15"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="chat-widget.js" defer></script>
 <style>
@@ -62,6 +62,23 @@ a{text-decoration:none;}
 .att-지각{background:#fef9c3;color:#ca8a04;}
 .att-결석{background:#fee2e2;color:#dc2626;}
 .att-미정{background:#f1f5f9;color:#64748b;}
+
+/* 숙제 현황 */
+.hw-badge-count{background:#fee2e2;color:#dc2626;font-size:11px;font-weight:800;border-radius:20px;padding:2px 9px;margin-left:2px;vertical-align:middle;}
+.hw-item{border:1px solid #eef2f6;border-radius:12px;padding:13px 14px;margin-bottom:10px;}
+.hw-item:last-child{margin-bottom:0;}
+.hw-item-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.hw-item-name{font-size:14px;font-weight:700;color:#1e293b;}
+.hw-item-sub{font-size:11.5px;color:#94a3b8;margin-bottom:6px;}
+.hw-status-badge{padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap;flex-shrink:0;}
+.hw-status-complete{background:#dcfce7;color:#16a34a;}
+.hw-status-partial{background:#fef9c3;color:#92400e;}
+.hw-status-incomplete{background:#fee2e2;color:#dc2626;}
+.hw-status-notsub{background:#f1f5f9;color:#475569;}
+.hw-feedback{background:#f8fafc;border-radius:9px;padding:10px 12px;font-size:12.5px;color:#475569;line-height:1.6;white-space:pre-wrap;margin:8px 0;}
+.hw-submitted-box{display:flex;align-items:center;gap:8px;background:#eff6ff;border-radius:9px;padding:9px 12px;margin-top:8px;font-size:12.5px;color:#1d4ed8;font-weight:700;}
+.hw-upload-btn{width:100%;margin-top:8px;padding:11px;border:1.5px dashed #93c5fd;background:#f8faff;color:#2563eb;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+.hw-upload-btn:disabled{opacity:.6;cursor:default;}
 
 /* 예약 카드 */
 .booking-item{border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
@@ -194,6 +211,11 @@ a{text-decoration:none;}
   /* 출결 줄 */
   .att-row{font-size:14.5px;padding:13px 4px;}
   .att-badge{font-size:13px;padding:5px 11px;}
+  /* 숙제 카드 */
+  .hw-item-name{font-size:14.5px;}
+  .hw-status-badge{font-size:12.5px;padding:5px 11px;}
+  .hw-feedback{font-size:13px;}
+  .hw-upload-btn{padding:13px;font-size:14px;min-height:46px;}
   /* 큰 버튼 2개 */
   .dash-bigbtn{padding:20px 16px;}
   .dash-bigbtn-t{font-size:16px;}
@@ -261,6 +283,13 @@ a{text-decoration:none;}
       <div class="dash-sec-head"><span class="dash-class" id="dash-class">내 반</span></div>
       <div id="att-list"><div class="spinner">불러오는 중...</div></div>
     </div>
+
+    <!-- 숙제 현황 (기록이 있는 학생만 노출) -->
+    <div class="card" id="hw-status-card" style="display:none;">
+      <div class="card-title"><span>📝</span> 내 숙제 <span id="hw-badge" class="hw-badge-count" style="display:none;"></span></div>
+      <div id="hw-list"></div>
+    </div>
+    <input type="file" id="hw-file-input" accept="image/*" capture="environment" style="display:none;" onchange="onHwFileSelected(event)">
 
     <!-- 의무클리닉 (해당되는 학생만 노출) -->
     <div class="card" id="mc-status-card" style="display:none;">
@@ -381,6 +410,7 @@ loadInfo();
   loadAttendance();
   loadClassMaterials();
   loadMyMandatoryClinic();
+  loadMyHomework();
 });
 
 async function loadMyMandatoryClinic(){
@@ -406,6 +436,78 @@ async function loadMyMandatoryClinic(){
     }).join('');
     card.style.display='block';
   }catch(e){}
+}
+
+// ── 내 숙제 현황 (완료/일부미이행/미이행/미제출 + 사진 증빙 업로드) ──
+var HW_STATUS_LABEL={complete:'완료',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
+var myHwItems=[], hwUploadTargetId='';
+async function loadMyHomework(){
+  try{
+    var r=await fetch(SU+'?action=getMyHomeworkStatus&studentId='+encodeURIComponent(session.id)).then(function(r){return r.json();});
+    myHwItems=r.items||[];
+    if(!myHwItems.length) return; // 기록이 없으면 카드 자체를 노출하지 않음
+    document.getElementById('hw-status-card').style.display='block';
+    renderMyHomework();
+  }catch(e){}
+}
+function renderMyHomework(){
+  var list=document.getElementById('hw-list');
+  var needsAction=myHwItems.filter(function(h){return h.pass==='incomplete'||h.pass==='partial'||h.pass==='notsub';});
+  var badge=document.getElementById('hw-badge');
+  if(needsAction.length){ badge.textContent=needsAction.length+'건 확인 필요'; badge.style.display='inline-block'; }
+  else{ badge.style.display='none'; }
+  list.innerHTML=myHwItems.map(function(h){
+    var badgeCls='hw-status-'+(h.pass||'notsub');
+    var badgeLabel=HW_STATUS_LABEL[h.pass]||'확인중';
+    var whereTxt=(h.className||'')+(h.sessionNum?' · '+h.sessionNum+'차시':'')+(h.sessionDate?' · '+h.sessionDate:'');
+    var canUpload=h.pass!=='complete';
+    var submittedBox = h.submissionUrl
+      ? '<div class="hw-submitted-box">📷 제출됨 — 선생님 확인 대기중 ('+(h.submittedAt||'')+')</div>'
+      : '';
+    var uploadBtn = canUpload
+      ? '<button class="hw-upload-btn" id="hw-upload-btn-'+h.id+'" onclick="triggerHwUpload(\''+h.id+'\')">📷 '+(h.submissionUrl?'다시 올리기':'사진/파일 올리기')+'</button>'
+      : '';
+    return '<div class="hw-item">'
+      +'<div class="hw-item-top"><span class="hw-item-name">'+escHtml(h.hwName)+'</span>'
+      +'<span class="hw-status-badge '+badgeCls+'">'+badgeLabel+'</span></div>'
+      +'<div class="hw-item-sub">'+escHtml(whereTxt)+'</div>'
+      +(h.feedback?'<div class="hw-feedback">'+escHtml(h.feedback)+'</div>':'')
+      +submittedBox+uploadBtn
+      +'</div>';
+  }).join('');
+}
+function triggerHwUpload(id){
+  hwUploadTargetId=id;
+  document.getElementById('hw-file-input').value='';
+  document.getElementById('hw-file-input').click();
+}
+function hwFileToBase64(file){
+  return new Promise(function(resolve,reject){
+    var reader=new FileReader();
+    reader.onload=function(e){resolve(e.target.result.split(',')[1]);};
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function onHwFileSelected(e){
+  var file=e.target.files && e.target.files[0];
+  if(!file || !hwUploadTargetId) return;
+  var item=myHwItems.find(function(h){return h.id===hwUploadTargetId;});
+  if(!item) return;
+  var btn=document.getElementById('hw-upload-btn-'+hwUploadTargetId);
+  if(btn){ btn.disabled=true; btn.textContent='업로드 중...'; }
+  try{
+    if(file.size > 15*1024*1024){ alert('파일이 너무 큽니다 (15MB 이하로 올려주세요).'); return; }
+    var base64=await hwFileToBase64(file);
+    var up=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'uploadFile',fileName:(item.hwName||'숙제')+'_'+session.id+'_'+Date.now(),mimeType:file.type||'image/jpeg',fileData:base64})
+    }).then(function(r){return r.json();});
+    if(!up.success){ alert('업로드 실패: '+(up.error||'')); return; }
+    await fetch(SU+'?action=submitHwProof&sessionId='+encodeURIComponent(item.sessionId)+'&studentId='+encodeURIComponent(session.id)+'&hwId='+encodeURIComponent(item.hwId)+'&url='+encodeURIComponent(up.url));
+    await loadMyHomework();
+    alert('✅ 제출했어요! 선생님이 확인하시면 완료로 바뀌어요.');
+  }catch(err){ alert('업로드 중 오류가 발생했어요. 다시 시도해주세요.'); }
+  finally{ hwUploadTargetId=''; }
 }
 
 // 로그인 계정(auth)에 맞는 실제 학생 문서 id를 찾아 session.id 를 교정

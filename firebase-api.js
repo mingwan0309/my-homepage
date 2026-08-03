@@ -686,12 +686,117 @@ api.setHwStatus = function(db, p){
   return db.collection('hw_status').doc(key).set({
     id:key, sessionId:String(p.sessionId), studentId:String(p.studentId), hwId:String(p.hwId),
     pass:p.pass||'', feedback:p.feedback||''
-  }).then(function(){ return { success:true }; });
+  },{merge:true}).then(function(){ return { success:true }; });
 };
 api.getHwStatuses = function(db, p){
   return db.collection('hw_status').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
-    var list = docsToArr(snap).map(function(r){ return { studentId:String(r.studentId), hwId:String(r.hwId), pass:r.pass||'', feedback:r.feedback||'' }; });
+    var list = docsToArr(snap).map(function(r){
+      return { studentId:String(r.studentId), hwId:String(r.hwId), pass:r.pass||'', feedback:r.feedback||'',
+        submissionUrl:r.submissionUrl||'', submittedAt:r.submittedAt||'', lastReminderAt:r.lastReminderAt||'' };
+    });
     return { statuses: list };
+  });
+};
+
+// 학생이 증빙 사진/파일을 올리면 hw_status 문서에 저장 (교사가 매긴 pass/feedback은 건드리지 않음)
+api.submitHwProof = function(db, p){
+  var key = String(p.sessionId)+'__'+String(p.studentId)+'__'+String(p.hwId);
+  return db.collection('hw_status').doc(key).set({
+    id:key, sessionId:String(p.sessionId), studentId:String(p.studentId), hwId:String(p.hwId),
+    submissionUrl:p.url||'', submittedAt:nowStr()
+  },{merge:true}).then(function(){ return { success:true }; });
+};
+
+// 재촉 알림톡 발송 후 마지막 발송 시각 기록 (쿨다운/이력 표시용)
+api.markHwReminderSent = function(db, p){
+  var key = String(p.sessionId)+'__'+String(p.studentId)+'__'+String(p.hwId);
+  return db.collection('hw_status').doc(key).set({
+    lastReminderAt:nowStr(), lastReminderBy:p.by||''
+  },{merge:true}).then(function(){ return { success:true }; });
+};
+
+// 학생 마이페이지: 내 과제 전체 현황 (과제명/반/차시/상태/제출증빙 포함해서 조립)
+api.getMyHomeworkStatus = function(db, p){
+  var studentId = String(p.studentId);
+  return db.collection('hw_status').where('studentId','==',studentId).get().then(function(snap){
+    var rows = docsToArr(snap);
+    if (!rows.length) return { items: [] };
+    var hwIds=[], sessionIds=[];
+    rows.forEach(function(r){
+      if (hwIds.indexOf(r.hwId) < 0) hwIds.push(r.hwId);
+      if (sessionIds.indexOf(r.sessionId) < 0) sessionIds.push(r.sessionId);
+    });
+    return Promise.all([
+      Promise.all(hwIds.map(function(id){ return db.collection('homeworks').doc(id).get(); })),
+      Promise.all(sessionIds.map(function(id){ return db.collection('sessions').doc(id).get(); }))
+    ]).then(function(res){
+      var hwMap={}; res[0].forEach(function(d){ if(d.exists) hwMap[d.id]=d.data(); });
+      var sesMap={}; res[1].forEach(function(d){ if(d.exists) sesMap[d.id]=d.data(); });
+      var classIds=[];
+      Object.keys(sesMap).forEach(function(k){ var cid=String(sesMap[k].classId||''); if(cid && classIds.indexOf(cid)<0) classIds.push(cid); });
+      return Promise.all(classIds.map(function(id){ return db.collection('classes').doc(id).get(); })).then(function(classDocs){
+        var clsMap={}; classDocs.forEach(function(d){ if(d.exists) clsMap[d.id]=d.data(); });
+        var items = rows.map(function(r){
+          var hw=hwMap[r.hwId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
+          return {
+            id:r.id, sessionId:String(r.sessionId), hwId:String(r.hwId),
+            hwName:hw.name||'(삭제된 과제)', pass:r.pass||'', feedback:r.feedback||'',
+            submissionUrl:r.submissionUrl||'', submittedAt:r.submittedAt||'',
+            sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
+            classId:String(ses.classId||''), className:cls.name||''
+          };
+        });
+        items.sort(function(a,b){ return (a.sessionDate||'') < (b.sessionDate||'') ? 1 : -1; });
+        return { items: items };
+      });
+    });
+  });
+};
+
+// 선생님/조교용: 전체 반 기준 '일부미이행/미이행' 과제 목록 (숙제관리 화면)
+api.getIncompleteHomeworks = function(db){
+  return db.collection('hw_status').where('pass','in',['incomplete','partial']).get().then(function(snap){
+    var rows = docsToArr(snap);
+    if (!rows.length) return { items: [] };
+    var hwIds=[], sessionIds=[], studentIds=[];
+    rows.forEach(function(r){
+      if (hwIds.indexOf(r.hwId) < 0) hwIds.push(r.hwId);
+      if (sessionIds.indexOf(r.sessionId) < 0) sessionIds.push(r.sessionId);
+      if (studentIds.indexOf(r.studentId) < 0) studentIds.push(r.studentId);
+    });
+    return Promise.all([
+      Promise.all(hwIds.map(function(id){ return db.collection('homeworks').doc(id).get(); })),
+      Promise.all(sessionIds.map(function(id){ return db.collection('sessions').doc(id).get(); })),
+      Promise.all(studentIds.map(function(id){ return db.collection('students').doc(id).get(); }))
+    ]).then(function(res){
+      var hwMap={}; res[0].forEach(function(d){ if(d.exists) hwMap[d.id]=d.data(); });
+      var sesMap={}; res[1].forEach(function(d){ if(d.exists) sesMap[d.id]=d.data(); });
+      var stuMap={}; res[2].forEach(function(d){ if(d.exists) stuMap[d.id]=d.data(); });
+      var classIds=[];
+      Object.keys(sesMap).forEach(function(k){ var cid=String(sesMap[k].classId||''); if(cid && classIds.indexOf(cid)<0) classIds.push(cid); });
+      return Promise.all(classIds.map(function(id){ return db.collection('classes').doc(id).get(); })).then(function(classDocs){
+        var clsMap={}; classDocs.forEach(function(d){ if(d.exists) clsMap[d.id]=d.data(); });
+        var items = rows.map(function(r){
+          var hw=hwMap[r.hwId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{}, stu=stuMap[r.studentId]||{};
+          return {
+            id:r.id, sessionId:String(r.sessionId), hwId:String(r.hwId), studentId:String(r.studentId),
+            pass:r.pass||'', feedback:r.feedback||'',
+            submissionUrl:r.submissionUrl||'', submittedAt:r.submittedAt||'',
+            lastReminderAt:r.lastReminderAt||'', lastReminderBy:r.lastReminderBy||'',
+            hwName:hw.name||'(삭제된 과제)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
+            classId:String(ses.classId||''), className:cls.name||'',
+            studentName:stu.name||r.studentId, studentPhone:r.studentId, parentPhone:stu.parentPhone||''
+          };
+        });
+        // 학생이 방금 사진을 올려 확인이 필요한 것부터, 그 다음 오래된 순
+        items.sort(function(a,b){
+          var aSub=a.submissionUrl?1:0, bSub=b.submissionUrl?1:0;
+          if (aSub!==bSub) return bSub-aSub;
+          return (a.sessionDate||'') < (b.sessionDate||'') ? -1 : 1;
+        });
+        return { items: items };
+      });
+    });
   });
 };
 
