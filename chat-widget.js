@@ -104,6 +104,17 @@ function init(){
       if(!panelOpen && n>0){ badge.textContent = n>9?'9+':n; badge.style.display='flex'; }
       else { badge.style.display='none'; }
     });
+
+    // 내 질문 중 답변이 달렸는데 아직 안 본 것 — 질의응답 네비 배지
+    var navBadge=document.getElementById('qna-nav-badge');
+    if(navBadge){
+      db.collection('qna').where('studentId','==',studentId).where('status','==','answered').get().then(function(snap){
+        var seen=JSON.parse(localStorage.getItem('mkmath_qna_seen')||'[]');
+        var unseenCount=0;
+        snap.forEach(function(doc){ if(seen.indexOf(doc.id)<0) unseenCount++; });
+        if(unseenCount>0){ navBadge.textContent=unseenCount>9?'9+':unseenCount; navBadge.style.display='flex'; }
+      }).catch(function(){});
+    }
   });
 }
 

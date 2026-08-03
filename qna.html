@@ -320,6 +320,12 @@ async function loadQuestions() {
     const data = await fetch(url).then(r => r.json());
     allQuestions = data.questions || [];
     renderList();
+    // 내 질문 중 답변 달린 것들은 이 목록 화면을 본 순간 "확인함"으로 처리 (질의응답 네비 배지 해제용)
+    if (session.role === 'student') {
+      var mySeen = new Set(JSON.parse(localStorage.getItem('mkmath_qna_seen') || '[]'));
+      allQuestions.forEach(function(q){ if (q.studentId === session.id && q.status === 'answered') mySeen.add(q.id); });
+      localStorage.setItem('mkmath_qna_seen', JSON.stringify(Array.from(mySeen)));
+    }
   } catch(e) {
     document.getElementById('list-container').innerHTML = '<div class="empty-list">불러오기 실패. 다시 시도해주세요.</div>';
   }
