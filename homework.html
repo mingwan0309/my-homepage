@@ -101,7 +101,11 @@
 
   @media (max-width: 768px) {
     html, body { overflow-x: hidden; }
-    .container { padding: 104px 14px 40px; }
+    /* 바깥 컨테이너는 일반 여백만 (로그인/교사/결과 화면용) */
+    .container { padding: 20px 14px 40px; }
+    /* 학생 화면만 상단 고정바(상단바 60 + 네비 50 = 110px)를 피하도록 여백 확보.
+       바깥 컨테이너 20px + 여기 98px = 118px → 고정바 아래에서 시작 */
+    #page-student > .container { padding-top: 98px !important; }
     .card { padding: 18px 16px; }
     .topbar { padding: 11px 14px; }
     .topbar-user { display: none; }
