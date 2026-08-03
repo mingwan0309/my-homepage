@@ -391,6 +391,14 @@ function toggleVidDrop(btn){
   body.style.display = isOpen ? 'none' : 'grid';
   btn.classList.toggle('open', !isOpen);
 }
+// ── 이전 출결 드롭다운 열고 닫기 (세로로 쌓는 목록이라 grid 대신 block) ──
+function toggleAttDrop(btn){
+  var body = btn.nextElementSibling;
+  if(!body) return;
+  var isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  btn.classList.toggle('open', !isOpen);
+}
 
 document.addEventListener('DOMContentLoaded', async function(){
   session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
@@ -640,22 +648,31 @@ async function loadAttendance() {
     ]);
     var sessions = [];
     sesSnap.forEach(function(d){ sessions.push(d.data()); });
-    sessions.sort(function(a,b){ return Number(a.sessionNum)-Number(b.sessionNum); });
+    sessions.sort(function(a,b){ return Number(b.sessionNum)-Number(a.sessionNum); }); // 최근 차시가 먼저
     var attMap = {};
     attSnap.forEach(function(d){ var v=d.data(); attMap[v.sessionId]=v.status; });
-    var recent = sessions.slice(0,10);
-    if (!recent.length) {
+    if (!sessions.length) {
       document.getElementById('att-list').innerHTML = '<div class="empty-msg">수업 기록이 없습니다.</div>';
       return;
     }
-    var html = '';
-    recent.forEach(function(s){
+    function attRow(s){
       var st = attMap[s.id] || '미정';
-      html += '<div class="att-row"><div class="att-badge att-'+st+'">'+st+'</div>'
+      return '<div class="att-row"><div class="att-badge att-'+st+'">'+st+'</div>'
             + '<span style="font-size:13px;color:#475569;">' + s.sessionNum + '차시</span>'
             + (s.date ? '<span style="font-size:12px;color:#94a3b8;">'+s.date+'</span>' : '')
             + '</div>';
-    });
+    }
+    var recentN=3;
+    var recent = sessions.slice(0,recentN);
+    var older = sessions.slice(recentN);
+    var html = recent.map(attRow).join('');
+    if (older.length) {
+      html += '<button type="button" class="vid-drop-head" style="margin-top:8px;" onclick="toggleAttDrop(this)">'
+        +   '<span>이전 출결 <span class="cnt">'+older.length+'</span></span>'
+        +   '<span class="vid-drop-arrow">▾</span>'
+        + '</button>'
+        + '<div class="vid-drop-body" style="display:none;margin-top:6px;">' + older.map(attRow).join('') + '</div>';
+    }
     document.getElementById('att-list').innerHTML = html;
   } catch(e) {
     document.getElementById('att-list').innerHTML = '<div class="empty-msg">출결 정보를 불러올 수 없습니다.</div>';
