@@ -101,12 +101,35 @@
 
   @media (max-width: 768px) {
     html, body { overflow-x: hidden; }
-    .container { padding: 116px 16px 40px; }
-    .card { padding: 20px; }
-    .topbar { padding: 12px 16px; }
+    .container { padding: 104px 14px 40px; }
+    .card { padding: 18px 16px; }
+    .topbar { padding: 11px 14px; }
     .topbar-user { display: none; }
     .tab-btns { gap: 5px; }
-    .tab-btn { font-size: 13px; padding: 8px 6px; }
+    .tab-btn { font-size: 13px; padding: 12px 6px; min-height: 44px; }
+    /* 상단바 버튼 손가락 크기 확보 */
+    .btn-topbar-home { padding: 10px 14px; font-size: 13px; }
+    .btn-topbar-logout { font-size: 13px; padding: 10px 8px; }
+    .btn-topbar-teacher { padding: 10px 12px; font-size: 13px; }
+    /* 입력/버튼 크게 (모바일에서 확대 방지 위해 16px) */
+    input, select, textarea { font-size: 16px; padding: 13px 14px; }
+    .btn { padding: 16px; font-size: 16px; }
+    .btn.sm { padding: 11px 16px; font-size: 14px; min-height: 42px; }
+    h1 { font-size: 21px; }
+    .sub { font-size: 13px; margin-bottom: 24px; }
+    .section-title { font-size: 17px; }
+    /* 문제 풀이 화면 */
+    .problem-box { padding: 16px; font-size: 15px; }
+    .canvas-btns button { padding: 13px 8px; font-size: 14px; min-height: 46px; }
+    .problem-list li { padding: 15px 14px; font-size: 15px; }
+    .student-row { padding: 14px; font-size: 14px; }
+    .score-box { padding: 20px; }
+    .score-box .score { font-size: 42px; }
+    .feedback { font-size: 14px; padding: 14px; }
+    .nav-back { font-size: 15px; padding: 8px 0; }
+    /* 표는 가로 스크롤 */
+    .scores-table { font-size: 13px; }
+    .scores-table th, .scores-table td { padding: 10px 8px; white-space: nowrap; }
   }
 </style>
 </head>
