@@ -134,7 +134,10 @@ body { font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothi
   /* 학생 네비바 — 손가락 크기 (인라인 스타일보다 우선) */
   #student-nav a { padding:14px 14px !important; font-size:14px !important; }
   #student-nav a[style*="background:#3b6cf7"] { padding:10px 14px !important; font-size:13px !important; }
-  .filter-bar { gap:8px; }
+  /* 검색줄: 좁은 화면에서 버튼과 토글이 겹치므로 세로로 쌓기 */
+  .filter-bar { gap:10px; flex-direction:column; align-items:stretch; }
+  .search-wrap { width:100%; min-width:0; }
+  .toggle-wrap { justify-content:flex-end; width:100%; }
   .qna-preview { max-width:100%; }
   .page-title { font-size:21px; margin-bottom:16px; }
   /* 목록 항목 — 손가락 크기 확보 + 내용 잘 보이게 */
