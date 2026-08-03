@@ -190,17 +190,48 @@ tr:hover td{background:#fafbff;}
   .topbar{padding:0 12px;}
   .topbar-logo{font-size:13px;}
   .topbar-user{display:none;}
-  .class-header{padding:12px 14px;flex-wrap:wrap;gap:8px;}
+  .topbar-btn{padding:10px 12px;font-size:13px;}
+  #btn-admin{padding:10px 13px !important;font-size:13px !important;}
+  .class-header{padding:14px;flex-wrap:wrap;gap:10px;}
+  .cls-name{font-size:17px;}
+  .cls-time{font-size:13px;}
+  /* 자료실 — 사이드바를 가로 카테고리로 */
   .mat-layout{flex-direction:column;}
-  .mat-sidebar{width:100%;}
+  .mat-sidebar{width:100%;display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:10px;}
   .mat-sidebar-title{display:none;}
-  .video-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));padding:12px;}
-  .tabs-bar{overflow-x:auto;}
+  .mat-cat{flex-shrink:0;white-space:nowrap;padding:12px 16px;font-size:14px;min-height:46px;display:flex;align-items:center;gap:6px;}
+  /* 영상 카드 크게 */
+  .video-grid{grid-template-columns:1fr;padding:12px;gap:14px;}
+  .video-title{font-size:15px;white-space:normal;}
+  /* 차시 칩 */
+  .sessions-scroll{padding:10px 12px;}
+  .session-chip{padding:11px 15px;min-height:52px;}
+  .snum{font-size:14px;}
+  /* 탭바 */
+  .tabs-bar{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .tab-item{padding:13px 15px;font-size:14px;white-space:nowrap;min-height:48px;}
+  /* 표 */
   .card{overflow-x:auto;}
-  table{font-size:12px;}
-  th,td{padding:8px 10px;white-space:nowrap;}
+  table{font-size:13px;}
+  th,td{padding:11px 11px;white-space:nowrap;}
+  td button,td a{min-height:38px;padding:9px 12px;font-size:12.5px;}
+  /* 자료 목록 */
+  .mat-name{font-size:14px;}
+  /* 패널 */
   .stu-panel{width:100%;right:-100%;}
   .stu-panel.open{right:0;}
+  /* 모달 */
+  .modal{width:95%;padding:20px 16px;max-height:88vh;overflow-y:auto;}
+  .vmod{width:95%;max-height:90vh;}
+  .vmod-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .vmod-tab{white-space:nowrap;padding:12px 14px;font-size:13.5px;min-height:46px;}
+  .fg input,.fg select,.fg textarea{font-size:16px;padding:13px 14px;}
+  .modal-btns button,.vmod-btns button{padding:14px;font-size:15px;min-height:48px;}
+  /* 업로드 영역 */
+  .drag-area{padding:26px 16px;}
+  /* 상단 버튼들 */
+  .btn-add-mat,.btn-add-session{min-height:44px;padding:11px 16px;font-size:13.5px;}
+  #stu-add-btns button{min-height:44px;padding:11px 14px;font-size:13px;}
 }
 </style>
 </head>

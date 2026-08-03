@@ -62,6 +62,32 @@ body { font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothi
 
 .access-denied { text-align:center; padding:80px 20px; }
 .access-denied h2 { font-size:20px; font-weight:800; margin-bottom:12px; color:#dc2626; }
+
+@media (max-width:768px){
+  html, body { overflow-x:hidden; }
+  .topbar { padding:11px 14px; }
+  .btn-back { padding:10px 14px; font-size:13px; }
+  .container { padding:18px 13px 40px; }
+  .page-title { font-size:20px; }
+  .page-sub { font-size:13px; }
+  .stats { gap:9px; }
+  .stat-card { padding:13px 16px; font-size:13px; flex:1; min-width:calc(50% - 5px); }
+  .stat-card span { font-size:20px; }
+  /* 후기 카드 1열 + 읽기 편한 크기 */
+  .review-grid { grid-template-columns:1fr; gap:14px; }
+  .sticky { padding:18px; min-height:0; }
+  .sticky-text { font-size:14.5px; line-height:1.75; }
+  .sticky-meta { font-size:12px; }
+  .sticky-id { font-size:12px; padding:3px 9px; }
+  .sticky-date { font-size:11.5px; }
+  /* 버튼 손가락 크기 */
+  .sticky-btns { gap:8px; margin-top:14px; }
+  .btn-edit, .btn-del { padding:11px 16px; font-size:13px; min-height:44px; flex:1; }
+  /* 모달 */
+  .modal { padding:20px 16px; width:94%; }
+  .modal textarea { font-size:16px; height:180px; padding:13px; }
+  .modal-btns button { padding:14px; font-size:15px; min-height:48px; }
+}
 </style>
 </head>
 <body>

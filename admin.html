@@ -114,24 +114,40 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
   .mob-drawer{display:none;position:fixed;inset:0;z-index:400;}
   .mob-drawer.open{display:block;}
   .mob-drawer-bg{position:absolute;inset:0;background:rgba(0,0,0,0.5);}
-  .mob-drawer-panel{position:absolute;left:0;top:0;bottom:0;width:220px;background:#1e293b;display:flex;flex-direction:column;padding:20px 0;}
-  .mob-drawer-close{align-self:flex-end;margin-right:16px;margin-bottom:10px;background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;}
+  .mob-drawer-panel{position:absolute;left:0;top:0;bottom:0;width:270px;max-width:82%;background:#1e293b;display:flex;flex-direction:column;padding:16px 0;overflow-y:auto;}
+  .mob-drawer-close{align-self:flex-end;margin-right:14px;margin-bottom:8px;background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;padding:8px 12px;}
+  /* 드로어 메뉴 항목 — 손가락으로 편하게 */
+  .mob-drawer-panel .nav-item{padding:15px 20px;font-size:15.5px;min-height:52px;display:flex;align-items:center;gap:10px;}
+  .mob-drawer-panel .nav-item .ni{font-size:19px;}
+  .mob-hamburger{font-size:26px;padding:8px 10px;}
   /* 메인 콘텐츠 */
-  .main{margin-left:0;padding:16px 14px;}
-  /* 표 */
+  .main{margin-left:0;padding:16px 13px 40px;}
+  /* 표 — 가로 스크롤 + 읽기 편한 크기 */
   .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-  table{font-size:12px;}
-  th,td{padding:8px 10px;white-space:nowrap;}
+  table{font-size:13px;}
+  th,td{padding:11px 12px;white-space:nowrap;}
+  /* 표 안 작은 버튼도 누르기 편하게 */
+  td button, td a{min-height:38px;padding:9px 12px;font-size:12.5px;}
   /* 모달 */
-  .modal{width:96%;padding:20px 16px;}
+  .modal{width:96%;padding:20px 16px;max-height:88vh;overflow-y:auto;}
   .fg-row{flex-direction:column;gap:0;}
+  .fg input,.fg select,.fg textarea{font-size:16px;padding:13px 14px;}
+  .modal-btns button{padding:14px;font-size:15px;min-height:48px;}
   /* 링크 카드 */
   .link-cards{grid-template-columns:1fr 1fr;max-width:100%;}
   /* 페이지 헤더 */
   .page-header{flex-wrap:wrap;gap:8px;}
-  .page-title{font-size:18px;}
+  .page-title{font-size:19px;}
   /* 엑셀 버튼 줄 */
-  .excel-row{flex-wrap:wrap;}
+  .excel-row{flex-wrap:wrap;gap:8px;}
+  .excel-row button{min-height:44px;padding:11px 14px;font-size:13px;}
+  /* 일반 버튼 */
+  .btn,.btn-primary,.btn-add{min-height:46px;padding:12px 18px;font-size:14.5px;}
+  /* 채팅 */
+  .chat-thread-item{padding:15px 16px;}
+  .chat-msg-bubble{max-width:82%;font-size:14px;}
+  /* 검색창 */
+  input[type="text"],input[type="search"],input[type="date"],input[type="tel"],select{font-size:16px;}
 }.chat-thread-item{display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #f1f5f9;}
 .chat-thread-item:hover{background:#f8fafc;}
 .chat-thread-item.active{background:#eff6ff;}
