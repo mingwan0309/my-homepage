@@ -815,6 +815,7 @@ function showPage(page,el){
   document.getElementById('page-'+page).classList.add('active');
   if(el){el.classList.add('active');}
   else{document.querySelector('.nav-item[onclick*="\''+page+'\'"]')?.classList.add('active');}
+  if(page==='classes') loadClasses();
   if(page==='students') loadStu();
   if(page==='settings') loadRv();
   if(page==='notice') loadNotices();
