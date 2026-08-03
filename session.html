@@ -724,7 +724,7 @@ tr:hover td{background:#fafbff;}
     <div class="sam-right">
       <div class="sam-load-section">
         <div class="sam-load-title">불러오기</div>
-        <button class="sam-load-btn" onclick="selectAllStudents()">✅ 전체 등록</button>
+        <button class="sam-load-btn" onclick="loadClassRoster()">👥 이 반 학생 전체</button>
         <button class="sam-load-btn" onclick="loadFromPrevSession()">📋 직전 차시에서</button>
       </div>
       <div class="sam-sel-section">
@@ -1078,12 +1078,16 @@ function removeSamStudent(id){
   renderSamSelected();
 }
 
-function selectAllStudents(){
-  allSystemStudents.forEach(function(st){
-    if(attMap[st.id]===undefined && samSelected.indexOf(st.id)<0) samSelected.push(st.id);
+// 이 반(classId)에 등록된 학생 전체를 선택 (새 반이라 직전 차시가 없을 때 사용)
+function loadClassRoster(){
+  if(!students||!students.length){alert('이 반에 등록된 학생이 없습니다. 반 페이지에서 먼저 학생을 추가하세요.');return;}
+  var added=0;
+  students.forEach(function(st){
+    if(attMap[st.id]===undefined && samSelected.indexOf(st.id)<0){ samSelected.push(st.id); added++; }
   });
   renderSamList();
   renderSamSelected();
+  if(!added)alert('이 반 학생이 이미 모두 추가되어 있습니다.');
 }
 
 async function loadFromPrevSession(){
