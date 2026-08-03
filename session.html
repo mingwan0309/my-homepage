@@ -1234,7 +1234,7 @@ async function doSendAlimtalk(){
   ids.forEach(function(id){
     var st=students.find(function(s){return s.id===id;});
     if(!st)return;
-    var msgText=fillTemplate(template,computeMsgTokens(id));
+    var msgText=buildStudentMsg(id);
     getMsgRecipients(st).forEach(function(r){
       messages.push({phone:r.phone,name:st.name,label:r.label,className:className,sessionNum:sessionNum,message:msgText});
     });
@@ -1327,8 +1327,21 @@ function toggleMsgHistoryDetail(i){
 }
 
 var mcListSession={};
+var personalMsgs={};  // 학생별 개인 메시지 (studentId -> 문구)
+// 학생에게 실제로 보낼 최종 문구 = 공통 전달사항 + (개인 메시지 있으면 한 줄 띄고 붙임)
+function buildStudentMsg(id){
+  var template=document.getElementById('msg-template').value;
+  var base=fillTemplate(template,computeMsgTokens(id));
+  var p=(personalMsgs[id]||'').trim();
+  return p ? (base + '\n\n' + p) : base;
+}
+function onPersonalMsgInput(id, val){
+  personalMsgs[id]=val;
+  renderMsgPreview();
+}
 async function openMsgModal(){
   if(!Object.keys(scoreSelected).length){alert('학생을 먼저 선택해주세요.');return;}
+  personalMsgs={};  // 새로 열 때 개인 메시지 초기화
   renderMsgAssessmentOptions();
   document.getElementById('msg-class-input').value=classInfo?classInfo.name:'';
   document.getElementById('msg-session-input').value=sessionInfo?(sessionInfo.sessionNum+'차시'):'';
@@ -1429,18 +1442,21 @@ function renderMsgTargetList(){
     if(!st)return;
     var recipients=getMsgRecipients(st);
     if(!recipients.length)recipients=[{label:'번호없음',phone:''}];
-    recipients.forEach(function(r){
+    var tags=recipients.map(function(r){
       var tagColor=r.label==='번호없음'?'background:#fef2f2;color:#ef4444;':'background:#eef2ff;color:#3b6cf7;';
-      html+='<div id="msg-target-row-'+id+'" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border:1px solid #f1f5f9;border-radius:8px;font-size:13px;background:#fff;">'
-        +'<div style="display:flex;align-items:center;gap:6px;min-width:0;">'
-        +'<span style="font-weight:600;color:#1e293b;">'+escHtml(st.name)+'</span>'
-        +'<span style="'+tagColor+'padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;flex-shrink:0;">'+r.label+'</span>'
-        +'</div>'
-        +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
-        +'<button onclick="previewMsgFor(\''+id+'\')" style="padding:2px 8px;font-size:11px;border:1px solid #3b6cf7;border-radius:5px;background:#fff;color:#3b6cf7;cursor:pointer;font-weight:600;">미리보기</button>'
-        +'<span style="cursor:pointer;color:#cbd5e1;font-size:16px;line-height:1;" onclick="removeMsgTarget(\''+id+'\')">✕</span>'
-        +'</div></div>';
-    });
+      return '<span style="'+tagColor+'padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;flex-shrink:0;">'+r.label+'</span>';
+    }).join('');
+    html+='<div style="padding:8px 10px;border:1px solid #f1f5f9;border-radius:8px;background:#fff;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">'
+      +'<div style="display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap;">'
+      +'<span style="font-weight:600;color:#1e293b;font-size:13px;">'+escHtml(st.name)+'</span>'+tags
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
+      +'<button onclick="previewMsgFor(\''+id+'\')" style="padding:2px 8px;font-size:11px;border:1px solid #3b6cf7;border-radius:5px;background:#fff;color:#3b6cf7;cursor:pointer;font-weight:600;">미리보기</button>'
+      +'<span style="cursor:pointer;color:#cbd5e1;font-size:16px;line-height:1;" onclick="removeMsgTarget(\''+id+'\')">✕</span>'
+      +'</div></div>'
+      +'<textarea id="pmsg-'+id+'" oninput="onPersonalMsgInput(\''+id+'\',this.value)" maxlength="300" rows="1" placeholder="✏️ '+escHtml(st.name)+' 개인 메시지 (선택) — 이 학생에게만 붙어요" style="width:100%;box-sizing:border-box;margin-top:7px;padding:7px 9px;border:1px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;resize:vertical;background:#fbfcfe;">'+escHtml(personalMsgs[id]||'')+'</textarea>'
+      +'</div>';
   });
   list.innerHTML=html;
 }
@@ -1455,8 +1471,7 @@ function previewMsgFor(id){
   msgPreviewTargetId=id;
   var st=students.find(function(s){return s.id===id;});
   if(!st)return;
-  var template=document.getElementById('msg-template').value;
-  var filled=fillTemplate(template,computeMsgTokens(id));
+  var filled=buildStudentMsg(id);
   // 복사 목록 모달로 해당 학생만 표시
   var modal=document.getElementById('msg-copy-modal');
   var list=document.getElementById('msg-copy-list');
@@ -1577,7 +1592,7 @@ function renderMsgPreview(){
   document.getElementById('kt-class-name').textContent=classInfo?classInfo.name:'강의명';
   document.getElementById('kt-session-name').textContent=sessionInfo?(sessionInfo.sessionNum+'차시'):'차시';
   document.getElementById('kt-stu-name').textContent=previewName;
-  var previewContent=previewId?fillTemplate(template,computeMsgTokens(previewId)):template;
+  var previewContent=previewId?buildStudentMsg(previewId):template;
   document.getElementById('kt-content-preview').textContent=previewContent;
   // 발송 대상 수 업데이트 (학생+학부모 전화번호 합산)
   var cnt2=document.getElementById('msg-target-count2');
@@ -1592,7 +1607,7 @@ function renderMsgPreview(){
     previewList.innerHTML=ids.map(function(id){
       var st=students.find(function(s){return s.id===id;});
       if(!st)return'';
-      var filled=fillTemplate(template,computeMsgTokens(id));
+      var filled=buildStudentMsg(id);
       return '<div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;background:#fff;">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
         +'<span style="font-weight:700;font-size:12px;color:#1e293b;">'+escHtml(st.name)+'</span>'
@@ -1604,9 +1619,7 @@ function renderMsgPreview(){
   }
 }
 function copyMsgFor(studentId){
-  var template=document.getElementById('msg-template').value;
-  var tokens=computeMsgTokens(studentId);
-  copyText(fillTemplate(template,tokens));
+  copyText(buildStudentMsg(studentId));
 }
 function copyAllAtOnce(){
   var ids=Object.keys(scoreSelected);
@@ -1614,7 +1627,7 @@ function copyAllAtOnce(){
   if(!ids.length){alert('선택된 학생이 없습니다.');return;}
   var text=ids.map(function(id){
     var st=students.find(function(s){return s.id===id;});
-    var filled=fillTemplate(template,computeMsgTokens(id));
+    var filled=buildStudentMsg(id);
     return '▶ '+( st?st.name:'')+'\\n'+filled;
   }).join('\\n\\n---\\n\\n');
   copyText(text);
@@ -1628,8 +1641,7 @@ function copyAllMsgs(){
   var html=ids.map(function(id){
     var st=students.find(function(s){return s.id===id;});
     if(!st)return'';
-    var tokens=computeMsgTokens(id);
-    var filled=fillTemplate(template,tokens);
+    var filled=buildStudentMsg(id);
     return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:10px;">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
       +'<span style="font-weight:700;font-size:13px;">'+escHtml(st.name)+'</span>'
