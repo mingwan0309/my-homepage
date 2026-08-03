@@ -122,10 +122,23 @@
   .empty { text-align: center; padding: 64px 0; color: #94a3b8; font-size: 15px; }
 
   @media (max-width: 768px) {
+    html, body { overflow-x: hidden; }
     nav { padding: 0 20px; }
     .nav-menu { display: none; }
-    .page-header { padding: 40px 24px 32px; }
-    .page-header h1 { font-size: 26px; }
+    .page-header { padding: 32px 18px 26px; }
+    .page-header h1 { font-size: 24px; }
+    .topbar { padding: 11px 14px; }
+    .btn-home { padding: 10px 14px; font-size: 13px; }
+    .container { padding: 0 14px 40px; }
+    /* 탭 */
+    .tab { padding: 13px 18px; font-size: 15px; min-height: 48px; }
+    /* 공지 항목 — 제목 잘리지 않게 세로로 */
+    .notice-item { gap: 9px; padding: 16px 0; flex-wrap: wrap; align-items: flex-start; }
+    .notice-title { font-size: 15.5px; white-space: normal; line-height: 1.5; flex: 1 1 100%; order: 2; }
+    .notice-badge { font-size: 11.5px; padding: 4px 11px; order: 1; }
+    .notice-date { font-size: 12.5px; order: 3; }
+    /* 상세 */
+    .notice-detail, .detail-content { font-size: 15px; line-height: 1.8; }
   }
 </style>
 </head>

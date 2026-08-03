@@ -125,17 +125,41 @@ body { font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothi
 .hidden { display:none !important; }
 
 @media (max-width:768px) {
+  html, body { overflow-x:hidden; }
   .detail-layout { grid-template-columns:1fr; }
-  .sidebar { position:static; order:-1; }
-  .container { padding:20px 14px; }
-  .topbar { padding:12px 16px; }
+  .sidebar { position:static; order:-1; padding:16px; }
+  .container { padding:18px 13px 40px; }
+  .topbar { padding:11px 14px; }
+  .btn-back { padding:10px 14px; font-size:13px; }
   .filter-bar { gap:8px; }
-  .qna-preview { max-width:200px; }
-  .page-title { font-size:20px; margin-bottom:16px; }
-  .qna-item { gap:10px; padding:12px 14px; }
-  .qna-title { font-size:14px; }
-  .detail-main { padding:20px; }
-  .detail-title { font-size:18px; }
+  .qna-preview { max-width:100%; }
+  .page-title { font-size:21px; margin-bottom:16px; }
+  /* 목록 항목 — 손가락 크기 확보 + 내용 잘 보이게 */
+  .qna-item { gap:10px; padding:15px 14px; align-items:flex-start; }
+  .qna-num { display:none; }
+  .qna-title { font-size:15.5px; }
+  .qna-meta { font-size:12.5px; }
+  .badge-answered, .badge-pending { font-size:12px; padding:6px 11px; }
+  /* 검색 */
+  .search-input { font-size:16px; padding:13px 14px; }
+  .btn-search { padding:13px 18px; font-size:14px; min-height:46px; }
+  .toggle-wrap { font-size:13px; }
+  /* 상세 */
+  .detail-main { padding:18px 16px; }
+  .detail-title { font-size:19px; }
+  .detail-author { font-size:13px; }
+  .detail-content { font-size:15px; line-height:1.8; }
+  .answer-box { padding:16px; }
+  .answer-content { font-size:14.5px; }
+  .btn-list, .btn-list2, .btn-del-q { font-size:14px; padding:12px 16px; min-height:46px; }
+  .btn-edit-ans, .btn-del-ans { padding:10px 14px; font-size:13px; min-height:42px; }
+  .btn-write-ans { padding:14px 24px; font-size:15px; min-height:48px; }
+  .detail-footer { flex-wrap:wrap; gap:10px; }
+  /* 사이드바 */
+  .sidebar-row { font-size:13.5px; }
+  .sidebar-q-item { padding:11px 0; font-size:13.5px; }
+  /* 글쓰기 에디터 */
+  .editor-section-title { font-size:16px; }
 }
 </style>
 </head>

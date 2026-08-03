@@ -426,9 +426,15 @@
     /* 시간표 테이블: 좌우로 밀어서 볼 수 있게 */
     .sch-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .sch-table td[rowspan] { min-width: 220px; }
-    .sch-table th, .sch-table td { font-size: 12px; padding: 8px 8px; }
-    .sch-table li { font-size: 12px; }
-    .sch-table li:first-child { font-size: 13px; }
+    .sch-table th, .sch-table td { font-size: 13px; padding: 10px 9px; }
+    .sch-table li { font-size: 13px; line-height: 1.6; }
+    .sch-table li:first-child { font-size: 14px; }
+    /* 시간표는 좌우로 미는 것이므로 안내 문구 표시 */
+    .sch-content::before, .popup-tab-content::before {
+      content: "← 좌우로 밀어서 보세요 →";
+      display: block; text-align: center; font-size: 12px; color: #94a3b8;
+      margin-bottom: 8px; font-weight: 700;
+    }
 
     /* 모든 팝업(모달): 화면에 맞게 */
     #schedule-popup > div,
@@ -461,6 +467,19 @@
 
     /* 한글 어절 단위 줄바꿈 (글자 중간에서 안 쪼개지게) */
     h1, h2, h3, p, .section-title, .section-desc, .season-item { word-break: keep-all; }
+
+    /* 손가락으로 누르기 편한 크기 확보 */
+    #schedule-popup [class*="popup-sch-tab"] { padding: 12px 20px !important; font-size: 14px !important; min-height: 46px; }
+    #schedule-popup button, #contact-modal button, #login-modal button,
+    #review-modal button, #faq-modal-overlay button { min-height: 44px; }
+    #schedule-popup input[type="checkbox"] { width: 20px; height: 20px; }
+    /* 모달 입력칸 — 확대되지 않게 16px */
+    #login-modal input, #review-modal input, #review-modal textarea,
+    #contact-modal input, #contact-modal textarea { font-size: 16px !important; padding: 13px 14px !important; }
+    /* '더보기' 같은 작은 링크 */
+    a[href="notice.html"], .more-link, .footer a { padding: 6px 0; display: inline-block; font-size: 14px; }
+    /* 푸터 여백 */
+    footer, .footer { font-size: 13.5px; line-height: 1.8; }
   }
 </style>
 </head>
