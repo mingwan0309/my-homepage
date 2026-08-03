@@ -105,9 +105,13 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 .mob-topbar{display:none;}
 @media (max-width:768px){
   html,body{overflow-x:hidden;}
+  /* #dashboard 가 display:flex 라서 모바일에선 상단바가 본문 옆에 붙어버림 → 세로로 쌓기 */
+  body{display:block;}
+  #dashboard{flex-direction:column;width:100%;}
   /* 사이드바 숨기고 모바일 상단바 표시 */
   .sidebar{display:none;}
-  .mob-topbar{display:flex;align-items:center;gap:12px;background:#1e293b;color:#fff;padding:0 16px;height:52px;position:sticky;top:0;z-index:300;}
+  .mob-topbar{display:flex;align-items:center;gap:12px;background:#1e293b;color:#fff;padding:0 16px;height:52px;position:sticky;top:0;z-index:300;width:100%;flex-shrink:0;box-sizing:border-box;}
+  .mob-topbar-logo{white-space:nowrap;}
   .mob-topbar-logo{font-size:15px;font-weight:900;flex:1;}
   .mob-topbar-logo span{color:#60a5fa;}
   .mob-hamburger{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px 8px;}
