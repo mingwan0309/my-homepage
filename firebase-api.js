@@ -448,9 +448,17 @@ api.deleteAnswer = function(db, p){
 
 /* === 반 === */
 api.getClasses = function(db){
-  return db.collection('classes').get().then(function(snap){
-    var classes = docsToArr(snap).map(function(r){
-      return { id:String(r.id), name:r.name||'', time:r.time||'', start:r.start||'', end:r.end||'', status:r.status||'active' };
+  return Promise.all([
+    db.collection('classes').get(),
+    db.collection('students').where('role','==','student').get()
+  ]).then(function(res){
+    var countByClass = {};
+    res[1].forEach(function(doc){
+      var cid = String(doc.data().classId||'');
+      if (cid) countByClass[cid] = (countByClass[cid]||0) + 1;
+    });
+    var classes = docsToArr(res[0]).map(function(r){
+      return { id:String(r.id), name:r.name||'', time:r.time||'', start:r.start||'', end:r.end||'', status:r.status||'active', count:countByClass[String(r.id)]||0 };
     });
     return { classes: classes };
   });
