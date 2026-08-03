@@ -432,6 +432,7 @@ function teacherTab(tab) {
   if (activeBtn) activeBtn.classList.add('active');
   if (tab === 'students') { document.getElementById('tab-btn-students').style.display='flex'; loadStudentList(); }
   if (tab === 'scores') loadScores();
+  if (tab === 'reviews') loadReviews();
   if (tab === 'settings') document.getElementById('tab-btn-settings').style.display='flex';
 }
 
