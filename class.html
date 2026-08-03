@@ -242,7 +242,7 @@ tr:hover td{background:#fafbff;}
 
 <div class="tabs-bar" id="tabs-bar" style="display:none;">
   <div class="tab-item active" onclick="switchTab('students',this)">수강생 목록 <span id="stu-count-badge"></span></div>
-  <div class="tab-item" onclick="switchTab('materials',this)">강의 자료실</div>
+  <div class="tab-item" onclick="switchTab('materials',this)">강의 자료실 <span id="mat-new-badge"></span></div>
 </div>
 
 <!-- 수강생 -->
@@ -673,8 +673,29 @@ async function loadMaterials(){
     var d=await r.json();
     materials=d.materials||[];
     if(session.role==='teacher') await loadMatViews();
+    else if(session.role==='student') await loadMyMatViews();
     updateCounts();
     renderCurrentCat();
+  }catch(e){}
+}
+
+// 학생 본인이 이미 확인한 자료만 조회해서, 아직 안 본 자료 개수를 배지로 표시
+async function loadMyMatViews(){
+  try{
+    var db=await window.mkdbReady;
+    var snap=await db.collection('material_views').where('classId','==',String(classId)).where('studentId','==',String(session.id)).get();
+    var seenIds={};
+    snap.forEach(function(doc){ seenIds[doc.data().materialId]=true; });
+    var unseenCount=materials.filter(function(m){ return !seenIds[m.id]; }).length;
+    var badge=document.getElementById('mat-new-badge');
+    if(badge){
+      if(unseenCount>0){
+        badge.textContent=unseenCount;
+        badge.style.cssText='display:inline-flex;background:#ef4444;color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 4px;margin-left:4px;';
+      } else {
+        badge.textContent=''; badge.style.display='none';
+      }
+    }
   }catch(e){}
 }
 
@@ -708,6 +729,7 @@ async function markViewed(matId, progress){
       viewedAt:new Date().toISOString().slice(0,16).replace('T',' '),
       progress:Math.max(prev, Math.round(progress||0))
     },{merge:true});
+    if(!doc.exists) loadMyMatViews();
   }catch(e){ console.error('확인 기록 실패', e); }
 }
 
