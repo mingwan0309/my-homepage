@@ -458,7 +458,7 @@ document.addEventListener('DOMContentLoaded', async function(){
   if (isPreviewMode) {
     var banner = document.createElement('div');
     banner.style.cssText = 'position:sticky;top:0;z-index:200;background:#1e293b;color:#fff;padding:10px 16px;font-size:13px;font-weight:700;text-align:center;';
-    banner.innerHTML = '👀 미리보기 모드 — <b>' + (session.name||'') + '</b> 학생 화면이에요 (읽기 전용) <button onclick="window.close();history.length>1?history.back():location.href=\'admin.html\';" style="margin-left:10px;background:#334155;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;">닫기</button>';
+    banner.innerHTML = '👀 <b>' + (session.name||'') + '</b> 학생 화면이에요 — 여기서 하는 조작은 실제로 이 학생 데이터에 반영돼요 <button onclick="window.close();history.length>1?history.back():location.href=\'admin.html\';" style="margin-left:10px;background:#334155;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;">닫기</button>';
     document.body.insertBefore(banner, document.body.firstChild);
   }
 
@@ -541,7 +541,6 @@ function svOnOption(qid,val,isMulti,checked){
 }
 function closeSvAnswer(){ document.getElementById('sv-answer-modal').classList.remove('show'); }
 async function submitSvAnswer(){
-  if(isPreviewMode){ alert('미리보기 모드에서는 학생 대신 조작할 수 없어요.'); return; }
   if(!svAnswering) return;
   for(var i=0;i<(svAnswering.questions||[]).length;i++){
     var q=svAnswering.questions[i];
@@ -628,7 +627,6 @@ function renderMyHomework(){
   }).join('');
 }
 function triggerHwUpload(id){
-  if(isPreviewMode){ alert('미리보기 모드에서는 학생 대신 조작할 수 없어요.'); return; }
   var item=myHwItems.find(function(h){return h.id===id;});
   if(!item) return;
   var remain=HW_MAX_PHOTOS-(item.submissionUrls||[]).length;
@@ -652,7 +650,6 @@ async function submitHwProofUrls(item, urls){
   await loadMyHomework();
 }
 async function deleteHwPhoto(id, url){
-  if(isPreviewMode){ alert('미리보기 모드에서는 학생 대신 조작할 수 없어요.'); return; }
   var item=myHwItems.find(function(h){return h.id===id;});
   if(!item) return;
   if(!confirm('이 사진을 삭제할까요?')) return;
@@ -759,7 +756,7 @@ function openChat(){
   else alert('채팅을 불러오는 중입니다. 잠시 후 다시 눌러주세요.');
 }
 function openPwModal(){
-  if(isPreviewMode){ alert('미리보기 모드에서는 학생 대신 조작할 수 없어요.'); return; }
+  if(isPreviewMode){ alert('비밀번호 변경은 학생 본인만 할 수 있어요 (선생님 계정으로는 학생의 현재 비밀번호를 확인할 수 없어서 기술적으로 불가능해요).'); return; }
   document.getElementById('pw-msg').style.display='none';
   document.getElementById('old-pw').value='';
   document.getElementById('new-pw').value='';
