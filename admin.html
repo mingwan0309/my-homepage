@@ -41,6 +41,12 @@ tr:hover td { background:#f8fafc; }
 .class-cell { display:flex; align-items:center; }
 .btn-primary { background:#2563eb; color:#fff; border:none; padding:10px 18px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
 .hw-action-btn { padding:9px 14px; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; min-height:40px; font-family:inherit; }
+/* 숙제관리 반별 드롭다운 */
+.vid-drop-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f8fafc;border:1px solid #eef2f6;border-radius:11px;padding:13px 15px;font-size:14px;font-weight:800;color:#334155;cursor:pointer;font-family:inherit;text-align:left;}
+.vid-drop-head:hover{border-color:#c7d2fe;background:#f4f7ff;}
+.vid-drop-head .cnt{background:#eef2ff;color:#3b6cf7;font-size:11px;font-weight:800;border-radius:20px;padding:1px 9px;margin-left:6px;}
+.vid-drop-arrow{transition:transform .2s;color:#94a3b8;font-size:13px;flex-shrink:0;}
+.vid-drop-head.open .vid-drop-arrow{transform:rotate(180deg);}
 .btn-primary:hover { background:#1d4ed8; }
 .btn-sm { padding:5px 12px; font-size:12px; font-weight:700; border-radius:6px; cursor:pointer; border:none; }
 .btn-red { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
@@ -153,6 +159,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
   .chat-msg-bubble{max-width:82%;font-size:14px;}
   /* 숙제관리 */
   .hw-action-btn{min-height:46px;padding:12px 16px;font-size:13.5px;}
+  .vid-drop-head{padding:14px 15px;font-size:14.5px;min-height:48px;}
   /* 검색창 */
   input[type="text"],input[type="search"],input[type="date"],input[type="tel"],select{font-size:16px;}
 }.chat-thread-item{display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #f1f5f9;}
@@ -1759,6 +1766,15 @@ async function markMcAttendance(id, studentId, name, status){
   loadMclinic();
 }
 
+// ── 숙제관리 반별 드롭다운 열고 닫기 ──
+function toggleHwClassDrop(btn){
+  var body=btn.nextElementSibling;
+  if(!body) return;
+  var isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'block';
+  btn.classList.toggle('open',!isOpen);
+}
+
 // ── 숙제 제출 사진 보기 (새 탭 대신 화면 안 팝업으로 — 카톡 등 인앱 브라우저에서 target=_blank가 페이지 자체를 이동시켜버리는 문제 방지) ──
 function extractDriveIdForPhoto(url){
   if(!url) return '';
@@ -1802,48 +1818,71 @@ async function loadHwManage(){
     el.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
   }
 }
+function renderHwCard(h){
+  var badgeColor = h.pass==='incomplete' ? '#dc2626' : '#ca8a04';
+  var badgeBg = h.pass==='incomplete' ? '#fee2e2' : '#fef9c3';
+  var subUrls = h.submissionUrls||[];
+  var hasSubmission = subUrls.length>0;
+  var photoLinks = hasSubmission
+    ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">'
+      + subUrls.map(function(url,i){
+          return '<button type="button" onclick="openHwPhoto(\''+url+'\')" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:none;padding:5px 10px;border-radius:7px;cursor:pointer;font-family:inherit;">📷 사진 '+(i+1)+'</button>';
+        }).join('')
+      + '</div>'
+    : '';
+  var lastRem = h.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재촉: '+h.lastReminderAt+(h.lastReminderBy?' · '+h.lastReminderBy:'')+'</div>' : '';
+  // 학생이 사진을 다시 올렸으면 카드 맨 위에 눈에 띄는 배지 + 카드 전체를 파란 테두리로 강조 (스크롤 없이 바로 눈에 들어오게)
+  var submitBadge = hasSubmission
+    ? '<div style="display:flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:800;padding:5px 10px;border-radius:8px;margin-bottom:8px;">📷 확인 필요 — 사진 '+subUrls.length+'장 제출됨 · '+(h.submittedAt||'')+'</div>'
+    : '';
+  var cardStyle = hasSubmission
+    ? 'border:2px solid #93c5fd;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#f8faff;'
+    : 'border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#fff;';
+  return '<div style="'+cardStyle+'">'
+    +submitBadge
+    +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
+    +'<div>'
+    +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;">'+escHtml(h.studentName)+' <span style="font-weight:400;color:#94a3b8;font-size:12px;">'+(h.sessionNum?h.sessionNum+'차시':'')+'</span></div>'
+    +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(h.hwName)+'</div>'
+    +(h.feedback?'<div style="font-size:12px;color:#94a3b8;margin-top:4px;white-space:pre-wrap;">'+escHtml(h.feedback)+'</div>':'')
+    +photoLinks+lastRem
+    +'</div>'
+    +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+HW_STATUS_LABEL_ADMIN[h.pass]+'</span>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
+    +'<button class="hw-action-btn" onclick="sendHwReminder(\''+h.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 재촉 알림 보내기</button>'
+    +'<button class="hw-action-btn" onclick="markHwComplete(\''+h.id+'\')" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;">✓ 완료 처리</button>'
+    +'</div>'
+    +'</div>';
+}
 function renderHwManageList(){
   var el=document.getElementById('hwmanage-list');
   if(!hwmanageList.length){
     el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">🎉 미이행/일부미이행 과제가 없어요.</div>';
     return;
   }
-  el.innerHTML=hwmanageList.map(function(h){
-    var badgeColor = h.pass==='incomplete' ? '#dc2626' : '#ca8a04';
-    var badgeBg = h.pass==='incomplete' ? '#fee2e2' : '#fef9c3';
-    var subUrls = h.submissionUrls||[];
-    var hasSubmission = subUrls.length>0;
-    var photoLinks = hasSubmission
-      ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">'
-        + subUrls.map(function(url,i){
-            return '<button type="button" onclick="openHwPhoto(\''+url+'\')" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:none;padding:5px 10px;border-radius:7px;cursor:pointer;font-family:inherit;">📷 사진 '+(i+1)+'</button>';
-          }).join('')
-        + '</div>'
-      : '';
-    var lastRem = h.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재촉: '+h.lastReminderAt+(h.lastReminderBy?' · '+h.lastReminderBy:'')+'</div>' : '';
-    // 학생이 사진을 다시 올렸으면 카드 맨 위에 눈에 띄는 배지 + 카드 전체를 파란 테두리로 강조 (스크롤 없이 바로 눈에 들어오게)
-    var submitBadge = hasSubmission
-      ? '<div style="display:flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:800;padding:5px 10px;border-radius:8px;margin-bottom:8px;">📷 확인 필요 — 사진 '+subUrls.length+'장 제출됨 · '+(h.submittedAt||'')+'</div>'
-      : '';
-    var cardStyle = hasSubmission
-      ? 'border:2px solid #93c5fd;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#f8faff;'
-      : 'border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#fff;';
-    return '<div style="'+cardStyle+'">'
-      +submitBadge
-      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
-      +'<div>'
-      +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;">'+escHtml(h.studentName)+' <span style="font-weight:400;color:#94a3b8;font-size:12px;">'+escHtml(h.className||'')+(h.sessionNum?' · '+h.sessionNum+'차시':'')+'</span></div>'
-      +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(h.hwName)+'</div>'
-      +(h.feedback?'<div style="font-size:12px;color:#94a3b8;margin-top:4px;white-space:pre-wrap;">'+escHtml(h.feedback)+'</div>':'')
-      +photoLinks+lastRem
-      +'</div>'
-      +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+HW_STATUS_LABEL_ADMIN[h.pass]+'</span>'
-      +'</div>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
-      +'<button class="hw-action-btn" onclick="sendHwReminder(\''+h.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 재촉 알림 보내기</button>'
-      +'<button class="hw-action-btn" onclick="markHwComplete(\''+h.id+'\')" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;">✓ 완료 처리</button>'
-      +'</div>'
-      +'</div>';
+  // 반별로 묶기
+  var groups={}, order=[];
+  hwmanageList.forEach(function(h){
+    var cls=h.className||'반 미배정';
+    if(!groups[cls]){ groups[cls]=[]; order.push(cls); }
+    groups[cls].push(h);
+  });
+  order.sort(function(a,b){ return a.localeCompare(b,'ko'); });
+  el.innerHTML=order.map(function(cls){
+    var items=groups[cls];
+    var pendingCount=items.filter(function(h){return (h.submissionUrls||[]).length>0;}).length;
+    var openDefault=pendingCount>0;  // 확인할 사진이 있는 반은 자동으로 펼쳐서 안 놓치게
+    var headerBadge=pendingCount?'<span style="background:#dbeafe;color:#1d4ed8;font-size:11px;font-weight:800;border-radius:20px;padding:2px 9px;margin-left:6px;">📷 '+pendingCount+'건 확인 필요</span>':'';
+    var cardsHtml=items.map(renderHwCard).join('');
+    return '<div style="margin-bottom:14px;">'
+      + '<button type="button" class="vid-drop-head'+(openDefault?' open':'')+'" onclick="toggleHwClassDrop(this)">'
+      +   '<span>🏫 '+escHtml(cls)+' <span class="cnt">'+items.length+'</span></span>'
+      +   headerBadge
+      +   '<span class="vid-drop-arrow">▾</span>'
+      + '</button>'
+      + '<div class="vid-drop-body" style="display:'+(openDefault?'block':'none')+';margin-top:8px;">'+cardsHtml+'</div>'
+      + '</div>';
   }).join('');
 }
 async function sendHwReminder(id){
