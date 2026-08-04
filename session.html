@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>차시 — 김민관 수학</title>
-<script src="firebase-api.js?v=16"></script>
+<script src="firebase-api.js?v=17"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <style>
 :root{--primary:#3b6cf7;--bg:#f1f5f9;}
@@ -1240,7 +1240,7 @@ function toggleAllScoreSel(checked){
 // 메시지 작성 모달
 var MSG_TOKENS_COMMON=[['이름','{이름}'],['출결','{출결}'],['반','{반}'],['차시','{차시}']];
 var MSG_TOKENS_EXAM=[['점수','{점수}'],['등급','{등급}'],['등수','{등수}'],['평균','{평균}'],['최고점','{최고점}'],['통과여부','{통과여부}'],['피드백','{피드백}']];
-var MSG_TOKENS_HW=[['상태','{상태}'],['코멘트','{코멘트}']];
+var MSG_TOKENS_HW=[['상태','{상태}'],['코멘트','{코멘트}'],['제출멘트','{제출멘트}']];
 
 // 학생 1명당 학부모+학생 전화번호(중복 제외)를 라벨과 함께 모두 반환
 function getMsgRecipients(st){
@@ -1415,7 +1415,7 @@ async function ensureHwStatusLoaded(targetSessionId){
     var r=await fetch(SU+'?action=getHwStatuses&sessionId='+encodeURIComponent(targetSessionId)).then(function(r){return r.json();});
     (r.statuses||[]).forEach(function(s){
       if(!hwStatusMap[s.studentId])hwStatusMap[s.studentId]={};
-      hwStatusMap[s.studentId][s.hwId]={pass:s.pass,feedback:s.feedback};
+      hwStatusMap[s.studentId][s.hwId]={pass:s.pass,feedback:s.feedback,submissionUrls:s.submissionUrls||[],submittedAt:s.submittedAt||''};
     });
   }catch(e){}
 }
@@ -1500,6 +1500,8 @@ function renderMsgTargetList(){
   if(cnt2)cnt2.textContent=recipientCount;
   var list=document.getElementById('msg-target-list');
   if(!ids.length){list.innerHTML='<div style="padding:16px;color:#94a3b8;font-size:13px;text-align:center;">선택된 학생이 없습니다.</div>';return;}
+  var selVal=document.getElementById('msg-assessment')?document.getElementById('msg-assessment').value:'';
+  var hwSelId=selVal.indexOf('hw:')===0?selVal.slice(3):'';
   var html='';
   ids.forEach(function(id){
     var st=students.find(function(s){return s.id===id;});
@@ -1510,6 +1512,13 @@ function renderMsgTargetList(){
       var tagColor=r.label==='번호없음'?'background:#fef2f2;color:#ef4444;':'background:#eef2ff;color:#3b6cf7;';
       return '<span style="'+tagColor+'padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;flex-shrink:0;">'+r.label+'</span>';
     }).join('');
+    // 과제가 선택돼 있으면, 지난 숙제를 (사진으로) 다시 제출했는지 한눈에 보이는 배지
+    if(hwSelId){
+      var hs=(hwStatusMap[id]||{})[hwSelId];
+      var submitted=!!(hs&&hs.submissionUrls&&hs.submissionUrls.length);
+      var badgeStyle=submitted?'background:#f0fdf4;color:#16a34a;':'background:#fef2f2;color:#dc2626;';
+      tags+='<span style="'+badgeStyle+'padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;flex-shrink:0;">'+(submitted?'📷 제출함':'미제출')+'</span>';
+    }
     html+='<div style="padding:8px 10px;border:1px solid #f1f5f9;border-radius:8px;background:#fff;">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">'
       +'<div style="display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap;">'
@@ -1570,6 +1579,7 @@ async function onMsgAssessmentChange(){
     }
   }
   renderMsgTokenBar();
+  renderMsgTargetList();
   renderMsgPreview();
 }
 function renderMsgTokenBar(){
@@ -1648,6 +1658,12 @@ function computeMsgTokens(studentId){
     var s=(hwStatusMap[studentId]||{})[id];
     tokens['{상태}']=s&&s.pass?HW_LABELS[s.pass]:'—';
     tokens['{코멘트}']=s&&s.feedback?s.feedback:'—';
+    // 지난 차시에 미이행이었던 숙제를 (증빙 사진으로) 다시 제출했는지 여부에 따라 자동 멘트 생성
+    var hasSubmission=!!(s&&s.submissionUrls&&s.submissionUrls.length);
+    if(!s){ tokens['{제출멘트}']='—'; }
+    else if(s.pass==='complete'){ tokens['{제출멘트}']='지난 시간 숙제, 완료 확인되었습니다.'; }
+    else if(hasSubmission){ tokens['{제출멘트}']='지난 시간 미이행이었던 숙제를 제출했습니다. 확인 후 안내드리겠습니다.'; }
+    else{ tokens['{제출멘트}']='지난 시간 미이행이었던 숙제를 아직 제출하지 않았습니다. 사진을 찍어 제출해 주세요.'; }
   }
   return tokens;
 }
@@ -2008,9 +2024,10 @@ async function loadHw(){
   ]);
   homeworks=hr.homeworks||[];
   hwStatusMap={};
+  hwStatusFetchedSessions[sessionId]=true;  // 현재 차시는 이미 불러왔으니 나중에 또 안 불러오게 표시
   (sr.statuses||[]).forEach(function(s){
     if(!hwStatusMap[s.studentId])hwStatusMap[s.studentId]={};
-    hwStatusMap[s.studentId][s.hwId]={pass:s.pass,feedback:s.feedback||''};
+    hwStatusMap[s.studentId][s.hwId]={pass:s.pass,feedback:s.feedback||'',submissionUrls:s.submissionUrls||[],submittedAt:s.submittedAt||''};
   });
   renderHwList();
   renderScores();
@@ -2140,7 +2157,8 @@ async function saveHwStatus(){
   var feedback=document.getElementById('hw-panel-feedback').value.trim();
   var sid=hwPanelStudentId, hid=hwPanelHwId, pp=hwPanelPass;
   if(!hwStatusMap[sid])hwStatusMap[sid]={};
-  hwStatusMap[sid][hid]={pass:pp,feedback:feedback};
+  var prevSub=hwStatusMap[sid][hid]||{};
+  hwStatusMap[sid][hid]={pass:pp,feedback:feedback,submissionUrls:prevSub.submissionUrls||[],submittedAt:prevSub.submittedAt||''};
   renderScores();
   closeHwPanel();
   try{

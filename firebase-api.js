@@ -692,7 +692,7 @@ api.getHwStatuses = function(db, p){
   return db.collection('hw_status').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
     var list = docsToArr(snap).map(function(r){
       return { studentId:String(r.studentId), hwId:String(r.hwId), pass:r.pass||'', feedback:r.feedback||'',
-        submissionUrl:r.submissionUrl||'', submittedAt:r.submittedAt||'', lastReminderAt:r.lastReminderAt||'' };
+        submissionUrls:hwUrlsToArray(r.submissionUrl), submittedAt:r.submittedAt||'', lastReminderAt:r.lastReminderAt||'' };
     });
     return { statuses: list };
   });
