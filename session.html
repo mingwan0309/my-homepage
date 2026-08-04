@@ -1621,7 +1621,7 @@ function computeMsgTokens(studentId){
     var status=(mc.attendance&&mc.attendance[todayStr])||'미체크';
     tokens['{의무클리닉}']=mc.day+'요일 '+mc.time+' 의무클리닉'+(mc.targetDay?'('+mc.targetDay+'요일 몫)':'')+' — 오늘 '+status;
   } else {
-    tokens['{의무클리닉}']='해당없음';
+    tokens['{의무클리닉}']='';
   }
   var selVal=document.getElementById('msg-assessment').value;
   if(!selVal)return tokens;
@@ -1672,9 +1672,15 @@ function computeMsgTokens(studentId){
   return tokens;
 }
 function fillTemplate(template, tokens){
-  var out=template;
-  Object.keys(tokens).forEach(function(k){ out=out.split(k).join(tokens[k]); });
-  return out;
+  var lines=template.split('\n').map(function(line){
+    var filled=line;
+    Object.keys(tokens).forEach(function(k){ filled=filled.split(k).join(tokens[k]); });
+    return {orig:line, filled:filled};
+  });
+  // 토큰 치환 결과 줄 전체가 비어버리면(원래는 내용이 있던 줄) 그 줄을 통째로 제거
+  return lines.filter(function(l){
+    return !(l.orig.trim()!=='' && l.filled.trim()==='');
+  }).map(function(l){ return l.filled; }).join('\n');
 }
 function renderMsgPreview(){
   var ids=Object.keys(scoreSelected);
