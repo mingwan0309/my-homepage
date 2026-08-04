@@ -1812,21 +1812,30 @@ function renderHwManageList(){
     var badgeColor = h.pass==='incomplete' ? '#dc2626' : '#ca8a04';
     var badgeBg = h.pass==='incomplete' ? '#fee2e2' : '#fef9c3';
     var subUrls = h.submissionUrls||[];
-    var photoHtml = subUrls.length
+    var hasSubmission = subUrls.length>0;
+    var photoLinks = hasSubmission
       ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">'
         + subUrls.map(function(url,i){
             return '<button type="button" onclick="openHwPhoto(\''+url+'\')" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:none;padding:5px 10px;border-radius:7px;cursor:pointer;font-family:inherit;">📷 사진 '+(i+1)+'</button>';
           }).join('')
-        + '</div><div style="font-size:11px;color:#94a3b8;margin-top:4px;">총 '+subUrls.length+'장 제출 · 마지막 제출 '+(h.submittedAt||'')+'</div>'
+        + '</div>'
       : '';
     var lastRem = h.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재촉: '+h.lastReminderAt+(h.lastReminderBy?' · '+h.lastReminderBy:'')+'</div>' : '';
-    return '<div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#fff;">'
+    // 학생이 사진을 다시 올렸으면 카드 맨 위에 눈에 띄는 배지 + 카드 전체를 파란 테두리로 강조 (스크롤 없이 바로 눈에 들어오게)
+    var submitBadge = hasSubmission
+      ? '<div style="display:flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:800;padding:5px 10px;border-radius:8px;margin-bottom:8px;">📷 확인 필요 — 사진 '+subUrls.length+'장 제출됨 · '+(h.submittedAt||'')+'</div>'
+      : '';
+    var cardStyle = hasSubmission
+      ? 'border:2px solid #93c5fd;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#f8faff;'
+      : 'border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#fff;';
+    return '<div style="'+cardStyle+'">'
+      +submitBadge
       +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
       +'<div>'
       +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;">'+escHtml(h.studentName)+' <span style="font-weight:400;color:#94a3b8;font-size:12px;">'+escHtml(h.className||'')+(h.sessionNum?' · '+h.sessionNum+'차시':'')+'</span></div>'
       +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(h.hwName)+'</div>'
       +(h.feedback?'<div style="font-size:12px;color:#94a3b8;margin-top:4px;white-space:pre-wrap;">'+escHtml(h.feedback)+'</div>':'')
-      +photoHtml+lastRem
+      +photoLinks+lastRem
       +'</div>'
       +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+HW_STATUS_LABEL_ADMIN[h.pass]+'</span>'
       +'</div>'
