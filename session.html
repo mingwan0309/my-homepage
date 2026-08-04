@@ -1240,7 +1240,7 @@ function toggleAllScoreSel(checked){
 // 메시지 작성 모달
 var MSG_TOKENS_COMMON=[['이름','{이름}'],['출결','{출결}'],['반','{반}'],['차시','{차시}']];
 var MSG_TOKENS_EXAM=[['점수','{점수}'],['등급','{등급}'],['등수','{등수}'],['평균','{평균}'],['최고점','{최고점}'],['통과여부','{통과여부}'],['피드백','{피드백}']];
-var MSG_TOKENS_HW=[['상태','{상태}'],['코멘트','{코멘트}'],['제출멘트','{제출멘트}']];
+var MSG_TOKENS_HW=[['상태','{상태}'],['코멘트','{코멘트}'],['지난과제제출','{제출멘트}']];
 
 // 학생 1명당 학부모+학생 전화번호(중복 제외)를 라벨과 함께 모두 반환
 function getMsgRecipients(st){
@@ -1522,7 +1522,7 @@ function renderMsgTargetList(){
     html+='<div style="padding:8px 10px;border:1px solid #f1f5f9;border-radius:8px;background:#fff;">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">'
       +'<div style="display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap;">'
-      +'<span style="font-weight:600;color:#1e293b;font-size:13px;">'+escHtml(st.name)+'</span>'+tags
+      +'<span style="font-weight:600;color:#1e293b;font-size:13px;cursor:pointer;" onclick="selectMsgPreview(\''+id+'\')">'+escHtml(st.name)+'</span>'+tags
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
       +'<button onclick="previewMsgFor(\''+id+'\')" style="padding:2px 8px;font-size:11px;border:1px solid #3b6cf7;border-radius:5px;background:#fff;color:#3b6cf7;cursor:pointer;font-weight:600;">미리보기</button>'
@@ -1540,6 +1540,10 @@ function removeMsgTarget(id){
   renderMsgPreview();
 }
 var msgPreviewTargetId=null;
+function selectMsgPreview(id){
+  msgPreviewTargetId=id;
+  renderMsgPreview();
+}
 function previewMsgFor(id){
   msgPreviewTargetId=id;
   var st=students.find(function(s){return s.id===id;});
@@ -1662,7 +1666,7 @@ function computeMsgTokens(studentId){
     var hasSubmission=!!(s&&s.submissionUrls&&s.submissionUrls.length);
     if(!s){ tokens['{제출멘트}']='—'; }
     else if(s.pass==='complete'){ tokens['{제출멘트}']='지난 시간 숙제, 완료 확인되었습니다.'; }
-    else if(hasSubmission){ tokens['{제출멘트}']='지난 시간 미이행이었던 숙제를 제출했습니다. 확인 후 안내드리겠습니다.'; }
+    else if(hasSubmission){ tokens['{제출멘트}']='지난 시간 미이행이었던 숙제를 제출했습니다.'; }
     else{ tokens['{제출멘트}']='지난 시간 미이행이었던 숙제를 아직 제출하지 않았습니다. 사진을 찍어 제출해 주세요.'; }
   }
   return tokens;
