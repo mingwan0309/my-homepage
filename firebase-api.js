@@ -1101,6 +1101,55 @@ api.deleteExpenseLog = function(db, p){
   return db.collection('expense_logs').doc(String(p.id)).delete().then(function(){ return { success:true }; });
 };
 
+/* ---------- 학생 상세 (수강/클리닉/질문/성적 이력) ---------- */
+api.getStudentFullHistory = function(db, p){
+  var sid = String(p.studentId);
+  return Promise.all([
+    db.collection('attendance').where('studentId','==',sid).get(),
+    db.collection('clinic_bookings').where('studentId','==',sid).get(),
+    db.collection('mandatory_clinic').where('studentId','==',sid).get(),
+    db.collection('qna').where('studentId','==',sid).get(),
+    db.collection('scores').where('studentId','==',sid).get()
+  ]).then(function(res){
+    var attRows=docsToArr(res[0]), cbRows=docsToArr(res[1]), mcRows=docsToArr(res[2]), qnaRows=docsToArr(res[3]), scoreRows=docsToArr(res[4]);
+    var sessionIds=[];
+    attRows.forEach(function(r){ if(r.sessionId && sessionIds.indexOf(r.sessionId)<0) sessionIds.push(r.sessionId); });
+    scoreRows.forEach(function(r){ if(r.sessionId && sessionIds.indexOf(r.sessionId)<0) sessionIds.push(r.sessionId); });
+    var examIds=[];
+    scoreRows.forEach(function(r){ if(r.examId && examIds.indexOf(r.examId)<0) examIds.push(r.examId); });
+    return Promise.all([
+      Promise.all(sessionIds.map(function(id){ return db.collection('sessions').doc(id).get(); })),
+      Promise.all(examIds.map(function(id){ return db.collection('exams').doc(id).get(); }))
+    ]).then(function(res2){
+      var sesMap={}; res2[0].forEach(function(d){ if(d.exists) sesMap[d.id]=d.data(); });
+      var examMap={}; res2[1].forEach(function(d){ if(d.exists) examMap[d.id]=d.data(); });
+      var classIds=[];
+      Object.keys(sesMap).forEach(function(k){ var cid=String(sesMap[k].classId||''); if(cid && classIds.indexOf(cid)<0) classIds.push(cid); });
+      return Promise.all(classIds.map(function(id){ return db.collection('classes').doc(id).get(); })).then(function(classDocs){
+        var clsMap={}; classDocs.forEach(function(d){ if(d.exists) clsMap[d.id]=d.data(); });
+        var attendance = attRows.map(function(r){
+          var ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
+          return { sessionNum:ses.sessionNum||'', date:ses.date||'', className:cls.name||'', status:r.status||'', memo:r.memo||'' };
+        }).sort(function(a,b){ return (a.date||'')<(b.date||'')?1:-1; });
+        var clinicHistory = cbRows.map(function(r){
+          return { type:'클리닉 신청', name:r.clinicName||'클리닉', date:(r.date||'')+' '+(r.time||''), status:r.status||'', createdAt:r.createdAt||r.date||'' };
+        }).concat(mcRows.map(function(r){
+          var when = r.type==='temp' ? r.date : (r.day+'요일마다');
+          return { type:'의무클리닉', name:when+' '+(r.time||'')+(r.targetDay?' ('+r.targetDay+'요일 몫)':''), date:'', status:'', createdAt:r.createdAt||'' };
+        })).sort(function(a,b){ return (a.createdAt||'')<(b.createdAt||'')?1:-1; });
+        var qna = qnaRows.filter(function(r){ return r.status!=='deleted'; }).map(function(r){
+          return { title:r.title||'', date:r.date||'', answered: r.status==='answered' };
+        }).sort(function(a,b){ return (a.date||'')<(b.date||'')?1:-1; });
+        var scores = scoreRows.map(function(r){
+          var exam=examMap[r.examId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
+          return { examName:exam.name||'(삭제된 시험)', className:cls.name||'', sessionNum:ses.sessionNum||0, score:r.score||'', pass:r.pass||'', feedback:r.feedback||'' };
+        }).sort(function(a,b){ return (Number(a.sessionNum)||0)<(Number(b.sessionNum)||0)?1:-1; });
+        return { attendance:attendance, clinicHistory:clinicHistory, qna:qna, scores:scores };
+      });
+    });
+  });
+};
+
 /* ---------- 설문조사 ---------- */
 function svParseArr(v){ if(Array.isArray(v)) return v; try{ var a=JSON.parse(v||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
 function svNowIso(){

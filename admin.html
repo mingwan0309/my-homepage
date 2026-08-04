@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=17"></script>
+<script src="firebase-api.js?v=18"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -170,6 +170,30 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 .chat-msg-bubble{max-width:75%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;}
 .chat-msg-bubble.me{align-self:flex-end;background:#2563eb;color:#fff;border-bottom-right-radius:4px;}
 .chat-msg-bubble.other{align-self:flex-start;background:#fff;color:#1e293b;border:1px solid #e2e8f0;border-bottom-left-radius:4px;}
+/* 학생 상세 슬라이드 패널 */
+.sd-panel{position:fixed;top:0;right:-460px;width:440px;height:100vh;background:#fff;box-shadow:-4px 0 32px rgba(0,0,0,.14);z-index:900;transition:.28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column;box-sizing:border-box;}
+.sd-panel.open{right:0;}
+.sd-panel-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.15);z-index:899;}
+.sd-panel-backdrop.open{display:block;}
+.sd-panel-head{padding:22px 22px 16px;border-bottom:1px solid #f1f5f9;position:relative;}
+.sd-panel-close{position:absolute;top:18px;right:18px;background:#f1f5f9;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:15px;color:#64748b;}
+.sd-panel-name{font-size:19px;font-weight:800;color:#1e293b;margin-bottom:4px;}
+.sd-panel-sub{font-size:12.5px;color:#94a3b8;}
+.sd-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;padding:16px 22px;border-bottom:1px solid #f1f5f9;}
+.sd-info-item{font-size:12.5px;}
+.sd-info-label{color:#94a3b8;margin-bottom:2px;}
+.sd-info-val{color:#1e293b;font-weight:700;}
+.sd-tabs{display:flex;border-bottom:1px solid #e2e8f0;padding:0 22px;overflow-x:auto;white-space:nowrap;}
+.sd-tab{padding:12px 14px;font-size:13px;font-weight:700;color:#94a3b8;cursor:pointer;border-bottom:2.5px solid transparent;flex-shrink:0;}
+.sd-tab.active{color:#2563eb;border-bottom-color:#2563eb;}
+.sd-tab-body{padding:16px 22px 30px;flex:1;}
+.sd-hist-row{padding:10px 0;border-bottom:1px solid #f8fafc;font-size:13px;}
+.sd-hist-title{font-weight:700;color:#1e293b;}
+.sd-hist-sub{font-size:11.5px;color:#94a3b8;margin-top:2px;}
+@media (max-width:768px){
+  .sd-panel{width:100%;right:-100%;}
+  .sd-panel-head,.sd-info-grid,.sd-tabs,.sd-tab-body{padding-left:16px;padding-right:16px;}
+}
 </style>
 </head>
 <body>
@@ -812,6 +836,25 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
   </div>
 </div>
 
+<!-- 학생 상세 슬라이드 패널 -->
+<div class="sd-panel-backdrop" id="sd-panel-backdrop" onclick="closeStuDetail()"></div>
+<div class="sd-panel" id="sd-panel">
+  <div class="sd-panel-head">
+    <button class="sd-panel-close" onclick="closeStuDetail()">✕</button>
+    <div class="sd-panel-name" id="sd-name">—</div>
+    <div class="sd-panel-sub" id="sd-sub">—</div>
+    <button id="sd-preview-btn" onclick="openStuPreview()" style="margin-top:10px;background:#eff6ff;color:#1d4ed8;border:none;padding:9px 16px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">📱 학생 화면 보기</button>
+  </div>
+  <div class="sd-info-grid" id="sd-info-grid"></div>
+  <div class="sd-tabs">
+    <div class="sd-tab active" onclick="switchSdTab('att',this)">수강 이력</div>
+    <div class="sd-tab" onclick="switchSdTab('clinic',this)">클리닉·상담 이력</div>
+    <div class="sd-tab" onclick="switchSdTab('qna',this)">질문 이력</div>
+    <div class="sd-tab" onclick="switchSdTab('score',this)">성적 이력</div>
+  </div>
+  <div class="sd-tab-body" id="sd-tab-body"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
+</div>
+
 <script>
 var SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -1110,7 +1153,7 @@ function renderStu(){
     var active=s.active!==false;
     return '<tr style="border-bottom:1px solid #f1f5f9;">'
       +'<td style="padding:8px 6px;"><input type="checkbox" '+checked+' onchange="toggleStuSel(\''+s.id+'\',this.checked)"></td>'
-      +'<td style="padding:8px 10px;font-weight:700;">'+(s.name||'-')+'</td>'
+      +'<td style="padding:8px 10px;font-weight:700;cursor:pointer;color:#2563eb;" onclick="openStuDetail(\''+s.id+'\')">'+(s.name||'-')+'</td>'
       +'<td style="padding:8px 10px;color:#64748b;">'+(s.studentPhone||s.id||'-')+'</td>'
       +'<td style="padding:8px 10px;color:#64748b;">'+(s.parentPhone||'-')+'</td>'
       +'<td style="padding:8px 10px;color:#64748b;">'+(s.school||'미입력')+'</td>'
@@ -1124,6 +1167,76 @@ function renderStu(){
       +'</tr>';
   }).join('');
   updateStuBulkBar();
+}
+// ── 학생 상세 슬라이드 패널 (수강/클리닉/질문/성적 이력 + 학생 화면 미리보기) ──
+var sdCurrentStu=null, sdHistory=null, sdCurrentTab='att';
+async function openStuDetail(id){
+  var s=allStudents.find(function(x){return x.id===id;});
+  if(!s) return;
+  sdCurrentStu=s;
+  sdHistory=null;
+  document.getElementById('sd-name').textContent=s.name||s.id;
+  document.getElementById('sd-sub').textContent=(s.school||'')+(s.grade?' · '+s.grade:'');
+  document.getElementById('sd-info-grid').innerHTML=
+    '<div class="sd-info-item"><div class="sd-info-label">학부모 전화번호</div><div class="sd-info-val">'+escHtml(s.parentPhone||'-')+'</div></div>'
+    +'<div class="sd-info-item"><div class="sd-info-label">학생 전화번호</div><div class="sd-info-val">'+escHtml(s.studentPhone||s.id||'-')+'</div></div>'
+    +'<div class="sd-info-item"><div class="sd-info-label">성별</div><div class="sd-info-val">'+escHtml(s.gender||'미입력')+'</div></div>'
+    +'<div class="sd-info-item"><div class="sd-info-label">학교</div><div class="sd-info-val">'+escHtml(s.school||'미입력')+'</div></div>'
+    +'<div class="sd-info-item"><div class="sd-info-label">학년</div><div class="sd-info-val">'+escHtml(s.grade||'미입력')+'</div></div>'
+    +'<div class="sd-info-item"><div class="sd-info-label">등록일</div><div class="sd-info-val">'+escHtml((s.createdAt||'-').substring(0,10))+'</div></div>';
+  sdCurrentTab='att';
+  document.querySelectorAll('.sd-tab').forEach(function(t,i){ t.classList.toggle('active', i===0); });
+  document.getElementById('sd-tab-body').innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  document.getElementById('sd-panel').classList.add('open');
+  document.getElementById('sd-panel-backdrop').classList.add('open');
+  try{
+    var r=await fetch(SU+'?action=getStudentFullHistory&studentId='+encodeURIComponent(id)).then(function(r){return r.json();});
+    sdHistory={ attendance:r.attendance||[], clinicHistory:r.clinicHistory||[], qna:r.qna||[], scores:r.scores||[] };
+  }catch(e){ sdHistory={ attendance:[], clinicHistory:[], qna:[], scores:[] }; }
+  renderSdTabBody();
+}
+function closeStuDetail(){
+  document.getElementById('sd-panel').classList.remove('open');
+  document.getElementById('sd-panel-backdrop').classList.remove('open');
+}
+function switchSdTab(tab,el){
+  sdCurrentTab=tab;
+  document.querySelectorAll('.sd-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  renderSdTabBody();
+}
+function renderSdTabBody(){
+  var body=document.getElementById('sd-tab-body');
+  if(!sdHistory){ body.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>'; return; }
+  if(sdCurrentTab==='att'){
+    var att=sdHistory.attendance;
+    body.innerHTML = att.length ? att.map(function(a){
+      return '<div class="sd-hist-row"><span class="sd-hist-title">'+(a.sessionNum?a.sessionNum+'차시':'')+' '+escHtml(a.className||'')+'</span> — '+escHtml(a.status||'-')
+        +'<div class="sd-hist-sub">'+(a.date||'')+(a.memo?' · '+escHtml(a.memo):'')+'</div></div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">출석 기록이 없어요.</div>';
+  } else if(sdCurrentTab==='clinic'){
+    var cl=sdHistory.clinicHistory;
+    body.innerHTML = cl.length ? cl.map(function(c){
+      return '<div class="sd-hist-row"><span class="sd-hist-title">['+escHtml(c.type)+'] '+escHtml(c.name)+'</span>'+(c.status?' — '+escHtml(c.status):'')
+        +'<div class="sd-hist-sub">'+escHtml(c.date||c.createdAt||'')+'</div></div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">클리닉·상담 이력이 없어요.</div>';
+  } else if(sdCurrentTab==='qna'){
+    var qn=sdHistory.qna;
+    body.innerHTML = qn.length ? qn.map(function(q){
+      return '<div class="sd-hist-row"><span class="sd-hist-title">'+escHtml(q.title||'(제목 없음)')+'</span>'
+        +'<div class="sd-hist-sub">'+escHtml(q.date||'')+' · '+(q.answered?'답변완료':'답변대기')+'</div></div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">질문 이력이 없어요.</div>';
+  } else if(sdCurrentTab==='score'){
+    var sc=sdHistory.scores;
+    body.innerHTML = sc.length ? sc.map(function(s){
+      return '<div class="sd-hist-row"><span class="sd-hist-title">'+escHtml(s.examName)+'</span> — '+(s.pass==='submit'?'통과':s.pass==='nosub'?'미통과':'-')+(s.score!==''?' ('+s.score+'점)':'')
+        +'<div class="sd-hist-sub">'+escHtml(s.className||'')+(s.sessionNum?' · '+s.sessionNum+'차시':'')+(s.feedback?' · '+escHtml(s.feedback):'')+'</div></div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">성적 이력이 없어요.</div>';
+  }
+}
+function openStuPreview(){
+  if(!sdCurrentStu) return;
+  window.open('mypage.html?previewStudentId='+encodeURIComponent(sdCurrentStu.id), '_blank');
 }
 function sleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
 async function bulkFixParentAccounts(){

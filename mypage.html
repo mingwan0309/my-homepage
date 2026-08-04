@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>마이페이지 — 김민관 수학</title>
-<script src="firebase-api.js?v=17"></script>
+<script src="firebase-api.js?v=18"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="chat-widget.js" defer></script>
 <style>
@@ -426,13 +426,41 @@ function toggleAttDrop(btn){
   btn.classList.toggle('open', !isOpen);
 }
 
+var isPreviewMode = false;
 document.addEventListener('DOMContentLoaded', async function(){
-  session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
-  if (!session || session.role !== 'student') {
-    document.getElementById('page-denied').style.display = 'block';
-    return;
+  var urlParams = new URLSearchParams(location.search);
+  var previewId = urlParams.get('previewStudentId');
+  var realSession = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
+
+  if (previewId && realSession && realSession.role === 'teacher') {
+    // 선생님이 "학생 화면 보기"로 들어온 경우 — 실제 로그인 세션은 그대로 두고, 화면에 보여줄 학생 정보만 조회해서 읽기 전용으로 렌더링
+    isPreviewMode = true;
+    try {
+      var db = await window.mkdbReady;
+      var sdoc = await db.collection('students').doc(previewId).get();
+      if (!sdoc.exists) { alert('학생 정보를 찾을 수 없어요.'); document.getElementById('page-denied').style.display='block'; return; }
+      var sd = sdoc.data();
+      session = { id: previewId, authId: previewId, role: 'student', name: sd.name || previewId, classId: sd.classId || '', className: '' };
+      if (session.classId) {
+        var cdoc = await db.collection('classes').doc(session.classId).get();
+        if (cdoc.exists) session.className = cdoc.data().name || '';
+      }
+    } catch(e) { document.getElementById('page-denied').style.display='block'; return; }
+  } else {
+    session = realSession;
+    if (!session || session.role !== 'student') {
+      document.getElementById('page-denied').style.display = 'block';
+      return;
+    }
   }
   // 상단 네비바는 마이페이지에서 표시하지 않음 (탭/버튼으로 이동)
+
+  if (isPreviewMode) {
+    var banner = document.createElement('div');
+    banner.style.cssText = 'position:sticky;top:0;z-index:200;background:#1e293b;color:#fff;padding:10px 16px;font-size:13px;font-weight:700;text-align:center;';
+    banner.innerHTML = '👀 미리보기 모드 — <b>' + (session.name||'') + '</b> 학생 화면이에요 (읽기 전용) <button onclick="window.close();history.length>1?history.back():location.href=\'admin.html\';" style="margin-left:10px;background:#334155;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;">닫기</button>';
+    document.body.insertBefore(banner, document.body.firstChild);
+  }
 
   // 헤더 기본값
   document.getElementById('ph-name').textContent = session.name || '학생';
@@ -442,8 +470,10 @@ document.addEventListener('DOMContentLoaded', async function(){
 
   document.getElementById('page-main').style.display = 'block';
 
-  // 세션 id가 하이픈 없는 형식이거나 예전 형식이어도, 실제 존재하는 학생 문서를 찾아 교정한다(자가 치유)
-  await normalizeSessionId();
+  if (!isPreviewMode) {
+    // 세션 id가 하이픈 없는 형식이거나 예전 형식이어도, 실제 존재하는 학생 문서를 찾아 교정한다(자가 치유)
+    await normalizeSessionId();
+  }
 
 loadInfo();
   loadAttendance();
@@ -511,6 +541,7 @@ function svOnOption(qid,val,isMulti,checked){
 }
 function closeSvAnswer(){ document.getElementById('sv-answer-modal').classList.remove('show'); }
 async function submitSvAnswer(){
+  if(isPreviewMode){ alert('미리보기 모드에서는 학생 대신 조작할 수 없어요.'); return; }
   if(!svAnswering) return;
   for(var i=0;i<(svAnswering.questions||[]).length;i++){
     var q=svAnswering.questions[i];
@@ -597,6 +628,7 @@ function renderMyHomework(){
   }).join('');
 }
 function triggerHwUpload(id){
+  if(isPreviewMode){ alert('미리보기 모드에서는 학생 대신 조작할 수 없어요.'); return; }
   var item=myHwItems.find(function(h){return h.id===id;});
   if(!item) return;
   var remain=HW_MAX_PHOTOS-(item.submissionUrls||[]).length;
@@ -620,6 +652,7 @@ async function submitHwProofUrls(item, urls){
   await loadMyHomework();
 }
 async function deleteHwPhoto(id, url){
+  if(isPreviewMode){ alert('미리보기 모드에서는 학생 대신 조작할 수 없어요.'); return; }
   var item=myHwItems.find(function(h){return h.id===id;});
   if(!item) return;
   if(!confirm('이 사진을 삭제할까요?')) return;
@@ -726,6 +759,7 @@ function openChat(){
   else alert('채팅을 불러오는 중입니다. 잠시 후 다시 눌러주세요.');
 }
 function openPwModal(){
+  if(isPreviewMode){ alert('미리보기 모드에서는 학생 대신 조작할 수 없어요.'); return; }
   document.getElementById('pw-msg').style.display='none';
   document.getElementById('old-pw').value='';
   document.getElementById('new-pw').value='';
