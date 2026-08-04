@@ -415,6 +415,9 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
           <div class="card-title" style="margin:0;">오늘(<span id="mc-today-label"></span>) 의무클리닉 대상 학생</div>
+          <label id="mc-mine-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;">
+            <input type="checkbox" id="mc-mine" checked onchange="toggleMcMineOnly(this.checked)"> 내 담당 학생만 보기
+          </label>
           <label id="mc-showall-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;">
             <input type="checkbox" id="mc-showall" onchange="toggleMcShowAll(this.checked)"> 등록된 학생 전체 보기(관리용)
           </label>
@@ -427,6 +430,9 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <div id="page-hwmanage" class="page">
       <div class="page-header"><div class="page-title">숙제관리</div></div>
       <p style="font-size:12px;color:#94a3b8;margin:-10px 0 14px;">'일부미이행' 또는 '미이행'으로 표시된 과제만 모아서 보여줘요. 완료로 바뀌면 이 목록에서 자동으로 빠져요.</p>
+      <label id="hw-mine-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;margin:-6px 0 12px;">
+        <input type="checkbox" id="hw-mine" checked onchange="toggleHwMineOnly(this.checked)"> 내 담당 학생만 보기
+      </label>
       <div id="hw-bulk-bar" style="display:none;position:sticky;top:0;z-index:5;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;flex-wrap:wrap;">
         <span style="font-size:13px;font-weight:800;color:#1d4ed8;"><span id="hw-bulk-count">0</span>명 선택됨</span>
         <button type="button" onclick="hwSelectAll()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">전체선택</button>
@@ -630,6 +636,11 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <option value="hourly">시급</option>
         <option value="monthly">월급</option>
       </select>
+    </div>
+    <div class="fg">
+      <label>담당 학생 (선택 — 지정하면 의무클리닉·숙제관리 화면에서 이 학생들만 먼저 보여줘요)</label>
+      <input type="text" id="ast-stu-search" placeholder="🔍 학생 이름 검색" oninput="renderAstStuPicker()" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;margin-bottom:6px;">
+      <div id="ast-stu-picker" style="max-height:180px;overflow-y:auto;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;"></div>
     </div>
     <div class="modal-btns">
       <button class="btn-cl" onclick="document.getElementById('ast-modal').classList.remove('show')">취소</button>
@@ -1665,8 +1676,10 @@ async function openBookingsModal(clinicId, clinicName) {
 }
 
 // ── 의무클리닉 ──
-var mcList=[], mcStudents=[], mcShowAll=false;
+var mcList=[], mcStudents=[], mcShowAll=false, mcMineOnly=true;
 function toggleMcShowAll(checked){ mcShowAll=checked; renderMcList(); }
+function toggleMcMineOnly(checked){ mcMineOnly=checked; renderMcList(); }
+function astHasMyStudents(){ return !!(cu&&cu.role==='assistant'&&cu.studentIds&&cu.studentIds.length); }
 var MC_DAY_NAMES=['일','월','화','수','목','금','토'];
 function mcTodayInfo(){
   var d=new Date();
@@ -1681,6 +1694,8 @@ async function loadMclinic(){
   document.getElementById('mc-today-label').textContent=mcTodayInfo().dayName+'요일';
   var showAllWrap=document.getElementById('mc-showall-wrap');
   if(showAllWrap) showAllWrap.style.display=(cu&&cu.role==='teacher')?'flex':'none';
+  var mineWrap=document.getElementById('mc-mine-wrap');
+  if(mineWrap) mineWrap.style.display=astHasMyStudents()?'flex':'none';
   var listEl=document.getElementById('mc-list');
   listEl.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
   try{
@@ -1726,6 +1741,7 @@ function renderMcList(){
   var list=mcShowAll?mcList:mcList.filter(function(m){
     return m.type==='temp' ? m.date===today.dateStr : m.day===today.dayName;
   });
+  if(astHasMyStudents()&&mcMineOnly) list=list.filter(function(m){ return cu.studentIds.indexOf(m.studentId)>-1; });
   if(!list.length){
     el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">'+(mcShowAll?'등록된 학생이 없습니다.':'오늘('+today.dayName+'요일)은 의무클리닉 대상 학생이 없습니다.')+'</div>';
     return;
@@ -1744,8 +1760,8 @@ function renderMcList(){
       +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+m.memo+'</div>':'')
       +(isTeacher&&markedBy?'<div style="font-size:10px;color:#94a3b8;margin-top:2px;">✓ '+markedBy+'님이 체크함</div>':'')+'</div>'
       +'<div style="display:flex;gap:6px;">'
-      +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'출석\')" style="padding:6px 12px;border-radius:7px;border:1.5px solid '+(status==='출석'?'#16a34a':'#e2e8f0')+';background:'+(status==='출석'?'#16a34a':'#fff')+';color:'+(status==='출석'?'#fff':'#475569')+';font-size:12px;font-weight:700;cursor:pointer;">출석</button>'
-      +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'결석\')" style="padding:6px 12px;border-radius:7px;border:1.5px solid '+(status==='결석'?'#dc2626':'#e2e8f0')+';background:'+(status==='결석'?'#dc2626':'#fff')+';color:'+(status==='결석'?'#fff':'#475569')+';font-size:12px;font-weight:700;cursor:pointer;">결석</button>'
+      +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'출석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(status==='출석'?'#16a34a':'#e2e8f0')+';background:'+(status==='출석'?'#16a34a':'#fff')+';color:'+(status==='출석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">출석</button>'
+      +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'결석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(status==='결석'?'#dc2626':'#e2e8f0')+';background:'+(status==='결석'?'#dc2626':'#fff')+';color:'+(status==='결석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">결석</button>'
       +'</div>'
       +(isTeacher?'<button onclick="delMclinic(\''+m.id+'\')" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:12px;">삭제</button>':'')
       +'</div>';
@@ -1813,8 +1829,12 @@ async function refreshHwNavBadge(){
     });
   }catch(e){}
 }
+var hwMineOnly=true;
+function toggleHwMineOnly(checked){ hwMineOnly=checked; renderHwManageList(); }
 async function loadHwManage(){
   var el=document.getElementById('hwmanage-list');
+  var mineWrap=document.getElementById('hw-mine-wrap');
+  if(mineWrap) mineWrap.style.display=astHasMyStudents()?'flex':'none';
   el.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
   try{
     var r=await fetch(SU+'?action=getIncompleteHomeworks').then(function(r){return r.json();});
@@ -1871,13 +1891,15 @@ function renderHwCard(h){
 }
 function renderHwManageList(){
   var el=document.getElementById('hwmanage-list');
-  if(!hwmanageList.length){
-    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">🎉 미이행/일부미이행 과제가 없어요.</div>';
+  var srcList=hwmanageList;
+  if(astHasMyStudents()&&hwMineOnly) srcList=srcList.filter(function(h){ return cu.studentIds.indexOf(h.studentId)>-1; });
+  if(!srcList.length){
+    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">'+(astHasMyStudents()&&hwMineOnly?'🎉 담당 학생 중 미이행/일부미이행 과제가 없어요.':'🎉 미이행/일부미이행 과제가 없어요.')+'</div>';
     return;
   }
   // 반별로 묶기
   var groups={}, order=[];
-  hwmanageList.forEach(function(h){
+  srcList.forEach(function(h){
     var cls=h.className||'반 미배정';
     if(!groups[cls]){ groups[cls]=[]; order.push(cls); }
     groups[cls].push(h);
@@ -1933,7 +1955,9 @@ function toggleHwSelect(id,checked){
   updateHwBulkBar();
 }
 function hwSelectAll(){
-  hwmanageList.forEach(function(h){ hwSelected[h.id]=true; });
+  var srcList=hwmanageList;
+  if(astHasMyStudents()&&hwMineOnly) srcList=srcList.filter(function(h){ return cu.studentIds.indexOf(h.studentId)>-1; });
+  srcList.forEach(function(h){ hwSelected[h.id]=true; });
   renderHwManageList();
   updateHwBulkBar();
 }
@@ -1952,7 +1976,8 @@ function updateHwBulkBar(){
 async function bulkSendHwReminder(){
   var items=hwmanageList.filter(function(h){ return hwSelected[h.id]; });
   if(!items.length){ alert('선택된 학생이 없어요.'); return; }
-  if(!confirm(items.length+'명에게 숙제 재촉 알림톡을 한 번에 보낼까요?\n(카카오 알림톡 발송 - 학생 수만큼 비용이 발생합니다)'))return;
+  var names=items.map(function(h){return h.studentName;}).join(', ');
+  if(!confirm(items.length+'명('+names+')에게 숙제 재촉 알림톡을 한 번에 보낼까요?\n(카카오 알림톡 발송 - 학생 수만큼 비용이 발생합니다)'))return;
   var msgs=[];
   items.forEach(function(h){
     var text='['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 사진을 찍어 마이페이지에서 제출해주세요!';
@@ -1977,7 +2002,8 @@ async function bulkSendHwReminder(){
 async function bulkMarkHwComplete(){
   var items=hwmanageList.filter(function(h){ return hwSelected[h.id]; });
   if(!items.length){ alert('선택된 학생이 없어요.'); return; }
-  if(!confirm(items.length+'명의 과제를 한 번에 완료 처리할까요?'))return;
+  var names2=items.map(function(h){return h.studentName;}).join(', ');
+  if(!confirm(items.length+'명('+names2+')의 과제를 한 번에 완료 처리할까요?'))return;
   await Promise.all(items.map(function(h){
     return fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass=complete&feedback='+encodeURIComponent('제출하신 과제가 [완료] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!'));
   }));
@@ -2312,7 +2338,8 @@ async function toggleAstActive(id,active){
   renderAstList();
 }
 
-function openAstModal(id){
+var astStuSelected={};
+async function openAstModal(id){
   var ast=id?astList.find(function(a){return a.id===id;}):null;
   document.getElementById('ast-modal-title').textContent=ast?'조교 수정':'조교 추가';
   document.getElementById('ast-edit-id').value=ast?ast.id:'';
@@ -2321,19 +2348,39 @@ function openAstModal(id){
   document.getElementById('ast-pw').value='';
   document.getElementById('ast-pw-wrap').style.display=ast?'none':'block';
   document.getElementById('ast-salary-type').value=ast?ast.salaryType:'hourly';
+  astStuSelected={};
+  (ast&&ast.studentIds||[]).forEach(function(sid){astStuSelected[sid]=true;});
+  document.getElementById('ast-stu-search').value='';
+  if(!allStudents.length){
+    try{ var sr=await fetch(SU+'?action=getStudents').then(function(r){return r.json();}); allStudents=sr.students||[]; }catch(e){}
+  }
+  renderAstStuPicker();
   document.getElementById('ast-modal').classList.add('show');
 }
-
+function renderAstStuPicker(){
+  var el=document.getElementById('ast-stu-picker');
+  var kw=(document.getElementById('ast-stu-search').value||'').trim();
+  var list=allStudents.filter(function(s){return s.role!=='teacher';});
+  if(kw) list=list.filter(function(s){return (s.name||'').indexOf(kw)>-1;});
+  if(!list.length){ el.innerHTML='<div style="color:#94a3b8;font-size:12px;padding:6px 0;">검색 결과가 없어요.</div>'; return; }
+  el.innerHTML=list.map(function(s){
+    var checked=astStuSelected[s.id]?'checked':'';
+    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 2px;font-size:13px;cursor:pointer;">'
+      +'<input type="checkbox" '+checked+' onchange="astStuSelected[\''+s.id+'\']=this.checked;" style="width:17px;height:17px;">'
+      +escHtml(s.name||s.id)+'</label>';
+  }).join('');
+}
 async function saveAssistant(){
   var id=document.getElementById('ast-edit-id').value;
   var name=document.getElementById('ast-name').value.trim();
   var phone=document.getElementById('ast-phone').value.trim();
   var pw=document.getElementById('ast-pw').value.trim();
   var salaryType=document.getElementById('ast-salary-type').value;
+  var studentIds=Object.keys(astStuSelected).filter(function(k){return astStuSelected[k];});
   if(!name){alert('이름을 입력해주세요.');return;}
   if(!id&&(!phone||!pw)){alert('로그인용 전화번호와 초기 비밀번호를 입력해주세요.');return;}
   try{
-    var q='&name='+encodeURIComponent(name)+'&phone='+encodeURIComponent(phone)+'&salaryType='+encodeURIComponent(salaryType);
+    var q='&name='+encodeURIComponent(name)+'&phone='+encodeURIComponent(phone)+'&salaryType='+encodeURIComponent(salaryType)+'&studentIds='+encodeURIComponent(JSON.stringify(studentIds));
     if(!id) q+='&pw='+encodeURIComponent(pw);
     var r=await fetch(SU+'?action='+(id?'updateAssistant&id='+encodeURIComponent(id):'addAssistant')+q);
     var d=await r.json();

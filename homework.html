@@ -418,7 +418,7 @@ async function login() {
         localStorage.removeItem('saved_login');
       }
       const sessionId = data.studentId || id;
-      currentUser = { id: sessionId, authId: id, role: data.role, name: data.name, classId: data.classId || '', className: data.className || '' };
+      currentUser = { id: sessionId, authId: id, role: data.role, name: data.name, classId: data.classId || '', className: data.className || '', studentIds: data.studentIds || [] };
       localStorage.setItem('mkmath_session', JSON.stringify(currentUser));
       const returnUrl = localStorage.getItem('mkmath_return');
       if (returnUrl) {
@@ -955,7 +955,7 @@ async function submitAnswer() {
     }
     show('page-result');
   } catch(e) {
-    alert('채점 중 오류가 발생했습니다: ' + e.message);
+    alert('네트워크 문제로 채점에 실패했어요. 잠시 후 다시 시도해주세요.');
   } finally {
     btn.textContent = '제출 & AI 채점';
     btn.disabled = false;

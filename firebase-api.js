@@ -126,7 +126,7 @@ api.login = function(db, p){
         if (!doc.exists) return tryAssistant(j+1);
         var a = doc.data();
         if (a.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
-        return { success:true, role:'assistant', name:a.name||a.id, classId:'', className:'', studentId:a.id };
+        return { success:true, role:'assistant', name:a.name||a.id, classId:'', className:'', studentId:a.id, studentIds:a.studentIds||[] };
       }, function(){ return tryAssistant(j+1); });
     };
     var tryParent = function(j){
@@ -1001,16 +1001,17 @@ api.getAssistants = function(db){
   return db.collection('assistants').get().then(function(snap){
     return { assistants: docsToArr(snap).sort(function(a,b){return (a.createdAt||'')>(b.createdAt||'')?1:-1;})
       .map(function(r){ return { id:r.id, name:r.name||'', phone:r.phone||'', isAdmin:!!r.isAdmin,
-        salaryType:r.salaryType||'hourly', workTypeIds:r.workTypeIds||[], active:r.active!==false, createdAt:r.createdAt||'' }; }) };
+        salaryType:r.salaryType||'hourly', workTypeIds:r.workTypeIds||[], studentIds:r.studentIds||[], active:r.active!==false, createdAt:r.createdAt||'' }; }) };
   });
 };
 api.addAssistant = function(db, p){
   var phone = String(p.phone||'');
   var id = phone || genId('ast');
   var pw = String(p.pw||'123456');
+  var studentIds=[]; try{ studentIds=JSON.parse(p.studentIds||'[]'); }catch(e){}
   return db.collection('assistants').doc(id).set({
     id:id, name:p.name||'', phone:phone, isAdmin:false,
-    salaryType:p.salaryType||'hourly', workTypeIds:[], active:true, createdAt:nowStr()
+    salaryType:p.salaryType||'hourly', workTypeIds:[], studentIds:studentIds, active:true, createdAt:nowStr()
   }).then(function(){
     if(!phone) return { success:true, id:id };
     var secondary;
@@ -1029,6 +1030,7 @@ api.updateAssistant = function(db, p){
   if(p.isAdmin!==undefined) data.isAdmin=p.isAdmin;
   if(p.salaryType!==undefined) data.salaryType=p.salaryType;
   if(p.workTypeIds!==undefined) data.workTypeIds=Array.isArray(p.workTypeIds)?p.workTypeIds:JSON.parse(p.workTypeIds||'[]');
+  if(p.studentIds!==undefined){ try{ data.studentIds=Array.isArray(p.studentIds)?p.studentIds:JSON.parse(p.studentIds||'[]'); }catch(e){ data.studentIds=[]; } }
   return db.collection('assistants').doc(String(p.id)).update(data).then(function(){ return { success:true }; });
 };
 api.setAssistantActive = function(db, p){
