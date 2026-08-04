@@ -535,16 +535,6 @@
   <a href="#" class="nav-logo"><img src="logo.png" alt="로고" style="height:36px; width:auto;"></a>
   <ul class="nav-menu">
     <li><a href="#intro">강사소개</a></li>
-    <li id="nav-student" onclick="toggleStudentDropdown(event)">
-      <a href="#" onclick="return false;">학생 ▾</a>
-      <div class="nav-dropdown" id="student-dropdown">
-        <a href="homework.html">📝 데일리 퀴즈</a>
-        <a href="clinic.html">🏥 클리닉 신청</a>
-        <a href="qna.html">💬 질의응답</a>
-        <a href="textbook.html">📖 부교재 해설 강의</a>
-        <a id="my-class-link" href="#" style="display:none;">📚 내 반</a>
-      </div>
-    </li>
     <li><a href="notice.html">공지사항</a></li>
     <li><a href="#reviews">수강후기</a></li>
   </ul>
@@ -560,16 +550,6 @@
 <!-- MOBILE MENU -->
 <div class="mobile-menu" id="mobileMenu">
   <a href="#intro" onclick="closeMenu()">강사소개</a>
-  <div class="mm-student-toggle" id="mobile-student-toggle" onclick="toggleMobileStudent()">
-    <span>학생</span><span id="mobile-student-arrow">▾</span>
-  </div>
-  <div class="mm-student-sub" id="mobile-student-sub">
-    <a href="homework.html" onclick="closeMenu()">📝 데일리 퀴즈</a>
-    <a href="clinic.html" onclick="closeMenu()">🏥 클리닉 신청</a>
-    <a href="qna.html" onclick="closeMenu()">💬 질의응답</a>
-    <a href="textbook.html" onclick="closeMenu()">📖 부교재 해설 강의</a>
-    <a id="mobile-my-class-link" href="#" onclick="closeMenu()" style="display:none;">📚 내 반</a>
-  </div>
   <a href="notice.html" onclick="closeMenu()">공지사항</a>
   <a href="#reviews" onclick="closeMenu()">수강후기</a>
 </div>
@@ -1232,16 +1212,6 @@
   function closeMenu() {
     document.getElementById('mobileMenu').classList.remove('open');
     document.getElementById('hamburger').classList.remove('open');
-    document.getElementById('mobile-student-sub').style.display = 'none';
-    document.getElementById('mobile-student-arrow').textContent = '▾';
-  }
-
-  function toggleMobileStudent() {
-    const sub = document.getElementById('mobile-student-sub');
-    const arrow = document.getElementById('mobile-student-arrow');
-    const open = sub.style.display === 'block';
-    sub.style.display = open ? 'none' : 'block';
-    arrow.textContent = open ? '▾' : '▴';
   }
 </script>
 <script src="faq-data.js"></script>
@@ -1328,8 +1298,6 @@
   function updateLoginBtn() {
     const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
     const btn = document.getElementById('nav-login-btn');
-    const classLink = document.getElementById('my-class-link');
-    const mobileClassLink = document.getElementById('mobile-my-class-link');
     if (session) {
       btn.textContent = '🔓 ' + (session.name || session.id);
       btn.style.background = '#f1f5f9';
@@ -1351,9 +1319,6 @@
       if (session.role === 'student') {
         document.getElementById('nav-mypage-btn').style.display = 'inline-block';
       }
-      // 학생 '내 반'은 마이페이지로 통합됨 — 별도 링크 숨김
-      if (classLink) classLink.style.display = 'none';
-      if (mobileClassLink) mobileClassLink.style.display = 'none';
     } else {
       btn.textContent = '🔐 로그인';
       btn.style.background = '';
@@ -1362,8 +1327,6 @@
       btn.onclick = function(e) { e.preventDefault(); openLoginModal(); };
       document.getElementById('admin-bar').style.display = 'none';
       document.getElementById('review-manage-btn').style.display = 'none';
-      classLink.style.display = 'none';
-      mobileClassLink.style.display = 'none';
     }
   }
 
@@ -1374,16 +1337,6 @@
     btn.onclick = function(e) { e.preventDefault(); openLoginModal(); };
     updateLoginBtn();
   })();
-
-  // 학생 드롭다운
-  function toggleStudentDropdown(e) {
-    e.stopPropagation();
-    const dd = document.getElementById('student-dropdown');
-    dd.classList.toggle('open');
-  }
-  document.addEventListener('click', function() {
-    document.getElementById('student-dropdown').classList.remove('open');
-  });
 
   // 시간표 팝업
   (function() {
