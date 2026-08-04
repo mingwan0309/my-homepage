@@ -802,7 +802,6 @@ var sessionInfo=null, classInfo=null, students=[], classSessions=[], attMap={}, 
 var panelStudentId='', panelExamId='', panelPass='';
 var scoreSelected={};
 var homeworks=[], hwStatusMap={};
-var allClassHomeworks=[], hwStatusFetchedSessions={};  // 알림톡 발송창에서 '다른 차시' 과제를 고를 수 있게 하기 위한 캐시
 var hwPanelStudentId='', hwPanelHwId='', hwPanelPass='';
 var allSystemStudents=[], samSelected=[], samLoaded=false;
 
@@ -1374,8 +1373,6 @@ function onPersonalMsgInput(id, val){
 async function openMsgModal(){
   if(!Object.keys(scoreSelected).length){alert('학생을 먼저 선택해주세요.');return;}
   personalMsgs={};  // 새로 열 때 개인 메시지 초기화
-  hwStatusFetchedSessions={};  // 이전 차시 과제현황 캐시도 새로 열 때 초기화
-  await loadAllClassHomeworks();
   renderMsgAssessmentOptions();
   document.getElementById('msg-class-input').value=classInfo?classInfo.name:'';
   document.getElementById('msg-session-input').value=sessionInfo?(sessionInfo.sessionNum+'차시'):'';
@@ -1388,36 +1385,6 @@ async function openMsgModal(){
   renderMsgTokenBar();
   renderMsgPreview();
   document.getElementById('msg-modal').classList.add('show');
-}
-// 이 반의 모든 차시(현재 차시 포함)에 등록된 과제를 전부 모아옴 — '다음 차시'에서 '지난 차시' 과제 미이행을 문자에 넣을 수 있도록
-async function loadAllClassHomeworks(){
-  if(!classSessions.length){ allClassHomeworks=homeworks.map(function(h){return {id:h.id,name:h.name,sessionId:sessionId,sessionNum:sessionInfo?sessionInfo.sessionNum:''};}); return; }
-  try{
-    var results=await Promise.all(classSessions.map(function(s){
-      return fetch(SU+'?action=getHwItems&sessionId='+encodeURIComponent(s.id)).then(function(r){return r.json();});
-    }));
-    var list=[];
-    classSessions.forEach(function(s,i){
-      var hws=(results[i]&&results[i].homeworks)||[];
-      hws.forEach(function(h){ list.push({id:h.id,name:h.name,sessionId:s.id,sessionNum:s.sessionNum}); });
-    });
-    list.sort(function(a,b){ return Number(b.sessionNum)-Number(a.sessionNum); }); // 최근 차시 과제가 위로
-    allClassHomeworks=list;
-  }catch(e){
-    allClassHomeworks=homeworks.map(function(h){return {id:h.id,name:h.name,sessionId:sessionId,sessionNum:sessionInfo?sessionInfo.sessionNum:''};});
-  }
-}
-// 다른 차시 과제를 골랐을 때, 그 차시의 제출 현황(hw_status)을 가져와 hwStatusMap에 합쳐넣음
-async function ensureHwStatusLoaded(targetSessionId){
-  if(hwStatusFetchedSessions[targetSessionId]) return;
-  hwStatusFetchedSessions[targetSessionId]=true;
-  try{
-    var r=await fetch(SU+'?action=getHwStatuses&sessionId='+encodeURIComponent(targetSessionId)).then(function(r){return r.json();});
-    (r.statuses||[]).forEach(function(s){
-      if(!hwStatusMap[s.studentId])hwStatusMap[s.studentId]={};
-      hwStatusMap[s.studentId][s.hwId]={pass:s.pass,feedback:s.feedback,submissionUrls:s.submissionUrls||[],submittedAt:s.submittedAt||''};
-    });
-  }catch(e){}
 }
 function closeMsgModal(){
   document.getElementById('msg-modal').classList.remove('show');
@@ -1565,23 +1532,10 @@ function renderMsgAssessmentOptions(){
   var sel=document.getElementById('msg-assessment');
   var opts=['<option value="">(선택 안 함)</option>'];
   exams.forEach(function(ex){opts.push('<option value="exam:'+ex.id+'">[시험] '+ex.name+'</option>');});
-  var hwList=allClassHomeworks.length?allClassHomeworks:homeworks.map(function(h){return {id:h.id,name:h.name,sessionId:sessionId,sessionNum:sessionInfo?sessionInfo.sessionNum:''};});
-  hwList.forEach(function(hw){
-    var tag=String(hw.sessionId)===String(sessionId)?'현재 차시':hw.sessionNum+'차시';
-    opts.push('<option value="hw:'+hw.id+'" data-session-id="'+hw.sessionId+'">[과제] '+hw.name+' · '+tag+'</option>');
-  });
+  homeworks.forEach(function(hw){opts.push('<option value="hw:'+hw.id+'">[과제] '+hw.name+'</option>');});
   sel.innerHTML=opts.join('');
 }
-async function onMsgAssessmentChange(){
-  var sel=document.getElementById('msg-assessment');
-  var val=sel.value;
-  if(val.indexOf('hw:')===0){
-    var opt=sel.selectedOptions[0];
-    var hwSessionId=opt?opt.getAttribute('data-session-id'):sessionId;
-    if(hwSessionId && String(hwSessionId)!==String(sessionId)){
-      await ensureHwStatusLoaded(hwSessionId);
-    }
-  }
+function onMsgAssessmentChange(){
   renderMsgTokenBar();
   renderMsgTargetList();
   renderMsgPreview();
@@ -2028,7 +1982,6 @@ async function loadHw(){
   ]);
   homeworks=hr.homeworks||[];
   hwStatusMap={};
-  hwStatusFetchedSessions[sessionId]=true;  // 현재 차시는 이미 불러왔으니 나중에 또 안 불러오게 표시
   (sr.statuses||[]).forEach(function(s){
     if(!hwStatusMap[s.studentId])hwStatusMap[s.studentId]={};
     hwStatusMap[s.studentId][s.hwId]={pass:s.pass,feedback:s.feedback||'',submissionUrls:s.submissionUrls||[],submittedAt:s.submittedAt||''};
