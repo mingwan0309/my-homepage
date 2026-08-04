@@ -26,7 +26,7 @@
 | 파일 | 역할 |
 |---|---|
 | index.html | 메인 홈 |
-| admin.html | 선생님 관리 페이지 (반/학생/데일리퀴즈/클리닉/공지/질의응답/영상 라이브러리/관리자) |
+| admin.html | 선생님(+조교 일부) 관리 페이지 (반/학생/데일리퀴즈/클리닉/의무클리닉/숙제관리/공지/설문조사/질의응답/채팅/영상 라이브러리/부교재 강의/조교/관리자) |
 | class.html | 반 상세 (차시, 수강생 목록, 강의 자료실) |
 | session.html | 차시별 출석/성적 관리 — **학생 접근 차단됨** (student면 homework.html로 리다이렉트) |
 | homework.html | 데일리 퀴즈 (학생용, AI 채점 포함) |
@@ -110,6 +110,7 @@
 
 ## 영상 시스템 (하드 룰)
 - 두 갈래: (1) 반 자료실용 `video_library` (과목+유형 분류), (2) 부교재 해설 강의용 `textbook_videos` (학년→과목→교재 3단계).
+- 등록/삭제는 admin.html "영상"(video_library) / "부교재 강의"(textbook_videos, 2026-08-05 추가) 두 탭에서 각각 관리. textbook.html 안에도 교사 로그인 시 보이는 자체 등록/삭제 버튼이 남아있음(학생 화면에서 바로 등록하던 예전 방식) — 둘 다 같은 `textbook_videos` 컬렉션을 직접 건드리므로 어느 쪽에서 등록해도 결과는 같음.
 - YouTube 재생은 유튜브로 이동하지 않고 **자체 모달**에서 iframe으로 재생하며, **유튜브 네이티브 컨트롤을 전부 제거하고 자체 UI로 완전히 대체**했다 (`controls=0` + 전체 화면을 덮는 클릭 차단막):
   - iframe embed url에 `controls=0&modestbranding=1&rel=0&enablejsapi=1` 사용
   - `#yt-click-shield`: iframe 전체를 덮는 투명 div (pointer-events:auto), 클릭 시 재생/일시정지 토글만 하고 유튜브 UI로는 클릭이 전혀 전달되지 않음
