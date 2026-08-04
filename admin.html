@@ -201,6 +201,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('mclinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">⏰</span> 의무클리닉</div>
       <div class="nav-item" onclick="showPage('hwmanage',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('notice',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📢</span> 공지</div>
+      <div class="nav-item" onclick="showPage('survey',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('chat',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('videos',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🎬</span> 영상</div>
@@ -223,6 +224,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('mclinic',this)"><span class="ni">⏰</span> 의무클리닉</div>
       <div class="nav-item" onclick="showPage('hwmanage',this)"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
+      <div class="nav-item" onclick="showPage('survey',this)"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('chat',this)"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('videos',this)"><span class="ni">🎬</span> 영상</div>
@@ -450,6 +452,23 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <button class="btn-primary" onclick="openNoticeModal()">+ 공지 작성</button>
       </div>
       <div id="notice-list"></div>
+    </div>
+
+    <!-- 설문조사 -->
+    <div id="page-survey" class="page">
+      <div id="sv-view-list">
+        <div class="page-header">
+          <div class="page-title">설문조사</div>
+          <button class="btn-primary" onclick="openSvDetail(null)">+ 설문 만들기</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>제목</th><th>응답 가능 시간</th><th>응답 수</th><th>생성일</th><th></th></tr></thead>
+            <tbody id="sv-tbody"><tr><td colspan="5" style="padding:20px;color:#94a3b8;">불러오는 중...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="sv-view-detail" style="display:none;"></div>
     </div>
 
     <!-- 질의응답 -->
@@ -868,7 +887,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','students','quiz','clinic','mclinic','hwmanage','notice','qna','chat','videos','assistants','settings'];
+    var validPages = ['classes','students','quiz','clinic','mclinic','hwmanage','notice','survey','qna','chat','videos','assistants','settings'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
@@ -892,6 +911,7 @@ function showPage(page,el){
   if(page==='chat') initChatPage();
   if(page==='videos') initVideoPage();
   if(page==='assistants') initAstPage();
+  if(page==='survey') loadSurveys();
   location.hash = page;
 }
 
@@ -2009,6 +2029,194 @@ async function bulkMarkHwComplete(){
   }));
   hwSelected={};
   loadHwManage();
+}
+
+// ── 설문조사 ──
+var svList=[], svEditing=null, svQuestions=[], svDetailTab='settings';
+async function loadSurveys(){
+  var tb=document.getElementById('sv-tbody');
+  tb.innerHTML='<tr><td colspan="5" style="padding:20px;color:#94a3b8;">불러오는 중...</td></tr>';
+  if(!allStudents.length||!allClasses.length){
+    try{
+      var pr=await Promise.all([fetch(SU+'?action=getStudents').then(function(r){return r.json();}),fetch(SU+'?action=getClasses').then(function(r){return r.json();})]);
+      if(!allStudents.length) allStudents=pr[0].students||[];
+      if(!allClasses.length) allClasses=pr[1].classes||[];
+    }catch(e){}
+  }
+  try{
+    var r=await fetch(SU+'?action=getSurveys').then(function(r){return r.json();});
+    svList=r.surveys||[];
+    renderSvList();
+  }catch(e){ tb.innerHTML='<tr><td colspan="5" style="padding:20px;color:#dc2626;">불러오기 실패</td></tr>'; }
+}
+function svTargetCount(s){
+  if(!allStudents.length) return '-';
+  var base=allStudents.filter(function(st){return st.role!=='teacher';});
+  if(!s.targetClassIds||!s.targetClassIds.length) return base.length;
+  return base.filter(function(st){ return s.targetClassIds.indexOf(String(st.classId||''))>-1; }).length;
+}
+function svPeriodLabel(s){
+  if(!s.startAt&&!s.endAt) return '기간 제한 없음';
+  return (s.startAt?s.startAt.replace('T',' '):'제한없음')+' ~ '+(s.endAt?s.endAt.replace('T',' '):'제한없음');
+}
+function renderSvList(){
+  var tb=document.getElementById('sv-tbody');
+  if(!svList.length){ tb.innerHTML='<tr><td colspan="5" style="padding:20px;color:#94a3b8;">등록된 설문이 없어요.</td></tr>'; return; }
+  tb.innerHTML=svList.map(function(s){
+    return '<tr style="cursor:pointer;" onclick="openSvDetail(\''+s.id+'\')">'
+      +'<td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+s.color+';margin-right:8px;"></span><b>'+escHtml(s.title)+'</b></td>'
+      +'<td style="font-size:12.5px;color:#64748b;">'+svPeriodLabel(s)+'</td>'
+      +'<td>'+s.responseCount+' / '+svTargetCount(s)+'명</td>'
+      +'<td style="font-size:12.5px;color:#64748b;">'+(s.createdAt||'').slice(0,10)+'</td>'
+      +'<td><button onclick="event.stopPropagation();deleteSurvey(\''+s.id+'\')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:12px;">삭제</button></td>'
+      +'</tr>';
+  }).join('');
+}
+async function deleteSurvey(id){
+  var s=svList.find(function(x){return x.id===id;});
+  if(!confirm('"'+(s?s.title:'')+'" 설문을 삭제할까요?\n응답 데이터도 함께 삭제되며 되돌릴 수 없어요.'))return;
+  await fetch(SU+'?action=deleteSurvey&id='+encodeURIComponent(id));
+  loadSurveys();
+}
+function svNewQuestion(){ return { id:'q'+Date.now()+Math.floor(Math.random()*1000), text:'', type:'single', options:['',''], required:true }; }
+function openSvDetail(id){
+  svEditing = id ? svList.find(function(x){return x.id===id;}) : null;
+  svQuestions = svEditing ? JSON.parse(JSON.stringify(svEditing.questions&&svEditing.questions.length?svEditing.questions:[svNewQuestion()])) : [svNewQuestion()];
+  svDetailTab='settings';
+  document.getElementById('sv-view-list').style.display='none';
+  document.getElementById('sv-view-detail').style.display='block';
+  renderSvDetail();
+}
+function closeSvDetail(){
+  document.getElementById('sv-view-detail').style.display='none';
+  document.getElementById('sv-view-list').style.display='block';
+  loadSurveys();
+}
+function svSwitchTab(t){ svDetailTab=t; renderSvDetail(); }
+function renderSvDetail(){
+  var el=document.getElementById('sv-view-detail');
+  var tabsHtml = svEditing ? (
+    '<div class="tabs" style="margin-bottom:16px;">'
+    +'<div class="tab '+(svDetailTab==='settings'?'active':'')+'" onclick="svSwitchTab(\'settings\')">설문 설정</div>'
+    +'<div class="tab '+(svDetailTab==='results'?'active':'')+'" onclick="svSwitchTab(\'results\')">결과 보기 ('+svEditing.responseCount+'/'+svTargetCount(svEditing)+')</div>'
+    +'</div>'
+  ) : '';
+  el.innerHTML = '<div style="margin-bottom:16px;"><span onclick="closeSvDetail()" style="cursor:pointer;color:#2563eb;font-weight:700;font-size:13px;">← 목록으로</span></div>'
+    + tabsHtml
+    + '<div id="sv-tab-body"></div>';
+  if(svDetailTab==='results' && svEditing){ svRenderResults(); }
+  else { svRenderEditorForm(); }
+}
+function svRenderEditorForm(){
+  var s=svEditing||{};
+  var body=document.getElementById('sv-tab-body');
+  body.innerHTML = '<div class="card" style="margin-bottom:16px;">'
+    +'<div class="fg"><label>제목</label><input type="text" id="sv-title" placeholder="설문 제목" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>'
+    +'<div class="fg"><label>대상 (선택 안 하면 전체 학생)</label><div id="sv-target-picker" style="max-height:140px;overflow-y:auto;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;"></div></div>'
+    +'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+    +'<div class="fg" style="flex:1;min-width:180px;"><label>응답 시작 (선택)</label><input type="datetime-local" id="sv-start" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>'
+    +'<div class="fg" style="flex:1;min-width:180px;"><label>응답 마감 (선택)</label><input type="datetime-local" id="sv-end" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+    +'<div class="fg" style="flex:1;min-width:160px;"><label>버튼 문구</label><select id="sv-btntype" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;background:#fff;font-family:inherit;"><option value="submit">제출하기</option><option value="apply">신청하기</option></select></div>'
+    +'<div class="fg" style="flex:1;min-width:160px;"><label>제출 후 수정</label><select id="sv-allowedit" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;background:#fff;font-family:inherit;"><option value="1">허용</option><option value="0">허용하지 않음</option></select></div>'
+    +'</div>'
+    +'</div>'
+    +'<div class="card">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div class="card-title" style="margin:0;">문항</div><button onclick="svAddQuestion()" style="background:#f1f5f9;border:none;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;color:#475569;">+ 문항 추가</button></div>'
+    +'<div id="sv-q-list"></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:10px;margin-top:16px;">'
+    +'<button class="btn-primary" onclick="saveSurvey()">저장</button>'
+    +'<button onclick="closeSvDetail()" style="background:#f1f5f9;color:#64748b;border:none;padding:11px 22px;border-radius:9px;font-weight:700;font-size:14px;cursor:pointer;">취소</button>'
+    +'</div>';
+  document.getElementById('sv-title').value = s.title||'';
+  document.getElementById('sv-start').value = s.startAt||'';
+  document.getElementById('sv-end').value = s.endAt||'';
+  document.getElementById('sv-btntype').value = s.buttonType||'submit';
+  document.getElementById('sv-allowedit').value = s.allowEdit===false?'0':'1';
+  var picker=document.getElementById('sv-target-picker');
+  var targetSet={}; (s.targetClassIds||[]).forEach(function(cid){targetSet[cid]=true;});
+  picker.innerHTML = allClasses.length ? allClasses.map(function(c){
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:13px;cursor:pointer;"><input type="checkbox" class="sv-target-cb" value="'+c.id+'" '+(targetSet[c.id]?'checked':'')+' style="width:17px;height:17px;">'+escHtml(c.name)+'</label>';
+  }).join('') : '<div style="color:#94a3b8;font-size:12px;">등록된 반이 없어요.</div>';
+  renderSvQList();
+}
+function renderSvQList(){
+  var el=document.getElementById('sv-q-list');
+  el.innerHTML = svQuestions.map(function(q,i){
+    var optsHtml = q.type!=='text' ? (
+      '<div id="sv-opts-'+q.id+'">'+q.options.map(function(o,oi){
+        return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;"><input type="text" value="'+escHtml(o)+'" placeholder="선택지 '+(oi+1)+'" oninput="svQuestions['+i+'].options['+oi+']=this.value" style="flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:13px;outline:none;font-family:inherit;">'
+          +(q.options.length>1?'<button onclick="svRemoveOption('+i+','+oi+')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:14px;">✕</button>':'')+'</div>';
+      }).join('')+'</div>'
+      +'<button onclick="svAddOption('+i+')" style="background:#f1f5f9;border:none;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;color:#475569;">+ 선택지 추가</button>'
+    ) : '';
+    return '<div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:12px;">'
+      +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">'
+      +'<span style="font-weight:800;font-size:13px;color:#475569;">문항 '+(i+1)+'</span>'
+      +'<select onchange="svQuestions['+i+'].type=this.value;renderSvQList();" style="padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12.5px;background:#fff;outline:none;">'
+      +'<option value="single" '+(q.type==='single'?'selected':'')+'>선택형(하나만)</option>'
+      +'<option value="multi" '+(q.type==='multi'?'selected':'')+'>선택형(여러개)</option>'
+      +'<option value="text" '+(q.type==='text'?'selected':'')+'>자유형</option>'
+      +'</select>'
+      +'<label style="font-size:12px;color:#64748b;display:flex;align-items:center;gap:4px;margin-left:auto;"><input type="checkbox" '+(q.required?'checked':'')+' onchange="svQuestions['+i+'].required=this.checked" style="width:16px;height:16px;">필수</label>'
+      +'<button onclick="svRemoveQuestion('+i+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;">삭제</button>'
+      +'</div>'
+      +'<input type="text" value="'+escHtml(q.text)+'" placeholder="질문 내용" oninput="svQuestions['+i+'].text=this.value" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;margin-bottom:10px;outline:none;font-family:inherit;">'
+      +optsHtml
+      +'</div>';
+  }).join('');
+}
+function svAddQuestion(){ svQuestions.push(svNewQuestion()); renderSvQList(); }
+function svRemoveQuestion(i){ if(svQuestions.length<=1){alert('문항이 최소 1개는 있어야 해요.');return;} svQuestions.splice(i,1); renderSvQList(); }
+function svAddOption(i){ svQuestions[i].options.push(''); renderSvQList(); }
+function svRemoveOption(i,oi){ svQuestions[i].options.splice(oi,1); renderSvQList(); }
+async function saveSurvey(){
+  var title=document.getElementById('sv-title').value.trim();
+  if(!title){ alert('제목을 입력해주세요.'); return; }
+  var qs=svQuestions.filter(function(q){return q.text.trim();});
+  if(!qs.length){ alert('문항을 최소 1개 입력해주세요.'); return; }
+  var targetClassIds=Array.prototype.slice.call(document.querySelectorAll('.sv-target-cb:checked')).map(function(el){return el.value;});
+  var startAt=document.getElementById('sv-start').value;
+  var endAt=document.getElementById('sv-end').value;
+  var buttonType=document.getElementById('sv-btntype').value;
+  var allowEdit=document.getElementById('sv-allowedit').value;
+  var qsOut=qs.map(function(q){
+    var q2={id:q.id,text:q.text.trim(),type:q.type,required:!!q.required};
+    if(q.type!=='text') q2.options=(q.options||[]).filter(function(o){return o.trim();});
+    return q2;
+  });
+  var body='&title='+encodeURIComponent(title)+'&targetClassIds='+encodeURIComponent(JSON.stringify(targetClassIds))
+    +'&startAt='+encodeURIComponent(startAt)+'&endAt='+encodeURIComponent(endAt)
+    +'&buttonType='+encodeURIComponent(buttonType)+'&allowEdit='+encodeURIComponent(allowEdit)
+    +'&questions='+encodeURIComponent(JSON.stringify(qsOut));
+  try{
+    var action = svEditing ? 'updateSurvey&id='+encodeURIComponent(svEditing.id) : 'addSurvey';
+    var r=await fetch(SU+'?action='+action+body).then(function(r){return r.json();});
+    if(r.success===false){ alert('저장 실패: '+(r.msg||r.error||'')); return; }
+    closeSvDetail();
+  }catch(e){ alert('오류: '+e.message); }
+}
+async function svRenderResults(){
+  var body=document.getElementById('sv-tab-body');
+  body.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;">불러오는 중...</div>';
+  try{
+    var r=await fetch(SU+'?action=getSurveyResponses&surveyId='+encodeURIComponent(svEditing.id)).then(function(r){return r.json();});
+    var responses=r.responses||[];
+    if(!responses.length){ body.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:30px 0;text-align:center;">아직 응답이 없어요.</div>'; return; }
+    body.innerHTML = '<div class="table-wrap"><table><thead><tr><th>이름</th><th>응답</th><th>제출 시각</th></tr></thead><tbody>'
+      + responses.map(function(resp){
+          var ansText=(svEditing.questions||[]).map(function(q){
+            var v=resp.answers?resp.answers[q.id]:null;
+            if(v===undefined||v===null||v==='') return '';
+            var vv = Array.isArray(v)?v.join(', ') : v;
+            return '<div style="margin-bottom:2px;"><b style="color:#475569;">'+escHtml(q.text)+':</b> '+escHtml(String(vv))+'</div>';
+          }).join('');
+          return '<tr><td style="font-weight:700;white-space:nowrap;">'+escHtml(resp.studentName||resp.studentId)+'</td><td style="font-size:12.5px;">'+ansText+'</td><td style="font-size:12px;color:#94a3b8;white-space:nowrap;">'+(resp.submittedAt||'')+'</td></tr>';
+        }).join('')
+      + '</tbody></table></div>';
+  }catch(e){ body.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>'; }
 }
 
 // ── 영상 라이브러리 ──

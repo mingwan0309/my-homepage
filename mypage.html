@@ -283,6 +283,12 @@ a{text-decoration:none;}
       <div class="dash-sub" id="ph-sub">—</div>
     </div>
 
+    <!-- 설문조사 (응답 대상이고 아직 안 낸 설문이 있을 때만 상단에 노출) -->
+    <div class="card" id="survey-card" style="display:none;">
+      <div class="card-title"><span>📋</span> 설문조사</div>
+      <div id="survey-list"></div>
+    </div>
+
     <!-- 내 반 · 차시별 출결 -->
     <div class="card">
       <div class="dash-sec-head"><span class="dash-class" id="dash-class">내 반</span></div>
@@ -362,6 +368,18 @@ a{text-decoration:none;}
   </div>
 </div>
 
+<!-- 설문조사 응답 -->
+<div id="sv-answer-modal" class="pw-modal-bg" onclick="if(event.target===this)closeSvAnswer()">
+  <div style="background:#fff;border-radius:16px;padding:22px;width:100%;max-width:440px;max-height:85vh;overflow-y:auto;">
+    <div id="sv-answer-title" style="font-weight:800;font-size:16px;margin-bottom:16px;"></div>
+    <div id="sv-answer-body"></div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <button onclick="closeSvAnswer()" style="flex:1;padding:12px;border:1.5px solid #e2e8f0;background:#fff;border-radius:10px;font-weight:700;color:#64748b;cursor:pointer;min-height:44px;">취소</button>
+      <button id="sv-answer-submit" onclick="submitSvAnswer()" style="flex:1;padding:12px;border:none;background:#3b6cf7;color:#fff;border-radius:10px;font-weight:700;cursor:pointer;min-height:44px;">제출하기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 유튜브 재생 모달 (class.html과 동일한 전체 차단 구조) -->
 <div class="yt-modal-bg" id="yt-player-modal" onclick="closeYtModal()">
   <div id="yt-player-wrap" style="position:relative;width:90%;max-width:860px;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;" onclick="event.stopPropagation()">
@@ -432,7 +450,80 @@ loadInfo();
   loadClassMaterials();
   loadMyMandatoryClinic();
   loadMyHomework();
+  loadMySurveys();
 });
+
+// ── 설문조사 (마이페이지 상단 노출) ──
+var mySurveys=[], svAnswering=null, svAnswers={};
+async function loadMySurveys(){
+  try{
+    var r=await fetch(SU+'?action=getMySurveys&studentId='+encodeURIComponent(session.id)).then(function(r){return r.json();});
+    mySurveys=(r.items||[]).filter(function(s){ return !s.responded || s.allowEdit; });
+    if(!mySurveys.length) return;
+    document.getElementById('survey-card').style.display='block';
+    document.getElementById('survey-list').innerHTML=mySurveys.map(function(s){
+      var btnLabel=s.buttonType==='apply'?'신청하기':'제출하기';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;">'
+        +'<div><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+(s.color||'#3b82f6')+';margin-right:8px;"></span>'
+        +'<b style="font-size:14px;">'+escHtmlSv(s.title)+'</b>'
+        +(s.responded?'<span style="margin-left:8px;font-size:11px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:20px;">응답완료</span>':'')
+        +(s.endAt?'<div style="font-size:12px;color:#94a3b8;margin-top:2px;">'+s.endAt.replace('T',' ')+'까지</div>':'')
+        +'</div>'
+        +'<button onclick="openSvAnswer(\''+s.id+'\')" style="background:'+(s.responded?'#f1f5f9':'#3b6cf7')+';color:'+(s.responded?'#475569':'#fff')+';border:none;padding:10px 18px;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;min-height:40px;">'+(s.responded?'다시 '+btnLabel:btnLabel)+'</button>'
+        +'</div>';
+    }).join('');
+  }catch(e){}
+}
+function escHtmlSv(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function svJsEsc(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function openSvAnswer(id){
+  svAnswering=mySurveys.find(function(x){return x.id===id;});
+  if(!svAnswering) return;
+  svAnswers=JSON.parse(JSON.stringify(svAnswering.myAnswers||{}));
+  var modal=document.getElementById('sv-answer-modal');
+  document.getElementById('sv-answer-title').textContent=svAnswering.title;
+  document.getElementById('sv-answer-body').innerHTML=(svAnswering.questions||[]).map(function(q,qi){
+    var val=svAnswers[q.id];
+    if(q.type==='text'){
+      return '<div style="margin-bottom:16px;"><div style="font-weight:700;font-size:13.5px;margin-bottom:8px;">'+escHtmlSv(q.text)+(q.required?' <span style="color:#dc2626;">*</span>':'')+'</div>'
+        +'<textarea oninput="svAnswers[\''+q.id+'\']=this.value" style="width:100%;min-height:70px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:16px;font-family:inherit;outline:none;resize:vertical;">'+escHtmlSv(val||'')+'</textarea></div>';
+    }
+    var isMulti=q.type==='multi';
+    var opts=(q.options||[]).map(function(o){
+      var checked = isMulti ? (Array.isArray(val)&&val.indexOf(o)>-1) : (val===o);
+      return '<label style="display:flex;align-items:center;gap:9px;padding:10px 4px;font-size:14px;cursor:pointer;min-height:40px;">'
+        +'<input type="'+(isMulti?'checkbox':'radio')+'" name="svq-'+q.id+'" '+(checked?'checked':'')+' onchange="svOnOption(\''+q.id+'\',\''+svJsEsc(o)+'\','+isMulti+',this.checked)" style="width:19px;height:19px;">'+escHtmlSv(o)+'</label>';
+    }).join('');
+    return '<div style="margin-bottom:16px;"><div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">'+escHtmlSv(q.text)+(q.required?' <span style="color:#dc2626;">*</span>':'')+'</div>'+opts+'</div>';
+  }).join('');
+  var btnLabel=svAnswering.buttonType==='apply'?'신청하기':'제출하기';
+  document.getElementById('sv-answer-submit').textContent=btnLabel;
+  modal.classList.add('show');
+}
+function svOnOption(qid,val,isMulti,checked){
+  if(isMulti){
+    var arr=Array.isArray(svAnswers[qid])?svAnswers[qid]:[];
+    if(checked){ if(arr.indexOf(val)<0) arr.push(val); } else { arr=arr.filter(function(v){return v!==val;}); }
+    svAnswers[qid]=arr;
+  } else {
+    svAnswers[qid]=val;
+  }
+}
+function closeSvAnswer(){ document.getElementById('sv-answer-modal').classList.remove('show'); }
+async function submitSvAnswer(){
+  if(!svAnswering) return;
+  for(var i=0;i<(svAnswering.questions||[]).length;i++){
+    var q=svAnswering.questions[i];
+    var v=svAnswers[q.id];
+    var empty = q.type==='multi' ? (!Array.isArray(v)||!v.length) : (!v||!String(v).trim());
+    if(q.required && empty){ alert('"'+q.text+'" 문항은 꼭 답해주셔야 해요.'); return; }
+  }
+  try{
+    await fetch(SU+'?action=submitSurveyResponse&surveyId='+encodeURIComponent(svAnswering.id)+'&studentId='+encodeURIComponent(session.id)+'&studentName='+encodeURIComponent(session.name||session.id)+'&answers='+encodeURIComponent(JSON.stringify(svAnswers)));
+    closeSvAnswer();
+    loadMySurveys();
+  }catch(e){ alert('제출 중 오류가 발생했어요. 다시 시도해주세요.'); }
+}
 
 async function loadMyMandatoryClinic(){
   try{

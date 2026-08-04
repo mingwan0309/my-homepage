@@ -1101,6 +1101,98 @@ api.deleteExpenseLog = function(db, p){
   return db.collection('expense_logs').doc(String(p.id)).delete().then(function(){ return { success:true }; });
 };
 
+/* ---------- 설문조사 ---------- */
+function svParseArr(v){ if(Array.isArray(v)) return v; try{ var a=JSON.parse(v||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function svNowIso(){
+  var d=new Date();
+  function p(n){ return (n<10?'0':'')+n; }
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+}
+api.getSurveys = function(db){
+  return db.collection('surveys').get().then(function(snap){
+    var list=docsToArr(snap).map(function(r){
+      return { id:r.id, title:r.title||'', color:r.color||'#3b82f6', targetClassIds:r.targetClassIds||[],
+        startAt:r.startAt||'', endAt:r.endAt||'', allowEdit:r.allowEdit!==false, buttonType:r.buttonType||'submit',
+        maxResponses:Number(r.maxResponses||0), questions:r.questions||[], createdAt:r.createdAt||'' };
+    });
+    list.sort(function(a,b){ return (a.createdAt||'')<(b.createdAt||'')?1:-1; });
+    return Promise.all(list.map(function(s){
+      return db.collection('survey_responses').where('surveyId','==',s.id).get().then(function(rs){ s.responseCount=rs.size; });
+    })).then(function(){ return { surveys:list }; });
+  });
+};
+api.addSurvey = function(db, p){
+  var id = genId('sv');
+  var data = {
+    id:id, title:p.title||'', color:p.color||'#3b82f6',
+    targetClassIds: svParseArr(p.targetClassIds),
+    startAt:p.startAt||'', endAt:p.endAt||'',
+    allowEdit: p.allowEdit!=='0',
+    buttonType: p.buttonType||'submit',
+    maxResponses: Number(p.maxResponses||0),
+    questions: svParseArr(p.questions),
+    createdAt: nowStr()
+  };
+  return db.collection('surveys').doc(id).set(data).then(function(){ return { success:true, id:id }; });
+};
+api.updateSurvey = function(db, p){
+  var data={};
+  ['title','color','startAt','endAt','buttonType'].forEach(function(k){ if(p[k]!==undefined) data[k]=p[k]; });
+  if(p.targetClassIds!==undefined) data.targetClassIds=svParseArr(p.targetClassIds);
+  if(p.allowEdit!==undefined) data.allowEdit = p.allowEdit!=='0';
+  if(p.maxResponses!==undefined) data.maxResponses=Number(p.maxResponses||0);
+  if(p.questions!==undefined) data.questions=svParseArr(p.questions);
+  return db.collection('surveys').doc(String(p.id)).update(data).then(function(){ return { success:true }; });
+};
+api.deleteSurvey = function(db, p){
+  return db.collection('surveys').doc(String(p.id)).delete().then(function(){
+    return db.collection('survey_responses').where('surveyId','==',String(p.id)).get();
+  }).then(function(snap){
+    return Promise.all(snap.docs.map(function(d){ return d.ref.delete(); }));
+  }).then(function(){ return { success:true }; });
+};
+api.getSurveyResponses = function(db, p){
+  return db.collection('survey_responses').where('surveyId','==',String(p.surveyId)).get().then(function(snap){
+    var list=docsToArr(snap).sort(function(a,b){ return (a.submittedAt||'')<(b.submittedAt||'')?1:-1; });
+    return { responses:list };
+  });
+};
+api.getMySurveys = function(db, p){
+  var studentId = String(p.studentId||'');
+  return db.collection('students').doc(studentId).get().then(function(sdoc){
+    var classId = sdoc.exists ? String(sdoc.data().classId||'') : '';
+    return db.collection('surveys').get().then(function(snap){
+      var now = svNowIso();
+      var list = docsToArr(snap).filter(function(s){
+        var tc = s.targetClassIds||[];
+        if(tc.length && tc.indexOf(classId)<0) return false;
+        if(s.startAt && now < s.startAt) return false;
+        if(s.endAt && now > s.endAt) return false;
+        return true;
+      });
+      return db.collection('survey_responses').where('studentId','==',studentId).get().then(function(rsnap){
+        var respMap={}; rsnap.forEach(function(d){ var r=d.data(); respMap[r.surveyId]=r; });
+        var items = list.map(function(s){
+          var resp = respMap[s.id];
+          return { id:s.id, title:s.title||'', color:s.color||'#3b82f6', buttonType:s.buttonType||'submit',
+            allowEdit:s.allowEdit!==false, endAt:s.endAt||'', questions:s.questions||[],
+            responded: !!resp, myAnswers: resp?(resp.answers||{}):{} };
+        });
+        items.sort(function(a,b){ return a.responded===b.responded ? 0 : (a.responded?1:-1); });
+        return { items:items };
+      });
+    });
+  });
+};
+api.submitSurveyResponse = function(db, p){
+  var id = String(p.surveyId)+'__'+String(p.studentId);
+  var answers={}; try{ answers=JSON.parse(p.answers||'{}'); }catch(e){}
+  return db.collection('survey_responses').doc(id).set({
+    id:id, surveyId:String(p.surveyId), studentId:String(p.studentId), studentName:p.studentName||'',
+    answers:answers, submittedAt: nowStr()
+  },{merge:true}).then(function(){ return { success:true }; });
+};
+
 /* ---------- 외부 노출 (페이지에서 직접 Firestore 사용) ---------- */
 window.mkdbReady = _dbReady;
 window.mkGenId = genId;
