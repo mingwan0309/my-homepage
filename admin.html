@@ -427,6 +427,13 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <div id="page-hwmanage" class="page">
       <div class="page-header"><div class="page-title">숙제관리</div></div>
       <p style="font-size:12px;color:#94a3b8;margin:-10px 0 14px;">'일부미이행' 또는 '미이행'으로 표시된 과제만 모아서 보여줘요. 완료로 바뀌면 이 목록에서 자동으로 빠져요.</p>
+      <div id="hw-bulk-bar" style="display:none;position:sticky;top:0;z-index:5;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:800;color:#1d4ed8;"><span id="hw-bulk-count">0</span>명 선택됨</span>
+        <button type="button" onclick="hwSelectAll()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">전체선택</button>
+        <button type="button" onclick="hwClearSelect()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">선택해제</button>
+        <button type="button" onclick="bulkSendHwReminder()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">🔔 선택 재촉 알림 보내기</button>
+        <button type="button" onclick="bulkMarkHwComplete()" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">✓ 선택 완료 처리</button>
+      </div>
       <div id="hwmanage-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
     </div>
 
@@ -1812,7 +1819,11 @@ async function loadHwManage(){
   try{
     var r=await fetch(SU+'?action=getIncompleteHomeworks').then(function(r){return r.json();});
     hwmanageList=r.items||[];
+    var stillExist={};
+    hwmanageList.forEach(function(h){ if(hwSelected[h.id]) stillExist[h.id]=true; });
+    hwSelected=stillExist;
     renderHwManageList();
+    updateHwBulkBar();
     refreshHwNavBadge();
   }catch(e){
     el.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
@@ -1841,11 +1852,14 @@ function renderHwCard(h){
   return '<div style="'+cardStyle+'">'
     +submitBadge
     +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
+    +'<div style="display:flex;align-items:flex-start;gap:10px;">'
+    +'<input type="checkbox" class="hw-select-cb" data-id="'+h.id+'" onchange="toggleHwSelect(\''+h.id+'\',this.checked)" '+(hwSelected[h.id]?'checked':'')+' style="width:19px;height:19px;flex-shrink:0;margin-top:2px;cursor:pointer;">'
     +'<div>'
     +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;">'+escHtml(h.studentName)+' <span style="font-weight:400;color:#94a3b8;font-size:12px;">'+(h.sessionNum?h.sessionNum+'차시':'')+'</span></div>'
     +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(h.hwName)+'</div>'
     +(h.feedback?'<div style="font-size:12px;color:#94a3b8;margin-top:4px;white-space:pre-wrap;">'+escHtml(h.feedback)+'</div>':'')
     +photoLinks+lastRem
+    +'</div>'
     +'</div>'
     +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+HW_STATUS_LABEL_ADMIN[h.pass]+'</span>'
     +'</div>'
@@ -1910,6 +1924,64 @@ async function markHwComplete(id){
   if(!h)return;
   if(!confirm(h.studentName+' 학생의 "'+h.hwName+'" 과제를 완료로 처리할까요?'))return;
   await fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass=complete&feedback='+encodeURIComponent('제출하신 과제가 [완료] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!'));
+  loadHwManage();
+}
+// ── 숙제관리 여러 명 한 번에 처리 ──
+var hwSelected={};
+function toggleHwSelect(id,checked){
+  if(checked) hwSelected[id]=true; else delete hwSelected[id];
+  updateHwBulkBar();
+}
+function hwSelectAll(){
+  hwmanageList.forEach(function(h){ hwSelected[h.id]=true; });
+  renderHwManageList();
+  updateHwBulkBar();
+}
+function hwClearSelect(){
+  hwSelected={};
+  renderHwManageList();
+  updateHwBulkBar();
+}
+function updateHwBulkBar(){
+  var ids=Object.keys(hwSelected).filter(function(id){ return hwmanageList.some(function(h){return h.id===id;}); });
+  var bar=document.getElementById('hw-bulk-bar');
+  var cnt=document.getElementById('hw-bulk-count');
+  if(cnt) cnt.textContent=ids.length;
+  if(bar) bar.style.display=ids.length?'flex':'none';
+}
+async function bulkSendHwReminder(){
+  var items=hwmanageList.filter(function(h){ return hwSelected[h.id]; });
+  if(!items.length){ alert('선택된 학생이 없어요.'); return; }
+  if(!confirm(items.length+'명에게 숙제 재촉 알림톡을 한 번에 보낼까요?\n(카카오 알림톡 발송 - 학생 수만큼 비용이 발생합니다)'))return;
+  var msgs=[];
+  items.forEach(function(h){
+    var text='['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 사진을 찍어 마이페이지에서 제출해주세요!';
+    if(h.studentPhone) msgs.push({phone:h.studentPhone, name:h.studentName, className:h.className||'숙제 알림', sessionNum:h.hwName, message:text});
+    if(h.parentPhone) msgs.push({phone:h.parentPhone, name:h.studentName, className:h.className||'숙제 알림', sessionNum:h.hwName, message:text});
+  });
+  if(!msgs.length){ alert('⚠️ 선택된 학생들에게 등록된 전화번호가 없어서 알림톡을 보낼 수 없어요.'); return; }
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+    if(r.success){
+      await Promise.all(items.map(function(h){
+        return fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||''));
+      }));
+      alert(items.length+'명에게 알림톡 발송 완료!');
+      hwSelected={};
+      loadHwManage();
+    } else {
+      alert('발송 실패: '+(r.msg||''));
+    }
+  }catch(e){ alert('발송 중 오류: '+e.message); }
+}
+async function bulkMarkHwComplete(){
+  var items=hwmanageList.filter(function(h){ return hwSelected[h.id]; });
+  if(!items.length){ alert('선택된 학생이 없어요.'); return; }
+  if(!confirm(items.length+'명의 과제를 한 번에 완료 처리할까요?'))return;
+  await Promise.all(items.map(function(h){
+    return fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass=complete&feedback='+encodeURIComponent('제출하신 과제가 [완료] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!'));
+  }));
+  hwSelected={};
   loadHwManage();
 }
 
