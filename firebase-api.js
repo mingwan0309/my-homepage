@@ -880,6 +880,32 @@ api.updateVideoLibrary = function(db, p){
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
+api.getTextbookVideos = function(db){
+  return db.collection('textbook_videos').get().then(function(snap){
+    var videos = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; })
+      .map(function(r){
+        return { id:String(r.id), grade:r.grade||'', subject:r.subject||'', book:r.book||'', name:r.name||'', url:r.url||'', memo:r.memo||'', createdAt:r.createdAt||'' };
+      });
+    return { videos: videos };
+  });
+};
+api.addTextbookVideo = function(db, p){
+  var id = genId('tbv');
+  return db.collection('textbook_videos').doc(id).set({
+    id:id, grade:p.grade||'', subject:p.subject||'', book:p.book||'', name:p.name||'', url:p.url||'', memo:p.memo||'', createdAt:nowStr()
+  }).then(function(){ return { success:true, id:id }; });
+};
+api.updateTextbookVideo = function(db, p){
+  var data = {};
+  ['grade','subject','book','name','url','memo'].forEach(function(k){ if (p[k] !== undefined) data[k] = p[k]; });
+  return db.collection('textbook_videos').doc(String(p.id)).update(data)
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+api.deleteTextbookVideo = function(db, p){
+  return db.collection('textbook_videos').doc(String(p.id)).delete()
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
 /* === 의무클리닉 (정규 시간 변경 학생 명단 + 출결) === */
 api.getMandatoryClinic = function(db){
   return db.collection('mandatory_clinic').get().then(function(snap){

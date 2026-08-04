@@ -230,6 +230,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('chat',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('videos',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🎬</span> 영상</div>
+      <div class="nav-item" onclick="showPage('textbookvideos',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📖</span> 부교재 강의</div>
       <div class="nav-item" onclick="showPage('assistants',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">👩‍🏫</span> 조교</div>
       <div class="nav-item" onclick="showPage('settings',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">⚙️</span> 관리자</div>
       <div style="margin-top:auto;padding:14px;border-top:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">
@@ -253,6 +254,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('chat',this)"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('videos',this)"><span class="ni">🎬</span> 영상</div>
+      <div class="nav-item" onclick="showPage('textbookvideos',this)"><span class="ni">📖</span> 부교재 강의</div>
       <div class="nav-item" onclick="showPage('assistants',this)"><span class="ni">👩‍🏫</span> 조교</div>
       <div class="nav-item" onclick="showPage('settings',this)"><span class="ni">⚙️</span> 관리자</div>
     </nav>
@@ -582,6 +584,52 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           </div>
         </div>
         <div id="vlib-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
+      </div>
+    </div>
+
+    <!-- 부교재 해설 강의 -->
+    <div id="page-textbookvideos" class="page">
+      <div class="page-header"><div class="page-title">부교재 해설 강의</div></div>
+      <p style="font-size:12px;color:#94a3b8;margin:-10px 0 14px;">textbook.html(학생용)에 학년→과목→교재 3단계로 보이는 영상이에요.</p>
+      <div class="card">
+        <div class="card-title">해설 영상 등록</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div class="fg"><label>학년</label>
+            <select id="tbv-grade" onchange="onTbvGradeChange()" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+              <option value="고1">고1</option>
+              <option value="고2">고2</option>
+            </select>
+          </div>
+          <div class="fg"><label>과목</label>
+            <select id="tbv-subject" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;"></select>
+          </div>
+          <div class="fg"><label>교재</label>
+            <select id="tbv-book" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+              <option>올림포스</option>
+              <option>올림포스 유형편</option>
+              <option>올림포스 전국연합</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg"><label>영상 이름</label><input type="text" id="tbv-name" placeholder="예) 1단원 다항식 해설" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <div class="fg" style="margin-top:10px;"><label>YouTube 링크</label><input type="url" id="tbv-url" placeholder="https://www.youtube.com/watch?v=..." style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <div class="fg" style="margin-top:10px;"><label>메모 (선택)</label><input type="text" id="tbv-memo" placeholder="간단한 설명" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <button class="btn-primary" style="margin-top:14px;" onclick="addTbv()">+ 강의 등록</button>
+        <div id="tbv-msg" style="margin-top:8px;font-size:13px;color:#16a34a;"></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <div class="card-title" style="margin:0;">등록된 강의 목록</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <select id="tbv-filter-grade" onchange="filterTbv()" style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff;">
+              <option value="">전체 학년</option><option value="고1">고1</option><option value="고2">고2</option>
+            </select>
+            <select id="tbv-filter-book" onchange="filterTbv()" style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff;">
+              <option value="">전체 교재</option><option>올림포스</option><option>올림포스 유형편</option><option>올림포스 전국연합</option>
+            </select>
+          </div>
+        </div>
+        <div id="tbv-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
     </div>
 
@@ -931,7 +979,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','students','quiz','clinic','mclinic','hwmanage','notice','survey','qna','chat','videos','assistants','settings'];
+    var validPages = ['classes','students','quiz','clinic','mclinic','hwmanage','notice','survey','qna','chat','videos','textbookvideos','assistants','settings'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
@@ -954,6 +1002,7 @@ function showPage(page,el){
   if(page==='hwmanage') loadHwManage();
   if(page==='chat') initChatPage();
   if(page==='videos') initVideoPage();
+  if(page==='textbookvideos') initTbvPage();
   if(page==='assistants') initAstPage();
   if(page==='survey') loadSurveys();
   location.hash = page;
@@ -2529,6 +2578,71 @@ async function delVlib(id){
   if(!confirm('라이브러리에서 삭제할까요?'))return;
   await fetch(SU+'?action=deleteVideoLibrary&id='+encodeURIComponent(id));
   loadVlib();
+}
+
+/* ===== 부교재 해설 강의 ===== */
+var TBV_SUBJECTS={'고1':['공통수학1','공통수학2'],'고2':['대수','미적분']};
+var tbvAll=[];
+function initTbvPage(){
+  onTbvGradeChange();
+  loadTbv();
+}
+function onTbvGradeChange(){
+  var grade=document.getElementById('tbv-grade').value;
+  document.getElementById('tbv-subject').innerHTML=(TBV_SUBJECTS[grade]||[]).map(function(s){return '<option>'+s+'</option>';}).join('');
+}
+async function loadTbv(){
+  var r=await fetch(SU+'?action=getTextbookVideos').then(function(r){return r.json();});
+  tbvAll=r.videos||[];
+  document.getElementById('tbv-filter-grade').value='';
+  document.getElementById('tbv-filter-book').value='';
+  renderTbv(tbvAll);
+}
+function filterTbv(){
+  var grade=document.getElementById('tbv-filter-grade').value;
+  var book=document.getElementById('tbv-filter-book').value;
+  var list=tbvAll.filter(function(v){ return (!grade||v.grade===grade)&&(!book||v.book===book); });
+  renderTbv(list);
+}
+function renderTbv(videos){
+  var el=document.getElementById('tbv-list');
+  if(!videos.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">해당하는 강의가 없습니다.</div>';return;}
+  el.innerHTML=videos.map(function(v){
+    var vid=v.url&&(v.url.match(/[?&]v=([^&]+)/)||v.url.match(/youtu\.be\/([^?]+)/));
+    var thumb=vid?'<img src="https://img.youtube.com/vi/'+vid[1]+'/mqdefault.jpg" style="width:90px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0;">':'<div style="width:90px;height:50px;background:#e2e8f0;border-radius:6px;flex-shrink:0;"></div>';
+    var tags='<span style="display:inline-block;background:#eff6ff;color:#3b6cf7;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-right:4px;">'+escHtml(v.grade)+' · '+escHtml(v.subject)+'</span>'
+      +'<span style="display:inline-block;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">'+escHtml(v.book)+'</span>';
+    return '<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #f1f5f9;">'
+      +thumb
+      +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px;">'+escHtml(v.name)+'</div>'
+      +tags
+      +(v.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+escHtml(v.memo)+'</div>':'')
+      +'</div>'
+      +'<div style="display:flex;gap:10px;flex-shrink:0;">'
+      +'<button onclick="delTbv(\''+v.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;font-weight:700;">삭제</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+async function addTbv(){
+  var grade=document.getElementById('tbv-grade').value;
+  var subject=document.getElementById('tbv-subject').value;
+  var book=document.getElementById('tbv-book').value;
+  var name=document.getElementById('tbv-name').value.trim();
+  var url=document.getElementById('tbv-url').value.trim();
+  var memo=document.getElementById('tbv-memo').value.trim();
+  var msg=document.getElementById('tbv-msg');
+  if(!name||!url){msg.textContent='이름과 링크를 입력해주세요.';msg.style.color='#dc2626';return;}
+  await fetch(SU+'?action=addTextbookVideo&grade='+encodeURIComponent(grade)+'&subject='+encodeURIComponent(subject)+'&book='+encodeURIComponent(book)+'&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&memo='+encodeURIComponent(memo));
+  document.getElementById('tbv-name').value='';document.getElementById('tbv-url').value='';document.getElementById('tbv-memo').value='';
+  msg.textContent='등록됐어요!';msg.style.color='#16a34a';
+  setTimeout(function(){msg.textContent='';},2000);
+  loadTbv();
+}
+async function delTbv(id){
+  if(!confirm('이 강의를 삭제할까요?'))return;
+  await fetch(SU+'?action=deleteTextbookVideo&id='+encodeURIComponent(id));
+  loadTbv();
 }
 
 /* ===== 조교 관리 ===== */
