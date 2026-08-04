@@ -41,6 +41,7 @@ tr:hover td { background:#f8fafc; }
 .class-cell { display:flex; align-items:center; }
 .btn-primary { background:#2563eb; color:#fff; border:none; padding:10px 18px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
 .hw-action-btn { padding:9px 14px; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; min-height:40px; font-family:inherit; }
+#hw-bulk-bar button:disabled{ opacity:.4; cursor:not-allowed; }
 /* 숙제관리 반별 드롭다운 */
 .vid-drop-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f8fafc;border:1px solid #eef2f6;border-radius:11px;padding:13px 15px;font-size:14px;font-weight:800;color:#334155;cursor:pointer;font-family:inherit;text-align:left;}
 .vid-drop-head:hover{border-color:#c7d2fe;background:#f4f7ff;}
@@ -463,8 +464,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <span style="font-size:13px;font-weight:800;color:#1d4ed8;"><span id="hw-bulk-count">0</span>명 선택됨</span>
         <button type="button" onclick="hwSelectAll()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">전체선택</button>
         <button type="button" onclick="hwClearSelect()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">선택해제</button>
-        <button type="button" onclick="bulkSendHwReminder()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">🔔 선택 재촉 알림 보내기</button>
-        <button type="button" onclick="bulkMarkHwComplete()" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">✓ 선택 완료 처리</button>
+        <button type="button" id="hw-bulk-remind-btn" disabled onclick="bulkSendHwReminder()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">🔔 선택 재촉 알림 보내기</button>
+        <button type="button" id="hw-bulk-complete-btn" disabled onclick="bulkMarkHwComplete()" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">✓ 선택 완료 처리</button>
       </div>
       <div id="hwmanage-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
     </div>
@@ -2104,7 +2105,9 @@ function updateHwBulkBar(){
   var bar=document.getElementById('hw-bulk-bar');
   var cnt=document.getElementById('hw-bulk-count');
   if(cnt) cnt.textContent=ids.length;
-  if(bar) bar.style.display=ids.length?'flex':'none';
+  if(bar) bar.style.display=hwmanageList.length?'flex':'none';
+  document.getElementById('hw-bulk-remind-btn').disabled=!ids.length;
+  document.getElementById('hw-bulk-complete-btn').disabled=!ids.length;
 }
 async function bulkSendHwReminder(){
   var items=hwmanageList.filter(function(h){ return hwSelected[h.id]; });
