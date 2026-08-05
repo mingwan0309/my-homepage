@@ -1660,7 +1660,7 @@ function computeMsgTokens(studentId){
   } else if(type==='hw'){
     var HW_LABELS={complete:'완료',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
     var s=(hwStatusMap[studentId]||{})[id];
-    tokens['{상태}']=s&&s.pass?HW_LABELS[s.pass]:'—';
+    tokens['{상태}']=s&&s.pass?HW_LABELS[s.pass]:'미제출';
     tokens['{코멘트}']=s&&s.feedback?s.feedback:'—';
     // 지난 차시에 미이행이었던 숙제를 (증빙 사진으로) 다시 제출했는지 여부에 따라 자동 멘트 생성
     var hasSubmission=!!(s&&s.submissionUrls&&s.submissionUrls.length);
