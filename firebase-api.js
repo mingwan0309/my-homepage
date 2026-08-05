@@ -6,6 +6,10 @@
 (function(){
 'use strict';
 
+// Code.gs(파일 업로드/알림톡 발송)를 외부에서 직접 호출 못 하도록 확인하는 앱 전용 토큰.
+// 완벽한 비밀은 아니지만(소스 보면 보임), 아무나 URL만 알아내서 막 호출하는 걸 막는 최소 방어선.
+var APP_SHARED_TOKEN = 'mkmath-2026-app-a91f3c';
+
 var firebaseConfig = {
   apiKey: "AIzaSyCJR-nKFY9qNxMma-dj_7x3FB1BwEDzkRY",
   authDomain: "mkmath-54f5d.firebaseapp.com",
@@ -1311,7 +1315,12 @@ window.fetch = function(url, opts){
       try { bodyObj = JSON.parse(bodyStr); } catch(e) {}
       var postAction = bodyObj.action || '';
       // 파일 업로드(uploadFile)와 알림톡 발송(sendAlimtalk)만 진짜 Apps Script로 통과
+      // (외부에서 이 주소를 직접 호출해 알림톡을 무단 발송/파일을 무단 업로드하지 못하도록 앱 전용 토큰을 자동으로 붙여서 보냄)
       if (postAction === 'uploadFile' || postAction === 'sendAlimtalk' || postAction === 'getFileBase64' || !postAction) {
+        if (postAction) {
+          bodyObj.appToken = APP_SHARED_TOKEN;
+          opts = Object.assign({}, opts, { body: JSON.stringify(bodyObj) });
+        }
         return _origFetch(url, opts);
       }
       // 나머지 POST(submitQuestion, submitAnswer 등)는 Firestore로 처리

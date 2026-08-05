@@ -1,6 +1,14 @@
+// 홈페이지(firebase-api.js)만 아는 토큰. 이 값이 없거나 틀리면 전부 거부한다.
+// (완벽한 보안은 아니지만, 이 주소를 직접 알아낸 외부인이 아무 확인 없이 알림톡을 보내거나
+//  파일을 올리는 걸 막는 최소한의 방어선 — firebase-api.js의 APP_SHARED_TOKEN과 반드시 같아야 함)
+var APP_SHARED_TOKEN = 'mkmath-2026-app-a91f3c';
+
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
+    if (data.appToken !== APP_SHARED_TOKEN) {
+      return json({ success: false, error: 'forbidden' });
+    }
     if (data.action === 'sendAlimtalk') return sendAlimtalk(data);
     if (data.action === 'getFileBase64') {
       var gid = data.fileId;
@@ -38,52 +46,12 @@ function authDrive() {
   Logger.log('Drive 권한 OK: ' + folder.getName());
 }
 
+// 예전 구글시트 기반 백엔드는 Firebase로 완전히 이전 완료(2026-07-10)되어 더 이상 쓰지 않음.
+// 로그인 확인 없이 학생추가/성적입력/질문삭제 등을 그대로 실행하는 코드였어서 보안 위험이 컸음
+// (2026-08-05 점검 후 전부 비활성화). 절대 다시 살리지 말 것 — 필요하면 firebase-api.js의
+// api 객체에 Firestore 기반으로 새로 만들 것.
 function doGet(e) {
-  var action = e.parameter.action || '';
-  switch(action) {
-    case 'login':              return login(e.parameter);
-    case 'addStudent':         return addStudent(e.parameter);
-    case 'getStudents':        return getStudents(e.parameter);
-    case 'changePassword':     return changePassword(e.parameter);
-    case 'getReviews':         return getReviews(e.parameter);
-    case 'addReview':          return addReview(e.parameter);
-    case 'hideReview':         return hideReview(e.parameter);
-    case 'initReviews':        return initReviews(e.parameter);
-    case 'submitQuestion':     return submitQuestion(e.parameter);
-    case 'getQuestions':       return getQuestions(e.parameter);
-    case 'getQuestion':        return getQuestion(e.parameter);
-    case 'deleteQuestion':     return deleteQuestion(e.parameter);
-    case 'submitAnswer':       return submitAnswer(e.parameter);
-    case 'updateAnswer':       return updateAnswer(e.parameter);
-    case 'deleteAnswer':       return deleteAnswer(e.parameter);
-    case 'getStudentInfo':     return getStudentInfo(e.parameter);
-    case 'getClasses':         return getClasses(e.parameter);
-    case 'addClass':           return addClass(e.parameter);
-    case 'deleteClass':        return deleteClass(e.parameter);
-    case 'toggleClassStatus':  return toggleClassStatus(e.parameter);
-    case 'assignStudentClass': return assignStudentClass(e.parameter);
-    case 'getClassStudents':   return getClassStudents(e.parameter);
-    case 'getSessions':        return getSessions(e.parameter);
-    case 'addSession':         return addSession(e.parameter);
-    case 'deleteSession':      return deleteSession(e.parameter);
-    case 'getSession':         return getSession(e.parameter);
-    case 'setAttendance':      return setAttendance(e.parameter);
-    case 'getAttendance':      return getAttendance(e.parameter);
-    case 'getAttendanceHistory': return getAttendanceHistory(e.parameter);
-    case 'setScore':           return setScore(e.parameter);
-    case 'getScores':          return getScores(e.parameter);
-    case 'addExam':            return addExam(e.parameter);
-    case 'getExams':           return getExams(e.parameter);
-    case 'deleteExam':         return deleteExam(e.parameter);
-    case 'getMaterials':       return getMaterials(e.parameter);
-    case 'addMaterial':        return addMaterial(e.parameter);
-    case 'deleteMaterial':     return deleteMaterial(e.parameter);
-    case 'incDownload':        return incDownload(e.parameter);
-    case 'getVideoLibrary':    return getVideoLibrary();
-    case 'addVideoLibrary':    return addVideoLibrary(e.parameter);
-    case 'deleteVideoLibrary': return deleteVideoLibrary(e.parameter);
-    default: return json({ error: 'unknown action' });
-  }
+  return json({ error: 'disabled' });
 }
 
 function json(obj) {
@@ -597,6 +565,16 @@ function sendAlimtalk(data) {
   var PF_ID       = 'KA01PF2607190425102129N0TXUNtwry';
   var TEMPLATE_ID = 'KA01TP2607190503373353cDTp0aqGdv';
 
+  // 하루 발송 개수 상한 (혹시 모를 오남용/사고 시 피해를 제한하기 위한 안전장치)
+  var DAILY_LIMIT = 300;
+  var props = PropertiesService.getScriptProperties();
+  var todayKey = 'alimtalk_' + Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+  var sentToday = Number(props.getProperty(todayKey) || 0);
+  var requestCount = (data.messages || []).length;
+  if (sentToday + requestCount > DAILY_LIMIT) {
+    return json({ success: false, msg: '하루 발송 한도(' + DAILY_LIMIT + '건)를 초과했습니다. 내일 다시 시도해주세요.' });
+  }
+
   var messages = (data.messages || []).filter(function(m){ return m.phone; }).map(function(m){
     return {
       to:   String(m.phone).replace(/[^0-9]/g, ''),
@@ -632,7 +610,10 @@ function sendAlimtalk(data) {
   var code = response.getResponseCode();
   var result = {};
   try { result = JSON.parse(response.getContentText()); } catch(e) {}
-  if (code === 200) return json({ success: true, count: messages.length });
+  if (code === 200) {
+    props.setProperty(todayKey, String(sentToday + messages.length));
+    return json({ success: true, count: messages.length });
+  }
   return json({ success: false, msg: result.errorMessage || result.message || ('HTTP ' + code) });
 }
 
