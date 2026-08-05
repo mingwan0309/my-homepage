@@ -124,17 +124,8 @@ api.login = function(db, p){
     [authId, addPhoneDashes(authId.replace(/[-\s]/g,'')), authId.replace(/[-\s]/g,'')].forEach(function(c){
       if (c && parentCands.indexOf(c) < 0) parentCands.push(c);
     });
-    var tryAssistant = function(j){
-      if (j >= parentCands.length) return { success:false };
-      return db.collection('assistants').doc(parentCands[j]).get().then(function(doc){
-        if (!doc.exists) return tryAssistant(j+1);
-        var a = doc.data();
-        if (a.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
-        return { success:true, role:'assistant', name:a.name||a.id, classId:'', className:'', studentId:a.id, studentIds:a.studentIds||[] };
-      }, function(){ return tryAssistant(j+1); });
-    };
     var tryParent = function(j){
-      if (j >= parentCands.length) return tryAssistant(0);
+      if (j >= parentCands.length) return { success:false };
       return db.collection('students').where('parentPhone','==',parentCands[j]).limit(1).get().then(function(snap){
         if (snap.empty) return tryParent(j+1);
         var u = snap.docs[0].data(); var sid = snap.docs[0].id;
@@ -148,15 +139,25 @@ api.login = function(db, p){
         });
       }, function(){ return tryParent(j+1); });  // 권한거부 등도 다음 형식 시도
     };
-
-    var tryDoc = function(i){
+    var tryStudentDoc = function(i){
       if (i >= docIds.length) return tryParent(0);
       return db.collection('students').doc(docIds[i]).get().then(function(doc){
         if (doc.exists) return fetchProfileAfterAuth(db, docIds[i]);
-        return tryDoc(i+1);
-      }, function(){ return tryDoc(i+1); });
+        return tryStudentDoc(i+1);
+      }, function(){ return tryStudentDoc(i+1); });
     };
-    return tryDoc(0);
+    // 조교 계정을 학생 계정보다 먼저 확인 — 같은 전화번호가 (예전) 학생 문서와 조교 문서 양쪽에
+    // 다 있는 경우(예: 학생이었다가 조교로 채용된 경우) 조교로 로그인되어야 하는데 학생으로 잘못 뜨는 걸 방지.
+    var tryAssistantDoc = function(j){
+      if (j >= docIds.length) return tryStudentDoc(0);
+      return db.collection('assistants').doc(docIds[j]).get().then(function(doc){
+        if (!doc.exists) return tryAssistantDoc(j+1);
+        var a = doc.data();
+        if (a.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
+        return { success:true, role:'assistant', name:a.name||a.id, classId:'', className:'', studentId:a.id, studentIds:a.studentIds||[] };
+      }, function(){ return tryAssistantDoc(j+1); });
+    };
+    return tryAssistantDoc(0);
   };
 
   var tryAuth = function(i){
