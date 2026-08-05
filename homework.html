@@ -429,6 +429,10 @@ async function login() {
       if (data.role === 'teacher') {
         show('page-teacher');
         loadProblemList();
+      } else if (data.role === 'assistant') {
+        if (window.mkClockIn) window.mkClockIn({ id: sessionId, name: data.name });
+        location.href = 'admin.html';
+        return;
       } else {
         // 학생은 로그인하면 이제 마이페이지(메인 화면)로 이동. 데일리 퀴즈는 거기서 눌러서 들어옴.
         location.href = 'mypage.html';
