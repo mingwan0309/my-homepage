@@ -981,13 +981,12 @@ function logout(){
 // 선생님이 "조교 화면 미리보기"로 들어온 경우 — 실제 로그인 세션(교사)은 그대로 두고,
 // 그 조교가 로그인했을 때 보는 화면(의무클리닉 팝업 + 내 근무 현황)만 읽기용으로 보여줌.
 function closeAstPreviewTab(){
+  // window.close()는 브라우저마다 성공 여부가 다르고, 실패하면 다음 코드가 그대로 실행되면서
+  // 교사 본인의 실제 관리 화면으로 넘어가버려("닫았는데 왜 내 화면이 나오지" 혼동의 원인이었음).
+  // 그래서 이동/새로고침 없이 지금 이 탭을 그대로 안내 화면으로 바꿔치기만 함 — 확실하게 "내 화면"으로 안 감.
+  document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f1f5f9;">'
+    + '<div style="text-align:center;color:#64748b;font-size:14px;line-height:1.7;">미리보기를 다 보셨으면<br>이 탭(브라우저 탭 자체)을 직접 닫아주세요.</div></div>';
   window.close();
-  // window.close()가 안 먹히는 브라우저/환경 대비 — 교사 본인의 실제 관리 화면으로 이동시키면
-  // "닫기 눌렀는데 왜 내 화면으로 오지"라고 혼동되므로, 그 대신 "닫아도 됩니다" 안내만 보여줌
-  setTimeout(function(){
-    document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f1f5f9;">'
-      + '<div style="text-align:center;color:#64748b;font-size:14px;line-height:1.7;">이 미리보기 창은 다 보셨으면<br>이 탭을 직접 닫아주시면 돼요.</div></div>';
-  }, 300);
 }
 async function renderAssistantPreview(assistantId){
   document.getElementById('dashboard').style.display='flex';
