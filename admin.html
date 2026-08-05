@@ -2999,7 +2999,7 @@ function renderAstLogDetail(astId){
       +'<td style="font-size:13px;">'+fmt24to12(l.clockIn)+'</td>'
       +'<td style="font-size:13px;">'+fmt24to12(l.clockOut)+'</td>'
       +'<td style="font-size:13px;">'+minToHM(workMin)+'</td>'
-      +'<td style="font-size:13px;color:#64748b;">'+l.breakMin+'분</td>'
+      +'<td style="font-size:13px;color:#64748b;" title="'+((l.breakLogs&&l.breakLogs.length)?'휴식 시각: '+l.breakLogs.join(', ') : '수동 입력')+'">'+l.breakMin+'분'+((l.breakLogs&&l.breakLogs.length)?' ℹ️':'')+'</td>'
       +'<td>'+wtBadge+'</td>'
       +'<td style="font-size:12px;color:#94a3b8;">-</td>'
       +'<td style="font-size:13px;font-weight:600;">'+( pay?'₩'+pay.toLocaleString():'₩0')+'</td>'
@@ -3060,7 +3060,11 @@ async function loadMyWorkStatus(assistantId){
     var open=logs.find(function(l){return l.clockOut==='';});
     var html='';
     if(open){
-      html+='<div style="background:#eff6ff;border-radius:9px;padding:10px 14px;margin-bottom:10px;font-weight:700;color:#2563eb;">🟢 지금 근무 중 — '+open.date+' '+open.clockIn+'부터</div>';
+      var onBreak=!!open.breakStartedAt;
+      html+='<div style="background:#eff6ff;border-radius:9px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
+        +'<div style="font-weight:700;color:#2563eb;">'+(onBreak?'☕ 휴식 중 — '+open.breakStartedAt+'부터':'🟢 지금 근무 중 — '+open.date+' '+open.clockIn+'부터')+'</div>'
+        +'<button onclick="toggleMyBreak(\''+assistantId+'\')" style="padding:7px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:'+(onBreak?'#16a34a':'#f59e0b')+';color:#fff;">'+(onBreak?'▶ 휴식 종료':'☕ 휴식 시작')+'</button>'
+        +'</div>';
     } else {
       html+='<div style="background:#f1f5f9;border-radius:9px;padding:10px 14px;margin-bottom:10px;color:#64748b;">현재 근무 중이 아니에요 (로그인하면 자동으로 출근 체크됩니다)</div>';
     }
@@ -3078,6 +3082,14 @@ async function loadMyWorkStatus(assistantId){
   }catch(e){
     area.innerHTML='<div style="color:#dc2626;">불러오기 실패</div>';
   }
+}
+async function toggleMyBreak(assistantId){
+  try{
+    var st=await fetch(SU+'?action=getMyBreakStatus&id='+encodeURIComponent(assistantId)).then(function(r){return r.json();});
+    var action=st.onBreak?'endBreak':'startBreak';
+    await fetch(SU+'?action='+action+'&id='+encodeURIComponent(assistantId));
+    loadMyWorkStatus(assistantId);
+  }catch(e){ alert('처리 중 오류가 발생했습니다.'); }
 }
 
 // ── 근무 중인 조교 표시(교사 화면) ──

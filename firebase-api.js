@@ -1126,9 +1126,43 @@ api.clockIn = function(db, p){
       return db.collection('work_logs').doc(id).set({
         id:id, assistantId:assistantId, assistantName:p.name||'', date:date,
         clockIn:formatTimeLocal(now), clockOut:'', workTypeId:workTypeId, breakMin:0,
+        breakStartedAt:'', breakLogs:[],
         memo:'자동 출근(로그인)', cost:0, yearMonth:date.slice(0,7), createdAt:nowStr()
       }).then(function(){ return { success:true, id:id }; });
     });
+  });
+};
+// 휴식 시작/종료 — 조교 본인의 진행 중인 근무 기록에만 적용됨
+api.startBreak = function(db, p){
+  var assistantId = String(p.id);
+  return db.collection('work_logs').where('assistantId','==',assistantId).where('clockOut','==','').get().then(function(snap){
+    if (snap.empty) return { success:false, msg:'출근 중인 기록이 없습니다.' };
+    var doc = snap.docs[0];
+    if (doc.data().breakStartedAt) return { success:true }; // 이미 휴식 중이면 그대로
+    return doc.ref.update({ breakStartedAt: formatTimeLocal(new Date()) }).then(function(){ return { success:true }; });
+  });
+};
+api.endBreak = function(db, p){
+  var assistantId = String(p.id);
+  return db.collection('work_logs').where('assistantId','==',assistantId).where('clockOut','==','').get().then(function(snap){
+    if (snap.empty) return { success:false, msg:'출근 중인 기록이 없습니다.' };
+    var doc = snap.docs[0];
+    var d = doc.data();
+    if (!d.breakStartedAt) return { success:true }; // 휴식 중이 아니면 그대로
+    var now = new Date();
+    var startDate = parseDateTimeLocal(d.date, d.breakStartedAt);
+    var addMin = Math.max(0, Math.round((now - startDate) / 60000));
+    var breakLogs = (d.breakLogs || []).concat([d.breakStartedAt + '~' + formatTimeLocal(now)]);
+    return doc.ref.update({ breakStartedAt:'', breakMin: Number(d.breakMin||0) + addMin, breakLogs: breakLogs })
+      .then(function(){ return { success:true }; });
+  });
+};
+api.getMyBreakStatus = function(db, p){
+  var assistantId = String(p.id);
+  return db.collection('work_logs').where('assistantId','==',assistantId).where('clockOut','==','').get().then(function(snap){
+    if (snap.empty) return { onBreak:false, working:false };
+    var d = snap.docs[0].data();
+    return { onBreak: !!d.breakStartedAt, working:true, breakStartedAt: d.breakStartedAt||'' };
   });
 };
 api.clockOut = function(db, p){
@@ -1139,12 +1173,22 @@ api.clockOut = function(db, p){
     var d = doc.data();
     var now = new Date();
     var clockInDate = parseDateTimeLocal(d.date, d.clockIn);
-    var hours = Math.max(0, (now - clockInDate) / 3600000);
+    var totalMin = Math.max(0, (now - clockInDate) / 60000);
+    var breakMin = Number(d.breakMin||0);
+    var breakLogs = d.breakLogs || [];
+    // 휴식 종료를 안 누르고 퇴근하면 그 시점까지를 휴식으로 자동 마감
+    if (d.breakStartedAt) {
+      var bs = parseDateTimeLocal(d.date, d.breakStartedAt);
+      breakMin += Math.max(0, Math.round((now - bs) / 60000));
+      breakLogs = breakLogs.concat([d.breakStartedAt + '~' + formatTimeLocal(now)]);
+    }
+    var hours = Math.max(0, (totalMin - breakMin) / 60);
     return db.collection('work_types').get().then(function(wtSnap){
       var rate = 0;
       wtSnap.forEach(function(wt){ if (wt.id === d.workTypeId) rate = Number(wt.data().hourlyRate||0); });
       var cost = Math.round(hours * rate);
-      return doc.ref.update({ clockOut: formatTimeLocal(now), cost: cost }).then(function(){ return { success:true, hours:Math.round(hours*10)/10, cost:cost }; });
+      return doc.ref.update({ clockOut: formatTimeLocal(now), cost: cost, breakMin: breakMin, breakStartedAt:'', breakLogs: breakLogs })
+        .then(function(){ return { success:true, hours:Math.round(hours*10)/10, cost:cost }; });
     });
   });
 };
