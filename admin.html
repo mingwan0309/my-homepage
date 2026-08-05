@@ -980,6 +980,15 @@ function logout(){
 
 // 선생님이 "조교 화면 미리보기"로 들어온 경우 — 실제 로그인 세션(교사)은 그대로 두고,
 // 그 조교가 로그인했을 때 보는 화면(의무클리닉 팝업 + 내 근무 현황)만 읽기용으로 보여줌.
+function closeAstPreviewTab(){
+  window.close();
+  // window.close()가 안 먹히는 브라우저/환경 대비 — 교사 본인의 실제 관리 화면으로 이동시키면
+  // "닫기 눌렀는데 왜 내 화면으로 오지"라고 혼동되므로, 그 대신 "닫아도 됩니다" 안내만 보여줌
+  setTimeout(function(){
+    document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f1f5f9;">'
+      + '<div style="text-align:center;color:#64748b;font-size:14px;line-height:1.7;">이 미리보기 창은 다 보셨으면<br>이 탭을 직접 닫아주시면 돼요.</div></div>';
+  }, 300);
+}
 async function renderAssistantPreview(assistantId){
   document.getElementById('dashboard').style.display='flex';
   var r=await fetch(SU+'?action=getAssistants').then(function(r){return r.json();});
@@ -1022,7 +1031,7 @@ function setupAssistantSession(sessObj, isPreview){
     header.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:14px;border-bottom:1.5px solid #e2e8f0;flex-wrap:wrap;gap:8px;';
     if(isPreview){
       header.innerHTML='<div><div style="font-size:15px;font-weight:800;color:#1e293b;">👀 '+escHtml(sessObj.name||sessObj.id)+'님 화면 미리보기</div><div style="font-size:12px;color:#94a3b8;margin-top:2px;">이 조교가 로그인하면 보는 화면이에요 — 사이드바로 의무클리닉/숙제관리를 오갈 수 있고, 버튼을 누르면 실제로 반영돼요</div></div>'
-        +'<button onclick="window.close();history.length>1?history.back():location.href=\'admin.html\';" style="background:#f1f5f9;border:none;color:#475569;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;">닫기</button>';
+        +'<button onclick="closeAstPreviewTab()" style="background:#f1f5f9;border:none;color:#475569;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;">닫기</button>';
     } else {
       header.innerHTML='<div><div style="font-size:15px;font-weight:800;color:#1e293b;">👩‍🏫 '+escHtml(sessObj.name||sessObj.id)+'님, 의무클리닉 관리</div><div style="font-size:12px;color:#94a3b8;margin-top:2px;">오늘 담당 학생들의 출결을 체크해주세요</div></div>'
         +'<div style="display:flex;gap:8px;align-items:center;">'
