@@ -967,6 +967,12 @@ window.addEventListener('DOMContentLoaded',function(){
       +'<button onclick="closeAssistantPopup()" title="닫기" style="background:none;border:none;color:#94a3b8;font-size:20px;line-height:1;cursor:pointer;padding:4px 6px;">✕</button>'
       +'</div>';
     mc.insertBefore(header, mc.firstChild);
+    var myWorkCard=document.createElement('div');
+    myWorkCard.className='card';
+    myWorkCard.id='my-work-card';
+    myWorkCard.innerHTML='<div class="card-title">⏱ 내 근무 현황</div><div id="my-work-area" style="font-size:13px;color:#94a3b8;">불러오는 중...</div>';
+    mc.insertBefore(myWorkCard, header.nextSibling);
+    loadMyWorkStatus(s.id);
     }
     window.closeAssistantPopup=function(){
       var chk=document.getElementById('mc-hide-today');
@@ -984,6 +990,7 @@ window.addEventListener('DOMContentLoaded',function(){
     else { loadClasses(); }
     initChatPage();
     refreshHwNavBadge();
+    initActiveAstWidget();
   }
 });
 
@@ -1009,6 +1016,7 @@ function showPage(page,el){
 }
 
 function logout(){
+  if(window.mkClockOut && cu) window.mkClockOut(cu);
   cu=null; localStorage.removeItem('mkmath_session'); location.href='homework.html';
 }
 
@@ -3041,6 +3049,64 @@ function wlogTab(tab,el){
   el.classList.add('active');
   document.getElementById('wlog-form-work').style.display=tab==='work'?'block':'none';
   document.getElementById('wlog-form-expense').style.display=tab==='expense'?'block':'none';
+}
+
+// ── 조교 본인 근무 현황 (조교 로그인 전용) ──
+async function loadMyWorkStatus(assistantId){
+  var area=document.getElementById('my-work-area');
+  try{
+    var r=await fetch(SU+'?action=getMyWorkLogs&id='+encodeURIComponent(assistantId)).then(function(r){return r.json();});
+    var logs=r.logs||[];
+    var open=logs.find(function(l){return l.clockOut==='';});
+    var html='';
+    if(open){
+      html+='<div style="background:#eff6ff;border-radius:9px;padding:10px 14px;margin-bottom:10px;font-weight:700;color:#2563eb;">🟢 지금 근무 중 — '+open.date+' '+open.clockIn+'부터</div>';
+    } else {
+      html+='<div style="background:#f1f5f9;border-radius:9px;padding:10px 14px;margin-bottom:10px;color:#64748b;">현재 근무 중이 아니에요 (로그인하면 자동으로 출근 체크됩니다)</div>';
+    }
+    var recent=logs.filter(function(l){return l.clockOut!=='';}).slice(0,5);
+    if(recent.length){
+      html+='<div style="font-size:12px;color:#94a3b8;margin-bottom:6px;">최근 근무 기록</div>';
+      html+=recent.map(function(l){
+        return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #f1f5f9;font-size:13px;">'
+          +'<span>'+l.date+' '+l.clockIn+' ~ '+l.clockOut+'</span>'
+          +'<span style="font-weight:700;color:#1e293b;">₩'+Number(l.cost||0).toLocaleString()+'</span>'
+          +'</div>';
+      }).join('');
+    }
+    area.innerHTML=html;
+  }catch(e){
+    area.innerHTML='<div style="color:#dc2626;">불러오기 실패</div>';
+  }
+}
+
+// ── 근무 중인 조교 표시(교사 화면) ──
+var activeAstUnsub=null;
+function initActiveAstWidget(){
+  if(activeAstUnsub) return;
+  window.mkdbReady.then(function(db){
+    activeAstUnsub=db.collection('work_logs').where('clockOut','==','').onSnapshot(function(snap){
+      var active=[];
+      snap.forEach(function(doc){ active.push(doc.data()); });
+      renderActiveAstWidget(active);
+    });
+  });
+}
+function renderActiveAstWidget(active){
+  var el=document.getElementById('active-ast-widget');
+  if(!el){
+    el=document.createElement('div');
+    el.id='active-ast-widget';
+    el.style.cssText='position:fixed;bottom:20px;left:20px;z-index:500;display:flex;align-items:center;gap:6px;';
+    document.body.appendChild(el);
+  }
+  if(!active.length){ el.innerHTML=''; return; }
+  el.innerHTML='<span style="font-size:11px;font-weight:700;color:#64748b;background:#fff;padding:6px 10px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,.1);">근무 중인 조교</span>'
+    +active.map(function(a){
+      var initial=(a.assistantName||'?').charAt(0);
+      var color=bc(a.assistantName||a.assistantId||'');
+      return '<div title="'+(a.assistantName||a.assistantId)+' — '+a.clockIn+'부터 근무 중" style="width:32px;height:32px;border-radius:50%;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;cursor:default;box-shadow:0 2px 8px rgba(0,0,0,.15);border:2px solid #fff;">'+initial+'</div>';
+    }).join('');
 }
 
 function openWlogModal(astId){

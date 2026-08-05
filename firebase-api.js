@@ -1112,6 +1112,62 @@ api.addWorkLog = function(db, p){
 api.deleteWorkLog = function(db, p){
   return db.collection('work_logs').doc(String(p.id)).delete().then(function(){ return { success:true }; });
 };
+
+// 조교 로그인/로그아웃 시 자동 출퇴근 체크
+api.clockIn = function(db, p){
+  var assistantId = String(p.id);
+  return db.collection('work_logs').where('assistantId','==',assistantId).where('clockOut','==','').get().then(function(snap){
+    if (!snap.empty) return { success:true, id:snap.docs[0].id }; // 이미 출근 중이면 중복 생성하지 않음
+    return db.collection('assistants').doc(assistantId).get().then(function(aDoc){
+      var workTypeId = (aDoc.exists && aDoc.data().workTypeIds && aDoc.data().workTypeIds[0]) || '';
+      var now = new Date();
+      var id = genId('wlog');
+      var date = Utilities_formatDateLocal(now);
+      return db.collection('work_logs').doc(id).set({
+        id:id, assistantId:assistantId, assistantName:p.name||'', date:date,
+        clockIn:formatTimeLocal(now), clockOut:'', workTypeId:workTypeId, breakMin:0,
+        memo:'자동 출근(로그인)', cost:0, yearMonth:date.slice(0,7), createdAt:nowStr()
+      }).then(function(){ return { success:true, id:id }; });
+    });
+  });
+};
+api.clockOut = function(db, p){
+  var assistantId = String(p.id);
+  return db.collection('work_logs').where('assistantId','==',assistantId).where('clockOut','==','').get().then(function(snap){
+    if (snap.empty) return { success:true };
+    var doc = snap.docs[0];
+    var d = doc.data();
+    var now = new Date();
+    var clockInDate = parseDateTimeLocal(d.date, d.clockIn);
+    var hours = Math.max(0, (now - clockInDate) / 3600000);
+    return db.collection('work_types').get().then(function(wtSnap){
+      var rate = 0;
+      wtSnap.forEach(function(wt){ if (wt.id === d.workTypeId) rate = Number(wt.data().hourlyRate||0); });
+      var cost = Math.round(hours * rate);
+      return doc.ref.update({ clockOut: formatTimeLocal(now), cost: cost }).then(function(){ return { success:true, hours:Math.round(hours*10)/10, cost:cost }; });
+    });
+  });
+};
+api.getMyWorkLogs = function(db, p){
+  return db.collection('work_logs').where('assistantId','==',String(p.id)).get().then(function(snap){
+    return { logs: docsToArr(snap).sort(function(a,b){return (a.date+a.clockIn)<(b.date+b.clockIn)?1:-1;}).slice(0,50) };
+  });
+};
+api.getActiveWorkLogs = function(db){
+  return db.collection('work_logs').where('clockOut','==','').get().then(function(snap){
+    return { logs: docsToArr(snap) };
+  });
+};
+function Utilities_formatDateLocal(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function formatTimeLocal(d){
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function parseDateTimeLocal(dateStr, timeStr){
+  var dp = (dateStr||'').split('-'), tp = (timeStr||'0:0').split(':');
+  return new Date(Number(dp[0]), Number(dp[1])-1, Number(dp[2]), Number(tp[0]), Number(tp[1]));
+}
 api.getExpenseLogs = function(db, p){
   var q = db.collection('expense_logs').where('yearMonth','==',String(p.yearMonth||''));
   return q.get().then(function(snap){
@@ -1276,6 +1332,14 @@ api.submitSurveyResponse = function(db, p){
 window.mkdbReady = _dbReady;
 window.mkGenId = genId;
 window.mkNowStr = nowStr;
+// 조교 로그인/로그아웃 시 자동 출퇴근 체크(각 페이지의 로그인/로그아웃 처리에서 호출)
+window.mkClockIn = function(session){
+  return _dbReady.then(function(db){ return api.clockIn(db, { id:session.id, name:session.name }); }).catch(function(){});
+};
+window.mkClockOut = function(session){
+  if (!session || session.role !== 'assistant') return Promise.resolve();
+  return _dbReady.then(function(db){ return api.clockOut(db, { id:session.id }); }).catch(function(){});
+};
 // 모바일(폰/태블릿) 기기 판별 — 학생 자동 로그아웃을 폰에서만 끄기 위해 사용
 window.mkIsMobile = function(){
   return /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile|BlackBerry|Windows Phone/i.test(navigator.userAgent || '');
