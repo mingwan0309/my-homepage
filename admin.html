@@ -929,6 +929,11 @@ function bc(n) { var c=0; for(var i=0;i<n.length;i++)c+=n.charCodeAt(i); return 
 
 window.addEventListener('DOMContentLoaded',function(){
   var s = JSON.parse(localStorage.getItem('mkmath_session')||'null');
+  var previewAstId=new URLSearchParams(location.search).get('previewAssistantId');
+  if(previewAstId && s && s.role==='teacher'){
+    renderAssistantPreview(previewAstId);
+    return;
+  }
   if(!s||(s.role!=='teacher'&&s.role!=='assistant')){
     document.getElementById('access-denied').style.display='flex';
   } else if(s.role==='assistant'){
@@ -1018,6 +1023,38 @@ function showPage(page,el){
 function logout(){
   if(window.mkClockOut && cu) window.mkClockOut(cu);
   cu=null; localStorage.removeItem('mkmath_session'); location.href='homework.html';
+}
+
+// 선생님이 "조교 화면 미리보기"로 들어온 경우 — 실제 로그인 세션(교사)은 그대로 두고,
+// 그 조교가 로그인했을 때 보는 화면(의무클리닉 팝업 + 내 근무 현황)만 읽기용으로 보여줌.
+async function renderAssistantPreview(assistantId){
+  document.getElementById('dashboard').style.display='flex';
+  var sbEl=document.querySelector('.sidebar'); if(sbEl) sbEl.style.display='none';
+  document.querySelectorAll('.sidebar-nav .nav-item, .mob-drawer-panel .nav-item').forEach(function(n){
+    n.removeAttribute('onclick'); n.style.opacity='0.4'; n.style.cursor='not-allowed';
+  });
+  var r=await fetch(SU+'?action=getAssistants').then(function(r){return r.json();});
+  var ast=(r.assistants||[]).find(function(a){return a.id===assistantId;});
+  var astName=ast?ast.name:assistantId;
+  cu={role:'teacher', id:'mingwan0309', name:astName}; // 조교 명의로 근무기록 조회 위해 임시로 이름만 사용, 실제 권한은 교사 그대로
+  showPage('mclinic');
+  var regCard=document.getElementById('mc-register-card'); if(regCard) regCard.style.display='none';
+  var mc=document.getElementById('page-mclinic');
+  var backdrop=document.createElement('div');
+  backdrop.id='assistant-popup-backdrop';
+  backdrop.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:900;';
+  document.body.appendChild(backdrop);
+  mc.style.cssText='display:block;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:901;background:#f8fafc;width:94vw;max-width:720px;max-height:88vh;overflow-y:auto;box-sizing:border-box;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:18px;';
+  var header=document.createElement('div');
+  header.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:14px;border-bottom:1.5px solid #e2e8f0;flex-wrap:wrap;gap:8px;';
+  header.innerHTML='<div><div style="font-size:15px;font-weight:800;color:#1e293b;">👀 '+escHtml(astName)+'님 화면 미리보기</div><div style="font-size:12px;color:#94a3b8;margin-top:2px;">이 조교가 로그인하면 보는 화면이에요 — 여기서 출석/결석·휴식 버튼을 누르면 실제로 반영돼요</div></div>'
+    +'<button onclick="window.close();" style="background:#f1f5f9;border:none;color:#475569;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;">닫기</button>';
+  mc.insertBefore(header, mc.firstChild);
+  var myWorkCard=document.createElement('div');
+  myWorkCard.className='card';
+  myWorkCard.innerHTML='<div class="card-title">⏱ 근무 현황</div><div id="my-work-area" style="font-size:13px;color:#94a3b8;">불러오는 중...</div>';
+  mc.insertBefore(myWorkCard, header.nextSibling);
+  loadMyWorkStatus(assistantId);
 }
 
 // 반
@@ -2706,6 +2743,9 @@ function astTab(tab,el){
   }
 }
 
+function previewAssistant(id){
+  window.open('admin.html?previewAssistantId='+encodeURIComponent(id), '_blank');
+}
 function renderAstList(){
   var q=(document.getElementById('ast-search')||{}).value||'';
   var list=astList.filter(function(a){return !q||a.name.includes(q)||a.phone.includes(q);});
@@ -2721,7 +2761,7 @@ function renderAstList(){
       ?'<label style="display:inline-flex;align-items:center;cursor:pointer;gap:6px;" onclick="toggleAstActive(\''+a.id+'\',false)"><span style="width:36px;height:20px;background:#22c55e;border-radius:10px;display:inline-block;position:relative;"><span style="position:absolute;left:18px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;"></span></span><span style="font-size:12px;font-weight:600;color:#16a34a;">활성화</span></label>'
       :'<label style="display:inline-flex;align-items:center;cursor:pointer;gap:6px;" onclick="toggleAstActive(\''+a.id+'\',true)"><span style="width:36px;height:20px;background:#cbd5e1;border-radius:10px;display:inline-block;position:relative;"><span style="position:absolute;left:2px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;"></span></span><span style="font-size:12px;font-weight:600;color:#94a3b8;">비활성화</span></label>';
     return '<tr>'
-      +'<td><div style="display:flex;align-items:center;gap:8px;"><div style="width:32px;height:32px;border-radius:50%;background:'+bc(a.name)+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;">'+escHtml(a.name.charAt(0))+'</div><span style="font-weight:600;">'+escHtml(a.name)+'</span></div></td>'
+      +'<td><div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="previewAssistant(\''+a.id+'\')" title="조교 화면 미리보기"><div style="width:32px;height:32px;border-radius:50%;background:'+bc(a.name)+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;">'+escHtml(a.name.charAt(0))+'</div><span style="font-weight:600;color:#2563eb;text-decoration:underline;">'+escHtml(a.name)+'</span></div></td>'
       +'<td style="color:#64748b;">'+escHtml(a.phone)+'</td>'
       +'<td><span style="font-size:12px;color:#64748b;">'+(a.isAdmin?'관리자':'일반')+'</span></td>'
       +'<td>'+salBadge+'</td>'
