@@ -1176,7 +1176,8 @@
         reviewUser = { id, name: data.name };
         document.getElementById('review-step-login').style.display = 'none';
         document.getElementById('review-step-write').style.display = 'block';
-        const greeting = data.role === 'teacher' ? data.name + ' 선생님 안녕하세요 👋' : data.name + ' 학생 안녕하세요 👋';
+        const roleLabel = data.role === 'teacher' ? '선생님' : data.role === 'assistant' ? '조교' : '학생';
+        const greeting = data.name + ' ' + roleLabel + ' 안녕하세요 👋';
         document.getElementById('review-username').textContent = greeting;
         document.getElementById('review-text').value = '';
         document.getElementById('review-write-msg').innerHTML = '';

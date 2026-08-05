@@ -1378,7 +1378,8 @@ window.mkGenId = genId;
 window.mkNowStr = nowStr;
 // 조교 로그인/로그아웃 시 자동 출퇴근 체크(각 페이지의 로그인/로그아웃 처리에서 호출)
 window.mkClockIn = function(session){
-  return _dbReady.then(function(db){ return api.clockIn(db, { id:session.id, name:session.name }); }).catch(function(){});
+  return _dbReady.then(function(db){ return api.clockIn(db, { id:session.id, name:session.name }); })
+    .catch(function(err){ console.error('[mkClockIn] 자동 출근 기록 실패:', err); });
 };
 window.mkClockOut = function(session){
   if (!session || session.role !== 'assistant') return Promise.resolve();
