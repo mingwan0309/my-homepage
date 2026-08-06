@@ -717,12 +717,18 @@ api.submitHwProof = function(db, p){
   },{merge:true}).then(function(){ return { success:true }; });
 };
 
-// 재촉 알림톡 발송 후 마지막 발송 시각 기록 (쿨다운/이력 표시용)
+// 재촉 알림톡 발송 후 마지막 발송 시각 기록 + 이력에 누적 (여러 번 보낸 기록을 다 볼 수 있게)
 api.markHwReminderSent = function(db, p){
   var key = String(p.sessionId)+'__'+String(p.studentId)+'__'+String(p.hwId);
-  return db.collection('hw_status').doc(key).set({
-    lastReminderAt:nowStr(), lastReminderBy:p.by||'', lastReminderText:p.text||''
-  },{merge:true}).then(function(){ return { success:true }; });
+  var ref = db.collection('hw_status').doc(key);
+  var entry = { at:nowStr(), by:p.by||'', text:p.text||'' };
+  return ref.get().then(function(doc){
+    var logs = (doc.exists && doc.data().reminderLogs) || [];
+    logs = logs.concat([entry]).slice(-30); // 최근 30건까지만 보관
+    return ref.set({
+      lastReminderAt:entry.at, lastReminderBy:entry.by, lastReminderText:entry.text, reminderLogs:logs
+    },{merge:true}).then(function(){ return { success:true }; });
+  });
 };
 
 // submissionUrl 필드가 예전엔 문자열 하나였고 지금은 배열임 — 둘 다 안전하게 배열로 통일
@@ -799,7 +805,7 @@ api.getIncompleteHomeworks = function(db){
             id:r.id, sessionId:String(r.sessionId), hwId:String(r.hwId), studentId:String(r.studentId),
             pass:r.pass||'', feedback:r.feedback||'',
             submissionUrls:hwUrlsToArray(r.submissionUrl), submittedAt:r.submittedAt||'',
-            lastReminderAt:r.lastReminderAt||'', lastReminderBy:r.lastReminderBy||'', lastReminderText:r.lastReminderText||'',
+            lastReminderAt:r.lastReminderAt||'', lastReminderBy:r.lastReminderBy||'', lastReminderText:r.lastReminderText||'', reminderLogs:r.reminderLogs||[],
             hwName:hw.name||'(삭제된 과제)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
             classId:String(ses.classId||''), className:cls.name||'',
             studentName:stu.name||r.studentId, studentPhone:r.studentId, parentPhone:stu.parentPhone||''
