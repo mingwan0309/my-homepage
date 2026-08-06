@@ -1377,14 +1377,36 @@ api.submitSurveyResponse = function(db, p){
 window.mkdbReady = _dbReady;
 window.mkGenId = genId;
 window.mkNowStr = nowStr;
+// 조교 출퇴근 시 선생님에게 카카오 알림톡 발송 (Apps Script sendAlimtalk 재사용)
+var TEACHER_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+var TEACHER_NOTIFY_PHONE = '01062519244';
+function notifyTeacherAssistantEvent(type, assistantName){
+  try{
+    var now = new Date();
+    function p(n){ return (n<10?'0':'')+n; }
+    var dateStr = now.getFullYear()+'-'+p(now.getMonth()+1)+'-'+p(now.getDate());
+    var timeStr = p(now.getHours())+':'+p(now.getMinutes());
+    var title = type==='in' ? '조교 출근 알림' : '조교 퇴근 알림';
+    var verb = type==='in' ? '출근' : '퇴근';
+    var body = {
+      action:'sendAlimtalk',
+      appToken: APP_SHARED_TOKEN,
+      messages:[{ phone:TEACHER_NOTIFY_PHONE, name:assistantName||'', className:title, sessionNum:dateStr+' '+timeStr, message:(assistantName||'')+' 조교님이 '+verb+'했습니다.' }]
+    };
+    return (typeof _origFetch==='function'?_origFetch:window.fetch)(TEACHER_APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify(body) }).catch(function(){});
+  }catch(e){}
+}
 // 조교 로그인/로그아웃 시 자동 출퇴근 체크(각 페이지의 로그인/로그아웃 처리에서 호출)
 window.mkClockIn = function(session){
   return _dbReady.then(function(db){ return api.clockIn(db, { id:session.id, name:session.name }); })
+    .then(function(r){ notifyTeacherAssistantEvent('in', session.name); return r; })
     .catch(function(err){ console.error('[mkClockIn] 자동 출근 기록 실패:', err); });
 };
 window.mkClockOut = function(session){
   if (!session || session.role !== 'assistant') return Promise.resolve();
-  return _dbReady.then(function(db){ return api.clockOut(db, { id:session.id }); }).catch(function(){});
+  return _dbReady.then(function(db){ return api.clockOut(db, { id:session.id }); })
+    .then(function(r){ notifyTeacherAssistantEvent('out', session.name); return r; })
+    .catch(function(){});
 };
 // 모바일(폰/태블릿) 기기 판별 — 학생 자동 로그아웃을 폰에서만 끄기 위해 사용
 window.mkIsMobile = function(){
