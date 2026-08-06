@@ -466,7 +466,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <span style="font-size:13px;font-weight:800;color:#1d4ed8;"><span id="hw-bulk-count">0</span>명 선택됨</span>
         <button type="button" onclick="hwSelectAll()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">전체선택</button>
         <button type="button" onclick="hwClearSelect()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">선택해제</button>
-        <button type="button" id="hw-bulk-remind-btn" disabled onclick="bulkSendHwReminder()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">🔔 선택 재촉 알림 보내기</button>
+        <button type="button" id="hw-bulk-remind-btn" disabled onclick="bulkSendHwReminder()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">🔔 선택 띵동띵동</button>
         <button type="button" id="hw-bulk-complete-btn" disabled onclick="bulkMarkHwComplete()" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">✓ 선택 완료 처리</button>
       </div>
       <div id="hwmanage-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
@@ -2143,7 +2143,7 @@ function renderHwCard(h){
     +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+HW_STATUS_LABEL_ADMIN[h.pass]+'</span>'
     +'</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
-    +'<button class="hw-action-btn" onclick="sendHwReminder(\''+h.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 재촉 알림 보내기</button>'
+    +'<button class="hw-action-btn" onclick="sendHwReminder(\''+h.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 띵동띵동</button>'
     +'<button class="hw-action-btn" onclick="markHwComplete(\''+h.id+'\')" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;">✓ 완료 처리</button>'
     +'</div>'
     +'</div>';
