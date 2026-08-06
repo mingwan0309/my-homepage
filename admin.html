@@ -660,6 +660,10 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div class="card-title">⏱ 근무 현황</div>
         <div id="my-work-area-self" style="font-size:13px;color:#94a3b8;">불러오는 중...</div>
       </div>
+      <div class="card">
+        <div class="card-title">📅 이번 달 근무 내역</div>
+        <div id="my-work-history-self" style="font-size:13px;color:#94a3b8;">불러오는 중...</div>
+      </div>
     </div>
     <div id="ast-teacher-view">
       <div class="page-header">
@@ -982,6 +986,7 @@ function showPage(page,el){
       document.getElementById('ast-teacher-view').style.display='none';
       document.getElementById('ast-self-view').style.display='block';
       loadMyWorkStatus(cu.id,'my-work-area-self');
+      loadMySelfWorkHistory(cu.id);
     } else {
       document.getElementById('ast-self-view').style.display='none';
       document.getElementById('ast-teacher-view').style.display='block';
@@ -3142,6 +3147,37 @@ async function loadMyWorkStatus(assistantId,targetElId){
   }catch(e){
     area.innerHTML='<div style="color:#dc2626;">불러오기 실패</div>';
   }
+}
+async function loadMySelfWorkHistory(assistantId){
+  var body=document.getElementById('my-work-history-self');
+  body.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  try{
+    var r=await fetch(SU+'?action=getMyWorkLogs&id='+encodeURIComponent(assistantId)).then(function(r){return r.json();});
+    var logs=(r.logs||[]).filter(function(l){return l.clockOut!=='';});
+    var now=new Date();
+    var ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    var thisMonth=logs.filter(function(l){return (l.date||'').slice(0,7)===ym;});
+    var totalMin=0,totalPay=0;
+    thisMonth.forEach(function(l){
+      var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-Number(l.breakMin||0));
+      totalMin+=workMin; totalPay+=Number(l.cost||0);
+    });
+    var summary='<div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:16px;">'
+      +'<div><div style="font-size:12px;color:#94a3b8;">이번 달 근무일수</div><div style="font-size:19px;font-weight:800;color:#1e293b;">'+thisMonth.length+'일</div></div>'
+      +'<div><div style="font-size:12px;color:#94a3b8;">이번 달 총 근무시간</div><div style="font-size:19px;font-weight:800;color:#1e293b;">'+minToHM(totalMin)+'</div></div>'
+      +'<div><div style="font-size:12px;color:#94a3b8;">이번 달 총 급여</div><div style="font-size:19px;font-weight:800;color:#2563eb;">₩'+totalPay.toLocaleString()+'</div></div>'
+      +'</div>';
+    var rows=logs.slice(0,30).map(function(l){
+      var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-Number(l.breakMin||0));
+      return '<tr><td style="font-size:12px;color:#475569;white-space:nowrap;">'+fmtDateDow(l.date)+'</td>'
+        +'<td style="font-size:13px;white-space:nowrap;">'+fmt24to12(l.clockIn)+'</td>'
+        +'<td style="font-size:13px;white-space:nowrap;">'+fmt24to12(l.clockOut)+'</td>'
+        +'<td style="font-size:13px;white-space:nowrap;">'+minToHM(workMin)+'</td>'
+        +'<td style="font-size:13px;font-weight:700;white-space:nowrap;">₩'+Number(l.cost||0).toLocaleString()+'</td></tr>';
+    }).join('');
+    body.innerHTML=summary+'<div class="table-wrap"><table><thead><tr><th>날짜</th><th>출근</th><th>퇴근</th><th>근무시간</th><th>급여</th></tr></thead><tbody>'
+      +(rows||'<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px;">기록이 없어요.</td></tr>')+'</tbody></table></div>';
+  }catch(e){ body.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>'; }
 }
 async function toggleMyBreak(assistantId,targetElId){
   try{
