@@ -155,6 +155,14 @@
   - **단, 스크립트 검사만 믿지 말고 반드시 스크린샷으로 눈으로 확인할 것.** 2026-07-27에 admin.html 상단바가 본문 옆에 세로로 찌그러져 있었는데(원인: `body{display:flex}` + JS가 `#dashboard`를 `display:flex`로 켜서 모바일 상단바가 본문과 가로로 나란히 배치됨), 넘침·터치크기 스크립트는 전부 통과해서 못 잡았다. 사용자가 스크린샷으로 지적해서 발견. → 모바일에서 `#dashboard{flex-direction:column}` + `body{display:block}`으로 해결.
   - 같은 이유로 놓쳤던 것 2건 더: qna.html 검색 버튼과 '내 글만 보기' 토글이 서로 **겹쳐 있었고**(모바일에서 `.filter-bar{flex-direction:column}`으로 해결), homework.html은 바깥 `.container`와 `#page-student > .container` **양쪽에 상단 여백이 이중 적용**돼 콘텐츠가 고정 네비바에 가리거나 과하게 떨어졌다(바깥 20px + 안쪽 98px = 118px로 정리, 고정바 높이 110px).
 
+## 신호판 (2026-08-06 추가)
+관리가 필요한 학생을 자동으로 감지해서 알려주는 별도 메뉴(admin.html "🚨 신호판" 탭, 교사 전용). 다른 학원관리 프로그램의 위험신호 대시보드를 참고해서 만듦.
+- 첫 버전은 사용자 요청으로 **연속 결석 + 과제 미제출 두 신호만** 구현(성적 급락 등 다른 신호는 의도적으로 나중으로 미룸 — "한번에 다 만들기보다 우선순위 정하고 싶다").
+- `api.getSignalBoard(db)`가 매번 즉석에서 계산(별도 배치/스케줄러 없음): 학생별로 자기 반의 최근 차시부터 거꾸로 훑어서 연속 결석 횟수 계산(출석기록이 아예 없으면 그 차시부터는 "아직 안 한 차시"로 보고 중단), `hw_status`에서 pass가 미이행/일부미이행인 것 개수를 셈. `consecutiveAbsent>=2 또는 hwMissing>=3`이면 위험, `consecutiveAbsent===1 또는 hwMissing===2`면 주의, `hwMissing===1`이면 관찰, 그 외(정상)는 목록에서 아예 제외.
+- `student_signals` 컬렉션(문서ID=학생ID)에 `memo`(메모), `dismissed`(해제 여부) 저장 — `api.setSignalMemo`/`api.setSignalDismissed`. 해제해도 신호 자체가 없어지는 게 아니라 목록에서 흐리게 표시되고 "해제된 학생도 보기" 체크박스로 다시 볼 수 있음.
+- 카드별 4개 버튼: "학부모 연락"(실제 카카오 알림톡 발송, 기존 sendAlimtalk 재사용 — 유료이니 조심), "클리닉 배정"(그날 하루만 의무클리닉에 임시 등록), "메모", "해제". 이름 클릭하면 기존 학생 상세 슬라이드 패널(`openStuDetail`)이 열림.
+- Firestore 규칙에 `student_signals`(교사 전용 읽기/쓰기) 조항 추가함.
+
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
 - Apps Script 재배포 시 "새 버전" 안내 빼먹기
