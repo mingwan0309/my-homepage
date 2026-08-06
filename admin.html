@@ -2675,14 +2675,14 @@ async function svRenderResults(){
 
 // ── 영상 라이브러리 ──
 // ── 채팅 ──
-var chatThreadsUnsub=null, chatMsgsUnsub=null, chatThreadsCache=[], activeChatStudentId=null, activeChatMsgs=[];
+var chatThreadsUnsub=null, chatMsgsUnsub=null, chatThreadsCache=[], activeChatStudentId=null, activeChatDocId=null, activeChatMsgs=[];
 
 function initChatPage(){
   if(chatThreadsUnsub) return; // 이미 리스너 켜짐
   window.mkdbReady.then(function(db){
     chatThreadsUnsub=db.collection('chat_threads').onSnapshot(function(snap){
       chatThreadsCache=[];
-      snap.forEach(function(doc){chatThreadsCache.push(doc.data());});
+      snap.forEach(function(doc){ var d=doc.data(); d._docId=doc.id; chatThreadsCache.push(d); });
       chatThreadsCache.sort(function(a,b){return (a.lastAt||'')<(b.lastAt||'')?1:-1;});
       renderChatThreads();
       updateChatNavBadge();
@@ -2702,27 +2702,29 @@ function renderChatThreads(){
   if(!chatThreadsCache.length){box.innerHTML='<div style="padding:20px;color:#94a3b8;font-size:13px;text-align:center;">아직 채팅이 없습니다.</div>';return;}
   box.innerHTML=chatThreadsCache.map(function(t){
     var unread=t.unreadForTeacher||0;
-    var initial=(t.studentName||t.studentId||'?').slice(0,1);
-    return '<div class="chat-thread-item'+(t.studentId===activeChatStudentId?' active':'')+'" onclick="openChatThread(\''+t.studentId+'\')">'
+    var displayName=t.studentName||t.studentId||'(알 수 없음)';
+    var initial=displayName.slice(0,1);
+    return '<div class="chat-thread-item'+(t._docId===activeChatDocId?' active':'')+'" onclick="openChatThread(\''+t._docId+'\')">'
       +'<div class="chat-thread-avatar">'+initial+'</div>'
       +'<div style="flex:1;min-width:0;">'
-      +'<div style="font-size:13px;font-weight:700;color:#1e293b;">'+(t.studentName||t.studentId)+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:#1e293b;">'+escHtml(displayName)+'</div>'
       +'<div style="font-size:12px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(t.lastMessage||'')+'</div>'
       +'</div>'
       +(unread>0?'<span class="chat-thread-badge">'+(unread>9?'9+':unread)+'</span>':'')
       +'</div>';
   }).join('');
 }
-async function openChatThread(studentId){
-  activeChatStudentId=studentId;
+async function openChatThread(docId){
+  activeChatDocId=docId;
+  var thread=chatThreadsCache.find(function(t){return t._docId===docId;});
+  activeChatStudentId=thread?(thread.studentId||docId):docId;
   renderChatThreads();
   document.getElementById('chat-empty-state').style.display='none';
   document.getElementById('chat-active-view').style.display='flex';
-  var thread=chatThreadsCache.find(function(t){return t.studentId===studentId;});
-  document.getElementById('chat-active-name').textContent=thread?(thread.studentName||studentId):studentId;
+  document.getElementById('chat-active-name').textContent=thread?(thread.studentName||thread.studentId||'(알 수 없음)'):docId;
   if(chatMsgsUnsub){chatMsgsUnsub();chatMsgsUnsub=null;}
   var db=await window.mkdbReady;
-  chatMsgsUnsub=db.collection('chat_messages').where('studentId','==',studentId).onSnapshot(function(snap){
+  chatMsgsUnsub=db.collection('chat_messages').where('studentId','==',activeChatStudentId).onSnapshot(function(snap){
     var msgs=[];
     snap.forEach(function(doc){msgs.push(doc.data());});
     msgs.sort(function(a,b){return (a.createdAt||'')<(b.createdAt||'')?-1:1;});
@@ -2733,7 +2735,7 @@ async function openChatThread(studentId){
     }).join('');
     body.scrollTop=body.scrollHeight;
   });
-  db.collection('chat_threads').doc(studentId).set({unreadForTeacher:0},{merge:true}).catch(function(){});
+  db.collection('chat_threads').doc(docId).set({unreadForTeacher:0},{merge:true}).catch(function(){});
 }
 async function sendTeacherMsg(){
   if(!activeChatStudentId)return;
@@ -2743,11 +2745,11 @@ async function sendTeacherMsg(){
   input.value='';
   var db=await window.mkdbReady;
   var id=window.mkGenId('msg');
-  var thread=chatThreadsCache.find(function(t){return t.studentId===activeChatStudentId;});
+  var thread=chatThreadsCache.find(function(t){return t._docId===activeChatDocId;});
   await db.collection('chat_messages').doc(id).set({
     id:id, studentId:activeChatStudentId, sender:'teacher', text:text, createdAt:window.mkNowStr()
   });
-  await db.collection('chat_threads').doc(activeChatStudentId).set({
+  await db.collection('chat_threads').doc(activeChatDocId).set({
     studentId:activeChatStudentId, studentName:thread?thread.studentName:activeChatStudentId,
     lastMessage:text, lastAt:window.mkNowStr(),
     unreadForStudent: firebase.firestore.FieldValue.increment(1)
@@ -2757,9 +2759,9 @@ document.addEventListener('keydown', function(e){
   if(e.target && e.target.id==='chat-teacher-input' && e.key==='Enter'){ e.preventDefault(); sendTeacherMsg(); }
 });
 function saveChatThread(){
-  if(!activeChatStudentId){ alert('저장할 대화를 먼저 선택해주세요.'); return; }
-  var thread=chatThreadsCache.find(function(t){return t.studentId===activeChatStudentId;});
-  var name=thread?(thread.studentName||activeChatStudentId):activeChatStudentId;
+  if(!activeChatDocId){ alert('저장할 대화를 먼저 선택해주세요.'); return; }
+  var thread=chatThreadsCache.find(function(t){return t._docId===activeChatDocId;});
+  var name=thread?(thread.studentName||thread.studentId||activeChatDocId):activeChatDocId;
   var lines=activeChatMsgs.map(function(m){
     return '['+(m.createdAt||'')+'] '+(m.sender==='teacher'?'선생님':name)+': '+(m.text||'');
   });
@@ -2771,17 +2773,19 @@ function saveChatThread(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 async function deleteChatThread(){
-  if(!activeChatStudentId) return;
-  var thread=chatThreadsCache.find(function(t){return t.studentId===activeChatStudentId;});
-  var name=thread?(thread.studentName||activeChatStudentId):activeChatStudentId;
+  if(!activeChatDocId) return;
+  var thread=chatThreadsCache.find(function(t){return t._docId===activeChatDocId;});
+  var name=thread?(thread.studentName||thread.studentId||activeChatDocId):activeChatDocId;
   if(!confirm('"'+name+'"님과의 대화를 전부 삭제할까요?\n메시지 전체가 지워지며 되돌릴 수 없어요.'))return;
-  var sid=activeChatStudentId;
+  var docId=activeChatDocId, sid=activeChatStudentId;
   var db=await window.mkdbReady;
-  var snap=await db.collection('chat_messages').where('studentId','==',sid).get();
-  await Promise.all(snap.docs.map(function(d){return d.ref.delete();}));
-  await db.collection('chat_threads').doc(sid).delete();
+  if(sid){
+    var snap=await db.collection('chat_messages').where('studentId','==',sid).get();
+    await Promise.all(snap.docs.map(function(d){return d.ref.delete();}));
+  }
+  await db.collection('chat_threads').doc(docId).delete();
   if(chatMsgsUnsub){chatMsgsUnsub();chatMsgsUnsub=null;}
-  activeChatStudentId=null; activeChatMsgs=[];
+  activeChatStudentId=null; activeChatDocId=null; activeChatMsgs=[];
   document.getElementById('chat-active-view').style.display='none';
   document.getElementById('chat-empty-state').style.display='flex';
 }
