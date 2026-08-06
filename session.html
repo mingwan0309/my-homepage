@@ -6,6 +6,7 @@
 <title>차시 — 김민관 수학</title>
 <script src="firebase-api.js?v=18"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
 <style>
 :root{--primary:#3b6cf7;--bg:#f1f5f9;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -499,7 +500,29 @@ tr:hover td{background:#fafbff;}
         </div>
         <button onclick="saveExamDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
         <button onclick="openAnswerKeyModal()" style="padding:12px;background:#fff7ed;color:#c2410c;border:1.5px solid #fdba74;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📝 답안 등록 (OMR 자동채점용)</button>
+        <button onclick="openOmrUploadModal()" style="padding:12px;background:#eff6ff;color:#1d4ed8;border:1.5px solid #93c5fd;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📷 OMR 업로드 · 자동채점</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- OMR 업로드 모달 -->
+<div id="omr-modal" class="modal-bg">
+  <div class="modal" style="max-width:640px;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <h3 style="margin:0;">OMR 업로드 · 자동채점</h3>
+      <button onclick="document.getElementById('omr-modal').classList.remove('show')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;margin:0 0 14px;">복사기로 스캔한 OMR 파일(PDF/JPG/PNG, 여러 장 가능)을 올려주세요. 자동으로 학부모 번호로 학생을 찾고 채점해요.</p>
+    <div id="omr-drop-zone" style="border:2px dashed #cbd5e1;border-radius:12px;padding:24px;text-align:center;color:#94a3b8;font-size:14px;cursor:pointer;margin-bottom:14px;">
+      🖼️ 여기를 눌러 스캔 파일을 선택하세요 (PDF/JPG/PNG)
+      <input type="file" id="omr-file-input" accept=".pdf,.jpg,.jpeg,.png" multiple style="display:none;" onchange="handleOmrFiles(this.files)">
+    </div>
+    <div id="omr-progress" style="display:none;font-size:13px;color:#64748b;margin-bottom:10px;"></div>
+    <div id="omr-results"></div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="document.getElementById('omr-modal').classList.remove('show')">닫기</button>
+      <button class="btn-ok" id="omr-save-btn" style="display:none;" onclick="saveOmrResults()">채점 결과 저장</button>
     </div>
   </div>
 </div>
@@ -2323,6 +2346,268 @@ async function saveAnswerKey(){
     alert('저장 실패했어요.');
   }
 }
+// ── OMR 업로드 · 자동채점 ──
+// 대치온 OMR 양식(고정) 기준 좌표 보정값 — 실제 스캔본으로 직접 검증한 값
+var OMR_CAL = {
+  acol0:1269.9/4099.5, acolStep:70.94/4099.5, arow0:514.3/2798.0, arowStep:114.19/2798.0,
+  pcolA0:250.9/4099.5, pcolAStep:87.77/4099.5, pcolB0:680.4/4099.5, pcolBStep:84.5/4099.5,
+  prow0:1667.3/2798.0, prowStep:110.7/2798.0
+};
+if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+
+function openOmrUploadModal(){
+  document.getElementById('omr-results').innerHTML='';
+  document.getElementById('omr-save-btn').style.display='none';
+  document.getElementById('omr-progress').style.display='none';
+  omrResultList=[];
+  document.getElementById('omr-modal').classList.add('show');
+}
+document.addEventListener('DOMContentLoaded',function(){
+  var z=document.getElementById('omr-drop-zone');
+  if(z) z.addEventListener('click',function(){ document.getElementById('omr-file-input').click(); });
+});
+
+// 파일(PDF 여러 페이지 또는 이미지)을 캔버스 배열로 변환
+async function fileToCanvases(file){
+  if(file.type==='application/pdf'){
+    var buf=await file.arrayBuffer();
+    var pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    var canvases=[];
+    for(var i=1;i<=pdf.numPages;i++){
+      var page=await pdf.getPage(i);
+      var vp1=page.getViewport({scale:1});
+      var targetW=3300; // 처리에 충분한 해상도
+      var scale=targetW/vp1.width;
+      var vp=page.getViewport({scale:scale});
+      var canvas=document.createElement('canvas');
+      canvas.width=vp.width; canvas.height=vp.height;
+      await page.render({canvasContext:canvas.getContext('2d'), viewport:vp}).promise;
+      canvases.push(canvas);
+    }
+    return canvases;
+  } else {
+    var url=URL.createObjectURL(file);
+    var img=await new Promise(function(res,rej){ var im=new Image(); im.onload=function(){res(im);}; im.onerror=rej; im.src=url; });
+    var canvas=document.createElement('canvas');
+    canvas.width=img.width; canvas.height=img.height;
+    canvas.getContext('2d').drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    return [canvas];
+  }
+}
+
+// 캔버스에서 4개 모서리 마커(까만 꺾쇠) 위치 찾기 — 다운스케일 후 박스합(적분영상)으로 가장 진한 정사각 블록 탐색
+function findCorners(canvas){
+  var W=canvas.width, H=canvas.height;
+  var workW=1000, scale=workW/W, workH=Math.round(H*scale);
+  var work=document.createElement('canvas'); work.width=workW; work.height=workH;
+  work.getContext('2d').drawImage(canvas,0,0,workW,workH);
+  var data=work.getContext('2d').getImageData(0,0,workW,workH).data;
+  var dark=new Float64Array(workW*workH);
+  for(var i=0;i<workW*workH;i++){
+    var g=(data[i*4]+data[i*4+1]+data[i*4+2])/3;
+    dark[i]=g<140?1:0;
+  }
+  // 적분영상
+  var integ=new Float64Array((workW+1)*(workH+1));
+  for(var y=0;y<workH;y++){
+    var rowsum=0;
+    for(var x=0;x<workW;x++){
+      rowsum+=dark[y*workW+x];
+      integ[(y+1)*(workW+1)+(x+1)]=integ[y*(workW+1)+(x+1)]+rowsum;
+    }
+  }
+  function boxSum(x0,y0,x1,y1){
+    x0=Math.max(0,x0);y0=Math.max(0,y0);x1=Math.min(workW,x1);y1=Math.min(workH,y1);
+    if(x1<=x0||y1<=y0)return 0;
+    return integ[y1*(workW+1)+x1]-integ[y0*(workW+1)+x1]-integ[y1*(workW+1)+x0]+integ[y0*(workW+1)+x0];
+  }
+  var K=Math.round(workW*0.027);
+  function bestInRegion(rx0,ry0,rx1,ry1){
+    var best=-1,bx=0,by=0;
+    var step=Math.max(1,Math.round(K/4));
+    for(var y=ry0;y<ry1;y+=step){
+      for(var x=rx0;x<rx1;x+=step){
+        var s=boxSum(x,y,x+K,y+K);
+        if(s>best){ best=s; bx=x+K/2; by=y+K/2; }
+      }
+    }
+    return {x:bx/scale, y:by/scale, score:best};
+  }
+  var mW=Math.round(workW*0.32), mH=Math.round(workH*0.32);
+  var tl=bestInRegion(0,0,mW,mH);
+  var tr=bestInRegion(workW-mW,0,workW,mH);
+  var bl=bestInRegion(0,workH-mH,mW,workH);
+  var br=bestInRegion(workW-mW,workH-mH,workW,workH);
+  var minScore=K*K*0.35; // 마커가 충분히 진하고 큰 블록이어야 함(잡음 배제)
+  if(tl.score<minScore||tr.score<minScore||bl.score<minScore||br.score<minScore) return null;
+  return { x0:Math.min(tl.x,bl.x), y0:Math.min(tl.y,tr.y), x1:Math.max(tr.x,br.x), y1:Math.max(bl.y,br.y) };
+}
+
+function sampleDarkness(ctx, cx, cy, r){
+  var x0=Math.max(0,Math.round(cx-r)), y0=Math.max(0,Math.round(cy-r));
+  var w=Math.round(r*2), h=Math.round(r*2);
+  var data;
+  try{ data=ctx.getImageData(x0,y0,w,h).data; }catch(e){ return 0; }
+  if(!data||!data.length) return 0;
+  var sum=0,n=data.length/4;
+  for(var i=0;i<n;i++){ sum += (data[i*4]+data[i*4+1]+data[i*4+2])/3; }
+  return 255-(sum/n);
+}
+
+// 캔버스 1장(학생 답안지 1장)을 읽어서 {phone, answers:{1:1~5|null,...20:...}} 반환
+function readOmrSheet(canvas){
+  var corners=findCorners(canvas);
+  if(!corners) return null;
+  var ctx=canvas.getContext('2d');
+  var SW=corners.x1-corners.x0, SH=corners.y1-corners.y0;
+  var r=SW*(18/4099.5);
+  var answers={};
+  for(var q=1;q<=20;q++){
+    var darks=[];
+    for(var c=1;c<=5;c++){
+      var cx=corners.x0+(OMR_CAL.acol0+OMR_CAL.acolStep*(c-1))*SW;
+      var cy=corners.y0+(OMR_CAL.arow0+OMR_CAL.arowStep*(q-1))*SH;
+      darks.push(sampleDarkness(ctx,cx,cy,r));
+    }
+    var maxV=Math.max.apply(null,darks);
+    var best=darks.indexOf(maxV);
+    answers[q]= maxV>100 ? (best+1) : null;
+  }
+  var digits=[];
+  for(var c2=1;c2<=8;c2++){
+    var colFrac=(c2<=4)?(OMR_CAL.pcolA0+OMR_CAL.pcolAStep*(c2-1)):(OMR_CAL.pcolB0+OMR_CAL.pcolBStep*(c2-5));
+    var darks2=[];
+    for(var d=0;d<=9;d++){
+      var cx2=corners.x0+colFrac*SW;
+      var cy2=corners.y0+(OMR_CAL.prow0+OMR_CAL.prowStep*d)*SH;
+      darks2.push(sampleDarkness(ctx,cx2,cy2,r));
+    }
+    var maxV2=Math.max.apply(null,darks2);
+    digits.push(maxV2>100 ? String(darks2.indexOf(maxV2)) : '?');
+  }
+  var phone=digits.slice(0,4).join('')+'-'+digits.slice(4).join('');
+  return { phone:phone, answers:answers };
+}
+
+function findStudentByPhone(phone){
+  if(!phone||phone.indexOf('?')>=0) return null;
+  var digitsOnly=phone.replace(/[^0-9]/g,'');
+  return allSessionStudentsForOmr().find(function(s){
+    var p=(s.parentPhone||'').replace(/[^0-9]/g,'');
+    return p && p.slice(-8)===digitsOnly;
+  }) || null;
+}
+function allSessionStudentsForOmr(){
+  // 이 반의 전체 학생 명단(반 소속 여부와 무관하게 넓게 매칭하고 싶으면 students 그대로 사용)
+  return students||[];
+}
+
+function gradeWithAnswerKey(answers, answerKey){
+  var score=0, total=0;
+  (answerKey||[]).forEach(function(r){
+    if(r.correct==null) return;
+    total += Number(r.points)||0;
+    if(answers[r.q]===r.correct) score += Number(r.points)||0;
+  });
+  return { score:Math.round(score*10)/10, total:Math.round(total*10)/10 };
+}
+
+var omrResultList=[];
+async function handleOmrFiles(fileList){
+  var files=Array.from(fileList);
+  if(!files.length) return;
+  var ex=exams.find(function(e){return e.id===currentExamId;});
+  if(!ex||!ex.answerKey||!ex.answerKey.some(function(r){return r.correct!=null;})){
+    alert('먼저 "답안 등록"으로 정답을 입력해주세요.');
+    return;
+  }
+  var prog=document.getElementById('omr-progress');
+  prog.style.display='block';
+  omrResultList=[];
+  var totalSheets=0, doneSheets=0;
+  var allCanvasesPerFile=[];
+  for(var fi=0; fi<files.length; fi++){
+    prog.textContent='파일 읽는 중... ('+(fi+1)+'/'+files.length+')';
+    try{
+      var canvases=await fileToCanvases(files[fi]);
+      allCanvasesPerFile.push(canvases);
+      totalSheets+=canvases.length;
+    }catch(e){ allCanvasesPerFile.push([]); }
+  }
+  for(var fi2=0; fi2<allCanvasesPerFile.length; fi2++){
+    var canvases2=allCanvasesPerFile[fi2];
+    for(var pi=0; pi<canvases2.length; pi++){
+      doneSheets++;
+      prog.textContent='인식 중... ('+doneSheets+'/'+totalSheets+')';
+      await new Promise(function(r){ setTimeout(r,0); }); // UI 업데이트 틈 주기
+      var sheet;
+      try{ sheet = readOmrSheet(canvases2[pi]); }catch(e){ sheet=null; }
+      if(!sheet){
+        omrResultList.push({ ok:false, reason:'모서리 마커를 못 찾았어요(스캔 상태 확인 필요)', fileName:files[fi2].name, pageNum:pi+1 });
+        continue;
+      }
+      var student=findStudentByPhone(sheet.phone);
+      var graded=gradeWithAnswerKey(sheet.answers, ex.answerKey);
+      omrResultList.push({
+        ok:true, fileName:files[fi2].name, pageNum:pi+1,
+        phone:sheet.phone, answers:sheet.answers,
+        studentId: student?student.id:null, studentName: student?student.name:null,
+        score:graded.score, total:graded.total
+      });
+    }
+  }
+  prog.style.display='none';
+  renderOmrResults();
+}
+
+function renderOmrResults(){
+  var el=document.getElementById('omr-results');
+  var stuOptions='<option value="">— 학생 선택 —</option>'+(students||[]).map(function(s){return '<option value="'+s.id+'">'+s.name+' ('+(s.parentPhone||s.id)+')</option>';}).join('');
+  el.innerHTML=omrResultList.map(function(r,idx){
+    if(!r.ok){
+      return '<div style="border:1.5px solid #fecaca;background:#fef2f2;border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;color:#b91c1c;">⚠️ '+r.fileName+' ('+r.pageNum+'페이지) — '+r.reason+'</div>';
+    }
+    var matched=!!r.studentId;
+    return '<div style="border:1.5px solid '+(matched?'#bbf7d0':'#fde68a')+';background:'+(matched?'#f0fdf4':'#fffbeb')+';border-radius:10px;padding:10px 14px;margin-bottom:8px;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
+      +'<div style="font-size:13px;">'
+      +(matched?('<b>'+r.studentName+'</b>'):'<span style="color:#b45309;font-weight:700;">매칭 필요</span>')
+      +' <span style="color:#94a3b8;">(학부모 마킹: '+r.phone+')</span>'
+      +'</div>'
+      +'<div style="font-weight:800;font-size:14px;">'+r.score+' / '+r.total+'점</div>'
+      +'</div>'
+      +(matched?'':'<select onchange="setOmrMatch('+idx+',this.value)" style="margin-top:8px;width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;">'+stuOptions+'</select>')
+      +'</div>';
+  }).join('');
+  document.getElementById('omr-save-btn').style.display=omrResultList.some(function(r){return r.ok;})?'inline-block':'none';
+}
+function setOmrMatch(idx, studentId){
+  var r=omrResultList[idx];
+  var s=(students||[]).find(function(x){return x.id===studentId;});
+  if(!r||!s)return;
+  r.studentId=s.id; r.studentName=s.name;
+  renderOmrResults();
+}
+async function saveOmrResults(){
+  var ex=exams.find(function(e){return e.id===currentExamId;});
+  var toSave=omrResultList.filter(function(r){return r.ok && r.studentId;});
+  var skipped=omrResultList.filter(function(r){return r.ok && !r.studentId;}).length;
+  if(!toSave.length){ alert('저장할 채점 결과가 없어요(학생 매칭이 안 됐어요).'); return; }
+  if(!confirm(toSave.length+'명 성적을 저장할까요?'+(skipped?' (매칭 안 된 '+skipped+'명은 제외됨)':'')))return;
+  for(var i=0;i<toSave.length;i++){
+    var r=toSave[i];
+    var pass='';
+    if(ex.passCutoff!==undefined && ex.passCutoff!=='' && ex.passCutoff!==null){
+      pass = r.score>=Number(ex.passCutoff) ? 'submit' : 'nosub';
+    }
+    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(r.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(r.score)+'&pass='+encodeURIComponent(pass));
+  }
+  alert('저장 완료! '+toSave.length+'명 성적이 반영됐어요.');
+  document.getElementById('omr-modal').classList.remove('show');
+  renderScores();
+}
+
 async function deleteExamFromDetail(){
   if(!confirm('시험을 삭제하시겠습니까?'))return;
   await fetch(SU+'?action=deleteExam&id='+encodeURIComponent(currentExamId));
