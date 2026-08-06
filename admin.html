@@ -992,8 +992,9 @@ function showPage(page,el){
   location.hash = page;
 }
 
-function logout(){
-  if(window.mkClockOut && cu) window.mkClockOut(cu);
+async function logout(){
+  // 퇴근 기록이 끝나기 전에 페이지가 이동하면 요청이 끊겨서 "근무 중"으로 계속 남는 문제가 있어서, 반드시 기다렸다가 이동함
+  if(window.mkClockOut && cu){ try{ await window.mkClockOut(cu); }catch(e){} }
   cu=null; localStorage.removeItem('mkmath_session'); location.href='homework.html';
 }
 
