@@ -823,6 +823,35 @@ api.getIncompleteHomeworks = function(db){
   });
 };
 
+// 지금까지 보낸 재촉 알림 전체 이력 (완료 처리된 학생 것도 포함, 최신순)
+api.getAllHwReminders = function(db){
+  return db.collection('hw_status').get().then(function(snap){
+    var rows = docsToArr(snap).filter(function(r){ return r.reminderLogs && r.reminderLogs.length; });
+    if (!rows.length) return { logs: [] };
+    var hwIds=[], studentIds=[];
+    rows.forEach(function(r){
+      if (hwIds.indexOf(r.hwId) < 0) hwIds.push(r.hwId);
+      if (studentIds.indexOf(r.studentId) < 0) studentIds.push(r.studentId);
+    });
+    return Promise.all([
+      Promise.all(hwIds.map(function(id){ return db.collection('homeworks').doc(id).get(); })),
+      Promise.all(studentIds.map(function(id){ return db.collection('students').doc(id).get(); }))
+    ]).then(function(res){
+      var hwMap={}; res[0].forEach(function(d){ if(d.exists) hwMap[d.id]=d.data(); });
+      var stuMap={}; res[1].forEach(function(d){ if(d.exists) stuMap[d.id]=d.data(); });
+      var logs=[];
+      rows.forEach(function(r){
+        var hw=hwMap[r.hwId]||{}, stu=stuMap[r.studentId]||{};
+        (r.reminderLogs||[]).forEach(function(l){
+          logs.push({ studentName:stu.name||r.studentId, hwName:hw.name||'(삭제된 과제)', at:l.at||'', by:l.by||'', text:l.text||'' });
+        });
+      });
+      logs.sort(function(a,b){ return (a.at||'') < (b.at||'') ? 1 : -1; });
+      return { logs: logs };
+    });
+  });
+};
+
 /* === 자료실 === */
 api.getMaterials = function(db, p){
   return db.collection('materials').where('classId','==',String(p.classId)).get().then(function(snap){

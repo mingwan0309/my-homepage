@@ -457,7 +457,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 
     <!-- 숙제관리 (미이행/일부미이행 학생 확인·재촉·완료처리) -->
     <div id="page-hwmanage" class="page">
-      <div class="page-header"><div class="page-title">숙제관리</div></div>
+      <div class="page-header"><div class="page-title">숙제관리</div><button type="button" onclick="showAllHwReminderHistory()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">🔔 전체 재촉 알림 이력</button></div>
       <p style="font-size:12px;color:#94a3b8;margin:-10px 0 14px;">'일부미이행' 또는 '미이행'으로 표시된 과제만 모아서 보여줘요. 완료로 바뀌면 이 목록에서 자동으로 빠져요.</p>
       <label id="hw-mine-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;margin:-6px 0 12px;">
         <input type="checkbox" id="hw-mine" checked onchange="toggleHwMineOnly(this.checked)"> 내 담당 학생만 보기
@@ -2120,10 +2120,7 @@ function renderHwCard(h){
         }).join('')
       + '</div>'
     : '';
-  var remCount = (h.reminderLogs&&h.reminderLogs.length) || (h.lastReminderAt?1:0);
-  var lastRem = h.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">🔔 마지막 재촉: '+h.lastReminderAt+(h.lastReminderBy?' · '+h.lastReminderBy:'')
-    +' <button type="button" onclick="showHwReminderHistory(\''+h.id+'\')" style="font-size:11px;color:#1d4ed8;background:#eff6ff;border:none;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:inherit;">🕐 재촉 이력 보기'+(remCount>1?' ('+remCount+')':'')+'</button>'
-    +'</div>' : '';
+  var lastRem = h.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재촉: '+h.lastReminderAt+(h.lastReminderBy?' · '+h.lastReminderBy:'')+'</div>' : '';
   // 학생이 사진을 다시 올렸으면 카드 맨 위에 눈에 띄는 배지 + 카드 전체를 파란 테두리로 강조 (스크롤 없이 바로 눈에 들어오게)
   var submitBadge = hasSubmission
     ? '<div style="display:flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:800;padding:5px 10px;border-radius:8px;margin-bottom:8px;">📷 확인 필요 — 사진 '+subUrls.length+'장 제출됨 · '+(h.submittedAt||'')+'</div>'
@@ -2205,23 +2202,25 @@ async function sendHwReminder(id){
     }
   }catch(e){ alert('발송 중 오류: '+e.message); }
 }
-function showHwReminderHistory(id){
-  var h=hwmanageList.find(function(x){return x.id===id;});
-  if(!h)return;
-  var logs=(h.reminderLogs&&h.reminderLogs.length)?h.reminderLogs.slice().reverse():(h.lastReminderAt?[{at:h.lastReminderAt,by:h.lastReminderBy,text:h.lastReminderText}]:[]);
+async function showAllHwReminderHistory(){
   var box=document.createElement('div');
   box.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px;';
-  box.innerHTML='<div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;">'
-    +'<div style="font-weight:700;font-size:16px;margin-bottom:14px;">'+escHtml(h.studentName||'')+' 학생 — 재촉 알림 이력 ('+logs.length+'건)</div>'
-    +(logs.length?logs.map(function(l){
-      return '<details style="border:1px solid #e2e8f0;border-radius:9px;padding:10px 12px;margin-bottom:8px;">'
-        +'<summary style="cursor:pointer;font-size:13px;font-weight:600;color:#1e293b;">🔔 '+(l.at||'')+(l.by?' · '+escHtml(l.by):'')+'</summary>'
-        +'<div style="font-size:12.5px;color:#475569;white-space:pre-wrap;margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9;">'+escHtml(l.text||'(문구 없음)')+'</div>'
-        +'</details>';
-    }).join(''):'<div style="color:#94a3b8;font-size:13px;">이력이 없습니다.</div>')
-    +'<button style="margin-top:8px;width:100%;background:#f1f5f9;color:#334155;border:none;border-radius:9px;padding:10px;font-weight:700;cursor:pointer;" onclick="this.closest(\'div[style*=fixed]\').remove()">닫기</button>'
-    +'</div>';
+  box.innerHTML='<div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:520px;max-height:80vh;overflow-y:auto;"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>';
   document.body.appendChild(box);
+  try{
+    var r=await fetch(SU+'?action=getAllHwReminders').then(function(r){return r.json();});
+    var logs=r.logs||[];
+    box.firstChild.innerHTML='<div style="font-weight:700;font-size:16px;margin-bottom:14px;">🔔 전체 재촉 알림 이력 ('+logs.length+'건)</div>'
+      +(logs.length?logs.map(function(l){
+        return '<details style="border:1px solid #e2e8f0;border-radius:9px;padding:10px 12px;margin-bottom:8px;">'
+          +'<summary style="cursor:pointer;font-size:13px;font-weight:600;color:#1e293b;">'+escHtml(l.studentName)+' · '+escHtml(l.hwName)+'<span style="font-weight:400;color:#94a3b8;"> — '+(l.at||'')+(l.by?' · '+escHtml(l.by):'')+'</span></summary>'
+          +'<div style="font-size:12.5px;color:#475569;white-space:pre-wrap;margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9;">'+escHtml(l.text||'(문구 없음)')+'</div>'
+          +'</details>';
+      }).join(''):'<div style="color:#94a3b8;font-size:13px;">아직 보낸 재촉 알림이 없습니다.</div>')
+      +'<button style="margin-top:8px;width:100%;background:#f1f5f9;color:#334155;border:none;border-radius:9px;padding:10px;font-weight:700;cursor:pointer;" onclick="this.closest(\'div[style*=fixed]\').remove()">닫기</button>';
+  }catch(e){
+    box.firstChild.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
+  }
 }
 async function markHwComplete(id){
   var h=hwmanageList.find(function(x){return x.id===id;});
