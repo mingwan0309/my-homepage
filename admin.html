@@ -2816,14 +2816,17 @@ function renderVlibCard(v){
   if(v.subject) tags+='<span style="display:inline-block;background:#eff6ff;color:#3b6cf7;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-right:4px;">'+v.subject+'</span>';
   if(v.type) tags+='<span style="display:inline-block;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">'+v.type+'</span>';
   return '<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #f1f5f9;">'
+    +'<div onclick="window.open(\''+escHtml(v.url)+'\',\'_blank\')" style="cursor:pointer;position:relative;flex-shrink:0;" title="눌러서 영상 미리보기">'
     +thumb
-    +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px;">'+v.name+'</div>'
+    +'<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;text-shadow:0 0 4px rgba(0,0,0,.6);">▶</span>'
+    +'</div>'
+    +'<div style="flex:1;min-width:0;cursor:pointer;" onclick="window.open(\''+escHtml(v.url)+'\',\'_blank\')" title="눌러서 영상 미리보기"><div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px;">'+v.name+'</div>'
     +tags
     +(v.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+v.memo+'</div>':'')
     +'</div>'
     +'<div style="display:flex;gap:10px;flex-shrink:0;">'
-    +'<button onclick="openEditVlib(\''+v.id+'\')" style="background:none;border:none;color:#3b6cf7;cursor:pointer;font-size:12px;font-weight:700;">수정</button>'
-    +'<button onclick="delVlib(\''+v.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;font-weight:700;">삭제</button>'
+    +'<button onclick="event.stopPropagation();openEditVlib(\''+v.id+'\')" style="background:none;border:none;color:#3b6cf7;cursor:pointer;font-size:12px;font-weight:700;">수정</button>'
+    +'<button onclick="event.stopPropagation();delVlib(\''+v.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;font-weight:700;">삭제</button>'
     +'</div>'
     +'</div>';
 }
