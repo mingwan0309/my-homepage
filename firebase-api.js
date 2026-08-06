@@ -784,6 +784,78 @@ api.getMyHomeworkStatus = function(db, p){
 };
 
 // 선생님/조교용: 전체 반 기준 '일부미이행/미이행' 과제 목록 (숙제관리 화면)
+/* === 신호판 (연속 결석 + 과제 미제출 기준으로 관리가 필요한 학생 자동 감지) === */
+api.getSignalBoard = function(db){
+  return Promise.all([
+    db.collection('students').where('role','==','student').get(),
+    db.collection('sessions').get(),
+    db.collection('attendance').get(),
+    db.collection('hw_status').where('pass','in',['incomplete','partial']).get(),
+    db.collection('student_signals').get()
+  ]).then(function(res){
+    var students = docsToArr(res[0]).filter(function(s){ return s.active!==false; });
+    var sessions = docsToArr(res[1]);
+    var attendance = docsToArr(res[2]);
+    var hwIncomplete = docsToArr(res[3]);
+    var signalDocs = docsToArr(res[4]);
+    var signalMap = {}; signalDocs.forEach(function(s){ signalMap[s.id]=s; });
+
+    // 반별로 세션을 sessionNum 내림차순 정렬해서 캐시
+    var sessionsByClass = {};
+    sessions.forEach(function(s){
+      var cid = String(s.classId||'');
+      if (!sessionsByClass[cid]) sessionsByClass[cid]=[];
+      sessionsByClass[cid].push(s);
+    });
+    Object.keys(sessionsByClass).forEach(function(cid){
+      sessionsByClass[cid].sort(function(a,b){ return Number(b.sessionNum||0)-Number(a.sessionNum||0); });
+    });
+    // 출석: sessionId+studentId -> status
+    var attMap = {};
+    attendance.forEach(function(a){ attMap[String(a.sessionId)+'__'+String(a.studentId)] = a.status||''; });
+    // 과제 미제출 개수: studentId -> count
+    var hwCount = {};
+    hwIncomplete.forEach(function(h){ var sid=String(h.studentId); hwCount[sid]=(hwCount[sid]||0)+1; });
+
+    var items = students.map(function(stu){
+      var sid = String(stu.id);
+      var cid = String(stu.classId||'');
+      var classSessions = sessionsByClass[cid]||[];
+      var consecutiveAbsent = 0;
+      for (var i=0;i<classSessions.length;i++){
+        var st = attMap[String(classSessions[i].id)+'__'+sid];
+        if (st===undefined) break; // 출석 기록 자체가 없으면 중단(아직 진행 안 한 차시로 간주)
+        if (st==='결석') consecutiveAbsent++;
+        else break;
+      }
+      var hwMissing = hwCount[sid]||0;
+      var level = 'ok';
+      if (consecutiveAbsent>=2 || hwMissing>=3) level='danger';
+      else if (consecutiveAbsent===1 || hwMissing===2) level='warn';
+      else if (hwMissing===1) level='watch';
+      var sig = signalMap[sid] || {};
+      return {
+        studentId: sid, name: stu.name||sid, classId: cid,
+        parentPhone: stu.parentPhone||'', studentPhone: stu.id||'',
+        consecutiveAbsent: consecutiveAbsent, hwMissing: hwMissing,
+        level: level, memo: sig.memo||'', dismissed: !!sig.dismissed
+      };
+    }).filter(function(it){ return it.level!=='ok'; });
+
+    return { items: items };
+  });
+};
+api.setSignalMemo = function(db, p){
+  return db.collection('student_signals').doc(String(p.studentId)).set({
+    id:String(p.studentId), memo:p.memo||'', updatedAt:nowStr()
+  },{merge:true}).then(function(){ return { success:true }; });
+};
+api.setSignalDismissed = function(db, p){
+  return db.collection('student_signals').doc(String(p.studentId)).set({
+    id:String(p.studentId), dismissed: !!(p.dismissed==='true'||p.dismissed===true), updatedAt:nowStr()
+  },{merge:true}).then(function(){ return { success:true }; });
+};
+
 api.getIncompleteHomeworks = function(db){
   return db.collection('hw_status').where('pass','in',['incomplete','partial']).get().then(function(snap){
     var rows = docsToArr(snap);

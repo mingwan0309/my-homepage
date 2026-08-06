@@ -220,6 +220,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <div class="mob-drawer-panel">
       <button class="mob-drawer-close" onclick="document.getElementById('mob-drawer').classList.remove('open')">✕</button>
       <div class="nav-item active" onclick="showPage('classes',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📚</span> 반</div>
+      <div class="nav-item" onclick="showPage('signals',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('students',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">👨‍🎓</span> 학생</div>
       <div class="nav-item" onclick="showPage('quiz',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 데일리퀴즈</div>
       <div class="nav-item" onclick="showPage('clinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🏥</span> 클리닉</div>
@@ -244,6 +245,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <a href="index.html" class="sidebar-logo" style="display:block;text-decoration:none;color:#fff;cursor:pointer;">김민관 <span>수학</span></a>
     <nav class="sidebar-nav">
       <div class="nav-item active" onclick="showPage('classes',this)"><span class="ni">📚</span> 반</div>
+      <div class="nav-item" onclick="showPage('signals',this)"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('students',this)"><span class="ni">👨‍🎓</span> 학생</div>
       <div class="nav-item" onclick="showPage('quiz',this)"><span class="ni">📋</span> 데일리퀴즈</div>
       <div class="nav-item" onclick="showPage('clinic',this)"><span class="ni">🏥</span> 클리닉</div>
@@ -287,6 +289,30 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           <tbody id="class-tbody"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- 신호판 -->
+    <div id="page-signals" class="page">
+      <div class="page-header"><div class="page-title">신호판</div></div>
+      <p style="font-size:12px;color:#94a3b8;margin:-10px 0 14px;">연속 결석 또는 과제 미제출이 쌓인 학생을 자동으로 찾아서 보여줘요. "해제" 누르면 처리 완료로 접어두고, 다시 신호가 쌓이면 새로 나타나요.</p>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:110px;background:#fef2f2;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#dc2626;" id="sig-count-danger">0</div>
+          <div style="font-size:12px;color:#b91c1c;font-weight:700;">위험</div>
+        </div>
+        <div style="flex:1;min-width:110px;background:#fffbeb;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#ca8a04;" id="sig-count-warn">0</div>
+          <div style="font-size:12px;color:#a16207;font-weight:700;">주의</div>
+        </div>
+        <div style="flex:1;min-width:110px;background:#eff6ff;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#2563eb;" id="sig-count-watch">0</div>
+          <div style="font-size:12px;color:#1d4ed8;font-weight:700;">관찰</div>
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;margin-bottom:12px;">
+        <input type="checkbox" id="sig-show-dismissed" onchange="renderSignalBoard()"> 해제된 학생도 보기
+      </label>
+      <div id="signal-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
     </div>
 
     <!-- 학생 -->
@@ -959,7 +985,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','students','quiz','clinic','mclinic','hwmanage','notice','survey','qna','chat','videos','textbookvideos','assistants','settings'];
+    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','notice','survey','qna','chat','videos','textbookvideos','assistants','settings'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
@@ -975,6 +1001,7 @@ function showPage(page,el){
   if(el){el.classList.add('active');}
   else{document.querySelector('.nav-item[onclick*="\''+page+'\'"]')?.classList.add('active');}
   if(page==='classes') loadClasses();
+  if(page==='signals') loadSignalBoard();
   if(page==='students') loadStu();
   if(page==='settings') loadRv();
   if(page==='notice') loadNotices();
@@ -1115,6 +1142,106 @@ function classTab(t,el){
   el.classList.add('active');
   loadClasses();
 }
+// ── 신호판 (연속 결석 + 과제 미제출 자동 감지) ──
+var signalList=[], signalClassMap={};
+async function loadSignalBoard(){
+  var el=document.getElementById('signal-list');
+  el.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  try{
+    var [sr, cr] = await Promise.all([
+      fetch(SU+'?action=getSignalBoard').then(function(r){return r.json();}),
+      fetch(SU+'?action=getClasses').then(function(r){return r.json();})
+    ]);
+    signalList = sr.items||[];
+    signalClassMap={};
+    (cr.classes||[]).forEach(function(c){ signalClassMap[c.id]=c.name; });
+    renderSignalBoard();
+    var activeCount = signalList.filter(function(s){return !s.dismissed;}).length;
+    [document.getElementById('signal-nav-badge'),document.getElementById('signal-nav-badge-m')].forEach(function(b){
+      if(!b)return;
+      if(activeCount>0){ b.textContent=activeCount>9?'9+':activeCount; b.style.display='flex'; }
+      else b.style.display='none';
+    });
+  }catch(e){
+    el.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
+  }
+}
+function renderSignalBoard(){
+  var showDismissed=document.getElementById('sig-show-dismissed').checked;
+  var list=signalList.filter(function(s){ return showDismissed || !s.dismissed; });
+  document.getElementById('sig-count-danger').textContent=list.filter(function(s){return s.level==='danger'&&!s.dismissed;}).length;
+  document.getElementById('sig-count-warn').textContent=list.filter(function(s){return s.level==='warn'&&!s.dismissed;}).length;
+  document.getElementById('sig-count-watch').textContent=list.filter(function(s){return s.level==='watch'&&!s.dismissed;}).length;
+  var order={danger:0,warn:1,watch:2};
+  list.sort(function(a,b){ return (order[a.level]-order[b.level]) || (b.consecutiveAbsent-a.consecutiveAbsent) || (b.hwMissing-a.hwMissing); });
+  var el=document.getElementById('signal-list');
+  if(!list.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">지금은 관리가 필요한 학생이 없어요 👍</div>'; return; }
+  var LEVEL_INFO={ danger:{label:'위험',color:'#dc2626',bg:'#fef2f2',border:'#fecaca'}, warn:{label:'주의',color:'#ca8a04',bg:'#fffbeb',border:'#fde68a'}, watch:{label:'관찰',color:'#2563eb',bg:'#eff6ff',border:'#bfdbfe'} };
+  el.innerHTML=list.map(function(s){
+    var li=LEVEL_INFO[s.level];
+    var badges='';
+    if(s.consecutiveAbsent>0) badges+='<span style="background:#fff;border:1px solid '+li.border+';color:'+li.color+';font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-right:4px;">연속 결석 '+s.consecutiveAbsent+'회</span>';
+    if(s.hwMissing>0) badges+='<span style="background:#fff;border:1px solid '+li.border+';color:'+li.color+';font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;">과제 '+s.hwMissing+'건 미제출</span>';
+    var className=signalClassMap[s.classId]||'';
+    return '<div style="border:1.5px solid '+li.border+';background:'+(s.dismissed?'#f8fafc':li.bg)+';border-radius:12px;padding:14px 16px;margin-bottom:10px;'+(s.dismissed?'opacity:0.6;':'')+'">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">'
+      +'<div><span style="font-weight:800;font-size:14.5px;color:#1e293b;cursor:pointer;text-decoration:underline;" onclick="openStuDetail(\''+s.studentId+'\')">'+escHtml(s.name)+'</span>'
+      +(className?'<span style="font-size:12px;color:#94a3b8;margin-left:6px;">'+escHtml(className)+'</span>':'')
+      +'</div>'
+      +'<span style="background:'+li.color+';color:#fff;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;">'+li.label+(s.dismissed?' · 해제됨':'')+'</span>'
+      +'</div>'
+      +'<div style="margin-top:8px;">'+badges+'</div>'
+      +(s.memo?'<div style="margin-top:8px;font-size:12px;color:#64748b;background:#fff;border-radius:7px;padding:8px 10px;">📝 '+escHtml(s.memo)+'</div>':'')
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
+      +'<button onclick="signalContactParent(\''+s.studentId+'\')" style="background:#1e293b;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">학부모 연락</button>'
+      +'<button onclick="signalAssignClinic(\''+s.studentId+'\',\''+escHtml(s.name)+'\')" style="background:#fff;border:1.5px solid #e2e8f0;color:#334155;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">클리닉 배정</button>'
+      +'<button onclick="signalEditMemo(\''+s.studentId+'\')" style="background:#fff;border:1.5px solid #e2e8f0;color:#334155;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">메모</button>'
+      +'<button onclick="signalToggleDismiss(\''+s.studentId+'\','+(!s.dismissed)+')" style="background:#fff;border:1.5px solid #e2e8f0;color:#94a3b8;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">'+(s.dismissed?'다시 보기':'해제')+'</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+async function signalContactParent(studentId){
+  var s=signalList.find(function(x){return x.studentId===studentId;});
+  if(!s)return;
+  if(!s.parentPhone && !s.studentPhone){ alert('등록된 전화번호가 없어요.'); return; }
+  var reason=[];
+  if(s.consecutiveAbsent>0) reason.push(s.consecutiveAbsent+'회 연속 결석');
+  if(s.hwMissing>0) reason.push('과제 '+s.hwMissing+'건 미제출');
+  var msg=s.name+' 학생이 최근 '+reason.join(', ')+' 상태입니다. 확인 부탁드립니다.';
+  if(!confirm(s.name+' 학부모께 아래 문구로 알림톡을 보낼까요?\n\n'+msg))return;
+  var msgs=[];
+  if(s.studentPhone) msgs.push({phone:s.studentPhone, name:s.name, className:'신호판', sessionNum:'', message:msg});
+  if(s.parentPhone) msgs.push({phone:s.parentPhone, name:s.name, className:'신호판', sessionNum:'', message:msg});
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+    if(r.success) alert('알림톡 발송 완료!'); else alert('발송 실패: '+(r.msg||''));
+  }catch(e){ alert('발송 중 오류: '+e.message); }
+}
+async function signalAssignClinic(studentId, name){
+  var time=prompt(name+' 학생 의무클리닉 시간을 입력하세요 (예: 17:00)','17:00');
+  if(!time)return;
+  var d=new Date();
+  var dayNames=['일','월','화','수','목','금','토'];
+  var dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  await fetch(SU+'?action=addMandatoryClinic&studentId='+encodeURIComponent(studentId)+'&name='+encodeURIComponent(name)+'&type=temp&date='+encodeURIComponent(dateStr)+'&day='+encodeURIComponent(dayNames[d.getDay()])+'&targetDay=&time='+encodeURIComponent(time)+'&memo='+encodeURIComponent('신호판에서 배정'));
+  alert('의무클리닉에 등록됐어요 (오늘 하루만 적용).');
+}
+async function signalEditMemo(studentId){
+  var s=signalList.find(function(x){return x.studentId===studentId;});
+  var memo=prompt('메모를 입력하세요', s?s.memo:'');
+  if(memo===null)return;
+  await fetch(SU+'?action=setSignalMemo&studentId='+encodeURIComponent(studentId)+'&memo='+encodeURIComponent(memo));
+  if(s) s.memo=memo;
+  renderSignalBoard();
+}
+async function signalToggleDismiss(studentId, dismissed){
+  await fetch(SU+'?action=setSignalDismissed&studentId='+encodeURIComponent(studentId)+'&dismissed='+(dismissed?'true':'false'));
+  var s=signalList.find(function(x){return x.studentId===studentId;});
+  if(s) s.dismissed=dismissed;
+  renderSignalBoard();
+}
+
 function openClassModal(){document.getElementById('cm').classList.add('show');}
 function closeClassModal(){
   document.getElementById('cm').classList.remove('show');
