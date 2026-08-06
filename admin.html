@@ -2183,12 +2183,12 @@ function renderHwManageList(){
 async function sendHwReminder(id){
   var h=hwmanageList.find(function(x){return x.id===id;});
   if(!h)return;
-  if(!confirm(h.studentName+' 학생에게 "'+h.hwName+'" 숙제 재촉 알림톡을 보낼까요?\n(카카오 알림톡 발송 - 비용이 발생합니다)'))return;
-  var msgs=[];
   var isAlgebraSpecial=(h.className||'').indexOf('대수')>-1 && (h.className||'').indexOf('특강')>-1;
   var text=isAlgebraSpecial
     ? '['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 다음 수업 시간까지 꼭 풀어서 제출해주세요!'
     : '['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 사진을 찍어 마이페이지에서 제출해주세요!';
+  if(!confirm(h.studentName+' 학생에게 아래 알림톡을 보낼까요?\n(카카오 알림톡 발송 - 비용이 발생합니다)\n\n"'+text+'"'))return;
+  var msgs=[];
   if(h.studentPhone) msgs.push({phone:h.studentPhone, name:h.studentName, className:h.className||'숙제 알림', sessionNum:h.hwName, message:text});
   if(!msgs.length){ alert('⚠️ 등록된 학생 전화번호가 없어서 알림톡을 보낼 수 없어요.'); return; }
   try{
