@@ -2120,7 +2120,9 @@ function renderHwCard(h){
         }).join('')
       + '</div>'
     : '';
-  var lastRem = h.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재촉: '+h.lastReminderAt+(h.lastReminderBy?' · '+h.lastReminderBy:'')+'</div>' : '';
+  var lastRem = h.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">🔔 마지막 재촉: '+h.lastReminderAt+(h.lastReminderBy?' · '+h.lastReminderBy:'')
+    +(h.lastReminderText?' <button type="button" onclick="showHwReminderText(\''+h.id+'\')" style="font-size:11px;color:#1d4ed8;background:#eff6ff;border:none;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:inherit;">📋 보낸 문구 보기</button>':'')
+    +'</div>' : '';
   // 학생이 사진을 다시 올렸으면 카드 맨 위에 눈에 띄는 배지 + 카드 전체를 파란 테두리로 강조 (스크롤 없이 바로 눈에 들어오게)
   var submitBadge = hasSubmission
     ? '<div style="display:flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:800;padding:5px 10px;border-radius:8px;margin-bottom:8px;">📷 확인 필요 — 사진 '+subUrls.length+'장 제출됨 · '+(h.submittedAt||'')+'</div>'
@@ -2194,13 +2196,18 @@ async function sendHwReminder(id){
   try{
     var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
     if(r.success){
-      await fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||''));
+      await fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||'')+'&text='+encodeURIComponent(text));
       alert('알림톡 발송 완료!');
       loadHwManage();
     } else {
       alert('발송 실패: '+(r.msg||''));
     }
   }catch(e){ alert('발송 중 오류: '+e.message); }
+}
+function showHwReminderText(id){
+  var h=hwmanageList.find(function(x){return x.id===id;});
+  if(!h)return;
+  alert((h.studentName||'')+' 학생에게 보낸 문구:\n\n"'+(h.lastReminderText||'')+'"');
 }
 async function markHwComplete(id){
   var h=hwmanageList.find(function(x){return x.id===id;});
@@ -2258,8 +2265,9 @@ async function bulkSendHwReminder(){
   try{
     var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
     if(r.success){
-      await Promise.all(items.map(function(h){
-        return fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||''));
+      await Promise.all(preview.map(function(p){
+        var h=p.h;
+        return fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||'')+'&text='+encodeURIComponent(p.text));
       }));
       alert(items.length+'명에게 알림톡 발송 완료!');
       hwSelected={};

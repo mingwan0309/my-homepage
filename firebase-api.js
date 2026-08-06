@@ -721,7 +721,7 @@ api.submitHwProof = function(db, p){
 api.markHwReminderSent = function(db, p){
   var key = String(p.sessionId)+'__'+String(p.studentId)+'__'+String(p.hwId);
   return db.collection('hw_status').doc(key).set({
-    lastReminderAt:nowStr(), lastReminderBy:p.by||''
+    lastReminderAt:nowStr(), lastReminderBy:p.by||'', lastReminderText:p.text||''
   },{merge:true}).then(function(){ return { success:true }; });
 };
 
@@ -799,7 +799,7 @@ api.getIncompleteHomeworks = function(db){
             id:r.id, sessionId:String(r.sessionId), hwId:String(r.hwId), studentId:String(r.studentId),
             pass:r.pass||'', feedback:r.feedback||'',
             submissionUrls:hwUrlsToArray(r.submissionUrl), submittedAt:r.submittedAt||'',
-            lastReminderAt:r.lastReminderAt||'', lastReminderBy:r.lastReminderBy||'',
+            lastReminderAt:r.lastReminderAt||'', lastReminderBy:r.lastReminderBy||'', lastReminderText:r.lastReminderText||'',
             hwName:hw.name||'(삭제된 과제)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
             classId:String(ses.classId||''), className:cls.name||'',
             studentName:stu.name||r.studentId, studentPhone:r.studentId, parentPhone:stu.parentPhone||''
