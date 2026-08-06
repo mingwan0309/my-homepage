@@ -710,9 +710,12 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div style="display:flex;gap:20px;align-items:flex-start;">
           <!-- 조교 목록 (왼쪽) -->
           <div style="width:280px;flex-shrink:0;background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.07);overflow:hidden;">
-            <div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
-              <span style="font-size:13px;font-weight:700;">조교 목록</span>
-              <span id="ast-log-total-label" style="font-size:12px;color:#64748b;"></span>
+            <div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <span style="font-size:13px;font-weight:700;">조교 목록 <span id="ast-log-total-label" style="font-weight:400;color:#64748b;"></span></span>
+              <select id="ast-log-sort" onchange="renderAstLogList()" style="padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;outline:none;background:#fff;">
+                <option value="name">가나다순</option>
+                <option value="pay">급여순</option>
+              </select>
             </div>
             <div id="ast-log-list" style="max-height:600px;overflow-y:auto;"></div>
           </div>
@@ -3002,17 +3005,21 @@ function renderAstLogList(){
   var allPay=0;
   astList.forEach(function(a){allPay+=calcPay(astWorkLogs,wtList,astExpLogs,a.id);});
   var label=document.getElementById('ast-log-total-label');
-  if(label)label.textContent='총: '+allPay.toLocaleString()+'원';
+  if(label)label.textContent='(총 : '+allPay.toLocaleString()+'원)';
   var el=document.getElementById('ast-log-list');
   if(!el)return;
-  var sorted=astList.slice().sort(function(a,b){return calcPay(astWorkLogs,wtList,astExpLogs,b.id)-calcPay(astWorkLogs,wtList,astExpLogs,a.id);});
+  var sortMode=(document.getElementById('ast-log-sort')||{}).value||'name';
+  var sorted=astList.slice().sort(function(a,b){
+    if(sortMode==='pay') return calcPay(astWorkLogs,wtList,astExpLogs,b.id)-calcPay(astWorkLogs,wtList,astExpLogs,a.id);
+    return a.name.localeCompare(b.name,'ko');
+  });
   el.innerHTML=sorted.map(function(a){
     var pay=calcPay(astWorkLogs,wtList,astExpLogs,a.id);
     var active=astLogAstId===a.id;
     return '<div onclick="selectAstLog(\''+a.id+'\')" style="display:flex;align-items:center;gap:10px;padding:12px 18px;cursor:pointer;border-bottom:1px solid #f8fafc;background:'+(active?'#eff6ff':'#fff')+';transition:.15s;">'
       +'<div style="width:34px;height:34px;border-radius:50%;background:'+(pay?bc(a.name):'#e2e8f0')+';color:'+(pay?'#fff':'#94a3b8')+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0;">'+escHtml(a.name.charAt(0))+'</div>'
       +'<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:'+(pay?'#1e293b':'#94a3b8')+';">'+escHtml(a.name)+'</div></div>'
-      +'<div style="font-weight:700;font-size:13px;color:'+(pay?'#1e293b':'#94a3b8');+'">'+(pay?pay.toLocaleString()+'원':'0원')+'</div>'
+      +'<div style="font-weight:700;font-size:13px;color:'+(pay?'#1e293b':'#94a3b8')+';">'+(pay?pay.toLocaleString()+'원':'0원')+'</div>'
       +'</div>';
   }).join('');
 }
