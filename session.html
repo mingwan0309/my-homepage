@@ -498,10 +498,29 @@ tr:hover td{background:#fafbff;}
           <input id="exam-detail-cutoff" type="number" min="0" placeholder="예: 80" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
         <button onclick="saveExamDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
+        <button onclick="openAnswerKeyModal()" style="padding:12px;background:#fff7ed;color:#c2410c;border:1.5px solid #fdba74;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📝 답안 등록 (OMR 자동채점용)</button>
       </div>
     </div>
   </div>
 </div>
+
+<!-- 답안 등록 모달 -->
+<div id="answerkey-modal" class="modal-bg">
+  <div class="modal" style="max-width:520px;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <h3 style="margin:0;">답안 등록</h3>
+      <button onclick="document.getElementById('answerkey-modal').classList.remove('show')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;margin:0 0 14px;">OMR 답안지 1~20번 문제의 정답과 배점을 설정하세요. 나중에 스캔한 OMR을 업로드하면 여기 등록한 정답과 자동으로 비교해서 채점돼요.</p>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;font-size:12px;color:#64748b;">총 <span id="ak-total" style="font-weight:700;color:#1e293b;">0</span>점</div>
+    <div id="answerkey-rows"></div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="document.getElementById('answerkey-modal').classList.remove('show')">취소</button>
+      <button class="btn-ok" onclick="saveAnswerKey()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 과제 탭 -->
 <div id="page-homework" class="page">
   <!-- 과제 목록 뷰 -->
@@ -2244,6 +2263,64 @@ async function saveExamDetail(){
     renderExamList();
     renderScores();
     alert('저장됐습니다.');
+  }
+}
+// ── 답안 등록 (OMR 자동채점용) ──
+var akRows=[]; // [{q, correct(1-5 또는 null=제외), points}]
+function openAnswerKeyModal(){
+  var ex=exams.find(function(e){return e.id===currentExamId;});
+  if(!ex)return;
+  var saved=ex.answerKey;
+  var totalScore=Number(ex.totalQuestions)||100;
+  var defaultPt=Math.round((totalScore/20)*10)/10;
+  akRows=[];
+  for(var q=1;q<=20;q++){
+    var found=saved&&saved.find(function(r){return r.q===q;});
+    akRows.push({ q:q, correct: found?found.correct:null, points: found?found.points:defaultPt });
+  }
+  renderAnswerKeyRows();
+  document.getElementById('answerkey-modal').classList.add('show');
+}
+function renderAnswerKeyRows(){
+  var el=document.getElementById('answerkey-rows');
+  el.innerHTML=akRows.map(function(r){
+    var opts=[1,2,3,4,5].map(function(o){
+      var active=r.correct===o;
+      return '<button type="button" onclick="setAkCorrect('+r.q+','+o+')" style="width:30px;height:30px;border-radius:50%;border:1.5px solid '+(active?'#1e293b':'#e2e8f0')+';background:'+(active?'#1e293b':'#fff')+';color:'+(active?'#fff':'#334155')+';font-size:13px;font-weight:700;cursor:pointer;">'+o+'</button>';
+    }).join('');
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">'
+      +'<span style="width:22px;font-size:13px;font-weight:700;color:#64748b;">'+r.q+'</span>'
+      +'<div style="display:flex;gap:5px;">'+opts+'</div>'
+      +'<input type="number" step="0.1" value="'+r.points+'" onchange="setAkPoints('+r.q+',this.value)" style="width:60px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;text-align:center;">'
+      +'<span style="font-size:12px;color:#94a3b8;">점</span>'
+      +'<button type="button" onclick="setAkCorrect('+r.q+',null)" style="margin-left:auto;background:#f1f5f9;border:none;color:#94a3b8;font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;">제외</button>'
+      +'</div>';
+  }).join('');
+  updateAkTotal();
+}
+function setAkCorrect(q,opt){
+  var r=akRows.find(function(x){return x.q===q;});
+  if(r) r.correct=opt;
+  renderAnswerKeyRows();
+}
+function setAkPoints(q,val){
+  var r=akRows.find(function(x){return x.q===q;});
+  if(r) r.points=Number(val)||0;
+  updateAkTotal();
+}
+function updateAkTotal(){
+  var sum=akRows.reduce(function(s,r){return s+(r.correct?Number(r.points)||0:0);},0);
+  document.getElementById('ak-total').textContent=Math.round(sum*10)/10;
+}
+async function saveAnswerKey(){
+  var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'setExamAnswerKey',examId:currentExamId,answerKey:akRows})}).then(function(r){return r.json();});
+  if(r.success){
+    var ex=exams.find(function(e){return e.id===currentExamId;});
+    if(ex) ex.answerKey=akRows;
+    document.getElementById('answerkey-modal').classList.remove('show');
+    alert('답안이 저장됐어요.');
+  } else {
+    alert('저장 실패했어요.');
   }
 }
 async function deleteExamFromDetail(){

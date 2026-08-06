@@ -640,7 +640,7 @@ api.addExam = function(db, p){
 api.getExams = function(db, p){
   return db.collection('exams').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
     var exams = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; })
-      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', totalQuestions:r.totalQuestions||'', scoreType:r.scoreType||'score', passCutoff:r.passCutoff||'', grade1:r.grade1||'', grade2:r.grade2||'', grade3:r.grade3||'', grade4:r.grade4||'', createdAt:r.createdAt||'' }; });
+      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', totalQuestions:r.totalQuestions||'', scoreType:r.scoreType||'score', passCutoff:r.passCutoff||'', grade1:r.grade1||'', grade2:r.grade2||'', grade3:r.grade3||'', grade4:r.grade4||'', answerKey:r.answerKey||null, createdAt:r.createdAt||'' }; });
     return { exams: exams };
   });
 };
@@ -658,6 +658,13 @@ api.updateExam = function(db, p){
   if(p.scoreType!==undefined) data.scoreType=p.scoreType;
   if(p.passCutoff!==undefined) data.passCutoff=p.passCutoff;
   return db.collection('exams').doc(String(p.id)).update(data)
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
+// OMR 자동채점용 정답/배점 등록 (1~20번 문제, 각 {q, correct(1-5 또는 null=제외), points})
+api.setExamAnswerKey = function(db, p){
+  var key = Array.isArray(p.answerKey) ? p.answerKey : [];
+  return db.collection('exams').doc(String(p.examId)).update({ answerKey: key })
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
