@@ -545,7 +545,13 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div style="display:flex;flex-direction:column;">
           <div id="chat-empty-state" style="flex:1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:14px;">왼쪽에서 학생을 선택하세요.</div>
           <div id="chat-active-view" style="display:none;flex-direction:column;flex:1;">
-            <div style="padding:14px 20px;border-bottom:1px solid #f1f5f9;font-weight:800;font-size:15px;" id="chat-active-name"></div>
+            <div style="padding:14px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <div style="font-weight:800;font-size:15px;" id="chat-active-name"></div>
+              <div style="display:flex;gap:6px;flex-shrink:0;">
+                <button onclick="saveChatThread()" style="background:#f1f5f9;border:none;color:#475569;font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;cursor:pointer;">💾 저장</button>
+                <button onclick="deleteChatThread()" style="background:#fef2f2;border:none;color:#dc2626;font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;cursor:pointer;">🗑 삭제</button>
+              </div>
+            </div>
             <div id="chat-msg-body" style="flex:1;overflow-y:auto;padding:16px;background:#f8fafc;display:flex;flex-direction:column;gap:10px;"></div>
             <div style="display:flex;border-top:1px solid #f1f5f9;padding:10px;gap:8px;">
               <input id="chat-teacher-input" placeholder="메시지 입력..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:20px;padding:10px 16px;font-size:14px;outline:none;font-family:inherit;">
@@ -2619,7 +2625,7 @@ async function svRenderResults(){
 
 // ── 영상 라이브러리 ──
 // ── 채팅 ──
-var chatThreadsUnsub=null, chatMsgsUnsub=null, chatThreadsCache=[], activeChatStudentId=null;
+var chatThreadsUnsub=null, chatMsgsUnsub=null, chatThreadsCache=[], activeChatStudentId=null, activeChatMsgs=[];
 
 function initChatPage(){
   if(chatThreadsUnsub) return; // 이미 리스너 켜짐
@@ -2670,6 +2676,7 @@ async function openChatThread(studentId){
     var msgs=[];
     snap.forEach(function(doc){msgs.push(doc.data());});
     msgs.sort(function(a,b){return (a.createdAt||'')<(b.createdAt||'')?-1:1;});
+    activeChatMsgs=msgs;
     var body=document.getElementById('chat-msg-body');
     body.innerHTML=msgs.map(function(m){
       return '<div class="chat-msg-bubble '+(m.sender==='teacher'?'me':'other')+'">'+escHtml(m.text)+'</div>';
@@ -2699,6 +2706,35 @@ async function sendTeacherMsg(){
 document.addEventListener('keydown', function(e){
   if(e.target && e.target.id==='chat-teacher-input' && e.key==='Enter'){ e.preventDefault(); sendTeacherMsg(); }
 });
+function saveChatThread(){
+  if(!activeChatStudentId){ alert('저장할 대화를 먼저 선택해주세요.'); return; }
+  var thread=chatThreadsCache.find(function(t){return t.studentId===activeChatStudentId;});
+  var name=thread?(thread.studentName||activeChatStudentId):activeChatStudentId;
+  var lines=activeChatMsgs.map(function(m){
+    return '['+(m.createdAt||'')+'] '+(m.sender==='teacher'?'선생님':name)+': '+(m.text||'');
+  });
+  var text=name+'님과의 대화\n\n'+lines.join('\n');
+  var blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='채팅_'+name+'_'+(new Date().toISOString().slice(0,10))+'.txt';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+async function deleteChatThread(){
+  if(!activeChatStudentId) return;
+  var thread=chatThreadsCache.find(function(t){return t.studentId===activeChatStudentId;});
+  var name=thread?(thread.studentName||activeChatStudentId):activeChatStudentId;
+  if(!confirm('"'+name+'"님과의 대화를 전부 삭제할까요?\n메시지 전체가 지워지며 되돌릴 수 없어요.'))return;
+  var sid=activeChatStudentId;
+  var db=await window.mkdbReady;
+  var snap=await db.collection('chat_messages').where('studentId','==',sid).get();
+  await Promise.all(snap.docs.map(function(d){return d.ref.delete();}));
+  await db.collection('chat_threads').doc(sid).delete();
+  if(chatMsgsUnsub){chatMsgsUnsub();chatMsgsUnsub=null;}
+  activeChatStudentId=null; activeChatMsgs=[];
+  document.getElementById('chat-active-view').style.display='none';
+  document.getElementById('chat-empty-state').style.display='flex';
+}
 
 async function initVideoPage(){
   loadVlib();
@@ -2723,26 +2759,45 @@ function filterVlib(){
   renderVlib(list);
 }
 
+function renderVlibCard(v){
+  var vid=v.url&&(v.url.match(/[?&]v=([^&]+)/)||v.url.match(/youtu\.be\/([^?]+)/));
+  var thumb=vid?'<img src="https://img.youtube.com/vi/'+vid[1]+'/mqdefault.jpg" style="width:90px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0;">':'<div style="width:90px;height:50px;background:#e2e8f0;border-radius:6px;flex-shrink:0;"></div>';
+  var tags='';
+  if(v.subject) tags+='<span style="display:inline-block;background:#eff6ff;color:#3b6cf7;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-right:4px;">'+v.subject+'</span>';
+  if(v.type) tags+='<span style="display:inline-block;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">'+v.type+'</span>';
+  return '<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #f1f5f9;">'
+    +thumb
+    +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px;">'+v.name+'</div>'
+    +tags
+    +(v.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+v.memo+'</div>':'')
+    +'</div>'
+    +'<div style="display:flex;gap:10px;flex-shrink:0;">'
+    +'<button onclick="openEditVlib(\''+v.id+'\')" style="background:none;border:none;color:#3b6cf7;cursor:pointer;font-size:12px;font-weight:700;">수정</button>'
+    +'<button onclick="delVlib(\''+v.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;font-weight:700;">삭제</button>'
+    +'</div>'
+    +'</div>';
+}
 function renderVlib(videos){
   var el=document.getElementById('vlib-list');
   if(!videos.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">해당하는 강의가 없습니다.</div>';return;}
-  el.innerHTML=videos.map(function(v){
-    var vid=v.url&&(v.url.match(/[?&]v=([^&]+)/)||v.url.match(/youtu\.be\/([^?]+)/));
-    var thumb=vid?'<img src="https://img.youtube.com/vi/'+vid[1]+'/mqdefault.jpg" style="width:90px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0;">':'<div style="width:90px;height:50px;background:#e2e8f0;border-radius:6px;flex-shrink:0;"></div>';
-    var tags='';
-    if(v.subject) tags+='<span style="display:inline-block;background:#eff6ff;color:#3b6cf7;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-right:4px;">'+v.subject+'</span>';
-    if(v.type) tags+='<span style="display:inline-block;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">'+v.type+'</span>';
-    return '<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #f1f5f9;">'
-      +thumb
-      +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px;">'+v.name+'</div>'
-      +tags
-      +(v.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+v.memo+'</div>':'')
-      +'</div>'
-      +'<div style="display:flex;gap:10px;flex-shrink:0;">'
-      +'<button onclick="openEditVlib(\''+v.id+'\')" style="background:none;border:none;color:#3b6cf7;cursor:pointer;font-size:12px;font-weight:700;">수정</button>'
-      +'<button onclick="delVlib(\''+v.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;font-weight:700;">삭제</button>'
-      +'</div>'
-      +'</div>';
+  // 과목별로 묶어서 드롭다운으로 보여줌
+  var groups={}, order=[];
+  videos.forEach(function(v){
+    var subj=v.subject||'과목 미지정';
+    if(!groups[subj]){ groups[subj]=[]; order.push(subj); }
+    groups[subj].push(v);
+  });
+  order.sort(function(a,b){ return a.localeCompare(b,'ko'); });
+  el.innerHTML=order.map(function(subj){
+    var items=groups[subj];
+    var cardsHtml=items.map(renderVlibCard).join('');
+    return '<div style="margin-bottom:10px;">'
+      + '<button type="button" class="vid-drop-head" onclick="toggleHwClassDrop(this)">'
+      +   '<span>📂 '+escHtml(subj)+' <span class="cnt">'+items.length+'</span></span>'
+      +   '<span class="vid-drop-arrow">▾</span>'
+      + '</button>'
+      + '<div class="vid-drop-body" style="display:none;margin-top:6px;">'+cardsHtml+'</div>'
+      + '</div>';
   }).join('');
 }
 
