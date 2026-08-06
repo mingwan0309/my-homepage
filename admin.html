@@ -2240,12 +2240,19 @@ async function bulkSendHwReminder(){
   var items=hwmanageList.filter(function(h){ return hwSelected[h.id]; });
   if(!items.length){ alert('선택된 학생이 없어요.'); return; }
   var names=items.map(function(h){return h.studentName;}).join(', ');
-  if(!confirm(items.length+'명('+names+')에게 숙제 재촉 알림톡을 한 번에 보낼까요?\n(카카오 알림톡 발송 - 학생 수만큼 비용이 발생합니다)'))return;
+  var preview=items.map(function(h){
+    var isAlgebraSpecial=(h.className||'').indexOf('대수')>-1 && (h.className||'').indexOf('특강')>-1;
+    var text=isAlgebraSpecial
+      ? '['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 다음 수업 시간까지 꼭 풀어서 제출해주세요!'
+      : '['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 사진을 찍어 마이페이지에서 제출해주세요!';
+    return {h:h, text:text};
+  });
+  var previewText=preview.slice(0,3).map(function(p){return p.h.studentName+': "'+p.text+'"';}).join('\n')+(preview.length>3?'\n...외 '+(preview.length-3)+'명':'');
+  if(!confirm(items.length+'명('+names+')에게 아래처럼 재촉 알림톡을 한 번에 보낼까요?\n(카카오 알림톡 발송 - 학생 수만큼 비용이 발생합니다)\n\n'+previewText))return;
   var msgs=[];
-  items.forEach(function(h){
-    var text='['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 사진을 찍어 마이페이지에서 제출해주세요!';
+  preview.forEach(function(p){
+    var h=p.h, text=p.text;
     if(h.studentPhone) msgs.push({phone:h.studentPhone, name:h.studentName, className:h.className||'숙제 알림', sessionNum:h.hwName, message:text});
-    if(h.parentPhone) msgs.push({phone:h.parentPhone, name:h.studentName, className:h.className||'숙제 알림', sessionNum:h.hwName, message:text});
   });
   if(!msgs.length){ alert('⚠️ 선택된 학생들에게 등록된 전화번호가 없어서 알림톡을 보낼 수 없어요.'); return; }
   try{
