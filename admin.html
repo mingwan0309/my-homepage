@@ -3168,7 +3168,7 @@ function renderActiveAstWidget(active){
   if(!el){
     el=document.createElement('div');
     el.id='active-ast-widget';
-    el.style.cssText='position:fixed;bottom:20px;left:20px;z-index:500;display:flex;align-items:center;gap:6px;';
+    el.style.cssText='position:fixed;bottom:20px;right:20px;z-index:500;display:flex;align-items:center;gap:6px;';
     document.body.appendChild(el);
   }
   if(!active.length){ el.innerHTML=''; return; }
