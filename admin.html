@@ -3148,36 +3148,70 @@ async function loadMyWorkStatus(assistantId,targetElId){
     area.innerHTML='<div style="color:#dc2626;">불러오기 실패</div>';
   }
 }
+var mySelfWorkTimer=null;
 async function loadMySelfWorkHistory(assistantId){
   var body=document.getElementById('my-work-history-self');
   body.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  if(mySelfWorkTimer){ clearInterval(mySelfWorkTimer); mySelfWorkTimer=null; }
   try{
     var r=await fetch(SU+'?action=getMyWorkLogs&id='+encodeURIComponent(assistantId)).then(function(r){return r.json();});
-    var logs=(r.logs||[]).filter(function(l){return l.clockOut!=='';});
-    var now=new Date();
-    var ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-    var thisMonth=logs.filter(function(l){return (l.date||'').slice(0,7)===ym;});
-    var totalMin=0,totalPay=0;
-    thisMonth.forEach(function(l){
-      var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-Number(l.breakMin||0));
-      totalMin+=workMin; totalPay+=Number(l.cost||0);
-    });
-    var summary='<div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:16px;">'
-      +'<div><div style="font-size:12px;color:#94a3b8;">이번 달 근무일수</div><div style="font-size:19px;font-weight:800;color:#1e293b;">'+thisMonth.length+'일</div></div>'
-      +'<div><div style="font-size:12px;color:#94a3b8;">이번 달 총 근무시간</div><div style="font-size:19px;font-weight:800;color:#1e293b;">'+minToHM(totalMin)+'</div></div>'
-      +'<div><div style="font-size:12px;color:#94a3b8;">이번 달 총 급여</div><div style="font-size:19px;font-weight:800;color:#2563eb;">₩'+totalPay.toLocaleString()+'</div></div>'
-      +'</div>';
-    var rows=logs.slice(0,30).map(function(l){
-      var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-Number(l.breakMin||0));
-      return '<tr><td style="font-size:12px;color:#475569;white-space:nowrap;">'+fmtDateDow(l.date)+'</td>'
-        +'<td style="font-size:13px;white-space:nowrap;">'+fmt24to12(l.clockIn)+'</td>'
-        +'<td style="font-size:13px;white-space:nowrap;">'+fmt24to12(l.clockOut)+'</td>'
-        +'<td style="font-size:13px;white-space:nowrap;">'+minToHM(workMin)+'</td>'
-        +'<td style="font-size:13px;font-weight:700;white-space:nowrap;">₩'+Number(l.cost||0).toLocaleString()+'</td></tr>';
-    }).join('');
-    body.innerHTML=summary+'<div class="table-wrap"><table><thead><tr><th>날짜</th><th>출근</th><th>퇴근</th><th>근무시간</th><th>급여</th></tr></thead><tbody>'
-      +(rows||'<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px;">기록이 없어요.</td></tr>')+'</tbody></table></div>';
+    var allLogs=r.logs||[];
+    var openLog=allLogs.find(function(l){return l.clockOut==='';});
+    var rate=0;
+    if(openLog){
+      try{
+        var wtr=await fetch(SU+'?action=getWorkTypes').then(function(r){return r.json();});
+        var wt=(wtr.workTypes||[]).find(function(w){return w.id===openLog.workTypeId;});
+        rate=wt?Number(wt.hourlyRate||0):0;
+      }catch(e){}
+      mySelfWorkTimer=setInterval(function(){ renderSelfWorkHistory(allLogs,openLog,rate); },30000);
+    }
+    renderSelfWorkHistory(allLogs,openLog,rate);
   }catch(e){ body.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>'; }
+}
+function renderSelfWorkHistory(allLogs,openLog,rate){
+  var body=document.getElementById('my-work-history-self');
+  var logs=allLogs.filter(function(l){return l.clockOut!=='';});
+  var now=new Date();
+  var ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  var thisMonth=logs.filter(function(l){return (l.date||'').slice(0,7)===ym;});
+  var totalMin=0,totalPay=0;
+  thisMonth.forEach(function(l){
+    var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-Number(l.breakMin||0));
+    totalMin+=workMin; totalPay+=Number(l.cost||0);
+  });
+  // 지금 근무 중이면 그 시간까지 실시간으로 합산 (30초마다 다시 계산해서 갱신)
+  var liveMin=0, livePay=0, liveOpen=false;
+  if(openLog && (openLog.date||'').slice(0,7)===ym){
+    liveOpen=true;
+    var clockInDate=new Date(openLog.date+'T'+openLog.clockIn+':00');
+    liveMin=Math.max(0,Math.round((now-clockInDate)/60000)-Number(openLog.breakMin||0));
+    livePay=Math.round((liveMin/60)*rate);
+    totalMin+=liveMin; totalPay+=livePay;
+  }
+  var summary='<div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">'
+    +'<div><div style="font-size:12px;color:#94a3b8;">이번 달 근무일수</div><div style="font-size:19px;font-weight:800;color:#1e293b;">'+(thisMonth.length+(liveOpen?1:0))+'일</div></div>'
+    +'<div><div style="font-size:12px;color:#94a3b8;">이번 달 총 근무시간</div><div style="font-size:19px;font-weight:800;color:#1e293b;">'+minToHM(totalMin)+'</div></div>'
+    +'<div><div style="font-size:12px;color:#94a3b8;">이번 달 총 급여</div><div style="font-size:19px;font-weight:800;color:#2563eb;">₩'+totalPay.toLocaleString()+'</div></div>'
+    +(liveOpen?'<span style="background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">🟢 지금 근무 중인 시간까지 실시간 반영됨</span>':'')
+    +'</div>';
+  var liveRow=liveOpen?(
+    '<tr style="background:#f0fdf4;"><td style="font-size:12px;color:#475569;white-space:nowrap;">'+fmtDateDow(openLog.date)+'</td>'
+    +'<td style="font-size:13px;white-space:nowrap;">'+fmt24to12(openLog.clockIn)+'</td>'
+    +'<td style="font-size:13px;white-space:nowrap;color:#16a34a;font-weight:700;">진행 중</td>'
+    +'<td style="font-size:13px;white-space:nowrap;">'+minToHM(liveMin)+'</td>'
+    +'<td style="font-size:13px;font-weight:700;white-space:nowrap;">₩'+livePay.toLocaleString()+'</td></tr>'
+  ):'';
+  var rows=logs.slice(0,30).map(function(l){
+    var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-Number(l.breakMin||0));
+    return '<tr><td style="font-size:12px;color:#475569;white-space:nowrap;">'+fmtDateDow(l.date)+'</td>'
+      +'<td style="font-size:13px;white-space:nowrap;">'+fmt24to12(l.clockIn)+'</td>'
+      +'<td style="font-size:13px;white-space:nowrap;">'+fmt24to12(l.clockOut)+'</td>'
+      +'<td style="font-size:13px;white-space:nowrap;">'+minToHM(workMin)+'</td>'
+      +'<td style="font-size:13px;font-weight:700;white-space:nowrap;">₩'+Number(l.cost||0).toLocaleString()+'</td></tr>';
+  }).join('');
+  body.innerHTML=summary+'<div class="table-wrap"><table><thead><tr><th>날짜</th><th>출근</th><th>퇴근</th><th>근무시간</th><th>급여</th></tr></thead><tbody>'
+    +(liveRow+rows||'<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px;">기록이 없어요.</td></tr>')+'</tbody></table></div>';
 }
 async function toggleMyBreak(assistantId,targetElId){
   try{
@@ -3185,6 +3219,7 @@ async function toggleMyBreak(assistantId,targetElId){
     var action=st.onBreak?'endBreak':'startBreak';
     await fetch(SU+'?action='+action+'&id='+encodeURIComponent(assistantId));
     loadMyWorkStatus(assistantId,targetElId);
+    if(document.getElementById('my-work-history-self')) loadMySelfWorkHistory(assistantId);
   }catch(e){ alert('처리 중 오류가 발생했습니다.'); }
 }
 
