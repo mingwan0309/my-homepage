@@ -19,6 +19,13 @@ body { font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothi
 .nav-item:hover { background:#334155; color:#fff; }
 .nav-item.active { background:#334155; color:#fff; border-left-color:#60a5fa; }
 .nav-item .ni { font-size:17px; width:22px; text-align:center; }
+.nav-group-head { justify-content:space-between; }
+.nav-group-head .nav-group-arrow { margin-left:auto; font-size:11px; transition:transform .15s; }
+.nav-group-head.open .nav-group-arrow { transform:rotate(180deg); }
+.nav-group-body { display:none; }
+.nav-group-body.open { display:block; }
+.nav-group-body .nav-item { padding-left:38px; }
+.nav-group-body .nav-item .ni { font-size:15px; width:18px; }
 .sidebar-bottom { padding:14px 20px; border-top:1px solid #334155; display:flex; align-items:center; justify-content:space-between; }
 .sidebar-bottom span { font-size:13px; color:#94a3b8; }
 .btn-logout-s { background:none; border:none; color:#64748b; font-size:12px; cursor:pointer; }
@@ -220,12 +227,22 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <div class="mob-drawer-panel">
       <button class="mob-drawer-close" onclick="document.getElementById('mob-drawer').classList.remove('open')">✕</button>
       <div class="nav-item active" onclick="showPage('classes',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📚</span> 반</div>
-      <div class="nav-item" onclick="showPage('signals',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('students',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">👨‍🎓</span> 학생</div>
       <div class="nav-item" onclick="showPage('quiz',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 데일리퀴즈</div>
-      <div class="nav-item" onclick="showPage('clinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🏥</span> 클리닉</div>
-      <div class="nav-item" onclick="showPage('mclinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">⏰</span> 의무클리닉</div>
-      <div class="nav-item" onclick="showPage('hwmanage',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
+      <div class="nav-group">
+        <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">🏥</span> 클리닉 <span class="nav-group-arrow">▾</span></div>
+        <div class="nav-group-body">
+          <div class="nav-item" onclick="showPage('clinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🏥</span> 클리닉예약</div>
+          <div class="nav-item" onclick="showPage('mclinic',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">⏰</span> 의무클리닉</div>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">📝</span> 숙제 <span class="nav-group-arrow">▾</span></div>
+        <div class="nav-group-body">
+          <div class="nav-item" onclick="showPage('signals',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
+          <div class="nav-item" onclick="showPage('hwmanage',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
+        </div>
+      </div>
       <div class="nav-item" onclick="showPage('notice',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('survey',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
@@ -245,12 +262,22 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <a href="index.html" class="sidebar-logo" style="display:block;text-decoration:none;color:#fff;cursor:pointer;">김민관 <span>수학</span></a>
     <nav class="sidebar-nav">
       <div class="nav-item active" onclick="showPage('classes',this)"><span class="ni">📚</span> 반</div>
-      <div class="nav-item" onclick="showPage('signals',this)"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('students',this)"><span class="ni">👨‍🎓</span> 학생</div>
       <div class="nav-item" onclick="showPage('quiz',this)"><span class="ni">📋</span> 데일리퀴즈</div>
-      <div class="nav-item" onclick="showPage('clinic',this)"><span class="ni">🏥</span> 클리닉</div>
-      <div class="nav-item" onclick="showPage('mclinic',this)"><span class="ni">⏰</span> 의무클리닉</div>
-      <div class="nav-item" onclick="showPage('hwmanage',this)"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
+      <div class="nav-group">
+        <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">🏥</span> 클리닉 <span class="nav-group-arrow">▾</span></div>
+        <div class="nav-group-body">
+          <div class="nav-item" onclick="showPage('clinic',this)"><span class="ni">🏥</span> 클리닉예약</div>
+          <div class="nav-item" onclick="showPage('mclinic',this)"><span class="ni">⏰</span> 의무클리닉</div>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">📝</span> 숙제 <span class="nav-group-arrow">▾</span></div>
+        <div class="nav-group-body">
+          <div class="nav-item" onclick="showPage('signals',this)"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
+          <div class="nav-item" onclick="showPage('hwmanage',this)"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
+        </div>
+      </div>
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('survey',this)"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
@@ -1000,12 +1027,25 @@ window.addEventListener('DOMContentLoaded',function(){
   }
 });
 
+function toggleNavGroup(headEl){
+  headEl.classList.toggle('open');
+  var body=headEl.nextElementSibling;
+  if(body) body.classList.toggle('open');
+}
 function showPage(page,el){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   document.getElementById('page-'+page).classList.add('active');
   if(el){el.classList.add('active');}
   else{document.querySelector('.nav-item[onclick*="\''+page+'\'"]')?.classList.add('active');}
+  document.querySelectorAll('.nav-item.active').forEach(function(a){
+    var group=a.closest('.nav-group');
+    if(group){
+      var head=group.querySelector('.nav-group-head'), body=group.querySelector('.nav-group-body');
+      if(head)head.classList.add('open');
+      if(body)body.classList.add('open');
+    }
+  });
   if(page==='classes') loadClasses();
   if(page==='signals') loadSignalBoard();
   if(page==='students') loadStu();
@@ -1057,6 +1097,16 @@ function setupAssistantSession(sessObj, isPreview){
   document.getElementById('sb-user').textContent=sessObj.name||sessObj.id;
   var mcAllowedPages=['classes','students','mclinic','hwmanage','qna','settings','assistants'];
   document.querySelectorAll('.sidebar-nav .nav-item, .mob-drawer-panel .nav-item').forEach(function(n){
+    if(n.classList.contains('nav-group-head')){
+      // 그룹 헤더(클리닉/숙제)는 자체 onclick이 페이지 이동이 아니라 펼치기라서, 안에 허용된 하위 메뉴가 하나라도 있으면 그대로 둠
+      var group=n.closest('.nav-group');
+      var childAllowed=group && Array.prototype.some.call(group.querySelectorAll('.nav-group-body .nav-item'),function(c){
+        var coc=c.getAttribute('onclick')||'';
+        return mcAllowedPages.some(function(p){return coc.indexOf("'"+p+"'")>=0;});
+      });
+      if(!childAllowed){ n.style.opacity='0.4'; n.style.cursor='not-allowed'; n.onclick=null; }
+      return;
+    }
     var oc=n.getAttribute('onclick')||'';
     var allowed=mcAllowedPages.some(function(p){return oc.indexOf("'"+p+"'")>=0;});
     if(!allowed){
