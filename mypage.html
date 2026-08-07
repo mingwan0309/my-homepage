@@ -890,10 +890,11 @@ function renderMats(){
     var list = matList.filter(function(m){ return m.category===c.key; });
     if(!list.length) return;
     if(c.key==='영상 자료'){
-      // 반 이름으로 된 드롭다운 바 — 기본 접힘, 누르면 펼쳐짐
+      // 강의 영상 카테고리 아래, 반 이름으로 된 드롭다운 바 — 기본 접힘, 누르면 펼쳐짐
       html += '<div class="mat-cat-block">'
+        + '<div class="mat-cat-head">'+c.icon+' 강의 영상 <span class="cnt">'+list.length+'</span></div>'
         + '<button type="button" class="vid-drop-head" onclick="toggleVidDrop(this)">'
-        +   '<span>🎬 '+escHtml(className)+' <span class="cnt">'+list.length+'</span></span>'
+        +   '<span>'+escHtml(className)+' <span class="cnt">'+list.length+'</span></span>'
         +   '<span class="vid-drop-arrow">▾</span>'
         + '</button>'
         + '<div class="mv-grid vid-drop-body" style="display:none;">' + list.map(function(m){
