@@ -247,8 +247,13 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('survey',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('chat',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
-      <div class="nav-item" onclick="showPage('videos',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🎬</span> 영상</div>
-      <div class="nav-item" onclick="showPage('textbookvideos',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📖</span> 부교재 강의</div>
+      <div class="nav-group">
+        <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">🎬</span> 영상 <span class="nav-group-arrow">▾</span></div>
+        <div class="nav-group-body">
+          <div class="nav-item" onclick="showPage('videos',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🎬</span> 영상</div>
+          <div class="nav-item" onclick="showPage('textbookvideos',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📖</span> 부교재 강의</div>
+        </div>
+      </div>
       <div class="nav-item" onclick="showPage('assistants',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">👩‍🏫</span> 조교</div>
       <div class="nav-item" onclick="showPage('settings',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">⚙️</span> 관리자</div>
       <div style="margin-top:auto;padding:14px;border-top:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">
@@ -282,8 +287,13 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('survey',this)"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-item" onclick="showPage('chat',this)"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
-      <div class="nav-item" onclick="showPage('videos',this)"><span class="ni">🎬</span> 영상</div>
-      <div class="nav-item" onclick="showPage('textbookvideos',this)"><span class="ni">📖</span> 부교재 강의</div>
+      <div class="nav-group">
+        <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">🎬</span> 영상 <span class="nav-group-arrow">▾</span></div>
+        <div class="nav-group-body">
+          <div class="nav-item" onclick="showPage('videos',this)"><span class="ni">🎬</span> 영상</div>
+          <div class="nav-item" onclick="showPage('textbookvideos',this)"><span class="ni">📖</span> 부교재 강의</div>
+        </div>
+      </div>
       <div class="nav-item" onclick="showPage('assistants',this)"><span class="ni">👩‍🏫</span> 조교</div>
       <div class="nav-item" onclick="showPage('settings',this)"><span class="ni">⚙️</span> 관리자</div>
     </nav>
