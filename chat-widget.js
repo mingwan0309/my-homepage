@@ -8,8 +8,12 @@
 
 function init(){
   var session = JSON.parse(localStorage.getItem('mkmath_session')||'null');
-  if(!session || session.role!=='student') return;
-  var studentId = String(session.id);
+  var urlParams = new URLSearchParams(location.search);
+  var previewId = urlParams.get('previewStudentId');
+  // 선생님이 "학생 화면 보기"로 들어온 경우 — 채팅 버블은 원래대로 안 띄우되, 공지사항 팝업/배지는 그 학생 기준으로 보이게 함
+  var isPreview = !!(previewId && session && session.role==='teacher');
+  if(!isPreview && (!session || session.role!=='student')) return;
+  var studentId = isPreview ? String(previewId) : String(session.id);
   var panelOpen = false;
   var msgsUnsub = null, threadUnsub = null;
 
@@ -48,24 +52,26 @@ function init(){
   }
 
   function injectWidget(){
-    var bubble=document.createElement('button');
-    bubble.id='mk-chat-bubble';
-    bubble.innerHTML='💬<span id="mk-chat-badge"></span>';
-    bubble.onclick=togglePanel;
-    document.body.appendChild(bubble);
+    if(!isPreview){
+      var bubble=document.createElement('button');
+      bubble.id='mk-chat-bubble';
+      bubble.innerHTML='💬<span id="mk-chat-badge"></span>';
+      bubble.onclick=togglePanel;
+      document.body.appendChild(bubble);
 
-    var panel=document.createElement('div');
-    panel.id='mk-chat-panel';
-    panel.innerHTML=
-      '<div id="mk-chat-head"><span>💬 김민관 선생님과 대화</span><span id="mk-chat-close" style="cursor:pointer;">✕</span></div>'
-      +'<div id="mk-chat-body"></div>'
-      +'<div id="mk-chat-input-row"><input id="mk-chat-input" placeholder="메시지 입력..."><button id="mk-chat-send">➤</button></div>';
-    document.body.appendChild(panel);
-    document.getElementById('mk-chat-close').onclick=togglePanel;
-    document.getElementById('mk-chat-send').onclick=sendMsg;
-    document.getElementById('mk-chat-input').addEventListener('keydown', function(e){
-      if(e.key==='Enter'){ e.preventDefault(); sendMsg(); }
-    });
+      var panel=document.createElement('div');
+      panel.id='mk-chat-panel';
+      panel.innerHTML=
+        '<div id="mk-chat-head"><span>💬 김민관 선생님과 대화</span><span id="mk-chat-close" style="cursor:pointer;">✕</span></div>'
+        +'<div id="mk-chat-body"></div>'
+        +'<div id="mk-chat-input-row"><input id="mk-chat-input" placeholder="메시지 입력..."><button id="mk-chat-send">➤</button></div>';
+      document.body.appendChild(panel);
+      document.getElementById('mk-chat-close').onclick=togglePanel;
+      document.getElementById('mk-chat-send').onclick=sendMsg;
+      document.getElementById('mk-chat-input').addEventListener('keydown', function(e){
+        if(e.key==='Enter'){ e.preventDefault(); sendMsg(); }
+      });
+    }
 
     var noticeOverlay=document.createElement('div');
     noticeOverlay.id='mk-notice-overlay';
@@ -135,36 +141,38 @@ function init(){
   }
 
   window.mkdbReady.then(function(db){
-    msgsUnsub=db.collection('chat_messages').where('studentId','==',studentId).onSnapshot(function(snap){
-      var msgs=[];
-      snap.forEach(function(doc){ msgs.push(doc.data()); });
-      msgs.sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; });
-      var body=document.getElementById('mk-chat-body');
-      var hint=msgs.length?'':'<div style="text-align:center;font-size:12px;color:#94a3b8;padding:10px 6px;">여기는 선생님과 1:1로만 보이는 대화예요.<br>다른 학생도 궁금해할 문제 질문은 <a href="qna.html" style="color:#2563eb;font-weight:700;">질의응답</a>에 남겨주세요.</div>';
-      body.innerHTML=hint+msgs.map(function(m){
-        return '<div class="mk-msg '+(m.sender==='student'?'me':'other')+'">'+escapeHtml(m.text)+'</div>';
-      }).join('');
-      body.scrollTop=body.scrollHeight;
-    });
-    threadUnsub=db.collection('chat_threads').doc(studentId).onSnapshot(function(doc){
-      var badge=document.getElementById('mk-chat-badge');
-      var n=doc.exists?(doc.data().unreadForStudent||0):0;
-      if(!panelOpen && n>0){ badge.textContent = n>9?'9+':n; badge.style.display='flex'; }
-      else { badge.style.display='none'; }
-    });
+    if(!isPreview){
+      msgsUnsub=db.collection('chat_messages').where('studentId','==',studentId).onSnapshot(function(snap){
+        var msgs=[];
+        snap.forEach(function(doc){ msgs.push(doc.data()); });
+        msgs.sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; });
+        var body=document.getElementById('mk-chat-body');
+        var hint=msgs.length?'':'<div style="text-align:center;font-size:12px;color:#94a3b8;padding:10px 6px;">여기는 선생님과 1:1로만 보이는 대화예요.<br>다른 학생도 궁금해할 문제 질문은 <a href="qna.html" style="color:#2563eb;font-weight:700;">질의응답</a>에 남겨주세요.</div>';
+        body.innerHTML=hint+msgs.map(function(m){
+          return '<div class="mk-msg '+(m.sender==='student'?'me':'other')+'">'+escapeHtml(m.text)+'</div>';
+        }).join('');
+        body.scrollTop=body.scrollHeight;
+      });
+      threadUnsub=db.collection('chat_threads').doc(studentId).onSnapshot(function(doc){
+        var badge=document.getElementById('mk-chat-badge');
+        var n=doc.exists?(doc.data().unreadForStudent||0):0;
+        if(!panelOpen && n>0){ badge.textContent = n>9?'9+':n; badge.style.display='flex'; }
+        else { badge.style.display='none'; }
+      });
 
-    // 내 질문 중 답변이 달렸는데 아직 안 본 것 — 질의응답 네비 배지
-    var navBadge=document.getElementById('qna-nav-badge');
-    if(navBadge){
-      db.collection('qna').where('studentId','==',studentId).where('status','==','answered').get().then(function(snap){
-        var seen=JSON.parse(localStorage.getItem('mkmath_qna_seen')||'[]');
-        var unseenCount=0;
-        snap.forEach(function(doc){ if(seen.indexOf(doc.id)<0) unseenCount++; });
-        if(unseenCount>0){ navBadge.textContent=unseenCount>9?'9+':unseenCount; navBadge.style.display='flex'; }
-      }).catch(function(){});
+      // 내 질문 중 답변이 달렸는데 아직 안 본 것 — 질의응답 네비 배지
+      var navBadge=document.getElementById('qna-nav-badge');
+      if(navBadge){
+        db.collection('qna').where('studentId','==',studentId).where('status','==','answered').get().then(function(snap){
+          var seen=JSON.parse(localStorage.getItem('mkmath_qna_seen')||'[]');
+          var unseenCount=0;
+          snap.forEach(function(doc){ if(seen.indexOf(doc.id)<0) unseenCount++; });
+          if(unseenCount>0){ navBadge.textContent=unseenCount>9?'9+':unseenCount; navBadge.style.display='flex'; }
+        }).catch(function(){});
+      }
     }
 
-    // 공지사항 — 새 공지 배지 + 팝업
+    // 공지사항 — 새 공지 배지 + 팝업 (미리보기에서도 보임)
     db.collection('notices').get().then(function(snap){
       noticeItems=[];
       snap.forEach(function(doc){ noticeItems.push(doc.data()); });
