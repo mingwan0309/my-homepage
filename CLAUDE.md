@@ -163,6 +163,14 @@
 - 카드별 4개 버튼: "학부모 연락"(실제 카카오 알림톡 발송, 기존 sendAlimtalk 재사용 — 유료이니 조심), "클리닉 배정"(그날 하루만 의무클리닉에 임시 등록), "메모", "해제". 이름 클릭하면 기존 학생 상세 슬라이드 패널(`openStuDetail`)이 열림.
 - Firestore 규칙에 `student_signals`(교사 전용 읽기/쓰기) 조항 추가함.
 
+## 공지사항 (2026-08-07 개편)
+예전엔 admin.html "공지" 탭이 `localStorage`(`mkmath_notices`)에만 저장하는 가짜 기능이었음 — 브라우저별로 따로 저장되니 선생님이 써도 학생 화면에 절대 안 보였음(기기가 다르니까). **Firestore `notices` 컬렉션으로 전환**해서 실제로 공유됨.
+- `api.getNotices`/`api.addNotice`/`api.deleteNotice` (firebase-api.js). admin.html "공지" 탭은 이제 이 API를 씀.
+- 학생 화면: 기존에 있던 별도 페이지 `notice.html`(공지사항+FAQ 탭 페이지, 하드코딩된 정적 텍스트였고 Firestore와 연동도 안 돼 있었음)은 **완전히 삭제**함. 대신 `chat-widget.js`(학생 로그인 시 모든 페이지에 자동 삽입되는 공용 스크립트)에 공지사항 팝업 모달을 추가해서, mypage.html 하단 "📢 공지사항" 아이콘을 누르면 그 자리에서 팝업으로 목록이 뜸(`window.mkOpenNoticeModal()`).
+- 새 공지 배지: `id="notice-nav-badge"`(데스크톱)/`id="notice-nav-badge-m"`(모바일 페이지가 있다면) 엘리먼트가 있으면 안 읽은 공지 개수를 빨간 배지로 표시(`localStorage`의 `mkmath_notice_seen` 배열로 이미 본 공지 id를 기억 — qna 안 읽은 답변 배지와 동일한 패턴). 현재는 mypage.html에만 이 배지가 있음.
+- **자주 묻는 질문(FAQ)**: 원래 notice.html 안에 있던 것을 **mypage.html 맨 아래 카드로 옮김**(`faq-data.js`의 정적 데이터 그대로 재사용, 아코디언 형태로 클릭하면 펼쳐짐). index.html(비로그인 공개 홈페이지)의 FAQ 안내도 "로그인 후 마이페이지에서 확인" 문구로 바뀜.
+- Firestore 규칙에 `notices`(로그인하면 읽기 가능, 쓰기는 교사만) 조항 추가함.
+
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
 - Apps Script 재배포 시 "새 버전" 안내 빼먹기
