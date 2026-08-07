@@ -1665,27 +1665,33 @@ async function saveEditStudent(){
   }catch(e){alert('저장 중 오류가 발생했습니다.');}
 }
 
-// 공지
-function loadNotices(){
-  var ns=JSON.parse(localStorage.getItem('mkmath_notices')||'[]');
+// 공지 (Firestore 공유 — 학생 화면에도 실제로 뜸)
+var noticeList=[];
+async function loadNotices(){
   var a=document.getElementById('notice-list');
-  if(!ns.length){a.innerHTML='<p style="color:#94a3b8;text-align:center;padding:60px 0;">공지사항이 없습니다</p>';return;}
-  a.innerHTML=ns.map(function(n,i){return '<div class="nitem"><div class="nitem-body"><div class="nitem-title">'+n.title+'</div><div class="nitem-date">'+n.date+'</div><div class="nitem-content">'+n.content+'</div></div><button class="btn-sm btn-red" onclick="delNotice('+i+')">삭제</button></div>';}).join('');
+  a.innerHTML='<p style="color:#94a3b8;text-align:center;padding:40px 0;">불러오는 중...</p>';
+  try{
+    var r=await fetch(SU+'?action=getNotices').then(function(r){return r.json();});
+    noticeList=r.items||[];
+  }catch(e){ noticeList=[]; }
+  if(!noticeList.length){a.innerHTML='<p style="color:#94a3b8;text-align:center;padding:60px 0;">공지사항이 없습니다</p>';return;}
+  a.innerHTML=noticeList.map(function(n){
+    var dateLabel=(n.createdAt||'').slice(0,10).replace(/-/g,'.');
+    return '<div class="nitem"><div class="nitem-body"><div class="nitem-title">'+escHtml(n.title)+'</div><div class="nitem-date">'+dateLabel+'</div><div class="nitem-content">'+escHtml(n.content)+'</div></div><button class="btn-sm btn-red" onclick="delNotice(\''+n.id+'\')">삭제</button></div>';
+  }).join('');
 }
 function openNoticeModal(){document.getElementById('nm').classList.add('show');}
 function closeNoticeModal(){document.getElementById('nm').classList.remove('show');document.getElementById('nt').value='';document.getElementById('nc').value='';}
-function saveNotice(){
+async function saveNotice(){
   var t=document.getElementById('nt').value.trim();
   if(!t){alert('제목을 입력해주세요');return;}
-  var ns=JSON.parse(localStorage.getItem('mkmath_notices')||'[]');
-  ns.unshift({title:t,content:document.getElementById('nc').value.trim(),date:new Date().toLocaleDateString('ko-KR')});
-  localStorage.setItem('mkmath_notices',JSON.stringify(ns));
+  await fetch(SU,{method:'POST',body:JSON.stringify({action:'addNotice',title:t,content:document.getElementById('nc').value.trim()})});
   closeNoticeModal(); loadNotices();
 }
-function delNotice(i){
+async function delNotice(id){
   if(!confirm('삭제하시겠습니까?'))return;
-  var ns=JSON.parse(localStorage.getItem('mkmath_notices')||'[]');
-  ns.splice(i,1); localStorage.setItem('mkmath_notices',JSON.stringify(ns)); loadNotices();
+  await fetch(SU,{method:'POST',body:JSON.stringify({action:'deleteNotice',id:id})});
+  loadNotices();
 }
 
 // 비밀번호

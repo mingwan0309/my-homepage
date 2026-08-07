@@ -9,6 +9,7 @@
 <script src="firebase-api.js?v=18"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="chat-widget.js" defer></script>
+<script src="faq-data.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;}
@@ -65,6 +66,18 @@ a{text-decoration:none;}
 
 /* 숙제 현황 */
 .hw-badge-count{background:#fee2e2;color:#dc2626;font-size:11px;font-weight:800;border-radius:20px;padding:2px 9px;margin-left:2px;vertical-align:middle;}
+
+/* 자주 묻는 질문 */
+.faq-item{border-bottom:1px solid #f1f5f9;}
+.faq-item:last-child{border-bottom:none;}
+.faq-q{display:flex;align-items:center;gap:10px;padding:13px 2px;cursor:pointer;}
+.faq-q-badge{background:#dcfce7;color:#16a34a;font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;flex-shrink:0;}
+.faq-q-title{font-size:13.5px;font-weight:700;color:#1e293b;flex:1;}
+.faq-q-arrow{font-size:12px;color:#94a3b8;transition:transform .15s;flex-shrink:0;}
+.faq-q-arrow.open{transform:rotate(180deg);}
+.faq-a{display:none;padding:0 2px 16px;font-size:13px;line-height:1.8;color:#64748b;white-space:pre-line;}
+.faq-a.open{display:block;}
+.faq-a img{max-width:100%;border-radius:12px;margin-top:6px;}
 .hw-item{border:1px solid #eef2f6;border-radius:12px;padding:13px 14px;margin-bottom:10px;}
 .hw-item:last-child{margin-bottom:0;}
 .hw-item-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
@@ -327,11 +340,17 @@ a{text-decoration:none;}
     <!-- 하단 아이콘 -->
     <div class="card">
       <div class="dash-icons">
-        <a href="notice.html" class="dash-ic"><div class="ic">📢</div><div>공지사항</div></a>
+        <a href="#" onclick="window.mkOpenNoticeModal&&window.mkOpenNoticeModal();return false;" class="dash-ic" style="position:relative;"><div class="ic">📢</div><div>공지사항</div><span id="notice-nav-badge" style="display:none;position:absolute;top:2px;right:18%;background:#ef4444;color:#fff;font-size:10px;font-weight:800;min-width:15px;height:15px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px;"></span></a>
         <a href="qna.html" class="dash-ic" style="position:relative;"><div class="ic">💬</div><div>질의응답</div><span id="qna-nav-badge" style="display:none;position:absolute;top:2px;right:18%;background:#ef4444;color:#fff;font-size:10px;font-weight:800;min-width:15px;height:15px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px;"></span></a>
         <a href="reviews.html" class="dash-ic"><div class="ic">😊</div><div>수강후기</div></a>
         <a href="textbook.html" class="dash-ic"><div class="ic">📖</div><div>부교재 강의</div></a>
       </div>
+    </div>
+
+    <!-- 자주 묻는 질문 -->
+    <div class="card">
+      <div class="card-title"><span>❓</span> 자주 묻는 질문</div>
+      <div id="faq-area"></div>
     </div>
 
     <a href="index.html?home=1" class="dash-home">🏠 김민관 홈페이지 보기</a>
@@ -481,7 +500,30 @@ loadInfo();
   loadMyMandatoryClinic();
   loadMyHomework();
   loadMySurveys();
+  renderFaq();
 });
+
+// ── 자주 묻는 질문 ──
+function renderFaq(){
+  var area=document.getElementById('faq-area');
+  if(!area || typeof faqData==='undefined') return;
+  var ids=Object.keys(faqData);
+  area.innerHTML=ids.map(function(id, i){
+    var d=faqData[id];
+    var bodyHtml = d.html ? d.html : escFaq(d.body||'');
+    return '<div class="faq-item">'
+      +'<div class="faq-q" onclick="toggleFaq(\''+id+'\')"><span class="faq-q-badge">FAQ</span><span class="faq-q-title">'+escFaq(d.title)+'</span><span class="faq-q-arrow" id="faq-arrow-'+id+'">▾</span></div>'
+      +'<div class="faq-a" id="faq-a-'+id+'">'+bodyHtml+'</div>'
+      +'</div>';
+  }).join('');
+}
+function escFaq(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function toggleFaq(id){
+  var a=document.getElementById('faq-a-'+id), arrow=document.getElementById('faq-arrow-'+id);
+  var open=a.classList.contains('open');
+  a.classList.toggle('open', !open);
+  arrow.classList.toggle('open', !open);
+}
 
 // ── 설문조사 (마이페이지 상단 노출) ──
 var mySurveys=[], svAnswering=null, svAnswers={};

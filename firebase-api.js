@@ -856,6 +856,24 @@ api.setSignalDismissed = function(db, p){
   },{merge:true}).then(function(){ return { success:true }; });
 };
 
+// ── 공지사항 (Firestore 공유, 전 기기에서 동일하게 보임) ──
+api.getNotices = function(db){
+  return db.collection('notices').get().then(function(snap){
+    var items = docsToArr(snap);
+    items.sort(function(a,b){ return (b.createdAt||'') < (a.createdAt||'') ? -1 : 1; });
+    return { items: items };
+  });
+};
+api.addNotice = function(db, p){
+  var id = window.mkGenId ? window.mkGenId('notice') : ('notice_'+Date.now());
+  return db.collection('notices').doc(id).set({
+    id: id, title: p.title||'', content: p.content||'', createdAt: nowStr()
+  }).then(function(){ return { success:true, id:id }; });
+};
+api.deleteNotice = function(db, p){
+  return db.collection('notices').doc(String(p.id)).delete().then(function(){ return { success:true }; });
+};
+
 api.getIncompleteHomeworks = function(db){
   return db.collection('hw_status').where('pass','in',['incomplete','partial']).get().then(function(snap){
     var rows = docsToArr(snap);
