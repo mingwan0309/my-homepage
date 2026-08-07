@@ -149,8 +149,8 @@ a{text-decoration:none;}
 .dash-sub{font-size:12px;color:#94a3b8;margin-top:4px;}
 .dash-sec-head{display:flex;align-items:center;margin-bottom:12px;}
 .dash-class{font-size:16px;font-weight:800;color:#1e293b;}
-.att-row{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid #f4f6f9;font-size:14px;}
-.att-row:last-child{border-bottom:none;}
+.att-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.att-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 10px;border:1px solid #f4f6f9;border-radius:10px;background:#f8fafc;font-size:14px;}
 .att-badge{min-width:44px;text-align:center;}
 .dash-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
 .dash-bigbtn{background:#fff;border-radius:16px;padding:18px;box-shadow:0 1px 6px rgba(0,0,0,.06);display:flex;align-items:center;justify-content:space-between;gap:8px;transition:.15s;}
@@ -227,8 +227,9 @@ a{text-decoration:none;}
   .mat-cat-head{font-size:14px;}
   .mat-cat-head .cnt{font-size:12px;}
   /* 출결 줄 */
-  .att-row{font-size:14.5px;padding:13px 4px;}
-  .att-badge{font-size:13px;padding:5px 11px;}
+  .att-grid{grid-template-columns:1fr 1fr;gap:6px;}
+  .att-row{font-size:12.5px;padding:9px 8px;gap:6px;}
+  .att-badge{font-size:11.5px;padding:3px 8px;}
   /* 숙제 카드 */
   .hw-item-name{font-size:14.5px;}
   .hw-status-badge{font-size:12.5px;padding:5px 11px;}
@@ -834,16 +835,16 @@ async function loadAttendance() {
             + (s.date ? '<span style="font-size:12px;color:#94a3b8;">'+s.date+'</span>' : '')
             + '</div>';
     }
-    var recentN=3;
+    var recentN=4;
     var recent = sessions.slice(0,recentN);
     var older = sessions.slice(recentN);
-    var html = recent.map(attRow).join('');
+    var html = '<div class="att-grid">' + recent.map(attRow).join('') + '</div>';
     if (older.length) {
       html += '<button type="button" class="vid-drop-head" style="margin-top:8px;" onclick="toggleAttDrop(this)">'
         +   '<span>이전 출결 <span class="cnt">'+older.length+'</span></span>'
         +   '<span class="vid-drop-arrow">▾</span>'
         + '</button>'
-        + '<div class="vid-drop-body" style="display:none;margin-top:6px;">' + older.map(attRow).join('') + '</div>';
+        + '<div class="vid-drop-body" style="display:none;margin-top:6px;"><div class="att-grid">' + older.map(attRow).join('') + '</div></div>';
     }
     document.getElementById('att-list').innerHTML = html;
   } catch(e) {
