@@ -1064,6 +1064,7 @@ api.addMandatoryClinic = function(db, p){
   return db.collection('mandatory_clinic').doc(id).set({
     id:id, studentId:String(p.studentId||''), name:p.name||'', type:p.type||'regular', date:p.date||'',
     day:p.day||'', targetDay:p.targetDay||'', time:p.time||'', memo:p.memo||'',
+    classId:p.classId||'', className:p.className||'',
     attendance:{}, attendanceBy:{}, createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };
