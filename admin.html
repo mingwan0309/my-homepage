@@ -478,11 +478,11 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           </select>
         </div>
         <div class="mc-reg-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin:10px 0;">
-          <div class="fg"><label>학생</label>
-            <select id="mc-student" onchange="onMcStudentChange()" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;"><option value="">학생 선택</option></select>
+          <div class="fg"><label>반</label>
+            <select id="mc-class" onchange="onMcClassChange()" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;"><option value="">— 반 선택 —</option></select>
           </div>
-          <div class="fg"><label>반 (여러 반 듣는 학생이면 확인)</label>
-            <select id="mc-class" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;"><option value="">— 반 선택 —</option></select>
+          <div class="fg"><label>학생</label>
+            <select id="mc-student" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;"><option value="">학생 선택</option></select>
           </div>
           <div class="fg" id="mc-day-wrap"><label>실제로 오는 요일</label>
             <select id="mc-day" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
@@ -2170,20 +2170,23 @@ async function loadMclinic(){
     var sr=results[0], mr=results[1];
     if(needClasses) allClasses=results[2].classes||[];
     mcStudents=sr.students||[];
-    var sel=document.getElementById('mc-student');
-    sel.innerHTML='<option value="">학생 선택</option>'+mcStudents.map(function(s){return '<option value="'+s.id+'">'+(s.name||s.id)+'</option>';}).join('');
     var clsSel=document.getElementById('mc-class');
     clsSel.innerHTML='<option value="">— 반 선택 —</option>'+allClasses.map(function(c){return '<option value="'+c.id+'">'+escHtml(c.name)+'</option>';}).join('');
+    renderMcStudentOptions('');
     mcList=mr.list||[];
     renderMcList();
   }catch(e){
     listEl.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
   }
 }
-function onMcStudentChange(){
-  var studentId=document.getElementById('mc-student').value;
-  var student=mcStudents.find(function(s){return s.id===studentId;});
-  document.getElementById('mc-class').value = student&&student.classId ? student.classId : '';
+function renderMcStudentOptions(classId){
+  var list = classId ? mcStudents.filter(function(s){return s.classId===classId;}) : mcStudents.slice();
+  list.sort(function(a,b){ return (a.name||a.id).localeCompare(b.name||b.id,'ko'); });
+  var sel=document.getElementById('mc-student');
+  sel.innerHTML='<option value="">학생 선택</option>'+list.map(function(s){return '<option value="'+s.id+'">'+(s.name||s.id)+'</option>';}).join('');
+}
+function onMcClassChange(){
+  renderMcStudentOptions(document.getElementById('mc-class').value);
 }
 async function addMclinic(){
   var studentId=document.getElementById('mc-student').value;
@@ -2200,7 +2203,7 @@ async function addMclinic(){
   var student=mcStudents.find(function(s){return s.id===studentId;});
   var cls=allClasses.find(function(c){return c.id===classId;});
   await fetch(SU+'?action=addMandatoryClinic&studentId='+encodeURIComponent(studentId)+'&name='+encodeURIComponent(student?student.name:studentId)+'&type='+encodeURIComponent(type)+'&date='+encodeURIComponent(date)+'&day='+encodeURIComponent(day)+'&targetDay='+encodeURIComponent(targetDay)+'&time='+encodeURIComponent(time)+'&memo='+encodeURIComponent(memo)+'&classId='+encodeURIComponent(classId)+'&className='+encodeURIComponent(cls?cls.name:''));
-  document.getElementById('mc-student').value='';document.getElementById('mc-class').value='';document.getElementById('mc-time').value='';document.getElementById('mc-memo').value='';document.getElementById('mc-target-day').value='';document.getElementById('mc-date').value='';
+  document.getElementById('mc-class').value='';renderMcStudentOptions('');document.getElementById('mc-time').value='';document.getElementById('mc-memo').value='';document.getElementById('mc-target-day').value='';document.getElementById('mc-date').value='';
   msg.textContent='등록됐어요!';msg.style.color='#16a34a';
   setTimeout(function(){msg.textContent='';},2000);
   loadMclinic();
