@@ -379,14 +379,19 @@ window.addEventListener('DOMContentLoaded', function() {
   const session = JSON.parse(localStorage.getItem('mkmath_session') || 'null');
   if (session) {
     currentUser = session;
+    // 사이트 내부(예: 관리 페이지의 '문제 등록' 카드)에서 클릭해 들어온 게 아니라
+    // 즐겨찾기/카톡 링크 등으로 이 페이지에 곧장 들어온 경우를 referrer로 구분
+    var cameFromSite = document.referrer && document.referrer.indexOf(location.origin) === 0;
     if (session.role === 'teacher') {
+      if (!cameFromSite) {
+        location.replace('admin.html');
+        return;
+      }
       show('page-teacher');
       loadProblemList();
       checkTabParam();
     } else {
-      // 예전에 저장된 바로가기/카톡 링크로 이 페이지에 곧장 들어온 경우(사이트 안에서 '데일리 퀴즈' 메뉴를 눌러서 온 게 아님)
-      // → 학생의 메인 화면은 이제 마이페이지이므로 그쪽으로 보낸다. 사이트 내부 이동(nav 클릭)은 referrer로 구분해서 그대로 둠.
-      var cameFromSite = document.referrer && document.referrer.indexOf(location.origin) === 0;
+      // 학생의 메인 화면은 이제 마이페이지이므로 그쪽으로 보낸다.
       if (!cameFromSite) {
         location.replace('mypage.html');
         return;
