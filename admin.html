@@ -1409,7 +1409,7 @@ async function uploadXl(input){
       var isOldFormat = rows[0] && String(rows[0][0]||'').indexOf('전화번호')>=0;
       var dr=rows.slice(1).filter(function(r){return isOldFormat?(r[0]&&r[1]):(r[0]&&r[1]);});
       if(!dr.length){showMsg(m,'데이터가 없습니다','error');return;}
-      var ok=0,fail=0,failDetails=[];
+      var ok=0,fail=0,reassigned=0,failDetails=[];
       for(var i=0;i<dr.length;i++){
         var r=dr[i];
         var name,sp,pp,school,grade,gender,className,pw,res,studentId;
@@ -1423,8 +1423,9 @@ async function uploadXl(input){
           className=r[6]?String(r[6]).trim():''; pw=r[7]?String(r[7]).trim():'123456';
           res=await callAddDetailed(sp,pp,pw,name,school,grade,gender);
         }
-        if(res&&res.success){
-          ok++;
+        var alreadyExists = res && !res.success && res.msg && res.msg.indexOf('이미 존재하는')>=0;
+        if((res&&res.success)||alreadyExists){
+          if(res.success) ok++; else reassigned++;
           if(!isOldFormat && className){
             var clsId=await findOrCreateClassId(className);
             if(clsId) await assignClass(sp,clsId);
@@ -1435,8 +1436,8 @@ async function uploadXl(input){
         }
       }
       loadStu();
-      var msg='완료! 성공 '+ok+'명'+(fail?', 실패 '+fail+'명':'');
-      showMsg(m,msg,ok>0&&!fail?'success':(fail?'error':'success'));
+      var msg='완료! 새로 등록 '+ok+'명'+(reassigned?', 기존 학생 반배정 '+reassigned+'명':'')+(fail?', 실패 '+fail+'명':'');
+      showMsg(m,msg,fail?'error':'success');
       if(failDetails.length){
         m.innerHTML += '<div style="margin-top:8px;font-size:12px;color:#dc2626;line-height:1.6;">실패 목록:<br>'+failDetails.map(function(s){return '· '+s;}).join('<br>')+'</div>';
       }
