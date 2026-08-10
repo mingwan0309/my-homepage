@@ -301,7 +301,7 @@ tr:hover td{background:#fafbff;}
   <div class="header-right" id="header-stats">
     <div class="stat-box"><div class="stat-label">날짜</div><div class="stat-val" id="stat-date">—</div></div>
     <div class="stat-box"><div class="stat-label">전체</div><div class="stat-val" id="stat-total">0명</div></div>
-    <div class="stat-box"><div class="stat-label">현장</div><div class="stat-val green" id="stat-present">0명</div></div>
+    <div class="stat-box"><div class="stat-label">출석</div><div class="stat-val green" id="stat-present">0명</div></div>
     <div class="stat-box"><div class="stat-label">미정</div><div class="stat-val blue" id="stat-unknown">0명</div></div>
   </div>
 </div>
@@ -326,7 +326,6 @@ tr:hover td{background:#fafbff;}
           <button class="sel-bar-btn primary" onclick="toggleDropdown('bulk-att-menu')">✏️ 출석 일괄 변경 ▾</button>
           <div class="dropdown-menu bulk-att-menu" id="bulk-att-menu">
             <button class="dropdown-item" onclick="bulkChangeAtt('출석')">출석</button>
-            <button class="dropdown-item" onclick="bulkChangeAtt('현장')">현장</button>
             <button class="dropdown-item" onclick="bulkChangeAtt('지각')">지각</button>
             <button class="dropdown-item" onclick="bulkChangeAtt('영상대체')">영상대체</button>
             <button class="dropdown-item" onclick="bulkChangeAtt('보강')">보강</button>
@@ -1065,7 +1064,7 @@ function setAllAttendance(status){
 
 function updateStats(){
   var sesStu=getSessionStudents();
-  var present=sesStu.filter(function(st){return attMap[st.id]&&attMap[st.id].status==='현장';}).length;
+  var present=sesStu.filter(function(st){return attMap[st.id]&&attMap[st.id].status==='출석';}).length;
   var unknown=sesStu.filter(function(st){return !attMap[st.id]||attMap[st.id].status==='미정';}).length;
   document.getElementById('stat-present').textContent=present+'명';
   document.getElementById('stat-unknown').textContent=unknown+'명';
