@@ -72,6 +72,15 @@ function docsToArr(snap){
   return arr;
 }
 
+// 활동 로그 (핵심 활동만 기록 — 페이지뷰 전체가 아니라 로그인/제출/신청 등 의미있는 행동만)
+function logActivity(db, actorId, actorName, actorRole, message, code){
+  var id = genId('log');
+  db.collection('activity_logs').doc(id).set({
+    id:id, actorId:String(actorId||''), actorName:actorName||'', actorRole:actorRole||'',
+    message:message||'', code:code||'', createdAt:nowStr()
+  }).catch(function(){});
+}
+
 /* ---------- API 구현 ---------- */
 var api = {};
 
@@ -165,7 +174,12 @@ api.login = function(db, p){
     return auth.signInWithEmailAndPassword(toAuthEmail(authIds[i]), toAuthPassword(password))
       .then(function(){ return afterSignIn(authIds[i]); }, function(){ return tryAuth(i+1); });
   };
-  return tryAuth(0);
+  return tryAuth(0).then(function(res){
+    if (res && res.success && (res.role==='student'||res.role==='assistant')) {
+      logActivity(db, res.studentId||loginId, res.name, res.role, (res.name||loginId)+'님이 로그인했습니다.', 'LOGIN');
+    }
+    return res;
+  });
 };
 
 api.addStudent = function(db, p){
@@ -360,7 +374,10 @@ api.submitQuestion = function(db, p){
   return db.collection('qna').doc(id).set({
     id:id, title:p.title||'', content:p.content||'', studentId:p.studentId||'',
     studentName:p.studentName||'', date:nowStr(), status:'open', secret:String(p.secret||'false')
-  }).then(function(){ return { success:true, id:id }; });
+  }).then(function(){
+    logActivity(db, p.studentId, p.studentName, 'student', (p.studentName||p.studentId)+'(학생)님이 질문을 작성했습니다. ('+(p.title||'')+')', 'QNA_SUBMIT');
+    return { success:true, id:id };
+  });
 };
 
 api.getQuestions = function(db, p){
@@ -721,7 +738,13 @@ api.submitHwProof = function(db, p){
   return db.collection('hw_status').doc(key).set({
     id:key, sessionId:String(p.sessionId), studentId:String(p.studentId), hwId:String(p.hwId),
     submissionUrl:urls, submittedAt:nowStr()
-  },{merge:true}).then(function(){ return { success:true }; });
+  },{merge:true}).then(function(){
+    db.collection('students').doc(String(p.studentId)).get().then(function(d){
+      var nm=d.exists?(d.data().name||p.studentId):p.studentId;
+      logActivity(db, p.studentId, nm, 'student', nm+'(학생)님이 숙제 증빙 사진을 제출했습니다.', 'HW_SUBMIT');
+    });
+    return { success:true };
+  });
 };
 
 // 재촉 알림톡 발송 후 마지막 발송 시각 기록 + 이력에 누적 (여러 번 보낸 기록을 다 볼 수 있게)
@@ -1143,7 +1166,10 @@ api.bookClinic = function(db, p){
     return db.collection('clinic_bookings').doc(id).set({
       id:id, clinicId:String(p.clinicId), clinicName:p.clinicName||'', studentId:String(p.studentId),
       studentName:p.studentName||'', date:p.date||'', time:p.time||'', status:'예약', createdAt:nowStr()
-    }).then(function(){ return { success:true }; });
+    }).then(function(){
+      logActivity(db, p.studentId, p.studentName, 'student', (p.studentName||p.studentId)+'(학생)님이 클리닉을 신청했습니다. ('+(p.date||'')+' '+(p.time||'')+')', 'CLINIC_BOOK');
+      return { success:true };
+    });
   });
 };
 
@@ -1503,7 +1529,19 @@ api.submitSurveyResponse = function(db, p){
   return db.collection('survey_responses').doc(id).set({
     id:id, surveyId:String(p.surveyId), studentId:String(p.studentId), studentName:p.studentName||'',
     answers:answers, submittedAt: nowStr()
-  },{merge:true}).then(function(){ return { success:true }; });
+  },{merge:true}).then(function(){
+    logActivity(db, p.studentId, p.studentName, 'student', (p.studentName||p.studentId)+'(학생)님이 설문에 응답했습니다.', 'SURVEY_SUBMIT');
+    return { success:true };
+  });
+};
+
+// 활동 로그 (교사 전용) — 최신순 최대 300건
+api.getActivityLogs = function(db){
+  return db.collection('activity_logs').get().then(function(snap){
+    var list = docsToArr(snap);
+    list.sort(function(a,b){ return (b.createdAt||'') < (a.createdAt||'') ? -1 : 1; });
+    return { items: list.slice(0,300) };
+  });
 };
 
 /* ---------- 외부 노출 (페이지에서 직접 Firestore 사용) ---------- */

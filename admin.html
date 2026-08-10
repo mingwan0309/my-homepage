@@ -242,6 +242,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div class="nav-group-body">
           <div class="nav-item" onclick="showPage('signals',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
           <div class="nav-item" onclick="showPage('hwmanage',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
+          <div class="nav-item" onclick="showPage('activitylog',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🕓</span> 활동 로그</div>
         </div>
       </div>
       <div class="nav-item" onclick="showPage('notice',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📢</span> 공지</div>
@@ -282,6 +283,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div class="nav-group-body">
           <div class="nav-item" onclick="showPage('signals',this)"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
           <div class="nav-item" onclick="showPage('hwmanage',this)"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
+          <div class="nav-item" onclick="showPage('activitylog',this)"><span class="ni">🕓</span> 활동 로그</div>
         </div>
       </div>
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
@@ -537,6 +539,13 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <button type="button" id="hw-bulk-complete-btn" disabled onclick="bulkMarkHwComplete()" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">✓ 선택 완료 처리</button>
       </div>
       <div id="hwmanage-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
+    </div>
+
+    <!-- 활동 로그 -->
+    <div id="page-activitylog" class="page">
+      <div class="page-header"><div class="page-title">활동 로그</div></div>
+      <p style="font-size:12px;color:#94a3b8;margin:-10px 0 14px;">로그인 · 숙제 제출 · 클리닉 신청 · 질문 작성 · 설문 응답 같은 핵심 활동만 최근 300건 보여줘요.</p>
+      <div id="activitylog-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
     </div>
 
     <!-- 공지 -->
@@ -1032,7 +1041,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','notice','survey','qna','chat','videos','textbookvideos','assistants','settings'];
+    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','settings'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
@@ -1068,6 +1077,7 @@ function showPage(page,el){
   if(page==='clinic') loadClinics();
   if(page==='mclinic') loadMclinic();
   if(page==='hwmanage') loadHwManage();
+  if(page==='activitylog') loadActivityLog();
   if(page==='chat') initChatPage();
   if(page==='videos') initVideoPage();
   if(page==='textbookvideos') initTbvPage();
@@ -2314,6 +2324,30 @@ async function refreshHwNavBadge(){
 }
 var hwMineOnly=true;
 function toggleHwMineOnly(checked){ hwMineOnly=checked; renderHwManageList(); }
+async function loadActivityLog(){
+  var el=document.getElementById('activitylog-list');
+  el.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  try{
+    var r=await fetch(SU+'?action=getActivityLogs').then(function(r){return r.json();});
+    var items=r.items||[];
+    if(!items.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;">아직 기록된 활동이 없어요.</div>'; return; }
+    var ROLE_LABEL={student:'학생',assistant:'조교',teacher:'교사'};
+    el.innerHTML='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
+      +'<thead><tr style="border-bottom:1.5px solid #e2e8f0;text-align:left;color:#64748b;">'
+      +'<th style="padding:8px 10px;white-space:nowrap;">생성일시</th><th style="padding:8px 10px;white-space:nowrap;">수행자</th><th style="padding:8px 10px;">메시지</th>'
+      +'</tr></thead><tbody>'
+      +items.map(function(it){
+        return '<tr style="border-bottom:1px solid #f1f5f9;">'
+          +'<td style="padding:8px 10px;white-space:nowrap;color:#64748b;">'+escHtml(it.createdAt||'')+'</td>'
+          +'<td style="padding:8px 10px;white-space:nowrap;">'+escHtml(it.actorName||it.actorId||'')+(it.actorRole?'<span style="margin-left:4px;font-size:11px;color:#94a3b8;">('+(ROLE_LABEL[it.actorRole]||it.actorRole)+')</span>':'')+'</td>'
+          +'<td style="padding:8px 10px;">'+escHtml(it.message||'')+'</td>'
+          +'</tr>';
+      }).join('')
+      +'</tbody></table></div>';
+  }catch(e){
+    el.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
+  }
+}
 async function loadHwManage(){
   var el=document.getElementById('hwmanage-list');
   var mineWrap=document.getElementById('hw-mine-wrap');
