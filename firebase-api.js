@@ -1107,6 +1107,26 @@ api.setMandatoryClinicAttendance = function(db, p){
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
+// 의무클리닉에서 본 맞춤 테스트 점수 기록 (날짜별). 저장 시 아직 '알림톡에 보고 안 됨' 상태로 시작.
+api.setMandatoryClinicTestScore = function(db, p){
+  var data = {};
+  data['testScores.' + String(p.date)] = p.score || '';
+  data['testReported.' + String(p.date)] = false;
+  return db.collection('mandatory_clinic').doc(String(p.id)).update(data)
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
+// 여러 의무클리닉 문서의 특정 날짜 테스트 점수를, 방금 알림톡으로 실제 보고했다고 표시 (다음 메시지에 중복으로 안 뜨게)
+api.markMandatoryClinicTestReported = function(db, p){
+  var items = [];
+  try{ items = JSON.parse(p.items||'[]'); }catch(e){ items=[]; }
+  return Promise.all(items.map(function(it){
+    var data = {};
+    data['testReported.' + String(it.date)] = true;
+    return db.collection('mandatory_clinic').doc(String(it.id)).update(data).catch(function(){});
+  })).then(function(){ return { success:true }; });
+};
+
 /* === 클리닉 === */
 api.getClinics = function(db){
   return db.collection('clinics').get().then(function(snap){

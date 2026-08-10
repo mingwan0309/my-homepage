@@ -1323,6 +1323,11 @@ async function doSendAlimtalk(){
     if(data.success){
       saveMsgHistoryEntry(template,'send');
       saveMsgSendHistory(messages,true,'');
+      var reportItems=[];
+      ids.forEach(function(id){ (mcTestReportQueue[id]||[]).forEach(function(it){ reportItems.push(it); }); });
+      if(reportItems.length){
+        fetch(SU,{method:'POST',body:JSON.stringify({action:'markMandatoryClinicTestReported',items:JSON.stringify(reportItems)})}).catch(function(){});
+      }
       alert('✅ '+messages.length+'건 알림톡을 발송했습니다!');closeMsgModal();
     } else {
       saveMsgSendHistory(messages,false,data.msg||'알 수 없는 오류');
@@ -1401,11 +1406,44 @@ function toggleMsgHistoryDetail(i){
 }
 
 var mcListSession={};
+var mcAllSession={};  // studentId -> 그 학생의 모든 의무클리닉 등록(여러 건) 배열
+var mcTestReportQueue={};  // studentId -> [{id,date}] — 이번에 메시지에 포함된, 아직 '보고 안 됨'인 테스트 점수(발송 성공 시 markMandatoryClinicTestReported로 표시)
+var MC_DAY_NAMES_S=['일','월','화','수','목','금','토'];
+// 의무클리닉 시험 관련 안내(다른 날로 옮긴 클리닉 시험 안내 + 아직 알림톡에 안 나간 점수)를 한 학생 기준으로 계산
+function computeMcTestNote(studentId){
+  var records = mcAllSession[studentId] || [];
+  if(!records.length) return { text:'', reportItems:[] };
+  var sessionDate = sessionInfo?sessionInfo.date:'';
+  var sessionDow = sessionDate ? MC_DAY_NAMES_S[new Date(sessionDate+'T00:00:00').getDay()] : '';
+  var lines=[], reportItems=[];
+  records.forEach(function(m){
+    // 1) 이 차시 요일이 다른 날로 옮겨진 의무클리닉의 '몫'이면, 아직 그 보충 회차 점수가 없을 때 안내
+    if(m.targetDay && m.targetDay===sessionDow){
+      var occDate = m.type==='temp' ? m.date : '';
+      var already = occDate && m.testScores && m.testScores[occDate];
+      if(!already){
+        lines.push(m.day+'요일'+(occDate?'('+occDate+')':'')+' 의무클리닉('+m.time+')때 시험 보셔야 합니다.');
+      }
+    }
+    // 2) 이미 봤지만 아직 알림톡으로 안 나간 테스트 점수는, 그날짜가 이번 차시 날짜 이전(오늘까지)이면 같이 포함
+    var scores=m.testScores||{}, reported=m.testReported||{};
+    Object.keys(scores).forEach(function(d){
+      if(reported[d]) return;
+      if(sessionDate && d > sessionDate) return;  // 아직 안 지난 미래 날짜는 제외
+      lines.push(d+' '+(m.targetDay?m.targetDay+'요일 몫 ':'')+'의무클리닉 테스트 결과: '+scores[d]);
+      reportItems.push({id:m.id, date:d});
+    });
+  });
+  return { text: lines.join('\n'), reportItems: reportItems };
+}
 var personalMsgs={};  // 학생별 개인 메시지 (studentId -> 문구)
 // 학생에게 실제로 보낼 최종 문구 = 공통 전달사항 + (개인 메시지 있으면 한 줄 띄고 붙임)
 function buildStudentMsg(id){
   var template=document.getElementById('msg-template').value;
   var base=fillTemplate(template,computeMsgTokens(id));
+  var mcNote=computeMcTestNote(id);
+  mcTestReportQueue[id]=mcNote.reportItems;
+  if(mcNote.text) base = base + '\n\n' + mcNote.text;
   var p=(personalMsgs[id]||'').trim();
   return p ? (base + '\n\n' + p) : base;
 }
@@ -1425,8 +1463,14 @@ async function openMsgModal(){
   try{
     var r=await fetch(SU+'?action=getMandatoryClinic').then(function(r){return r.json();});
     mcListSession={};
-    (r.list||[]).forEach(function(m){ mcListSession[m.studentId]=m; });
-  }catch(e){ mcListSession={}; }
+    mcAllSession={};
+    (r.list||[]).forEach(function(m){
+      mcListSession[m.studentId]=m;
+      if(!mcAllSession[m.studentId]) mcAllSession[m.studentId]=[];
+      mcAllSession[m.studentId].push(m);
+    });
+  }catch(e){ mcListSession={}; mcAllSession={}; }
+  mcTestReportQueue={};
   renderMsgTokenBar();
   renderMsgPreview();
   document.getElementById('msg-modal').classList.add('show');
