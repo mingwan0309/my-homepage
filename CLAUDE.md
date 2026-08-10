@@ -171,6 +171,12 @@
 - **자주 묻는 질문(FAQ)**: 원래 notice.html 안에 있던 것을 **mypage.html 맨 아래 카드로 옮김**(`faq-data.js`의 정적 데이터 그대로 재사용, 아코디언 형태로 클릭하면 펼쳐짐). index.html(비로그인 공개 홈페이지)의 FAQ 안내도 "로그인 후 마이페이지에서 확인" 문구로 바뀜.
 - Firestore 규칙에 `notices`(로그인하면 읽기 가능, 쓰기는 교사만) 조항 추가함.
 
+## 활동 로그 (2026-08-10 추가)
+대치온의 활동 로그 화면을 참고해서 만듦. admin.html "관리" 드롭다운 안 "🕓 활동 로그" 탭(교사 전용)에서 최근 핵심 활동 300건을 최신순으로 확인 가능.
+- 페이지뷰 전체를 기록하면 Firestore 쓰기 비용/데이터량이 과하게 늘어나서, **로그인/숙제 증빙 제출/클리닉 신청/질문(질의응답) 작성/설문 응답** 5가지 핵심 활동만 기록하기로 범위를 정함(사용자가 명시적으로 선택). 다른 페이지 접속까지 기록하고 싶으면 범위를 넓혀야 함 — 그만큼 쓰기 비용도 늘어남을 감안할 것.
+- `activity_logs` 컬렉션(id, actorId, actorName, actorRole, message, code, createdAt). firebase-api.js의 `logActivity(db, actorId, actorName, actorRole, message, code)` 헬퍼가 각 API 함수(`api.login`, `api.submitHwProof`, `api.bookClinic`, `api.submitQuestion`, `api.submitSurveyResponse`) 안에서 성공 시점에 호출됨 — 새로운 핵심 활동을 추가로 기록하고 싶으면 이 패턴을 그대로 재사용.
+- `api.getActivityLogs(db)`가 최신순 최대 300건 반환. Firestore 규칙: `activity_logs`는 **읽기는 교사만, 쓰기(생성)는 로그인한 사람이면 누구나** — 학생/조교가 자기 활동을 기록해야 하므로 create는 열어두되, 남이 쓴 로그를 못 보게 read는 교사로 제한.
+
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
 - Apps Script 재배포 시 "새 버전" 안내 빼먹기
