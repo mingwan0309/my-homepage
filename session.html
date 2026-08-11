@@ -489,7 +489,7 @@ tr:hover td{background:#fafbff;}
         <div>
           <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;" id="exam-total-label">총점 (만점)</label>
           <div style="display:flex;align-items:center;gap:8px;">
-            <input id="exam-detail-total" type="number" min="0" placeholder="100" style="flex:1;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
+            <input id="exam-detail-total" type="number" min="0" placeholder="100" oninput="updateCutoffHint()" style="flex:1;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
             <span style="font-size:14px;color:#64748b;" id="exam-total-unit">점</span>
           </div>
         </div>
@@ -2314,6 +2314,17 @@ function setScoreType(type){
   document.getElementById('exam-total-label').textContent=isSc?'총점 (만점)':'총 문항 수';
   document.getElementById('exam-total-unit').textContent=isSc?'점':'개';
   document.getElementById('exam-detail-total').placeholder=isSc?'100':'10';
+  updateCutoffHint();
+}
+function updateCutoffHint(){
+  var cutoffEl=document.getElementById('exam-detail-cutoff');
+  if(!cutoffEl) return;
+  if(currentScoreType==='count'){
+    var total=Number(document.getElementById('exam-detail-total').value)||0;
+    cutoffEl.placeholder = total ? '예: '+Math.round(total*0.6)+' (총 '+total+'개의 60%)' : '예: 6';
+  } else {
+    cutoffEl.placeholder='예: 80';
+  }
 }
 async function saveExamDetail(){
   var name=document.getElementById('exam-detail-name-input').value.trim();
