@@ -835,7 +835,9 @@ const params=new URLSearchParams(location.search);
 const sessionId=params.get('id');
 const classId=params.get('classId');
 
-if(!session||session.role!=='teacher'){location.href='homework.html';}
+if(!session||(session.role!=='teacher'&&session.role!=='assistant')){location.href='homework.html';}
+// 조교는 메뉴에서 못 누르게 막은 것 외에는 선생님과 화면/기능이 동일해야 함
+const isStaff = session && (session.role==='teacher' || session.role==='assistant');
 
 const ATT_TYPES=['출석','지각','영상대체','보강','조퇴','결석','부재','퇴원'];
 
@@ -880,7 +882,7 @@ async function init(){
   var link=document.getElementById('sam-class-link');
   if(link) link.href='class.html?id='+encodeURIComponent(classId);
 
-  if(session.role==='teacher'){
+  if(isStaff){
     document.getElementById('btn-add-stu-top').style.display='';
   } else {
     var addExamBtn=document.getElementById('add-exam-btn');
@@ -1002,7 +1004,7 @@ function renderAttendance(){
     tbody.innerHTML='<tr><td colspan="8"><div class="empty-state">'
       +'<div class="empty-icon">📢</div>'
       +'<div class="empty-text">추가된 학생이 없어요.</div>'
-      +(session.role==='teacher'?'<button class="btn-add-stu" onclick="openAddStudentModal()">학생 추가하기</button>':'')
+      +(isStaff?'<button class="btn-add-stu" onclick="openAddStudentModal()">학생 추가하기</button>':'')
       +'</div></td></tr>';
     document.getElementById('stat-total').textContent='0명';
     return;
@@ -1032,7 +1034,7 @@ function renderAttendance(){
 }
 
 async function setAtt(studentId, status){
-  if(session.role!=='teacher')return;
+  if(!isStaff)return;
   if(!attMap[studentId])attMap[studentId]={status:'미정',memo:''};
   attMap[studentId].status=status;
   // 버튼 UI 즉시 반영
@@ -1058,7 +1060,7 @@ async function saveMemo(studentId, memo){
 }
 
 function setAllAttendance(status){
-  if(session.role!=='teacher')return;
+  if(!isStaff)return;
   getSessionStudents().forEach(function(st){setAtt(st.id,status);});
 }
 
@@ -1213,11 +1215,11 @@ function renderScores(){
   // 헤더 (시험 컬럼 + 과제 컬럼)
   var theadRow=document.getElementById('score-thead-row');
   var examCols=exams.map(function(ex){
-    var del=session.role==='teacher'?'<button class="del-exam" onclick="deleteExam(\''+ex.id+'\',event)" title="삭제">✕</button>':'';
+    var del=isStaff?'<button class="del-exam" onclick="deleteExam(\''+ex.id+'\',event)" title="삭제">✕</button>':'';
     return '<th><div class="exam-col-header">'+ex.name+del+'</div></th>';
   }).join('');
   var hwCols=homeworks.map(function(hw){
-    var del=session.role==='teacher'?'<button class="del-exam" onclick="deleteHwFromScoreTable(\''+hw.id+'\',event)" title="삭제">✕</button>':'';
+    var del=isStaff?'<button class="del-exam" onclick="deleteHwFromScoreTable(\''+hw.id+'\',event)" title="삭제">✕</button>':'';
     return '<th><div class="exam-col-header">📋 '+hw.name+del+'</div></th>';
   }).join('');
   var allChecked=students.length>0 && students.every(function(s){return scoreSelected[s.id];});

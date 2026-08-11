@@ -558,8 +558,10 @@ if(!session){location.href='homework.html';}
 // 학생은 이 페이지(관리 전용)에 접근하지 않고 마이페이지로 이동 — 강의 자료/출결은 마이페이지 내 정보에서 확인
 if(session && session.role==='student'){ location.href='mypage.html'; }
 
-document.getElementById('topbar-user').textContent = (session.role==='teacher'?'👨‍🏫 ':'🎓 ')+(session.name||session.id);
-if(session.role==='teacher'){
+// 조교는 메뉴에서 못 누르게 막은 것 외에는 선생님과 화면/기능이 동일해야 함 — teacher와 assistant를 같이 취급
+var isStaff = session.role==='teacher' || session.role==='assistant';
+document.getElementById('topbar-user').textContent = (isStaff?'👨‍🏫 ':'🎓 ')+(session.name||session.id);
+if(isStaff){
   document.getElementById('btn-admin').style.display='';
   var stuAddBtns=document.getElementById('stu-add-btns');
   if(stuAddBtns){stuAddBtns.style.display='flex';}
@@ -598,8 +600,8 @@ function renderHeader(){
   document.getElementById('cls-name').textContent=classInfo.name;
   document.getElementById('cls-time').textContent=classInfo.time||'';
   document.title=classInfo.name+' — 김민관 수학';
-  if(session.role!=='teacher') document.querySelector('.btn-add-session').style.display='none';
-  if(session.role==='teacher'){
+  if(!isStaff) document.querySelector('.btn-add-session').style.display='none';
+  if(isStaff){
     document.getElementById('btn-add-mat').style.display='';
     document.getElementById('btn-add-video').style.display='';
   }
@@ -630,7 +632,7 @@ var attMapGlobal={};
 function renderStudents(){
   const tbody=document.getElementById('stu-tbody');
   if(!students.length){tbody.innerHTML='<tr><td colspan="7" class="empty">등록된 수강생이 없습니다</td></tr>';return;}
-  var isTeacher=session.role==='teacher';
+  var isTeacher=isStaff;
   students.sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ko');});
   var list=isTeacher?students:students.filter(function(st){return st.id===session.id;});
   if(!list.length){tbody.innerHTML='<tr><td colspan="7" class="empty">정보가 없습니다</td></tr>';return;}
@@ -705,7 +707,7 @@ async function loadMaterials(){
     var r=await fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(classId));
     var d=await r.json();
     materials=d.materials||[];
-    if(session.role==='teacher') await loadMatViews();
+    if(isStaff) await loadMatViews();
     else if(session.role==='student') await loadMyMatViews();
     updateCounts();
     renderCurrentCat();
@@ -843,15 +845,15 @@ function renderMaterials(){
   var list=materials.filter(function(m){return m.category===currentCat;});
   if(!list.length){tbody.innerHTML='<tr><td colspan="5" class="empty">등록된 자료가 없습니다</td></tr>';return;}
   tbody.innerHTML=list.map(function(m){
-    var delBtn=session.role==='teacher'?'<button class="mat-del-btn" onclick="delMat(\''+m.id+'\')">삭제</button>':'';
+    var delBtn=isStaff?'<button class="mat-del-btn" onclick="delMat(\''+m.id+'\')">삭제</button>':'';
     var viewBadge='';
-    if(session.role==='teacher'){
+    if(isStaff){
       var st=viewStats(m.id);
       var color=st.seen>=st.total&&st.total>0?'#16a34a':'#3b6cf7';
       viewBadge='<button onclick="showViews(\''+m.id+'\',false)" style="background:none;border:1.5px solid '+color+';color:'+color+';font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;cursor:pointer;white-space:nowrap;margin-right:6px;">확인 '+st.seen+'/'+st.total+'</button>';
     }
     var wmSel='';
-    if(session.role==='teacher'){
+    if(isStaff){
       var lv=m.wmLevel||'0';
       var labels={'0':'워터마크 없음','1':'1단계(상하단)','2':'2단계(중간)','3':'3단계(빽빽)'};
       wmSel='<select onchange="setMatWm(\''+m.id+'\',this.value)" style="font-size:11px;padding:4px 6px;border:1.5px solid #e2e8f0;border-radius:7px;margin-right:6px;cursor:pointer;">'
@@ -872,7 +874,7 @@ function renderVideos(){
   var wrap=document.getElementById('video-list-wrap');
   var list=materials.filter(function(m){return m.category==='영상 자료';});
   if(!list.length){
-    wrap.innerHTML='<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">영상을 끌어서 업로드해주세요.</div>'+(session.role==='teacher'?'<button class="btn-add-video-empty" onclick="openVideoModal()">영상 추가하기</button>':'')+'</div>';
+    wrap.innerHTML='<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">영상을 끌어서 업로드해주세요.</div>'+(isStaff?'<button class="btn-add-video-empty" onclick="openVideoModal()">영상 추가하기</button>':'')+'</div>';
     return;
   }
   var grid='<div class="video-grid">'+list.map(function(m){
@@ -883,9 +885,9 @@ function renderVideos(){
       if(vid) thumb='<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg" onerror="this.style.display=\'none\'">';
     }
     var badge='<span class="video-badge badge-drive">강의 영상</span>';
-    var delBtn=session.role==='teacher'?'<button class="video-del-btn" onclick="event.stopPropagation();delMat(\''+m.id+'\')">삭제</button>':'';
+    var delBtn=isStaff?'<button class="video-del-btn" onclick="event.stopPropagation();delMat(\''+m.id+'\')">삭제</button>':'';
     var viewBtn='';
-    if(session.role==='teacher'){
+    if(isStaff){
       var st=viewStats(m.id);
       var color=st.seen>=st.total&&st.total>0?'#16a34a':'#3b6cf7';
       viewBtn='<button onclick="event.stopPropagation();showViews(\''+m.id+'\',true)" style="background:none;border:1.5px solid '+color+';color:'+color+';font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;cursor:pointer;">시청 '+st.seen+'/'+st.total+'</button>';
