@@ -2446,7 +2446,7 @@ function renderHwCard(h){
     +'<div style="display:flex;align-items:flex-start;gap:10px;">'
     +'<input type="checkbox" class="hw-select-cb" data-id="'+h.id+'" onchange="toggleHwSelect(\''+h.id+'\',this.checked)" '+(hwSelected[h.id]?'checked':'')+' style="width:19px;height:19px;flex-shrink:0;margin-top:2px;cursor:pointer;">'
     +'<div>'
-    +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;">'+escHtml(h.studentName)+' <span style="font-weight:400;color:#94a3b8;font-size:12px;">'+(h.sessionNum?h.sessionNum+'차시':'')+'</span></div>'
+    +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;">'+escHtml(h.studentName)+' <span style="font-weight:800;color:#3b6cf7;font-size:14px;">'+(h.sessionNum?h.sessionNum+'차시':'')+'</span></div>'
     +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(h.hwName)+'</div>'
     +(h.feedback?'<div style="font-size:12px;color:#94a3b8;margin-top:4px;white-space:pre-wrap;">'+escHtml(h.feedback)+'</div>':'')
     +photoLinks+lastRem
