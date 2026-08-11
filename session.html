@@ -584,8 +584,8 @@ tr:hover td{background:#fafbff;}
   <div class="modal" style="max-width:720px;display:flex;gap:20px;flex-wrap:wrap;">
     <div style="flex:1;min-width:220px;">
       <h3>과제 추가</h3>
-      <div class="fg"><label>과제 이름</label><input type="text" id="hw-name-input" placeholder="예: 워크북 3단원"></div>
-      <div class="fg"><label>날짜 (선택)</label><input type="text" id="hw-range-input" placeholder="예: [07/17]"></div>
+      <div class="fg"><label>과제 이름 <span style="font-weight:400;color:#94a3b8;">(한 줄에 하나씩 입력하면 여러 개를 한 번에 추가해요)</span></label><textarea id="hw-name-input" placeholder="예: 워크북 3단원&#10;복습노트&#10;시험지 고쳐서 제출" style="width:100%;min-height:110px;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea></div>
+      <div class="fg"><label>날짜 (선택, 전체 공통)</label><input type="text" id="hw-range-input" placeholder="예: [07/17]"></div>
       <div class="modal-btns">
         <button class="btn-cl" onclick="closeAddHw()">취소</button>
         <button class="btn-ok" onclick="saveHw()">추가</button>
@@ -2203,11 +2203,21 @@ async function openAddHw(){
 }
 function closeAddHw(){document.getElementById('add-hw-modal').classList.remove('show');}
 async function saveHw(){
-  var name=document.getElementById('hw-name-input').value.trim();
+  var names=document.getElementById('hw-name-input').value.split('\n').map(function(s){return s.trim();}).filter(function(s){return s;});
   var range=document.getElementById('hw-range-input').value.trim();
-  if(!name){alert('과제 이름을 입력해주세요');return;}
-  var r=await fetch(SU+'?action=addHwItem&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)).then(r=>r.json());
-  if(r.success){closeAddHw();await loadHw();renderScores();}
+  if(!names.length){alert('과제 이름을 입력해주세요');return;}
+  var btn=document.querySelector('#add-hw-modal .btn-ok');
+  if(btn){ btn.disabled=true; btn.textContent='추가 중...'; }
+  try{
+    for(var i=0;i<names.length;i++){
+      await fetch(SU+'?action=addHwItem&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(names[i])+'&range='+encodeURIComponent(range)).then(r=>r.json());
+    }
+    closeAddHw();
+    await loadHw();
+    renderScores();
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='추가'; }
+  }
 }
 
 // 과제 결과 입력 패널 (성적 탭 표에서 호출)
