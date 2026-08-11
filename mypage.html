@@ -310,10 +310,17 @@ a{text-decoration:none;}
       <div id="att-list"><div class="spinner">불러오는 중...</div></div>
     </div>
 
+    <!-- 다음 시간까지의 과제 (등록된 게시글이 있을 때만 노출) -->
+    <div class="card" id="assignment-card" style="display:none;">
+      <div class="card-title"><span>📋</span> 다음 시간까지의 과제</div>
+      <div id="assignment-area"></div>
+    </div>
+
     <!-- 숙제 현황 (기록이 있는 학생만 노출) -->
     <div class="card" id="hw-status-card" style="display:none;">
       <div class="card-title"><span>📝</span> 내 숙제 <span id="hw-badge" class="hw-badge-count" style="display:none;"></span></div>
-      <div id="hw-list"></div>
+      <button type="button" class="vid-drop-head" onclick="toggleAttDrop(this)"><span>숙제 목록 보기</span><span class="vid-drop-arrow">▾</span></button>
+      <div id="hw-list" style="display:none;margin-top:8px;"></div>
     </div>
     <input type="file" id="hw-file-input" accept="image/*" multiple style="display:none;" onchange="onHwFileSelected(event)">
 
@@ -345,6 +352,7 @@ a{text-decoration:none;}
         <a href="#" onclick="window.mkOpenNoticeModal&&window.mkOpenNoticeModal();return false;" class="dash-ic" style="position:relative;"><div class="ic">📢</div><div>공지사항</div><span id="notice-nav-badge" style="display:none;position:absolute;top:2px;right:18%;background:#ef4444;color:#fff;font-size:10px;font-weight:800;min-width:15px;height:15px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px;"></span></a>
         <a href="qna.html" class="dash-ic" style="position:relative;"><div class="ic">💬</div><div>질의응답</div><span id="qna-nav-badge" style="display:none;position:absolute;top:2px;right:18%;background:#ef4444;color:#fff;font-size:10px;font-weight:800;min-width:15px;height:15px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px;"></span></a>
         <a href="reviews.html" class="dash-ic"><div class="ic">😊</div><div>수강후기</div></a>
+        <a href="#" onclick="openTypoModal();return false;" class="dash-ic"><div class="ic">✏️</div><div>정정사항</div></a>
         <a href="textbook.html" class="dash-ic"><div class="ic">📖</div><div>부교재 강의</div></a>
       </div>
     </div>
@@ -398,6 +406,15 @@ a{text-decoration:none;}
       <button onclick="closeSvAnswer()" style="flex:1;padding:12px;border:1.5px solid #e2e8f0;background:#fff;border-radius:10px;font-weight:700;color:#64748b;cursor:pointer;min-height:44px;">취소</button>
       <button id="sv-answer-submit" onclick="submitSvAnswer()" style="flex:1;padding:12px;border:none;background:#3b6cf7;color:#fff;border-radius:10px;font-weight:700;cursor:pointer;min-height:44px;">제출하기</button>
     </div>
+  </div>
+</div>
+
+<!-- 오탈자 및 정정사항 -->
+<div id="typo-modal" class="pw-modal-bg" onclick="if(event.target===this)closeTypoModal()">
+  <div style="background:#fff;border-radius:16px;padding:22px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;">
+    <div style="font-weight:800;font-size:16px;margin-bottom:16px;">✏️ 오탈자 및 정정사항</div>
+    <div id="typo-list-area" style="font-size:13px;color:#94a3b8;">불러오는 중...</div>
+    <button onclick="closeTypoModal()" style="margin-top:14px;width:100%;padding:12px;border:1.5px solid #e2e8f0;background:#fff;border-radius:10px;font-weight:700;color:#64748b;cursor:pointer;min-height:44px;">닫기</button>
   </div>
 </div>
 
@@ -502,8 +519,49 @@ loadInfo();
   loadMyMandatoryClinic();
   loadMyHomework();
   loadMySurveys();
+  loadAssignmentCard();
   renderFaq();
 });
+
+// ── 강의 게시판 (다음 시간까지의 과제 / 오탈자 및 정정사항) ──
+function escHtmlBd(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+async function loadAssignmentCard(){
+  if(!session.classId) return;
+  try{
+    var r=await fetch(SU+'?action=getClassPosts&classId='+encodeURIComponent(session.classId)+'&category=assignment').then(function(r){return r.json();});
+    var posts=r.posts||[];
+    if(!posts.length) return;
+    var p=posts[0];
+    document.getElementById('assignment-area').innerHTML=
+      '<div style="font-weight:700;font-size:14px;margin-bottom:6px;">'+escHtmlBd(p.title)+'</div>'
+      +'<div style="font-size:13px;color:#475569;white-space:pre-wrap;line-height:1.6;">'+escHtmlBd(p.content)+'</div>'
+      +'<div style="font-size:11px;color:#94a3b8;margin-top:8px;">'+(p.createdAt||'').slice(0,10)+'</div>';
+    document.getElementById('assignment-card').style.display='block';
+    fetch(SU+'?action=markClassPostRead&postId='+encodeURIComponent(p.id)+'&studentId='+encodeURIComponent(session.id)+'&studentName='+encodeURIComponent(session.name||session.id));
+  }catch(e){}
+}
+async function openTypoModal(){
+  document.getElementById('typo-modal').classList.add('show');
+  var area=document.getElementById('typo-list-area');
+  area.innerHTML='불러오는 중...';
+  if(!session.classId){ area.innerHTML='배정된 반이 없어요.'; return; }
+  try{
+    var r=await fetch(SU+'?action=getClassPosts&classId='+encodeURIComponent(session.classId)+'&category=typo').then(function(r){return r.json();});
+    var posts=r.posts||[];
+    if(!posts.length){ area.innerHTML='등록된 정정사항이 없어요.'; return; }
+    area.innerHTML=posts.map(function(p){
+      return '<div style="padding:10px 0;border-bottom:1px solid #f1f5f9;">'
+        +'<div style="font-weight:700;font-size:14px;">'+escHtmlBd(p.title)+'</div>'
+        +'<div style="font-size:13px;color:#475569;white-space:pre-wrap;margin-top:4px;line-height:1.6;">'+escHtmlBd(p.content)+'</div>'
+        +'<div style="font-size:11px;color:#94a3b8;margin-top:6px;">'+(p.createdAt||'').slice(0,10)+'</div>'
+        +'</div>';
+    }).join('');
+    posts.forEach(function(p){
+      fetch(SU+'?action=markClassPostRead&postId='+encodeURIComponent(p.id)+'&studentId='+encodeURIComponent(session.id)+'&studentName='+encodeURIComponent(session.name||session.id));
+    });
+  }catch(e){ area.innerHTML='불러오기 실패'; }
+}
+function closeTypoModal(){ document.getElementById('typo-modal').classList.remove('show'); }
 
 // ── 자주 묻는 질문 ──
 function renderFaq(){

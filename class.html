@@ -276,6 +276,7 @@ tr:hover td{background:#fafbff;}
 <div class="tabs-bar" id="tabs-bar" style="display:none;">
   <div class="tab-item active" onclick="switchTab('students',this)">수강생 목록 <span id="stu-count-badge"></span></div>
   <div class="tab-item" onclick="switchTab('materials',this)">강의 자료실 <span id="mat-new-badge"></span></div>
+  <div class="tab-item" onclick="switchTab('board',this)">강의 게시판</div>
 </div>
 
 <!-- 수강생 -->
@@ -334,6 +335,60 @@ tr:hover td{background:#fafbff;}
           </div>
           <div id="video-list-wrap"></div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 강의 게시판 -->
+<div class="content" id="content-board" style="display:none;">
+  <div class="mat-layout">
+    <div class="mat-sidebar">
+      <div class="mat-sidebar-title">게시판</div>
+      <div class="mat-cat active" onclick="selectBoardCat('typo',this)">
+        <span>✏️ 오탈자 및 정정사항</span><span class="mat-cat-count" id="cnt-board-typo">0</span>
+      </div>
+      <div class="mat-cat" onclick="selectBoardCat('assignment',this)">
+        <span>📋 다음 시간까지의 과제</span><span class="mat-cat-count" id="cnt-board-assignment">0</span>
+      </div>
+    </div>
+    <div class="mat-main">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title" id="board-cat-title">다음 시간까지의 과제</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px;">다음 과제 안내를 확인할 수 있어요.</div>
+          </div>
+          <button class="btn-add-mat" id="btn-add-post" onclick="openPostModal()" style="display:none;">+ 글 작성</button>
+        </div>
+        <table>
+          <thead><tr><th>제목</th><th>작성자</th><th>작성일</th></tr></thead>
+          <tbody id="board-tbody"><tr><td colspan="3" class="empty">불러오는 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 게시글 작성/수정 모달 -->
+<div class="modal-bg" id="post-modal">
+  <div class="modal" style="max-width:900px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3 id="post-modal-title" style="font-size:16px;font-weight:800;">글 작성</h3>
+      <button onclick="closePostModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
+    </div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex:2;min-width:280px;">
+        <div class="fg"><label>제목</label><input type="text" id="post-title" placeholder="예) [08/10]" style="width:100%;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;box-sizing:border-box;"></div>
+        <div class="fg" style="margin-top:10px;"><label>내용</label><textarea id="post-content" placeholder="내용을 입력하세요" style="width:100%;min-height:220px;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea></div>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <button onclick="savePost()" style="flex:1;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
+          <button id="post-del-btn" onclick="deletePostFromModal()" style="padding:12px 18px;background:#fef2f2;color:#dc2626;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;display:none;">삭제</button>
+        </div>
+      </div>
+      <div style="flex:1;min-width:220px;">
+        <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:8px;" id="post-reads-title">확인 현황</div>
+        <div id="post-reads-list" style="max-height:320px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:9px;padding:6px 10px;font-size:13px;color:#94a3b8;">글 저장 후 확인할 수 있어요.</div>
       </div>
     </div>
   </div>
@@ -698,7 +753,104 @@ function switchTab(tab,el){
   el.classList.add('active');
   document.getElementById('content-students').style.display=tab==='students'?'':'none';
   document.getElementById('content-materials').style.display=tab==='materials'?'':'none';
+  document.getElementById('content-board').style.display=tab==='board'?'':'none';
   if(tab==='materials' && !materials.length) loadMaterials();
+  if(tab==='board') loadBoard();
+}
+
+// ── 강의 게시판 ──
+var boardPosts=[], boardCat='typo', boardCatCounts={};
+var BOARD_CAT_LABEL={typo:'오탈자 및 정정사항', assignment:'다음 시간까지의 과제'};
+async function loadBoard(){
+  document.getElementById('btn-add-post').style.display=isStaff?'':'none';
+  try{
+    var db=await window.mkdbReady;
+    var [tr,ar]=await Promise.all([
+      fetch(SU+'?action=getClassPosts&classId='+encodeURIComponent(classId)+'&category=typo').then(function(r){return r.json();}),
+      fetch(SU+'?action=getClassPosts&classId='+encodeURIComponent(classId)+'&category=assignment').then(function(r){return r.json();})
+    ]);
+    boardCatCounts={typo:(tr.posts||[]).length, assignment:(ar.posts||[]).length};
+    document.getElementById('cnt-board-typo').textContent=boardCatCounts.typo;
+    document.getElementById('cnt-board-assignment').textContent=boardCatCounts.assignment;
+    boardPosts = boardCat==='typo' ? (tr.posts||[]) : (ar.posts||[]);
+    renderBoardTable();
+  }catch(e){
+    document.getElementById('board-tbody').innerHTML='<tr><td colspan="3" class="empty">불러오기 실패</td></tr>';
+  }
+}
+function selectBoardCat(cat,el){
+  boardCat=cat;
+  document.querySelectorAll('#content-board .mat-cat').forEach(function(c){c.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('board-cat-title').textContent=BOARD_CAT_LABEL[cat];
+  loadBoard();
+}
+function renderBoardTable(){
+  var tbody=document.getElementById('board-tbody');
+  if(!boardPosts.length){ tbody.innerHTML='<tr><td colspan="3" class="empty">등록된 글이 없습니다</td></tr>'; return; }
+  tbody.innerHTML=boardPosts.map(function(p){
+    return '<tr style="cursor:pointer;" onclick="'+(isStaff?'openPostModal(\''+p.id+'\')':'viewPost(\''+p.id+'\')')+'">'
+      +'<td>'+escHtmlCb(p.title||'(제목 없음)')+'</td>'
+      +'<td>'+escHtmlCb(p.createdBy||'')+'</td>'
+      +'<td>'+(p.createdAt||'').slice(0,10)+'</td>'
+      +'</tr>';
+  }).join('');
+}
+function escHtmlCb(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+var editingPostId=null;
+function openPostModal(id){
+  editingPostId=id||null;
+  var p=id?boardPosts.find(function(x){return x.id===id;}):null;
+  document.getElementById('post-modal-title').textContent=p?'글 수정':'글 작성';
+  document.getElementById('post-title').value=p?p.title:'';
+  document.getElementById('post-content').value=p?p.content:'';
+  document.getElementById('post-del-btn').style.display=p?'':'none';
+  document.getElementById('post-reads-list').innerHTML=p?'불러오는 중...':'글 저장 후 확인할 수 있어요.';
+  document.getElementById('post-modal').classList.add('show');
+  if(p) loadPostReads(id);
+}
+function closePostModal(){ document.getElementById('post-modal').classList.remove('show'); editingPostId=null; }
+async function loadPostReads(postId){
+  try{
+    var r=await fetch(SU+'?action=getClassPostReads&postId='+encodeURIComponent(postId)+'&classId='+encodeURIComponent(classId)).then(function(r){return r.json();});
+    var list=r.list||[];
+    document.getElementById('post-reads-title').textContent='확인 현황 ('+list.filter(function(x){return x.readAt;}).length+' / '+list.length+'명)';
+    document.getElementById('post-reads-list').innerHTML=list.map(function(x){
+      return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f8fafc;">'
+        +'<span>'+escHtmlCb(x.studentName)+'</span>'
+        +(x.readAt?'<span style="color:#16a34a;font-size:12px;">'+x.readAt+'</span>':'<span style="color:#ef4444;font-size:12px;font-weight:700;">미확인</span>')
+        +'</div>';
+    }).join('')||'<div style="padding:10px 0;">학생이 없어요.</div>';
+  }catch(e){ document.getElementById('post-reads-list').innerHTML='불러오기 실패'; }
+}
+async function savePost(){
+  var title=document.getElementById('post-title').value.trim();
+  var content=document.getElementById('post-content').value.trim();
+  if(!title){ alert('제목을 입력해주세요.'); return; }
+  try{
+    if(editingPostId){
+      await fetch(SU+'?action=updateClassPost&id='+encodeURIComponent(editingPostId)+'&title='+encodeURIComponent(title)+'&content='+encodeURIComponent(content));
+    } else {
+      await fetch(SU+'?action=addClassPost&classId='+encodeURIComponent(classId)+'&category='+encodeURIComponent(boardCat)+'&title='+encodeURIComponent(title)+'&content='+encodeURIComponent(content)+'&createdBy='+encodeURIComponent(session.name||session.id));
+    }
+    closePostModal();
+    loadBoard();
+  }catch(e){ alert('저장 중 오류가 발생했습니다.'); }
+}
+async function deletePostFromModal(){
+  if(!editingPostId)return;
+  if(!confirm('이 글을 삭제할까요?'))return;
+  await fetch(SU+'?action=deleteClassPost&id='+encodeURIComponent(editingPostId));
+  closePostModal();
+  loadBoard();
+}
+async function viewPost(id){
+  var p=boardPosts.find(function(x){return x.id===id;});
+  if(!p)return;
+  alert(p.title+'\n\n'+p.content);
+  if(session.role==='student'){
+    fetch(SU+'?action=markClassPostRead&postId='+encodeURIComponent(id)+'&studentId='+encodeURIComponent(session.id)+'&studentName='+encodeURIComponent(session.name||session.id));
+  }
 }
 
 // ── 자료실 ──

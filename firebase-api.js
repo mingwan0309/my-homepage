@@ -1419,6 +1419,55 @@ api.deleteExpenseLog = function(db, p){
   return db.collection('expense_logs').doc(String(p.id)).delete().then(function(){ return { success:true }; });
 };
 
+/* ---------- 반 게시판 (오탈자 및 정정사항 / 다음 시간까지의 과제) ---------- */
+api.getClassPosts = function(db, p){
+  var q = db.collection('class_posts').where('classId','==',String(p.classId));
+  if (p.category) q = q.where('category','==',String(p.category));
+  return q.get().then(function(snap){
+    var posts = docsToArr(snap).map(function(r){
+      return { id:String(r.id), classId:String(r.classId), category:r.category||'', title:r.title||'', content:r.content||'', createdAt:r.createdAt||'', createdBy:r.createdBy||'' };
+    }).sort(function(a,b){ return (a.createdAt||'')<(b.createdAt||'')?1:-1; });
+    return { posts: posts };
+  });
+};
+api.addClassPost = function(db, p){
+  var id = genId('cpost');
+  return db.collection('class_posts').doc(id).set({
+    id:id, classId:String(p.classId), category:p.category||'assignment', title:p.title||'', content:p.content||'', createdBy:p.createdBy||'', createdAt:nowStr()
+  }).then(function(){ return { success:true, id:id }; });
+};
+api.updateClassPost = function(db, p){
+  var data={};
+  ['title','content','category'].forEach(function(k){ if(p[k]!==undefined) data[k]=p[k]; });
+  return db.collection('class_posts').doc(String(p.id)).update(data).then(function(){ return { success:true }; });
+};
+api.deleteClassPost = function(db, p){
+  return db.collection('class_posts').doc(String(p.id)).delete().then(function(){
+    return db.collection('class_post_reads').where('postId','==',String(p.id)).get();
+  }).then(function(snap){
+    return Promise.all(snap.docs.map(function(d){ return d.ref.delete(); }));
+  }).then(function(){ return { success:true }; });
+};
+api.markClassPostRead = function(db, p){
+  var id = String(p.postId)+'__'+String(p.studentId);
+  return db.collection('class_post_reads').doc(id).set({
+    id:id, postId:String(p.postId), studentId:String(p.studentId), studentName:p.studentName||'', readAt:nowStr()
+  },{merge:true}).then(function(){ return { success:true }; });
+};
+api.getClassPostReads = function(db, p){
+  return Promise.all([
+    db.collection('class_post_reads').where('postId','==',String(p.postId)).get(),
+    db.collection('students').where('classId','==',String(p.classId)).get()
+  ]).then(function(res){
+    var reads = docsToArr(res[0]);
+    var readMap = {}; reads.forEach(function(r){ readMap[r.studentId]=r.readAt||''; });
+    var roster = docsToArr(res[1]).map(function(s){
+      return { studentId:String(s.id), studentName:s.name||s.id, readAt: readMap[String(s.id)]||'' };
+    }).sort(function(a,b){ return (a.studentName||'').localeCompare(b.studentName||'','ko'); });
+    return { list: roster };
+  });
+};
+
 /* ---------- 학생 상세 (수강/클리닉/질문/성적 이력) ---------- */
 api.getStudentFullHistory = function(db, p){
   var sid = String(p.studentId);
