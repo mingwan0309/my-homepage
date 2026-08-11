@@ -304,9 +304,16 @@ window.addEventListener('DOMContentLoaded', function() {
     document.getElementById('page-denied').classList.remove('hidden');
     return;
   }
+  var isEmbedded = window.self !== window.top;
+  if (isEmbedded) {
+    // admin.html 안에 iframe으로 삽입된 경우 - 관리 페이지 자체 메뉴가 있으니 이 페이지의 상단바/탭은 중복이라 숨김
+    var tb=document.querySelector('.topbar'); if(tb) tb.style.display='none';
+  }
   if (session.role !== 'teacher') {
     document.getElementById('unanswered-wrap').classList.add('hidden');
-    var snav=document.getElementById('student-nav');if(snav){snav.style.display='flex';var mc=document.getElementById('snav-myclass');if(mc&&session.classId)mc.href='class.html?id='+session.classId;}
+    if (!isEmbedded) {
+      var snav=document.getElementById('student-nav');if(snav){snav.style.display='flex';var mc=document.getElementById('snav-myclass');if(mc&&session.classId)mc.href='class.html?id='+session.classId;}
+    }
   } else {
     document.getElementById('myquestions-wrap').classList.add('hidden');
   }
