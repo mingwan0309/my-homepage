@@ -515,21 +515,29 @@ api.assignStudentClass = function(db, p){
 api.getClassStudents = function(db, p){
   var authUser = firebase.auth().currentUser;
   var myEmail = authUser ? authUser.email : '';
+  var localPart = myEmail.split('@')[0];
   var amTeacher = myEmail === toAuthEmail('mingwan0309');
-  var studentsQuery = amTeacher
-    ? db.collection('students').where('classId','==',String(p.classId)).get()
-    : db.collection('students').doc(myEmail.split('@')[0]).get().then(function(doc){
-        // 학생 계정: 보안 규칙상 자기 자신의 정보만 조회 가능 (반 목록 전체 조회 불가)
-        var fake = { docs: [] };
-        if (doc.exists && String(doc.data().classId) === String(p.classId)) fake.docs = [doc];
-        fake.forEach = function(fn){ fake.docs.forEach(fn); };
-        return fake;
-      });
-  var tasks = [
-    db.collection('classes').doc(String(p.classId)).get(),
-    studentsQuery
-  ];
-  return Promise.all(tasks).then(function(res){
+  // 조교는 메뉴에서 못 누르게 막은 것 외에는 선생님과 동일하게 반 전체 명단을 볼 수 있어야 함
+  var amAssistantP = amTeacher ? Promise.resolve(false) : db.collection('assistants').doc(localPart).get().then(function(d){
+    return d.exists && d.data().active !== false;
+  }, function(){ return false; });
+  return amAssistantP.then(function(amAssistant){
+    var isStaff = amTeacher || amAssistant;
+    var studentsQuery = isStaff
+      ? db.collection('students').where('classId','==',String(p.classId)).get()
+      : db.collection('students').doc(localPart).get().then(function(doc){
+          // 학생 계정: 보안 규칙상 자기 자신의 정보만 조회 가능 (반 목록 전체 조회 불가)
+          var fake = { docs: [] };
+          if (doc.exists && String(doc.data().classId) === String(p.classId)) fake.docs = [doc];
+          fake.forEach = function(fn){ fake.docs.forEach(fn); };
+          return fake;
+        });
+    var tasks = [
+      db.collection('classes').doc(String(p.classId)).get(),
+      studentsQuery
+    ];
+    return Promise.all(tasks);
+  }).then(function(res){
     if (!res[0].exists) return { classInfo:null, students:[] };
     var c = res[0].data();
     var classInfo = { id:String(c.id), name:c.name, time:c.time||'', start:c.start||'', end:c.end||'', status:c.status||'active' };

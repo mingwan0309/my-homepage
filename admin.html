@@ -1198,7 +1198,9 @@ function setupAssistantSession(sessObj, isPreview){
   var todayStr=new Date().toISOString().slice(0,10);
   var hideUntil=isPreview?null:localStorage.getItem('mkmath_mclinic_popup_hide');
   if(!isPreview && hideUntil===todayStr){
-    mc.style.display='block';
+    // 오늘 이미 팝업을 닫아둔 경우 - 모달로 띄우지 않고 그냥 일반 페이지로만 보이게 함(인라인 스타일을 남기지 않아야
+    // 나중에 다른 메뉴로 이동해도 이 페이지가 계속 화면에 눌어붙어 있는 문제가 안 생김)
+    mc.style.cssText='';
   } else {
     var backdrop=document.createElement('div');
     backdrop.id='assistant-popup-backdrop';
