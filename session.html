@@ -581,13 +581,19 @@ tr:hover td{background:#fafbff;}
 
 <!-- 과제 추가 모달 -->
 <div class="modal-bg" id="add-hw-modal">
-  <div class="modal">
-    <h3>과제 추가</h3>
-    <div class="fg"><label>과제 이름</label><input type="text" id="hw-name-input" placeholder="예: 워크북 3단원"></div>
-    <div class="fg"><label>날짜 (선택)</label><input type="text" id="hw-range-input" placeholder="예: [07/17]"></div>
-    <div class="modal-btns">
-      <button class="btn-cl" onclick="closeAddHw()">취소</button>
-      <button class="btn-ok" onclick="saveHw()">추가</button>
+  <div class="modal" style="max-width:720px;display:flex;gap:20px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:220px;">
+      <h3>과제 추가</h3>
+      <div class="fg"><label>과제 이름</label><input type="text" id="hw-name-input" placeholder="예: 워크북 3단원"></div>
+      <div class="fg"><label>날짜 (선택)</label><input type="text" id="hw-range-input" placeholder="예: [07/17]"></div>
+      <div class="modal-btns">
+        <button class="btn-cl" onclick="closeAddHw()">취소</button>
+        <button class="btn-ok" onclick="saveHw()">추가</button>
+      </div>
+    </div>
+    <div style="flex:1;min-width:220px;border-left:1px solid #f1f5f9;padding-left:20px;">
+      <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:8px;">📋 게시판 "다음 시간까지의 과제" (참고용)</div>
+      <div id="hw-modal-board-ref" style="font-size:13px;color:#94a3b8;white-space:pre-wrap;line-height:1.6;max-height:320px;overflow-y:auto;">불러오는 중...</div>
     </div>
   </div>
 </div>
@@ -2185,7 +2191,16 @@ async function deleteHwFromDetail(){
   renderHwList();
   renderScores();
 }
-function openAddHw(){document.getElementById('hw-name-input').value='';document.getElementById('hw-range-input').value='';document.getElementById('add-hw-modal').classList.add('show');}
+async function openAddHw(){
+  document.getElementById('hw-name-input').value='';document.getElementById('hw-range-input').value='';document.getElementById('add-hw-modal').classList.add('show');
+  var ref=document.getElementById('hw-modal-board-ref');
+  ref.textContent='불러오는 중...';
+  try{
+    var r=await fetch(SU+'?action=getClassPosts&classId='+encodeURIComponent(classId)+'&category=assignment').then(function(r){return r.json();});
+    var posts=r.posts||[];
+    ref.textContent=posts.length ? (posts[0].title+'\n\n'+posts[0].content) : '등록된 글이 없어요. (강의 게시판 → 다음 시간까지의 과제)';
+  }catch(e){ ref.textContent='불러오기 실패'; }
+}
 function closeAddHw(){document.getElementById('add-hw-modal').classList.remove('show');}
 async function saveHw(){
   var name=document.getElementById('hw-name-input').value.trim();
