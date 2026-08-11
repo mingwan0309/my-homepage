@@ -1577,8 +1577,10 @@ function notifyTeacherAssistantEvent(type, assistantName){
     function p(n){ return (n<10?'0':'')+n; }
     var dateStr = now.getFullYear()+'-'+p(now.getMonth()+1)+'-'+p(now.getDate());
     var timeStr = p(now.getHours())+':'+p(now.getMinutes());
-    var title = type==='in' ? '조교 출근 알림' : '조교 퇴근 알림';
-    var verb = type==='in' ? '출근' : '퇴근';
+    var TITLES={in:'조교 출근 알림', out:'조교 퇴근 알림', breakstart:'조교 휴식 시작 알림', breakend:'조교 휴식 종료 알림'};
+    var VERBS={in:'출근', out:'퇴근', breakstart:'휴식을 시작', breakend:'휴식을 종료'};
+    var title = TITLES[type]||'조교 알림';
+    var verb = VERBS[type]||'';
     var body = {
       action:'sendAlimtalk',
       appToken: APP_SHARED_TOKEN,
@@ -1587,6 +1589,7 @@ function notifyTeacherAssistantEvent(type, assistantName){
     return (typeof _origFetch==='function'?_origFetch:window.fetch)(TEACHER_APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify(body) }).catch(function(){});
   }catch(e){}
 }
+window.mkNotifyAssistantEvent = notifyTeacherAssistantEvent;
 // 조교 로그인/로그아웃 시 자동 출퇴근 체크(각 페이지의 로그인/로그아웃 처리에서 호출)
 window.mkClockIn = function(session){
   return _dbReady.then(function(db){ return api.clockIn(db, { id:session.id, name:session.name }); })
