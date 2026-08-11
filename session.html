@@ -584,7 +584,11 @@ tr:hover td{background:#fafbff;}
   <div class="modal" style="max-width:720px;display:flex;gap:20px;flex-wrap:wrap;">
     <div style="flex:1;min-width:220px;">
       <h3>과제 추가</h3>
-      <div class="fg"><label>과제 이름 <span style="font-weight:400;color:#94a3b8;">(한 줄에 하나씩 입력하면 여러 개를 한 번에 추가해요)</span></label><textarea id="hw-name-input" placeholder="예: 워크북 3단원&#10;복습노트&#10;시험지 고쳐서 제출" style="width:100%;min-height:110px;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea></div>
+      <div class="fg">
+        <label>과제 이름 <span style="font-weight:400;color:#94a3b8;">(여러 개를 한 번에 추가할 수 있어요)</span></label>
+        <div id="hw-name-rows"></div>
+        <button type="button" onclick="addHwNameRow()" style="margin-top:6px;background:#f1f5f9;border:none;color:#475569;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">+ 칸 추가</button>
+      </div>
       <div class="fg"><label>날짜 (선택, 전체 공통)</label><input type="text" id="hw-range-input" placeholder="예: [07/17]"></div>
       <div class="modal-btns">
         <button class="btn-cl" onclick="closeAddHw()">취소</button>
@@ -2191,8 +2195,23 @@ async function deleteHwFromDetail(){
   renderHwList();
   renderScores();
 }
+function renderHwNameRows(){
+  var wrap=document.getElementById('hw-name-rows');
+  wrap.innerHTML='';
+  addHwNameRow();
+}
+function addHwNameRow(){
+  var wrap=document.getElementById('hw-name-rows');
+  var row=document.createElement('div');
+  row.style.cssText='display:flex;gap:6px;margin-bottom:8px;';
+  row.innerHTML='<input type="text" class="hw-name-row-input" placeholder="예: 워크북 3단원" style="flex:1;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;box-sizing:border-box;">'
+    +'<button type="button" onclick="this.parentElement.remove()" style="background:#f8fafc;border:1.5px solid #e2e8f0;color:#94a3b8;width:38px;border-radius:8px;cursor:pointer;font-size:16px;flex-shrink:0;">✕</button>';
+  wrap.appendChild(row);
+  row.querySelector('input').focus();
+}
 async function openAddHw(){
-  document.getElementById('hw-name-input').value='';document.getElementById('hw-range-input').value='';document.getElementById('add-hw-modal').classList.add('show');
+  renderHwNameRows();
+  document.getElementById('hw-range-input').value='';document.getElementById('add-hw-modal').classList.add('show');
   var ref=document.getElementById('hw-modal-board-ref');
   ref.textContent='불러오는 중...';
   try{
@@ -2203,7 +2222,7 @@ async function openAddHw(){
 }
 function closeAddHw(){document.getElementById('add-hw-modal').classList.remove('show');}
 async function saveHw(){
-  var names=document.getElementById('hw-name-input').value.split('\n').map(function(s){return s.trim();}).filter(function(s){return s;});
+  var names=Array.prototype.map.call(document.querySelectorAll('.hw-name-row-input'),function(inp){return inp.value.trim();}).filter(function(s){return s;});
   var range=document.getElementById('hw-range-input').value.trim();
   if(!names.length){alert('과제 이름을 입력해주세요');return;}
   var btn=document.querySelector('#add-hw-modal .btn-ok');
