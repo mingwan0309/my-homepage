@@ -119,10 +119,11 @@ tr:hover td{background:#fafbff;}
 .mat-layout{display:flex;gap:16px;align-items:flex-start;}
 .mat-sidebar{width:190px;flex-shrink:0;background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;}
 .mat-sidebar-title{padding:14px 16px;font-size:13px;font-weight:700;color:#94a3b8;border-bottom:1px solid #f1f5f9;}
-.mat-cat{padding:11px 16px;font-size:14px;font-weight:600;color:#334155;cursor:pointer;border-left:3px solid transparent;transition:.15s;display:flex;align-items:center;justify-content:space-between;}
+.mat-cat{padding:11px 16px;font-size:14px;font-weight:600;color:#334155;cursor:pointer;border-left:3px solid transparent;transition:.15s;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
 .mat-cat:hover{background:#f8fafc;}
 .mat-cat.active{color:#3b6cf7;background:#eff4ff;border-left-color:#3b6cf7;}
-.mat-cat-count{font-size:12px;color:#94a3b8;background:#f1f5f9;border-radius:20px;padding:1px 8px;font-weight:600;}
+.mat-cat>span:first-child{flex:1;line-height:1.4;}
+.mat-cat-count{font-size:12px;color:#94a3b8;background:#f1f5f9;border-radius:20px;padding:1px 8px;font-weight:600;flex-shrink:0;margin-top:1px;}
 .mat-cat.active .mat-cat-count{background:#dbeafe;color:#3b6cf7;}
 .mat-main{flex:1;min-width:0;}
 .btn-add-mat{background:#3b6cf7;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
