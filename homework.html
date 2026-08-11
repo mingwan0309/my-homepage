@@ -382,7 +382,11 @@ window.addEventListener('DOMContentLoaded', function() {
     // 관리 페이지의 '문제 등록'/'점수 현황' 카드는 ?from=admin 을 붙여서 들어오고,
     // 그게 없으면(즐겨찾기/카톡 링크 등으로 곧장 들어온 경우) referrer를 믿지 않고 항상 관리 페이지로 보낸다.
     var fromAdmin = new URLSearchParams(location.search).get('from') === 'admin';
-    if (session.role === 'teacher') {
+    if (session.role === 'assistant') {
+      // 조교는 이 페이지(데일리 퀴즈 관리)를 쓸 일이 없으니 항상 관리 페이지로
+      location.replace('admin.html');
+      return;
+    } else if (session.role === 'teacher') {
       if (!fromAdmin) {
         location.replace('admin.html');
         return;
