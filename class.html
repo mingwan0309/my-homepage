@@ -124,6 +124,8 @@ tr:hover td{background:#fafbff;}
 .mat-cat.active{color:#3b6cf7;background:#eff4ff;border-left-color:#3b6cf7;}
 .mat-cat>span:first-child{flex:1;line-height:1.4;}
 .mat-cat-count{font-size:12px;color:#94a3b8;background:#f1f5f9;border-radius:20px;padding:1px 8px;font-weight:600;flex-shrink:0;margin-top:1px;}
+.mat-cat.board-cat{align-items:center;}
+.mat-cat.board-cat>span:first-child{line-height:1.4;}
 .mat-cat.active .mat-cat-count{background:#dbeafe;color:#3b6cf7;}
 .mat-main{flex:1;min-width:0;}
 .btn-add-mat{background:#3b6cf7;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
@@ -346,11 +348,11 @@ tr:hover td{background:#fafbff;}
   <div class="mat-layout">
     <div class="mat-sidebar">
       <div class="mat-sidebar-title">게시판</div>
-      <div class="mat-cat active" onclick="selectBoardCat('typo',this)">
-        <span>✏️ 오탈자 및 정정사항</span><span class="mat-cat-count" id="cnt-board-typo">0</span>
+      <div class="mat-cat board-cat active" onclick="selectBoardCat('typo',this)">
+        <span>✏️ 오탈자 및<br>정정사항</span><span class="mat-cat-count" id="cnt-board-typo">0</span>
       </div>
-      <div class="mat-cat" onclick="selectBoardCat('assignment',this)">
-        <span>📋 다음 시간까지의 과제</span><span class="mat-cat-count" id="cnt-board-assignment">0</span>
+      <div class="mat-cat board-cat" onclick="selectBoardCat('assignment',this)">
+        <span>📋 다음 시간까지의<br>과제</span><span class="mat-cat-count" id="cnt-board-assignment">0</span>
       </div>
     </div>
     <div class="mat-main">
