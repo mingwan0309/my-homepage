@@ -400,7 +400,7 @@ tr:hover td{background:#fafbff;}
       <div class="sub" id="panel-sub"></div>
       <div class="score-input-wrap">
         <label>점수 <span id="panel-max-score" style="font-weight:400;color:#94a3b8;font-size:12px;"></span></label>
-        <input class="score-input" type="number" id="panel-score" placeholder="—" oninput="autoPassFromScore()">
+        <input class="score-input" type="number" id="panel-score" placeholder="—" oninput="autoPassFromScore()" onchange="autoPassFromScore()">
       </div>
       <div class="pass-btns">
         <button class="pass-btn" id="btn-submit" onclick="togglePass('submit')">통과</button>
@@ -1874,10 +1874,11 @@ function openPanel(studentId, examId){
   var sc=(scoresMap[studentId]||{})[examId];
   document.getElementById('panel-score').value=sc&&sc.score!==''?sc.score:'';
   panelPass=sc?sc.pass||'':'';
+  document.getElementById('panel-feedback').value=sc?sc.feedback||'':'';
   if(sc&&sc.score!==''&&exam.passCutoff!==undefined&&exam.passCutoff!==''&&exam.passCutoff!==null){
     panelPass=Number(sc.score)>=Number(exam.passCutoff)?'submit':'nosub';
+    document.getElementById('panel-feedback').value=EXAM_STATUS_TEMPLATE[panelPass]||'';
   }
-  document.getElementById('panel-feedback').value=sc?sc.feedback||'':'';
   updatePassBtns();
   renderPanelStats(examId, sc&&sc.score!==''?sc.score:'');
   document.getElementById('score-panel').classList.add('open');
