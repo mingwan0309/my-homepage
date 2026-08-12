@@ -91,6 +91,7 @@ tr:hover td{background:#fafbff;}
 .pass-btn{flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:12px;font-weight:700;cursor:pointer;transition:.12s;color:#475569;}
 .pass-btn.submit-active{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
 .pass-btn.nosub-active{background:#fee2e2;border-color:#dc2626;color:#dc2626;}
+.pass-btn.absent-active{background:#f1f5f9;border-color:#64748b;color:#475569;}
 .pass-btn.partial-active{background:#fef9c3;border-color:#ca8a04;color:#92400e;}
 .pass-btn.incomplete-active{background:#fee2e2;border-color:#dc2626;color:#dc2626;}
 .pass-btn.notsub-active{background:#f1f5f9;border-color:#64748b;color:#475569;}
@@ -405,6 +406,7 @@ tr:hover td{background:#fafbff;}
       <div class="pass-btns">
         <button class="pass-btn" id="btn-submit" onclick="togglePass('submit')">통과</button>
         <button class="pass-btn" id="btn-nosub" onclick="togglePass('nosub')">미통과</button>
+        <button class="pass-btn" id="btn-absent" onclick="togglePass('absent')">미응시</button>
       </div>
       <div class="feedback-wrap">
         <label>코멘트</label>
@@ -821,19 +823,26 @@ tr:hover td{background:#fafbff;}
 
 <!-- 시험 추가 모달 -->
 <div class="modal-bg" id="add-exam-modal">
-  <div class="modal">
-    <h3>시험 추가</h3>
-    <div class="fg" style="margin-bottom:10px;">
-      <label style="font-size:13px;color:#64748b;margin-bottom:6px;display:block;">빠른 선택</label>
-      <div style="display:flex;flex-wrap:wrap;gap:7px;">
-        <button type="button" onclick="setExamPreset('데일리테스트')" class="exam-preset-btn">데일리테스트</button>
-        <button type="button" onclick="setExamPresetNum('실전모의고사')" class="exam-preset-btn">실전모의고사 N회</button>
+  <div class="modal" style="max-width:720px;display:flex;gap:20px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:220px;">
+      <h3>시험 추가</h3>
+      <div class="fg" style="margin-bottom:10px;">
+        <label style="font-size:13px;color:#64748b;margin-bottom:6px;display:block;">빠른 선택</label>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;">
+          <button type="button" onclick="setExamPreset('데일리테스트')" class="exam-preset-btn">데일리테스트</button>
+          <button type="button" onclick="setExamPresetNum('실전모의고사')" class="exam-preset-btn">실전모의고사 N회</button>
+        </div>
+      </div>
+      <div class="fg"><label>시험 이름</label><input type="text" id="exam-name-input" placeholder="예: 실전모의고사 1회"></div>
+      <div class="fg" id="exam-copy-status" style="font-size:12px;color:#3b6cf7;font-weight:700;display:none;"></div>
+      <div class="modal-btns">
+        <button class="btn-cl" onclick="closeAddExam()">취소</button>
+        <button class="btn-ok" onclick="saveExam()">추가</button>
       </div>
     </div>
-    <div class="fg"><label>시험 이름</label><input type="text" id="exam-name-input" placeholder="예: 실전모의고사 1회"></div>
-    <div class="modal-btns">
-      <button class="btn-cl" onclick="closeAddExam()">취소</button>
-      <button class="btn-ok" onclick="saveExam()">추가</button>
+    <div style="flex:1;min-width:220px;border-left:1px solid #f1f5f9;padding-left:20px;">
+      <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:8px;">📋 최근 시험 (이 반)</div>
+      <div id="exam-modal-board-ref" style="font-size:13px;color:#94a3b8;line-height:1.6;max-height:320px;overflow-y:auto;">불러오는 중...</div>
     </div>
   </div>
 </div>
@@ -1244,12 +1253,15 @@ function renderScores(){
     var attBadge='<span class="status-badge s'+(att.status||'미정')+'">'+(att.status||'미정')+'</span>';
     var scoreCols=exams.map(function(ex){
       var sc=(scoresMap[st.id]||{})[ex.id];
+      if(sc&&sc.pass==='absent'&&sc.score===''){
+        return '<td class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')"><span style="color:#64748b;font-size:11px;font-weight:700;">미응시</span></td>';
+      }
       if(sc&&sc.score!==''){
         var pass=sc.pass;
-        if(ex.passCutoff!==undefined && ex.passCutoff!=='' && ex.passCutoff!==null){
+        if(ex.passCutoff!==undefined && ex.passCutoff!=='' && ex.passCutoff!==null && pass!=='absent'){
           pass=Number(sc.score)>=Number(ex.passCutoff)?'submit':'nosub';
         }
-        var passIcon=pass==='submit'?'<span style="color:#16a34a;font-size:10px;"> 통과</span>':pass==='nosub'?'<span style="color:#dc2626;font-size:10px;"> 미통과</span>':'';
+        var passIcon=pass==='submit'?'<span style="color:#16a34a;font-size:10px;"> 통과</span>':pass==='nosub'?'<span style="color:#dc2626;font-size:10px;"> 미통과</span>':pass==='absent'?'<span style="color:#64748b;font-size:10px;"> 미응시</span>':'';
         var scoreUnit=(ex.scoreType||'score')==='count'?'개':'점';
         var scoreDisp=ex.totalQuestions&&ex.scoreType==='count'?sc.score+'/'+ex.totalQuestions+'개':sc.score+scoreUnit;
         return '<td class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+scoreDisp+passIcon+'</td>';
@@ -2010,7 +2022,8 @@ function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt
 
 var EXAM_STATUS_TEMPLATE={
   submit:'금일 TEST 결과가 기준을 달성하였습니다. 수고하셨습니다!',
-  nosub:'금일 TEST 결과가 기준에 미달하였습니다.\n보완 학습을 위해 다음 수업까지 추가 문항을 풀어 제출해 주시기 바랍니다.'
+  nosub:'금일 TEST 결과가 기준에 미달하였습니다.\n보완 학습을 위해 다음 수업까지 추가 문항을 풀어 제출해 주시기 바랍니다.',
+  absent:'금일 TEST를 응시하지 못했습니다.\n다음 수업 전까지 보충 응시가 필요합니다.'
 };
 function togglePass(p){
   panelPass=panelPass===p?'':p;
@@ -2082,6 +2095,7 @@ function renderPanelStats(examId, myScore){
 function updatePassBtns(){
   document.getElementById('btn-submit').className='pass-btn'+(panelPass==='submit'?' submit-active':'');
   document.getElementById('btn-nosub').className='pass-btn'+(panelPass==='nosub'?' nosub-active':'');
+  document.getElementById('btn-absent').className='pass-btn'+(panelPass==='absent'?' absent-active':'');
 }
 
 async function saveScore(){
@@ -2100,20 +2114,79 @@ async function saveScore(){
 }
 
 // 시험 추가
-function openAddExam(){document.getElementById('exam-name-input').value='';document.getElementById('add-exam-modal').classList.add('show');}
+var examCopySource=null; // 참고 목록에서 '복사' 누른 시험 설정(있으면 커트라인 등을 그대로 이어받음)
+var allClassExams=[];
+async function openAddExam(){
+  document.getElementById('exam-name-input').value='';
+  examCopySource=null;
+  document.getElementById('exam-copy-status').style.display='none';
+  document.getElementById('add-exam-modal').classList.add('show');
+  var ref=document.getElementById('exam-modal-board-ref');
+  ref.textContent='불러오는 중...';
+  await loadAllClassExams();
+  renderExamModalRef();
+}
+async function loadAllClassExams(){
+  if(!classSessions.length){ allClassExams=exams.map(function(e){return Object.assign({},e,{sessionNum:sessionInfo?sessionInfo.sessionNum:''});}); return; }
+  try{
+    var results=await Promise.all(classSessions.map(function(s){
+      return fetch(SU+'?action=getExams&sessionId='+encodeURIComponent(s.id)).then(function(r){return r.json();});
+    }));
+    var list=[];
+    classSessions.forEach(function(s,i){
+      var exs=(results[i]&&results[i].exams)||[];
+      exs.forEach(function(e){ list.push(Object.assign({},e,{sessionNum:s.sessionNum})); });
+    });
+    list.sort(function(a,b){ return Number(b.sessionNum)-Number(a.sessionNum); }); // 최근 차시가 위로
+    allClassExams=list;
+  }catch(e){
+    allClassExams=exams.map(function(e){return Object.assign({},e,{sessionNum:sessionInfo?sessionInfo.sessionNum:''});});
+  }
+}
+function renderExamModalRef(){
+  var ref=document.getElementById('exam-modal-board-ref');
+  if(!allClassExams.length){ ref.textContent='최근에 만든 시험이 없어요.'; return; }
+  ref.innerHTML=allClassExams.slice(0,15).map(function(e){
+    var unit=(e.scoreType||'score')==='count'?'개':'점';
+    var info=[];
+    if(e.totalQuestions) info.push('총 '+e.totalQuestions+unit.replace('점','점 만점').replace('개','개 문항'));
+    if(e.passCutoff!=='') info.push('커트라인 '+e.passCutoff+unit);
+    return '<div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:8px;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;">'
+      +'<span style="font-weight:700;font-size:13px;">'+escHtml(e.name)+'</span>'
+      +'<button type="button" onclick=\'copyExamSetting('+JSON.stringify(e).replace(/'/g,"&#39;")+')\' style="background:#3b6cf7;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;">복사</button>'
+      +'</div>'
+      +'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+(e.sessionNum?e.sessionNum+'차시 · ':'')+(info.length?info.join(' · '):'설정값 없음')+'</div>'
+      +'</div>';
+  }).join('');
+}
+function copyExamSetting(e){
+  examCopySource=e;
+  document.getElementById('exam-name-input').value=e.name;
+  var st=document.getElementById('exam-copy-status');
+  st.style.display='';
+  st.textContent='"'+e.name+'" 시험의 설정(입력방식/총문항수/커트라인)을 그대로 가져와요.';
+}
 function closeAddExam(){document.getElementById('add-exam-modal').classList.remove('show');}
-function setExamPreset(name){document.getElementById('exam-name-input').value=name;}
+function setExamPreset(name){document.getElementById('exam-name-input').value=name;examCopySource=null;document.getElementById('exam-copy-status').style.display='none';}
 function setExamPresetNum(prefix){
   var cur=document.getElementById('exam-name-input').value;
   var m=cur.match(/(\d+)/);
   var n=m?parseInt(m[1]):1;
   var next=cur.startsWith(prefix)?(n+1):1;
   document.getElementById('exam-name-input').value=prefix+' '+next+'회';
+  examCopySource=null;document.getElementById('exam-copy-status').style.display='none';
 }
 async function saveExam(){
   var name=document.getElementById('exam-name-input').value.trim();
   if(!name){alert('시험 이름을 입력해주세요');return;}
-  var r=await fetch(SU+'?action=addExam&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(name)).then(r=>r.json());
+  var url=SU+'?action=addExam&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(name);
+  if(examCopySource){
+    url+='&scoreType='+encodeURIComponent(examCopySource.scoreType||'score')
+      +'&totalQuestions='+encodeURIComponent(examCopySource.totalQuestions||'')
+      +'&passCutoff='+encodeURIComponent(examCopySource.passCutoff||'');
+  }
+  var r=await fetch(url).then(r=>r.json());
   if(r.success){closeAddExam();await loadScores();renderExamList();}
 }
 async function deleteExam(examId, e){

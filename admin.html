@@ -50,6 +50,8 @@ tr:hover td { background:#f8fafc; }
 .hw-action-btn { padding:9px 14px; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; min-height:40px; font-family:inherit; }
 #hw-bulk-bar button:disabled{ opacity:.4; cursor:not-allowed; }
 /* 숙제관리 반별 드롭다운 */
+.hwtest-subtab{background:#f8fafc;border:1.5px solid #e2e8f0;color:#64748b;padding:8px 16px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+.hwtest-subtab.active{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8;}
 .vid-drop-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f8fafc;border:1px solid #eef2f6;border-radius:11px;padding:13px 15px;font-size:14px;font-weight:800;color:#334155;cursor:pointer;font-family:inherit;text-align:left;}
 .vid-drop-head:hover{border-color:#c7d2fe;background:#f4f7ff;}
 .vid-drop-head .cnt{background:#eef2ff;color:#3b6cf7;font-size:11px;font-weight:800;border-radius:20px;padding:1px 9px;margin-left:6px;}
@@ -241,7 +243,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">📝</span> 관리 <span class="nav-group-arrow">▾</span></div>
         <div class="nav-group-body">
           <div class="nav-item" onclick="showPage('signals',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
-          <div class="nav-item" onclick="showPage('hwmanage',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
+          <div class="nav-item" onclick="showPage('hwmanage',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📝</span> 숙제/테스트 관리 <span id="hw-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
         </div>
       </div>
       <div class="nav-item" onclick="showPage('notice',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📢</span> 공지</div>
@@ -295,7 +297,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">📝</span> 관리 <span class="nav-group-arrow">▾</span></div>
         <div class="nav-group-body">
           <div class="nav-item" onclick="showPage('signals',this)"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
-          <div class="nav-item" onclick="showPage('hwmanage',this)"><span class="ni">📝</span> 숙제관리 <span id="hw-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
+          <div class="nav-item" onclick="showPage('hwmanage',this)"><span class="ni">📝</span> 숙제/테스트 관리 <span id="hw-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
         </div>
       </div>
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
@@ -550,21 +552,31 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       </div>
     </div>
 
-    <!-- 숙제관리 (미이행/일부미이행 학생 확인·재촉·완료처리) -->
+    <!-- 숙제관리 & 테스트 관리 -->
     <div id="page-hwmanage" class="page">
-      <div class="page-header"><div class="page-title">숙제관리</div><button type="button" onclick="showAllHwReminderHistory()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">🔔 전체 재촉 알림 이력</button></div>
-      <p style="font-size:12px;color:#94a3b8;margin:-10px 0 14px;">'일부미이행' 또는 '미이행'으로 표시된 과제만 모아서 보여줘요. 완료로 바뀌면 이 목록에서 자동으로 빠져요.</p>
-      <label id="hw-mine-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;margin:-6px 0 12px;">
-        <input type="checkbox" id="hw-mine" checked onchange="toggleHwMineOnly(this.checked)"> 내 담당 학생만 보기
-      </label>
-      <div id="hw-bulk-bar" style="display:none;position:sticky;top:0;z-index:5;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span style="font-size:13px;font-weight:800;color:#1d4ed8;"><span id="hw-bulk-count">0</span>명 선택됨</span>
-        <button type="button" onclick="hwSelectAll()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">전체선택</button>
-        <button type="button" onclick="hwClearSelect()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">선택해제</button>
-        <button type="button" id="hw-bulk-remind-btn" disabled onclick="bulkSendHwReminder()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">🔔 선택 재촉 띵동띵동</button>
-        <button type="button" id="hw-bulk-complete-btn" disabled onclick="bulkMarkHwComplete()" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">✓ 선택 완료 처리</button>
+      <div class="page-header"><div class="page-title">숙제관리 &amp; 테스트 관리</div><button type="button" id="hw-history-btn" onclick="showAllHwReminderHistory()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">🔔 전체 재촉 알림 이력</button></div>
+      <div style="display:flex;gap:8px;margin:-8px 0 14px;">
+        <button type="button" id="hwtest-tab-hw" class="hwtest-subtab active" onclick="switchHwTestTab('hw')">📋 숙제관리</button>
+        <button type="button" id="hwtest-tab-test" class="hwtest-subtab" onclick="switchHwTestTab('test')">📝 테스트 관리</button>
       </div>
-      <div id="hwmanage-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
+      <div id="hwtest-pane-hw">
+        <p style="font-size:12px;color:#94a3b8;margin:-4px 0 14px;">'일부미이행' 또는 '미이행'으로 표시된 과제만 모아서 보여줘요. 완료로 바뀌면 이 목록에서 자동으로 빠져요.</p>
+        <label id="hw-mine-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;margin:-6px 0 12px;">
+          <input type="checkbox" id="hw-mine" checked onchange="toggleHwMineOnly(this.checked)"> 내 담당 학생만 보기
+        </label>
+        <div id="hw-bulk-bar" style="display:none;position:sticky;top:0;z-index:5;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:800;color:#1d4ed8;"><span id="hw-bulk-count">0</span>명 선택됨</span>
+          <button type="button" onclick="hwSelectAll()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">전체선택</button>
+          <button type="button" onclick="hwClearSelect()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">선택해제</button>
+          <button type="button" id="hw-bulk-remind-btn" disabled onclick="bulkSendHwReminder()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">🔔 선택 재촉 띵동띵동</button>
+          <button type="button" id="hw-bulk-complete-btn" disabled onclick="bulkMarkHwComplete()" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">✓ 선택 완료 처리</button>
+        </div>
+        <div id="hwmanage-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
+      </div>
+      <div id="hwtest-pane-test" style="display:none;">
+        <p style="font-size:12px;color:#94a3b8;margin:-4px 0 14px;">시험 점수 입력 화면에서 '미통과'이거나, 조교/교사가 직접 '미응시'로 표시한 학생만 모아서 보여줘요. 재시험을 보고 '해결' 처리하면 이 목록에서 빠져요.</p>
+        <div id="testmanage-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
+      </div>
     </div>
 
     <!-- 활동 로그 -->
@@ -1132,7 +1144,7 @@ function showPage(page,el){
   if(page==='notice') loadNotices();
   if(page==='clinic') loadClinics();
   if(page==='mclinic') loadMclinic();
-  if(page==='hwmanage') loadHwManage();
+  if(page==='hwmanage'){ switchHwTestTab('hw'); loadHwManage(); }
   if(page==='activitylog') loadActivityLog();
   if(page==='chat') initChatPage();
   if(page==='videos') initVideoPage();
@@ -2628,6 +2640,107 @@ async function bulkMarkHwComplete(){
   loadHwManage();
 }
 
+// ── 테스트 관리 (미통과/미응시 재시험 안내·완료처리) ──
+var testmanageList=[], testmanageLoaded=false, hwTestActiveTab='hw';
+function switchHwTestTab(tab){
+  hwTestActiveTab=tab;
+  document.getElementById('hwtest-tab-hw').classList.toggle('active',tab==='hw');
+  document.getElementById('hwtest-tab-test').classList.toggle('active',tab==='test');
+  document.getElementById('hwtest-pane-hw').style.display=tab==='hw'?'':'none';
+  document.getElementById('hwtest-pane-test').style.display=tab==='test'?'':'none';
+  var histBtn=document.getElementById('hw-history-btn');
+  if(histBtn) histBtn.style.display=tab==='hw'?'':'none';
+  if(tab==='test' && !testmanageLoaded) loadTestManage();
+}
+async function loadTestManage(){
+  var el=document.getElementById('testmanage-list');
+  el.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  try{
+    var r=await fetch(SU+'?action=getExamAlerts').then(function(r){return r.json();});
+    testmanageList=r.items||[];
+    testmanageLoaded=true;
+    renderTestManageList();
+  }catch(e){
+    el.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
+  }
+}
+var TEST_KIND_LABEL={nosub:'미통과',absent:'미응시'};
+function renderTestCard(t){
+  var badgeColor = t.kind==='absent' ? '#475569' : '#dc2626';
+  var badgeBg = t.kind==='absent' ? '#f1f5f9' : '#fee2e2';
+  var lastRem = t.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재시험 안내: '+t.lastReminderAt+(t.lastReminderBy?' · '+t.lastReminderBy:'')+'</div>' : '';
+  return '<div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#fff;">'
+    +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
+    +'<div>'
+    +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;">'+escHtml(t.studentName)+' <span style="font-weight:800;color:#3b6cf7;font-size:14px;">'+(t.sessionNum?t.sessionNum+'차시':'')+'</span></div>'
+    +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(t.examName)+(t.score!==''?' · '+t.score+'점':'')+'</div>'
+    +lastRem
+    +'</div>'
+    +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+TEST_KIND_LABEL[t.kind]+'</span>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
+    +'<button class="hw-action-btn" onclick="sendExamReminder(\''+t.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 재시험 안내</button>'
+    +'<button class="hw-action-btn" onclick="markExamResolved(\''+t.id+'\')" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;">✓ 해결 처리</button>'
+    +'</div>'
+    +'</div>';
+}
+function renderTestManageList(){
+  var el=document.getElementById('testmanage-list');
+  var srcList=testmanageList;
+  if(astHasMyStudents()) srcList=srcList.filter(function(t){ return cu.studentIds.indexOf(t.studentId)>-1; });
+  if(!srcList.length){
+    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">🎉 재시험이 필요한 학생이 없어요.</div>';
+    return;
+  }
+  var groups={}, order=[];
+  srcList.forEach(function(t){
+    var cls=t.className||'반 미배정';
+    if(!groups[cls]){ groups[cls]=[]; order.push(cls); }
+    groups[cls].push(t);
+  });
+  order.sort(function(a,b){ return a.localeCompare(b,'ko'); });
+  el.innerHTML=order.map(function(cls){
+    var items=groups[cls];
+    var cardsHtml=items.map(renderTestCard).join('');
+    return '<div style="margin-bottom:14px;">'
+      + '<button type="button" class="vid-drop-head open" data-cls="'+escHtml(cls)+'" onclick="toggleHwClassDrop(this)">'
+      +   '<span>🏫 '+escHtml(cls)+' <span class="cnt">'+items.length+'</span></span>'
+      +   '<span class="vid-drop-arrow">▾</span>'
+      + '</button>'
+      + '<div class="vid-drop-body" style="display:block;margin-top:8px;">'+cardsHtml+'</div>'
+      + '</div>';
+  }).join('');
+}
+async function sendExamReminder(id){
+  var t=testmanageList.find(function(x){return x.id===id;});
+  if(!t)return;
+  var text = t.kind==='absent'
+    ? '['+t.examName+'] 시험에 응시하지 못했어요. 다음 수업 시간까지 보충 응시가 필요합니다!'
+    : '['+t.examName+'] 시험 결과가 기준에 미달했어요. 다음 수업 시간까지 재시험이 필요합니다!';
+  if(!confirm(t.studentName+' 학생에게 아래 알림톡을 보낼까요?\n(카카오 알림톡 발송 - 비용이 발생합니다)\n\n"'+text+'"'))return;
+  var msgs=[];
+  if(t.studentPhone) msgs.push({phone:t.studentPhone, name:t.studentName, className:t.className||'시험 알림', sessionNum:t.examName, message:text});
+  if(t.parentPhone) msgs.push({phone:t.parentPhone, name:t.studentName, className:t.className||'시험 알림', sessionNum:t.examName, message:text});
+  if(!msgs.length){ alert('⚠️ 등록된 전화번호가 없어서 알림톡을 보낼 수 없어요.'); return; }
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+    if(r.success){
+      await fetch(SU+'?action=markExamReminderSent&id='+encodeURIComponent(t.id)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||''));
+      alert('알림톡 발송 완료!');
+      loadTestManage();
+    } else {
+      alert('발송 실패: '+(r.msg||''));
+    }
+  }catch(e){ alert('발송 중 오류: '+e.message); }
+}
+async function markExamResolved(id){
+  var t=testmanageList.find(function(x){return x.id===id;});
+  if(!t)return;
+  if(!confirm(t.studentName+' 학생의 "'+t.examName+'" 항목을 해결 처리할까요? (재시험을 보고 통과했거나 별도로 확인된 경우)'))return;
+  await fetch(SU+'?action=markExamAlertResolved&id='+encodeURIComponent(t.id));
+  loadTestManage();
+}
+
 // ── 설문조사 ──
 var svList=[], svEditing=null, svQuestions=[], svDetailTab='settings';
 async function loadSurveys(){
@@ -3665,16 +3778,22 @@ function renderActiveAstWidget(active){
   if(!el){
     el=document.createElement('div');
     el.id='active-ast-widget';
-    el.style.cssText='position:fixed;bottom:20px;right:20px;z-index:500;display:flex;align-items:center;gap:6px;';
+    el.style.cssText='position:fixed;bottom:20px;right:20px;z-index:500;background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.12);padding:10px 14px;min-width:150px;';
     document.body.appendChild(el);
   }
-  if(!active.length){ el.innerHTML=''; return; }
-  el.innerHTML='<span style="font-size:11px;font-weight:700;color:#64748b;background:#fff;padding:6px 10px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,.1);">근무 중인 조교</span>'
+  if(!active.length){ el.innerHTML=''; el.style.padding='0'; return; }
+  el.style.padding='10px 14px';
+  el.innerHTML='<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px;">근무 중인 조교</div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px;">'
     +active.map(function(a){
       var initial=(a.assistantName||'?').charAt(0);
       var color=bc(a.assistantName||a.assistantId||'');
-      return '<div title="'+(a.assistantName||a.assistantId)+' — '+a.clockIn+'부터 근무 중" style="width:32px;height:32px;border-radius:50%;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;cursor:default;box-shadow:0 2px 8px rgba(0,0,0,.15);border:2px solid #fff;">'+initial+'</div>';
-    }).join('');
+      return '<div title="'+(a.assistantName||a.assistantId)+' — '+a.clockIn+'부터 근무 중" style="display:flex;align-items:center;gap:8px;">'
+        +'<div style="flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">'+initial+'</div>'
+        +'<span style="font-size:13px;font-weight:700;color:#1e293b;">'+escHtml(a.assistantName||a.assistantId||'')+'</span>'
+        +'</div>';
+    }).join('')
+    +'</div>';
 }
 
 function openWlogModal(astId){

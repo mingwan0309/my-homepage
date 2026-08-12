@@ -658,7 +658,9 @@ api.saveScore = function(db, p){
 api.addExam = function(db, p){
   var id = genId('exam');
   return db.collection('exams').doc(id).set({
-    id:id, sessionId:String(p.sessionId), name:p.name||'시험', createdAt:nowStr()
+    id:id, sessionId:String(p.sessionId), name:p.name||'시험',
+    range:p.range||'', totalQuestions:p.totalQuestions||'', scoreType:p.scoreType||'score', passCutoff:p.passCutoff||'',
+    createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };
 
@@ -949,6 +951,53 @@ api.getIncompleteHomeworks = function(db){
       });
     });
   });
+};
+
+// 재시험 필요(미통과) / 미응시 시험 목록 (완료 처리 안 된 것만, 숙제관리의 getIncompleteHomeworks와 동일한 패턴)
+api.getExamAlerts = function(db){
+  return db.collection('scores').where('pass','in',['nosub','absent']).get().then(function(snap){
+    var rows = docsToArr(snap).filter(function(r){ return !r.alertResolved; });
+    if (!rows.length) return { items: [] };
+    var examIds=[], sessionIds=[], studentIds=[];
+    rows.forEach(function(r){
+      if (examIds.indexOf(r.examId) < 0) examIds.push(r.examId);
+      if (sessionIds.indexOf(r.sessionId) < 0) sessionIds.push(r.sessionId);
+      if (studentIds.indexOf(r.studentId) < 0) studentIds.push(r.studentId);
+    });
+    return Promise.all([
+      Promise.all(examIds.map(function(id){ return db.collection('exams').doc(id).get(); })),
+      Promise.all(sessionIds.map(function(id){ return db.collection('sessions').doc(id).get(); })),
+      Promise.all(studentIds.map(function(id){ return db.collection('students').doc(id).get(); }))
+    ]).then(function(res){
+      var examMap={}; res[0].forEach(function(d){ if(d.exists) examMap[d.id]=d.data(); });
+      var sesMap={}; res[1].forEach(function(d){ if(d.exists) sesMap[d.id]=d.data(); });
+      var stuMap={}; res[2].forEach(function(d){ if(d.exists) stuMap[d.id]=d.data(); });
+      var classIds=[];
+      Object.keys(sesMap).forEach(function(k){ var cid=String(sesMap[k].classId||''); if(cid && classIds.indexOf(cid)<0) classIds.push(cid); });
+      return Promise.all(classIds.map(function(id){ return db.collection('classes').doc(id).get(); })).then(function(classDocs){
+        var clsMap={}; classDocs.forEach(function(d){ if(d.exists) clsMap[d.id]=d.data(); });
+        var items = rows.map(function(r){
+          var ex=examMap[r.examId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{}, stu=stuMap[r.studentId]||{};
+          return {
+            id:r.id, sessionId:String(r.sessionId), examId:String(r.examId), studentId:String(r.studentId),
+            kind:r.pass, score:r.score||'', feedback:r.feedback||'',
+            lastReminderAt:r.retestReminderAt||'', lastReminderBy:r.retestReminderBy||'',
+            examName:ex.name||'(삭제된 시험)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
+            classId:String(ses.classId||''), className:cls.name||'',
+            studentName:stu.name||r.studentId, studentPhone:r.studentId, parentPhone:stu.parentPhone||''
+          };
+        });
+        items.sort(function(a,b){ return (a.sessionDate||'') < (b.sessionDate||'') ? -1 : 1; });
+        return { items: items };
+      });
+    });
+  });
+};
+api.markExamAlertResolved = function(db, p){
+  return db.collection('scores').doc(String(p.id)).set({ alertResolved:true },{merge:true}).then(function(){ return { success:true }; });
+};
+api.markExamReminderSent = function(db, p){
+  return db.collection('scores').doc(String(p.id)).set({ retestReminderAt:nowStr(), retestReminderBy:p.by||'' },{merge:true}).then(function(){ return { success:true }; });
 };
 
 // 지금까지 보낸 재촉 알림 전체 이력 (완료 처리된 학생 것도 포함, 최신순)
