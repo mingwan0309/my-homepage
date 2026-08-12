@@ -640,6 +640,7 @@ tr:hover td{background:#fafbff;}
         <button onclick="closeMsgModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
       </div>
     </div>
+    <div id="msg-already-sent-banner" style="display:none;padding:10px 24px;background:#fff7ed;color:#c2410c;font-size:12.5px;font-weight:700;border-bottom:1px solid #fde8d0;flex-shrink:0;"></div>
     <!-- 바디 3단 (모바일에서는 세로로 쌓임) -->
     <div class="msg-body-grid" style="display:grid;grid-template-columns:240px 1fr 1.25fr;gap:0;flex:1;overflow:hidden;min-height:0;">
       <!-- 1열: 카카오톡 미리보기 -->
@@ -1346,6 +1347,7 @@ async function doSendAlimtalk(){
     if(data.success){
       saveMsgHistoryEntry(template,'send');
       saveMsgSendHistory(messages,true,'');
+      fetch(SU+'?action=addMsgSendLog&sessionId='+encodeURIComponent(sessionId)+'&classId='+encodeURIComponent(classId)+'&className='+encodeURIComponent(className)+'&sessionNum='+encodeURIComponent(sessionNum)+'&count='+encodeURIComponent(messages.length)+'&success=true&sentBy='+encodeURIComponent((session&&session.name)||'')).catch(function(){});
       var reportItems=[];
       ids.forEach(function(id){ (mcTestReportQueue[id]||[]).forEach(function(it){ reportItems.push(it); }); });
       if(reportItems.length){
@@ -1497,6 +1499,19 @@ async function openMsgModal(){
   renderMsgTokenBar();
   renderMsgPreview();
   document.getElementById('msg-modal').classList.add('show');
+  checkAlreadySentBanner();
+}
+async function checkAlreadySentBanner(){
+  var banner=document.getElementById('msg-already-sent-banner');
+  banner.style.display='none';
+  try{
+    var r=await fetch(SU+'?action=getMsgSendLogs&sessionId='+encodeURIComponent(sessionId)).then(function(r){return r.json();});
+    var logs=r.logs||[];
+    if(!logs.length) return;
+    var latest=logs[0];
+    banner.textContent='⚠️ 이 차시는 이미 '+(latest.sentAt||'')+'에 '+latest.count+'건 알림톡을 보냈어요. (총 '+logs.length+'번 발송됨)';
+    banner.style.display='block';
+  }catch(e){}
 }
 // 이 반의 모든 차시(현재 차시 포함)에 등록된 과제를 전부 모아옴 — '다음 차시'에서 '지난 차시' 과제 미이행을 문자에 넣을 수 있도록
 async function loadAllClassHomeworks(){

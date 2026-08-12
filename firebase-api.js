@@ -1602,6 +1602,22 @@ api.getClassPostReads = function(db, p){
   });
 };
 
+/* ---------- 알림톡 발송 기록 (기기 상관없이 "이미 보냈는지" 확인용) ---------- */
+api.addMsgSendLog = function(db, p){
+  var id = genId('msglog');
+  return db.collection('msg_send_logs').doc(id).set({
+    id:id, sessionId:String(p.sessionId||''), classId:String(p.classId||''), className:p.className||'',
+    sessionNum:p.sessionNum||'', count:Number(p.count||0), success:p.success!=='false', sentAt:nowStr(), sentBy:p.sentBy||''
+  }).then(function(){ return { success:true }; });
+};
+api.getMsgSendLogs = function(db, p){
+  return db.collection('msg_send_logs').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
+    var logs = docsToArr(snap).filter(function(r){ return r.success!==false; })
+      .sort(function(a,b){ return (a.sentAt||'')<(b.sentAt||'')?1:-1; });
+    return { logs: logs };
+  });
+};
+
 /* ---------- 학생 상세 (수강/클리닉/질문/성적 이력) ---------- */
 api.getStudentFullHistory = function(db, p){
   var sid = String(p.studentId);
