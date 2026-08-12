@@ -324,6 +324,13 @@ a{text-decoration:none;}
     </div>
     <input type="file" id="hw-file-input" accept="image/*" multiple style="display:none;" onchange="onHwFileSelected(event)">
 
+    <!-- 재시험/보충 필요 시험 (해당되는 학생만 노출) -->
+    <div class="card" id="exam-status-card" style="display:none;">
+      <div class="card-title"><span>📝</span> 재시험·보충 필요 <span id="exam-badge" class="hw-badge-count" style="display:none;"></span></div>
+      <div id="exam-list" style="margin-top:8px;"></div>
+    </div>
+    <input type="file" id="exam-file-input" accept="image/*" multiple style="display:none;" onchange="onExamFileSelected(event)">
+
     <!-- 의무클리닉 (해당되는 학생만 노출) -->
     <div class="card" id="mc-status-card" style="display:none;">
       <div class="card-title"><span>⏰</span> 의무클리닉</div>
@@ -518,6 +525,7 @@ loadInfo();
   loadClassMaterials();
   loadMyMandatoryClinic();
   loadMyHomework();
+  loadMyExamAlerts();
   loadMySurveys();
   loadAssignmentCard();
   renderFaq();
@@ -788,6 +796,103 @@ async function onHwFileSelected(e){
     }
   }catch(err){ alert('업로드 중 오류가 발생했어요. 다시 시도해주세요.'); }
   finally{ hwUploadTargetId=''; }
+}
+
+// ── 재시험/보충 필요 시험 (미통과·미응시 + 사진 증빙 업로드, 숙제 증빙과 동일한 패턴) ──
+var EXAM_KIND_LABEL={nosub:'미통과',absent:'미응시'};
+var myExamItems=[], examUploadTargetId='';
+var EXAM_MAX_PHOTOS=6;
+async function loadMyExamAlerts(){
+  try{
+    var r=await fetch(SU+'?action=getMyExamAlerts&studentId='+encodeURIComponent(session.id)).then(function(r){return r.json();});
+    myExamItems=r.items||[];
+    if(!myExamItems.length){ document.getElementById('exam-status-card').style.display='none'; return; }
+    document.getElementById('exam-status-card').style.display='block';
+    renderMyExamAlerts();
+  }catch(e){}
+}
+function renderMyExamAlerts(){
+  var list=document.getElementById('exam-list');
+  var badge=document.getElementById('exam-badge');
+  if(myExamItems.length){ badge.textContent=myExamItems.length+'건'; badge.style.display='inline-block'; }
+  else{ badge.style.display='none'; }
+  list.innerHTML=myExamItems.map(function(t){
+    var badgeCls=t.kind==='absent'?'hw-status-notsub':'hw-status-incomplete';
+    var whereTxt=(t.className||'')+(t.sessionNum?' · '+t.sessionNum+'차시':'')+(t.sessionDate?' · '+t.sessionDate:'');
+    var urls=t.submissionUrls||[];
+    var photoList = urls.length
+      ? '<div class="hw-photo-count">📷 '+urls.length+'/'+EXAM_MAX_PHOTOS+'장 제출됨'+(t.submittedAt?' · 마지막 제출 '+t.submittedAt:'')+'</div>'
+        + urls.map(function(url,i){
+            return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#eff6ff;border-radius:9px;padding:8px 12px;margin-top:6px;">'
+              +'<button type="button" onclick="openHwPhoto(\''+url+'\')" style="background:none;border:none;color:#1d4ed8;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;padding:0;">📷 사진 '+(i+1)+' 보기</button>'
+              +'<button onclick="deleteExamPhoto(\''+t.id+'\',\''+url+'\')" style="background:none;border:none;color:#94a3b8;font-size:16px;cursor:pointer;line-height:1;padding:2px 6px;">✕</button>'
+              +'</div>';
+          }).join('')
+      : '';
+    var uploadBtn = urls.length<EXAM_MAX_PHOTOS
+      ? '<button class="hw-upload-btn" id="exam-upload-btn-'+t.id+'" onclick="triggerExamUpload(\''+t.id+'\')">📷 '+(urls.length?'사진 추가 올리기':'고쳐서 사진 찍어 제출하기')+'</button>'
+      : '<div class="hw-photo-count" style="margin-top:6px;">최대 '+EXAM_MAX_PHOTOS+'장까지 올렸어요. 더 올리려면 먼저 하나를 지워주세요.</div>';
+    return '<div class="hw-item">'
+      +'<div class="hw-item-top"><span class="hw-item-name">'+escHtml(t.examName)+'</span>'
+      +'<span class="hw-status-badge '+badgeCls+'">'+EXAM_KIND_LABEL[t.kind]+'</span></div>'
+      +'<div class="hw-item-sub">'+escHtml(whereTxt)+'</div>'
+      +(t.feedback?'<div class="hw-feedback">'+escHtml(t.feedback)+'</div>':'')
+      +photoList+uploadBtn
+      +'</div>';
+  }).join('');
+}
+function triggerExamUpload(id){
+  var item=myExamItems.find(function(t){return t.id===id;});
+  if(!item) return;
+  var remain=EXAM_MAX_PHOTOS-(item.submissionUrls||[]).length;
+  if(remain<=0){ alert('사진은 최대 '+EXAM_MAX_PHOTOS+'장까지만 올릴 수 있어요.'); return; }
+  examUploadTargetId=id;
+  var input=document.getElementById('exam-file-input');
+  input.value='';
+  input.dataset.remain=remain;
+  input.click();
+}
+async function submitExamProofUrls(item, urls){
+  await fetch(SU+'?action=submitExamProof&id='+encodeURIComponent(item.id)+'&studentId='+encodeURIComponent(session.id)+'&urls='+encodeURIComponent(JSON.stringify(urls)));
+  await loadMyExamAlerts();
+}
+async function deleteExamPhoto(id, url){
+  var item=myExamItems.find(function(t){return t.id===id;});
+  if(!item) return;
+  if(!confirm('이 사진을 삭제할까요?')) return;
+  var urls=(item.submissionUrls||[]).filter(function(u){return u!==url;});
+  try{ await submitExamProofUrls(item, urls); }
+  catch(e){ alert('삭제 중 오류가 발생했어요.'); }
+}
+async function onExamFileSelected(e){
+  var files=Array.prototype.slice.call(e.target.files||[]);
+  var input=document.getElementById('exam-file-input');
+  var remain=parseInt(input.dataset.remain||EXAM_MAX_PHOTOS,10);
+  if(!files.length || !examUploadTargetId) return;
+  var item=myExamItems.find(function(t){return t.id===examUploadTargetId;});
+  if(!item) return;
+  if(files.length>remain){ alert('사진을 '+remain+'장까지만 더 올릴 수 있어서, 앞의 '+remain+'장만 올릴게요.'); files=files.slice(0,remain); }
+  var btn=document.getElementById('exam-upload-btn-'+examUploadTargetId);
+  if(btn){ btn.disabled=true; btn.textContent='업로드 중... (0/'+files.length+')'; }
+  var newUrls=[];
+  try{
+    for(var i=0;i<files.length;i++){
+      var file=files[i];
+      if(file.size > 15*1024*1024){ alert(file.name+' 파일이 너무 큽니다 (15MB 이하로 올려주세요). 건너뜁니다.'); continue; }
+      var base64=await hwFileToBase64(file);
+      var up=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'uploadFile',fileName:(item.examName||'시험')+'_'+session.id+'_'+Date.now()+'_'+i,mimeType:file.type||'image/jpeg',fileData:base64})
+      }).then(function(r){return r.json();});
+      if(up.success){ newUrls.push(up.url); if(btn) btn.textContent='업로드 중... ('+newUrls.length+'/'+files.length+')'; }
+      else{ alert(file.name+' 업로드 실패: '+(up.error||'')); }
+    }
+    if(newUrls.length){
+      var merged=(item.submissionUrls||[]).concat(newUrls).slice(0,EXAM_MAX_PHOTOS);
+      await submitExamProofUrls(item, merged);
+      alert('✅ '+newUrls.length+'장 제출했어요! 선생님이 확인하시면 목록에서 빠져요.');
+    }
+  }catch(err){ alert('업로드 중 오류가 발생했어요. 다시 시도해주세요.'); }
+  finally{ examUploadTargetId=''; }
 }
 
 // 로그인 계정(auth)에 맞는 실제 학생 문서 id를 찾아 session.id 를 교정

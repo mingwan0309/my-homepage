@@ -1759,11 +1759,12 @@ function computeMsgTokens(studentId){
     var myNum=sc&&sc.score!==''?Number(sc.score):null;
     var rank=myNum!==null?scoreList.filter(function(s2){return s2>myNum;}).length+1:null;
     var grade=(myNum!==null&&scoreList.length)?calcGrade(rank,scoreList.length):null;
+    var avgUnit=(ex&&ex.scoreType)==='count'?'개':'점';
     tokens['{점수}']=scoreDisp;
     tokens['{등급}']=grade?grade+'등급':'—';
     tokens['{등수}']=rank!==null?rank+'등/'+scoreList.length+'명':'—';
-    tokens['{평균}']=avg!==null?avg+'점':'—';
-    tokens['{최고점}']=scoreList.length?scoreList[0]+'점':'—';
+    tokens['{평균}']=avg!==null?avg+avgUnit:'—';
+    tokens['{최고점}']=scoreList.length?scoreList[0]+avgUnit:'—';
     tokens['{통과여부}']=passDisp;
     tokens['{피드백}']=feedback;
   } else if(type==='hw'){
@@ -2061,16 +2062,18 @@ function renderPanelStats(examId, myScore){
   var statsBox=document.getElementById('panel-stats');
   if(!scoreList.length){statsBox.style.display='none';return;}
   statsBox.style.display='';
+  var exam=exams.find(function(e){return e.id===examId;});
+  var unit=(exam&&exam.scoreType)==='count'?'개':'점';
   var cnt=scoreList.length;
   var avg=Math.round(scoreList.reduce(function(a,b){return a+b;},0)/cnt*10)/10;
   var myNum=myScore!==''?Number(myScore):null;
   var rank=myNum!==null?scoreList.filter(function(s){return s>myNum;}).length+1:null;
   var myGrade=rank!==null?calcGrade(rank,cnt):null;
   var items=[
-    {label:'평균',val:avg+'점'},
-    {label:'최고점',val:scoreList[0]+'점'},
+    {label:'평균',val:avg+unit},
+    {label:'최고점',val:scoreList[0]+unit},
     {label:'응시 인원',val:cnt+'명'},
-    {label:'내 점수',val:myNum!==null?myNum+'점':'—'},
+    {label:'내 점수',val:myNum!==null?myNum+unit:'—'},
     {label:'내 등수',val:rank!==null?rank+'등 / '+cnt+'명':'—'},
     {label:'내 등급',val:myGrade!==null?myGrade+'등급':'—'},
   ];

@@ -2669,12 +2669,28 @@ function renderTestCard(t){
   var badgeColor = t.kind==='absent' ? '#475569' : '#dc2626';
   var badgeBg = t.kind==='absent' ? '#f1f5f9' : '#fee2e2';
   var lastRem = t.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재시험 안내: '+t.lastReminderAt+(t.lastReminderBy?' · '+t.lastReminderBy:'')+'</div>' : '';
-  return '<div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#fff;">'
+  var subUrls = t.submissionUrls||[];
+  var hasSubmission = subUrls.length>0;
+  var photoLinks = hasSubmission
+    ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">'
+      + subUrls.map(function(url,i){
+          return '<button type="button" onclick="openHwPhoto(\''+url+'\')" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:none;padding:5px 10px;border-radius:7px;cursor:pointer;font-family:inherit;">📷 사진 '+(i+1)+'</button>';
+        }).join('')
+      + '</div>'
+    : '';
+  var submitBadge = hasSubmission
+    ? '<div style="display:flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:800;padding:5px 10px;border-radius:8px;margin-bottom:8px;">📷 확인 필요 — 사진 '+subUrls.length+'장 제출됨 · '+(t.submittedAt||'')+'</div>'
+    : '';
+  var cardStyle = hasSubmission
+    ? 'border:2px solid #93c5fd;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#f8faff;'
+    : 'border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#fff;';
+  return '<div style="'+cardStyle+'">'
+    +submitBadge
     +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
     +'<div>'
     +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;">'+escHtml(t.studentName)+' <span style="font-weight:800;color:#3b6cf7;font-size:14px;">'+(t.sessionNum?t.sessionNum+'차시':'')+'</span></div>'
     +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(t.examName)+(t.score!==''?' · '+t.score+'점':'')+'</div>'
-    +lastRem
+    +photoLinks+lastRem
     +'</div>'
     +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+TEST_KIND_LABEL[t.kind]+'</span>'
     +'</div>'
@@ -2715,8 +2731,8 @@ async function sendExamReminder(id){
   var t=testmanageList.find(function(x){return x.id===id;});
   if(!t)return;
   var text = t.kind==='absent'
-    ? '['+t.examName+'] 시험에 응시하지 못했어요. 다음 수업 시간까지 보충 응시가 필요합니다!'
-    : '['+t.examName+'] 시험 결과가 기준에 미달했어요. 다음 수업 시간까지 재시험이 필요합니다!';
+    ? '['+t.examName+'] 시험에 응시하지 못했어요. 고쳐서 사진 찍어 마이페이지에서 제출해주세요!'
+    : '['+t.examName+'] 시험 결과가 기준에 미달했어요. 고쳐서 사진 찍어 마이페이지에서 제출해주세요!';
   if(!confirm(t.studentName+' 학생에게 아래 알림톡을 보낼까요?\n(카카오 알림톡 발송 - 비용이 발생합니다)\n\n"'+text+'"'))return;
   var msgs=[];
   if(t.studentPhone) msgs.push({phone:t.studentPhone, name:t.studentName, className:t.className||'시험 알림', sessionNum:t.examName, message:text});

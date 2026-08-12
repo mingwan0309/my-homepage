@@ -982,12 +982,18 @@ api.getExamAlerts = function(db){
             id:r.id, sessionId:String(r.sessionId), examId:String(r.examId), studentId:String(r.studentId),
             kind:r.pass, score:r.score||'', feedback:r.feedback||'',
             lastReminderAt:r.retestReminderAt||'', lastReminderBy:r.retestReminderBy||'',
+            submissionUrls:hwUrlsToArray(r.examSubmissionUrl), submittedAt:r.examSubmittedAt||'',
             examName:ex.name||'(삭제된 시험)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
             classId:String(ses.classId||''), className:cls.name||'',
             studentName:stu.name||r.studentId, studentPhone:r.studentId, parentPhone:stu.parentPhone||''
           };
         });
-        items.sort(function(a,b){ return (a.sessionDate||'') < (b.sessionDate||'') ? -1 : 1; });
+        // 학생이 방금 사진을 올려 확인이 필요한 것부터, 그 다음 오래된 순
+        items.sort(function(a,b){
+          var aSub=a.submissionUrls.length?1:0, bSub=b.submissionUrls.length?1:0;
+          if (aSub!==bSub) return bSub-aSub;
+          return (a.sessionDate||'') < (b.sessionDate||'') ? -1 : 1;
+        });
         return { items: items };
       });
     });
@@ -998,6 +1004,59 @@ api.markExamAlertResolved = function(db, p){
 };
 api.markExamReminderSent = function(db, p){
   return db.collection('scores').doc(String(p.id)).set({ retestReminderAt:nowStr(), retestReminderBy:p.by||'' },{merge:true}).then(function(){ return { success:true }; });
+};
+// 학생이 재시험/보충 증빙 사진을 올리거나 지우면, 갱신된 전체 목록(최대 6장)을 통째로 저장 (숙제 증빙 제출과 동일한 패턴)
+api.submitExamProof = function(db, p){
+  var urls=[];
+  try{ urls = JSON.parse(p.urls||'[]'); }catch(e){ urls=[]; }
+  if (!Array.isArray(urls)) urls=[];
+  urls = urls.filter(function(u){ return u; }).slice(0,6);
+  return db.collection('scores').doc(String(p.id)).set({
+    examSubmissionUrl:urls, examSubmittedAt:nowStr()
+  },{merge:true}).then(function(){
+    db.collection('students').doc(String(p.studentId)).get().then(function(d){
+      var nm=d.exists?(d.data().name||p.studentId):p.studentId;
+      logActivity(db, p.studentId, nm, 'student', nm+'(학생)님이 재시험 증빙 사진을 제출했습니다.', 'EXAM_SUBMIT');
+    });
+    return { success:true };
+  });
+};
+// 학생 마이페이지: 내가 재시험/보충이 필요한 시험 목록 (미통과·미응시, 해결 처리 안 된 것만)
+api.getMyExamAlerts = function(db, p){
+  var studentId = String(p.studentId);
+  return db.collection('scores').where('studentId','==',studentId).where('pass','in',['nosub','absent']).get().then(function(snap){
+    var rows = docsToArr(snap).filter(function(r){ return !r.alertResolved; });
+    if (!rows.length) return { items: [] };
+    var examIds=[], sessionIds=[];
+    rows.forEach(function(r){
+      if (examIds.indexOf(r.examId) < 0) examIds.push(r.examId);
+      if (sessionIds.indexOf(r.sessionId) < 0) sessionIds.push(r.sessionId);
+    });
+    return Promise.all([
+      Promise.all(examIds.map(function(id){ return db.collection('exams').doc(id).get(); })),
+      Promise.all(sessionIds.map(function(id){ return db.collection('sessions').doc(id).get(); }))
+    ]).then(function(res){
+      var examMap={}; res[0].forEach(function(d){ if(d.exists) examMap[d.id]=d.data(); });
+      var sesMap={}; res[1].forEach(function(d){ if(d.exists) sesMap[d.id]=d.data(); });
+      var classIds=[];
+      Object.keys(sesMap).forEach(function(k){ var cid=String(sesMap[k].classId||''); if(cid && classIds.indexOf(cid)<0) classIds.push(cid); });
+      return Promise.all(classIds.map(function(id){ return db.collection('classes').doc(id).get(); })).then(function(classDocs){
+        var clsMap={}; classDocs.forEach(function(d){ if(d.exists) clsMap[d.id]=d.data(); });
+        var items = rows.map(function(r){
+          var ex=examMap[r.examId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
+          return {
+            id:r.id, sessionId:String(r.sessionId), examId:String(r.examId),
+            kind:r.pass, examName:ex.name||'(삭제된 시험)', feedback:r.feedback||'',
+            submissionUrls:hwUrlsToArray(r.examSubmissionUrl), submittedAt:r.examSubmittedAt||'',
+            sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
+            classId:String(ses.classId||''), className:cls.name||''
+          };
+        });
+        items.sort(function(a,b){ return (a.sessionDate||'') < (b.sessionDate||'') ? 1 : -1; });
+        return { items: items };
+      });
+    });
+  });
 };
 
 // 지금까지 보낸 재촉 알림 전체 이력 (완료 처리된 학생 것도 포함, 최신순)
