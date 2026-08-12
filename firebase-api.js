@@ -1369,6 +1369,32 @@ api.clockIn = function(db, p){
     });
   });
 };
+// 교사가 화면에서 조교를 강제로 퇴근 처리 (연락 안 되거나 깜빡하고 로그아웃 안 한 경우). clockOut과 달리 열려있는 기록을 전부(중복 출근 포함) 닫음.
+api.forceClockOut = function(db, p){
+  var assistantId = String(p.id);
+  return db.collection('work_logs').where('assistantId','==',assistantId).where('clockOut','==','').get().then(function(snap){
+    if (snap.empty) return { success:true, count:0 };
+    return db.collection('work_types').get().then(function(wtSnap){
+      var rates={}; wtSnap.forEach(function(wt){ rates[wt.id]=Number(wt.data().hourlyRate||0); });
+      var now = new Date();
+      return Promise.all(snap.docs.map(function(doc){
+        var d = doc.data();
+        var clockInDate = parseDateTimeLocal(d.date, d.clockIn);
+        var totalMin = Math.max(0, (now - clockInDate) / 60000);
+        var breakMin = Number(d.breakMin||0);
+        var breakLogs = d.breakLogs || [];
+        if (d.breakStartedAt) {
+          var bs = parseDateTimeLocal(d.date, d.breakStartedAt);
+          breakMin += Math.max(0, Math.round((now - bs) / 60000));
+          breakLogs = breakLogs.concat([d.breakStartedAt + '~' + formatTimeLocal(now)]);
+        }
+        var hours = Math.max(0, (totalMin - breakMin) / 60);
+        var cost = Math.round(hours * (rates[d.workTypeId]||0));
+        return doc.ref.update({ clockOut: formatTimeLocal(now), cost: cost, breakMin: breakMin, breakStartedAt:'', breakLogs: breakLogs, memo:(d.memo||'')+' (교사가 강제 퇴근 처리)' });
+      })).then(function(){ return { success:true, count:snap.size }; });
+    });
+  });
+};
 // 휴식 시작/종료 — 조교 본인의 진행 중인 근무 기록에만 적용됨
 api.startBreak = function(db, p){
   var assistantId = String(p.id);

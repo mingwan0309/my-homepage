@@ -3763,37 +3763,58 @@ async function toggleMyBreak(assistantId,targetElId){
 
 // ── 근무 중인 조교 표시(교사 화면) ──
 var activeAstUnsub=null;
+var activeAstList=[], activeAstTickTimer=null;
 function initActiveAstWidget(){
   if(activeAstUnsub) return;
   window.mkdbReady.then(function(db){
     activeAstUnsub=db.collection('work_logs').where('clockOut','==','').onSnapshot(function(snap){
       var active=[];
       snap.forEach(function(doc){ active.push(doc.data()); });
+      activeAstList=active;
       renderActiveAstWidget(active);
     });
   });
+  if(!activeAstTickTimer) activeAstTickTimer=setInterval(function(){ renderActiveAstWidget(activeAstList); },60000); // 경과 근무시간 표시를 1분마다 갱신
+}
+function astElapsedLabel(a){
+  var dp=(a.date||'').split('-'), tp=(a.clockIn||'0:0').split(':');
+  var d=new Date(Number(dp[0]),Number(dp[1])-1,Number(dp[2]),Number(tp[0]),Number(tp[1]));
+  var minutes=Math.max(0, Math.round((new Date()-d)/60000));
+  var h=Math.floor(minutes/60), m=minutes%60;
+  return (h>0?h+'시간 ':'')+m+'분째';
 }
 function renderActiveAstWidget(active){
   var el=document.getElementById('active-ast-widget');
   if(!el){
     el=document.createElement('div');
     el.id='active-ast-widget';
-    el.style.cssText='position:fixed;bottom:20px;right:20px;z-index:500;background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.12);padding:10px 14px;min-width:150px;';
+    el.style.cssText='position:fixed;bottom:20px;right:20px;z-index:500;background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.12);padding:10px 14px;min-width:170px;';
     document.body.appendChild(el);
   }
   if(!active.length){ el.innerHTML=''; el.style.padding='0'; return; }
   el.style.padding='10px 14px';
-  el.innerHTML='<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px;">근무 중인 조교</div>'
+  el.innerHTML='<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px;">근무 중인 조교 <span style="font-weight:400;color:#cbd5e1;">(눌러서 강제 퇴근)</span></div>'
     +'<div style="display:flex;flex-direction:column;gap:8px;">'
     +active.map(function(a){
       var initial=(a.assistantName||'?').charAt(0);
       var color=bc(a.assistantName||a.assistantId||'');
-      return '<div title="'+(a.assistantName||a.assistantId)+' — '+a.clockIn+'부터 근무 중" style="display:flex;align-items:center;gap:8px;">'
+      return '<div onclick="forceClockOutFromWidget(\''+a.assistantId+'\',\''+escHtml(a.assistantName||a.assistantId)+'\')" title="눌러서 강제 퇴근 처리" style="display:flex;align-items:center;gap:8px;cursor:pointer;">'
         +'<div style="flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">'+initial+'</div>'
-        +'<span style="font-size:13px;font-weight:700;color:#1e293b;">'+escHtml(a.assistantName||a.assistantId||'')+'</span>'
+        +'<div style="min-width:0;">'
+        +'<div style="font-size:13px;font-weight:700;color:#1e293b;">'+escHtml(a.assistantName||a.assistantId||'')+'</div>'
+        +'<div style="font-size:11px;color:#94a3b8;">'+a.clockIn+'부터 · '+astElapsedLabel(a)+'</div>'
+        +'</div>'
         +'</div>';
     }).join('')
     +'</div>';
+}
+async function forceClockOutFromWidget(assistantId,name){
+  if(!confirm(name+' 조교를 지금 강제로 퇴근 처리할까요?\n(로그아웃을 안 누르고 나간 경우 등에 사용, 지금 시각 기준으로 근무시간·급여가 계산돼요)'))return;
+  try{
+    var r=await fetch(SU+'?action=forceClockOut&id='+encodeURIComponent(assistantId)).then(function(r){return r.json();});
+    if(r.success) alert('강제 퇴근 처리 완료!');
+    else alert('처리 실패: '+(r.msg||''));
+  }catch(e){ alert('처리 중 오류: '+e.message); }
 }
 
 function openWlogModal(astId){
