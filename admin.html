@@ -3763,7 +3763,7 @@ async function toggleMyBreak(assistantId,targetElId){
 
 // ── 근무 중인 조교 표시(교사 화면) ──
 var activeAstUnsub=null;
-var activeAstList=[], activeAstTickTimer=null;
+var activeAstList=[], activeAstTickTimer=null, activeAstExpanded=false;
 function initActiveAstWidget(){
   if(activeAstUnsub) return;
   window.mkdbReady.then(function(db){
@@ -3791,14 +3791,28 @@ function renderActiveAstWidget(active){
     el.style.cssText='position:fixed;bottom:20px;right:20px;z-index:500;background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.12);padding:10px 14px;min-width:170px;';
     document.body.appendChild(el);
   }
-  if(!active.length){ el.innerHTML=''; el.style.padding='0'; return; }
+  if(!active.length){ el.innerHTML=''; el.style.padding='0'; activeAstExpanded=false; return; }
+  if(!activeAstExpanded){
+    el.style.padding='8px';
+    el.innerHTML='<div onclick="toggleActiveAstWidget()" title="눌러서 근무 중인 조교 보기" style="display:flex;cursor:pointer;">'
+      +active.map(function(a,i){
+        var initial=(a.assistantName||'?').charAt(0);
+        var color=bc(a.assistantName||a.assistantId||'');
+        return '<div style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.12);'+(i>0?'margin-left:-10px;':'')+'">'+initial+'</div>';
+      }).join('')
+      +'</div>';
+    return;
+  }
   el.style.padding='10px 14px';
-  el.innerHTML='<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px;">근무 중인 조교 <span style="font-weight:400;color:#cbd5e1;">(눌러서 강제 퇴근)</span></div>'
+  el.innerHTML='<div onclick="toggleActiveAstWidget()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:8px;">'
+    +'<span style="font-size:11px;font-weight:700;color:#64748b;">근무 중인 조교 <span style="font-weight:400;color:#cbd5e1;">(눌러서 강제 퇴근)</span></span>'
+    +'<span style="font-size:11px;color:#cbd5e1;">접기 ▾</span>'
+    +'</div>'
     +'<div style="display:flex;flex-direction:column;gap:8px;">'
     +active.map(function(a){
       var initial=(a.assistantName||'?').charAt(0);
       var color=bc(a.assistantName||a.assistantId||'');
-      return '<div onclick="forceClockOutFromWidget(\''+a.assistantId+'\',\''+escHtml(a.assistantName||a.assistantId)+'\')" title="눌러서 강제 퇴근 처리" style="display:flex;align-items:center;gap:8px;cursor:pointer;">'
+      return '<div onclick="event.stopPropagation();forceClockOutFromWidget(\''+a.assistantId+'\',\''+escHtml(a.assistantName||a.assistantId)+'\')" title="눌러서 강제 퇴근 처리" style="display:flex;align-items:center;gap:8px;cursor:pointer;">'
         +'<div style="flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">'+initial+'</div>'
         +'<div style="min-width:0;">'
         +'<div style="font-size:13px;font-weight:700;color:#1e293b;">'+escHtml(a.assistantName||a.assistantId||'')+'</div>'
@@ -3807,6 +3821,10 @@ function renderActiveAstWidget(active){
         +'</div>';
     }).join('')
     +'</div>';
+}
+function toggleActiveAstWidget(){
+  activeAstExpanded=!activeAstExpanded;
+  renderActiveAstWidget(activeAstList);
 }
 async function forceClockOutFromWidget(assistantId,name){
   if(!confirm(name+' 조교를 지금 강제로 퇴근 처리할까요?\n(로그아웃을 안 누르고 나간 경우 등에 사용, 지금 시각 기준으로 근무시간·급여가 계산돼요)'))return;
