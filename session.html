@@ -2030,6 +2030,7 @@ function togglePass(p){
   updatePassBtns();
   var fb=document.getElementById('panel-feedback');
   fb.value=panelPass?(EXAM_STATUS_TEMPLATE[panelPass]||''):'';
+  if(panelPass==='absent'){ document.getElementById('panel-score').value=''; } // 미응시는 점수가 없는 상태로 취급
 }
 function autoPassFromScore(){
   var exam=exams.find(function(e){return e.id===panelExamId;});
