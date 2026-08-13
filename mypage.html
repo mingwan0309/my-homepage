@@ -319,8 +319,9 @@ a{text-decoration:none;}
     <!-- 숙제 현황 (기록이 있는 학생만 노출) -->
     <div class="card" id="hw-status-card" style="display:none;">
       <div class="card-title"><span>📝</span> 내 숙제 <span id="hw-badge" class="hw-badge-count" style="display:none;"></span></div>
-      <button type="button" class="vid-drop-head" onclick="toggleAttDrop(this)"><span>숙제 목록 보기</span><span class="vid-drop-arrow">▾</span></button>
-      <div id="hw-list" style="display:none;margin-top:8px;"></div>
+      <div id="hw-list-needs" style="margin-top:8px;"></div>
+      <button type="button" class="vid-drop-head" id="hw-done-toggle" onclick="toggleAttDrop(this)" style="display:none;margin-top:8px;"><span id="hw-done-toggle-label">완료된 숙제 보기</span><span class="vid-drop-arrow">▾</span></button>
+      <div id="hw-list-done" style="display:none;margin-top:8px;"></div>
     </div>
     <input type="file" id="hw-file-input" accept="image/*" multiple style="display:none;" onchange="onHwFileSelected(event)">
 
@@ -704,12 +705,20 @@ async function loadMyHomework(){
 }
 var HW_MAX_PHOTOS=6;
 function renderMyHomework(){
-  var list=document.getElementById('hw-list');
   var needsAction=myHwItems.filter(function(h){return h.pass==='incomplete'||h.pass==='partial'||h.pass==='notsub';});
+  var doneItems=myHwItems.filter(function(h){return h.pass==='complete';});
   var badge=document.getElementById('hw-badge');
   if(needsAction.length){ badge.textContent=needsAction.length+'건 확인 필요'; badge.style.display='inline-block'; }
   else{ badge.style.display='none'; }
-  list.innerHTML=myHwItems.map(function(h){
+  var doneToggle=document.getElementById('hw-done-toggle');
+  var doneToggleLabel=document.getElementById('hw-done-toggle-label');
+  if(doneItems.length){ doneToggle.style.display='flex'; doneToggleLabel.textContent='완료된 숙제 보기 ('+doneItems.length+')'; }
+  else{ doneToggle.style.display='none'; document.getElementById('hw-list-done').style.display='none'; }
+  document.getElementById('hw-list-needs').innerHTML=renderHwItems(needsAction);
+  document.getElementById('hw-list-done').innerHTML=renderHwItems(doneItems);
+}
+function renderHwItems(items){
+  return items.map(function(h){
     var badgeCls='hw-status-'+(h.pass||'notsub');
     var badgeLabel=HW_STATUS_LABEL[h.pass]||'확인중';
     var whereTxt=(h.className||'')+(h.sessionNum?' · '+h.sessionNum+'차시':'')+(h.sessionDate?' · '+h.sessionDate:'');
