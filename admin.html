@@ -2508,12 +2508,16 @@ function renderHwManageList(){
     var openDefault=(hwClassDropState.hasOwnProperty(cls))?hwClassDropState[cls]:(pendingCount>0);  // 확인할 사진이 있는 반은 자동으로 펼쳐서 안 놓치게 (단, 사용자가 이미 열고/닫은 적 있으면 그 상태 유지)
     var headerBadge=pendingCount?'<span style="background:#dbeafe;color:#1d4ed8;font-size:11px;font-weight:800;border-radius:20px;padding:2px 9px;margin-left:6px;">📷 '+pendingCount+'건 확인 필요</span>':'';
     var cardsHtml=items.map(renderHwCard).join('');
+    var allSelectedInCls=items.every(function(h){return hwSelected[h.id];});
     return '<div style="margin-bottom:14px;">'
-      + '<button type="button" class="vid-drop-head'+(openDefault?' open':'')+'" data-cls="'+escHtml(cls)+'" onclick="toggleHwClassDrop(this)">'
+      + '<div style="display:flex;align-items:center;gap:8px;">'
+      + '<button type="button" class="vid-drop-head'+(openDefault?' open':'')+'" data-cls="'+escHtml(cls)+'" onclick="toggleHwClassDrop(this)" style="flex:1;">'
       +   '<span>🏫 '+escHtml(cls)+' <span class="cnt">'+items.length+'</span></span>'
       +   headerBadge
       +   '<span class="vid-drop-arrow">▾</span>'
       + '</button>'
+      + '<button type="button" onclick="hwSelectClass(\''+escHtml(cls).replace(/'/g,"\\'")+'\','+(allSelectedInCls?'false':'true')+')" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">'+(allSelectedInCls?'이 반 선택해제':'이 반 전체선택')+'</button>'
+      + '</div>'
       + '<div class="vid-drop-body" style="display:'+(openDefault?'block':'none')+';margin-top:8px;">'+cardsHtml+'</div>'
       + '</div>';
   }).join('');
@@ -2577,6 +2581,15 @@ function hwSelectAll(){
   var srcList=hwmanageList;
   if(astHasMyStudents()&&hwMineOnly) srcList=srcList.filter(function(h){ return cu.studentIds.indexOf(h.studentId)>-1; });
   srcList.forEach(function(h){ hwSelected[h.id]=true; });
+  renderHwManageList();
+  updateHwBulkBar();
+}
+function hwSelectClass(cls, checked){
+  var srcList=hwmanageList;
+  if(astHasMyStudents()&&hwMineOnly) srcList=srcList.filter(function(h){ return cu.studentIds.indexOf(h.studentId)>-1; });
+  srcList.filter(function(h){ return (h.className||'반 미배정')===cls; }).forEach(function(h){
+    if(checked) hwSelected[h.id]=true; else delete hwSelected[h.id];
+  });
   renderHwManageList();
   updateHwBulkBar();
 }
