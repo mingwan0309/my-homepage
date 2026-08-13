@@ -2390,7 +2390,7 @@ function closeHwPhoto(){
 
 // ── 숙제관리 (미이행/일부미이행 재촉·확인) ──
 var hwmanageList=[];
-var HW_STATUS_LABEL_ADMIN={complete:'완료',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
+var HW_STATUS_LABEL_ADMIN={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
 async function refreshHwNavBadge(){
   try{
     var r=await fetch(SU+'?action=getIncompleteHomeworks').then(function(r){return r.json();});
@@ -2568,7 +2568,7 @@ async function markHwComplete(id){
   var h=hwmanageList.find(function(x){return x.id===id;});
   if(!h)return;
   if(!confirm(h.studentName+' 학생의 "'+h.hwName+'" 과제를 완료로 처리할까요?'))return;
-  await fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass=complete&feedback='+encodeURIComponent('제출하신 과제가 [완료] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!'));
+  await fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass=complete&feedback='+encodeURIComponent('제출하신 과제가 [제출] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!'));
   loadHwManage();
 }
 // ── 숙제관리 여러 명 한 번에 처리 ──
@@ -2647,7 +2647,7 @@ async function bulkMarkHwComplete(){
   var names2=items.map(function(h){return h.studentName;}).join(', ');
   if(!confirm(items.length+'명('+names2+')의 과제를 한 번에 완료 처리할까요?'))return;
   await Promise.all(items.map(function(h){
-    return fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass=complete&feedback='+encodeURIComponent('제출하신 과제가 [완료] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!'));
+    return fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass=complete&feedback='+encodeURIComponent('제출하신 과제가 [제출] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!'));
   }));
   hwSelected={};
   loadHwManage();

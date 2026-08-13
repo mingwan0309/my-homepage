@@ -428,7 +428,7 @@ tr:hover td{background:#fafbff;}
       <h3 id="hw-panel-name">과제명</h3>
       <div class="sub" id="hw-panel-sub"></div>
       <div class="pass-btns" style="flex-wrap:wrap;">
-        <button class="pass-btn" id="hw-btn-complete" onclick="toggleHwPass('complete')" style="flex:1 1 45%;">완료</button>
+        <button class="pass-btn" id="hw-btn-complete" onclick="toggleHwPass('complete')" style="flex:1 1 45%;">제출</button>
         <button class="pass-btn" id="hw-btn-partial" onclick="toggleHwPass('partial')" style="flex:1 1 45%;">일부미이행</button>
         <button class="pass-btn" id="hw-btn-incomplete" onclick="toggleHwPass('incomplete')" style="flex:1 1 45%;">미이행</button>
         <button class="pass-btn" id="hw-btn-notsub" onclick="toggleHwPass('notsub')" style="flex:1 1 45%;">미제출</button>
@@ -1269,7 +1269,7 @@ function renderScores(){
       }
       return '<td class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">—</td>';
     }).join('');
-    var HW_LABELS={complete:['#16a34a','완료'],partial:['#ca8a04','일부미이행'],incomplete:['#dc2626','미이행'],notsub:['#64748b','미제출']};
+    var HW_LABELS={complete:['#16a34a','제출'],partial:['#ca8a04','일부미이행'],incomplete:['#dc2626','미이행'],notsub:['#64748b','미제출']};
     var hwResultCols=homeworks.map(function(hw){
       var s=(hwStatusMap[st.id]||{})[hw.id];
       var lbl=s&&HW_LABELS[s.pass];
@@ -1797,7 +1797,7 @@ function computeMsgTokens(studentId){
     tokens['{통과여부}']=passDisp;
     tokens['{피드백}']=feedback;
   } else if(type==='hw'){
-    var HW_LABELS={complete:'완료',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
+    var HW_LABELS={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
     var s=(hwStatusMap[studentId]||{})[id];
     tokens['{상태}']=s&&s.pass?HW_LABELS[s.pass]:'미제출';
     tokens['{코멘트}']=s&&s.feedback?s.feedback:(HW_STATUS_TEMPLATE[(s&&s.pass)||'notsub']||'—');
@@ -2368,7 +2368,7 @@ function closeHwPanel(){
   hwPanelStudentId=''; hwPanelHwId=''; hwPanelPass='';
 }
 function updateHwDetailWrap(){
-  var show=hwPanelPass==='partial'||hwPanelPass==='incomplete';
+  var show=hwPanelPass==='partial'||hwPanelPass==='incomplete'||hwPanelPass==='complete';
   document.getElementById('hw-detail-wrap').style.display=show?'':'none';
 }
 function addHwDetailLine(){
@@ -2381,7 +2381,7 @@ function addHwDetailLine(){
   input.focus();
 }
 var HW_STATUS_TEMPLATE={
-  complete:'제출하신 과제가 [완료] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!',
+  complete:'제출하신 과제가 [제출] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!',
   partial:'제출하신 과제가 [일부미이행] 상태로 확인되었습니다.\n다음 수업 시간에 2차 점검이 예정되어 있으니, 반드시 완료하여 제출해 주시기 바랍니다.',
   incomplete:'제출하신 과제가 [미이행] 상태로 확인되었습니다.\n다음 수업 시간에 2차 점검이 예정되어 있으니, 반드시 완료하여 제출해 주시기 바랍니다.',
   notsub:'제출하신 과제가 [미제출] 상태로 확인되었습니다.\n다음 수업 시간에 2차 점검이 예정되어 있으니, 반드시 완료하여 제출해 주시기 바랍니다.'
