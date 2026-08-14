@@ -4,7 +4,7 @@ const faqData = {
     title: '숙제 확인은 어디서 해요? 수업 영상은 어디서 봐요? 추가클리닉은 어디서 신청해요?',
     date: '자주 묻는 질문',
     body: '',
-    html: '<img src="app_annotation.png" style="width:100%; border-radius:12px;">'
+    html: '<img src="app_annotation.svg" style="width:100%; border-radius:12px;">'
   },
   f2: {
     badge: '<span class="notice-badge badge-faq">FAQ</span>',
