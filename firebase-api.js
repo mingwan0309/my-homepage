@@ -480,16 +480,10 @@ api.getClasses = function(db){
       if (cid) countByClass[cid] = (countByClass[cid]||0) + 1;
     });
     var classes = docsToArr(res[0]).map(function(r){
-      return { id:String(r.id), name:r.name||'', time:r.time||'', start:r.start||'', end:r.end||'', status:r.status||'active', count:countByClass[String(r.id)]||0, hwPriority:(typeof r.hwPriority==='number')?r.hwPriority:null };
+      return { id:String(r.id), name:r.name||'', time:r.time||'', start:r.start||'', end:r.end||'', status:r.status||'active', count:countByClass[String(r.id)]||0 };
     });
     return { classes: classes };
   });
-};
-
-// 숙제관리 화면에서 반이 표시되는 우선순위(선생님이 직접 정렬). 낮을수록 위로 온다.
-api.setClassHwPriority = function(db, p){
-  return db.collection('classes').doc(String(p.id)).set({ hwPriority:p.priority }, {merge:true})
-    .then(function(){ return { success:true }; });
 };
 
 api.addClass = function(db, p){
