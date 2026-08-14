@@ -2363,6 +2363,9 @@ async function markMcAttendance(id, studentId, name, status){
 var hwClassDropState={};
 function toggleHwClassDrop(btn){
   var body=btn.nextElementSibling;
+  if(!body||!body.classList||!body.classList.contains('vid-drop-body')){
+    body=btn.parentElement.nextElementSibling;
+  }
   if(!body) return;
   var isOpen=body.style.display!=='none';
   body.style.display=isOpen?'none':'block';
@@ -2590,6 +2593,7 @@ function hwSelectClass(cls, checked){
   srcList.filter(function(h){ return (h.className||'반 미배정')===cls; }).forEach(function(h){
     if(checked) hwSelected[h.id]=true; else delete hwSelected[h.id];
   });
+  hwClassDropState[cls]=true;
   renderHwManageList();
   updateHwBulkBar();
 }
