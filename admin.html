@@ -2538,13 +2538,18 @@ function renderHwManageList(){
       + '</div>';
   }).join('');
 }
+// 재촉 알림톡 문구: 교사가 성적 탭에서 적어둔 코멘트(미이행 부분 포함)가 있으면 그걸 그대로 보내고, 없으면 기본 문구로 대체
+function buildHwReminderText(h){
+  if(h.feedback&&h.feedback.trim()) return '['+h.hwName+'] '+h.feedback.trim();
+  var isAlgebraSpecial=(h.className||'').indexOf('대수')>-1 && (h.className||'').indexOf('특강')>-1;
+  return isAlgebraSpecial
+    ? '['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 다음 수업 시간까지 꼭 풀어서 제출해주세요!'
+    : '['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 사진을 찍어 마이페이지에서 제출해주세요!';
+}
 async function sendHwReminder(id){
   var h=hwmanageList.find(function(x){return x.id===id;});
   if(!h)return;
-  var isAlgebraSpecial=(h.className||'').indexOf('대수')>-1 && (h.className||'').indexOf('특강')>-1;
-  var text=isAlgebraSpecial
-    ? '['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 다음 수업 시간까지 꼭 풀어서 제출해주세요!'
-    : '['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 사진을 찍어 마이페이지에서 제출해주세요!';
+  var text=buildHwReminderText(h);
   if(!confirm(h.studentName+' 학생에게 아래 알림톡을 보낼까요?\n(카카오 알림톡 발송 - 비용이 발생합니다)\n\n"'+text+'"'))return;
   var msgs=[];
   if(h.studentPhone) msgs.push({phone:h.studentPhone, name:h.studentName, className:h.className||'숙제 알림', sessionNum:h.hwName, message:text});
@@ -2629,11 +2634,7 @@ async function bulkSendHwReminder(){
   if(!items.length){ alert('선택된 학생이 없어요.'); return; }
   var names=items.map(function(h){return h.studentName;}).join(', ');
   var preview=items.map(function(h){
-    var isAlgebraSpecial=(h.className||'').indexOf('대수')>-1 && (h.className||'').indexOf('특강')>-1;
-    var text=isAlgebraSpecial
-      ? '['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 다음 수업 시간까지 꼭 풀어서 제출해주세요!'
-      : '['+h.hwName+'] 숙제가 '+HW_STATUS_LABEL_ADMIN[h.pass]+' 상태예요. 사진을 찍어 마이페이지에서 제출해주세요!';
-    return {h:h, text:text};
+    return {h:h, text:buildHwReminderText(h)};
   });
   var previewText=preview.slice(0,3).map(function(p){return p.h.studentName+': "'+p.text+'"';}).join('\n')+(preview.length>3?'\n...외 '+(preview.length-3)+'명':'');
   if(!confirm(items.length+'명('+names+')에게 아래처럼 재촉 알림톡을 한 번에 보낼까요?\n(카카오 알림톡 발송 - 학생 수만큼 비용이 발생합니다)\n\n'+previewText))return;
