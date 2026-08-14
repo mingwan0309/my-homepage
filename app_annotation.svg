@@ -51,7 +51,7 @@
   <circle cx="97" cy="182" r="9" fill="#ef4444"/>
   <text x="97" y="186" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">3</text>
   <text x="111" y="192" text-anchor="middle" font-size="13">💬</text>
-  <text x="111" y="204" text-anchor="middle" font-size="6.5" font-weight="700" fill="#475569">채팅</text>
+  <text x="111" y="204" text-anchor="middle" font-size="6.5" font-weight="700" fill="#475569">1:1 문의</text>
 
   <text x="169" y="192" text-anchor="middle" font-size="13">😊</text>
   <text x="169" y="204" text-anchor="middle" font-size="6.5" font-weight="700" fill="#475569">수강후기</text>
@@ -73,7 +73,7 @@
   <g font-size="8.5" fill="#334155">
     <text x="340" y="70">① 출결 확인</text>
     <text x="340" y="88">② 클리닉 예약 / 질의응답</text>
-    <text x="340" y="106">③ 선생님과 1:1 채팅</text>
+    <text x="340" y="106">③ 선생님께 1:1 문의</text>
     <text x="340" y="124">④ 다음 과제 확인</text>
   </g>
 </svg>

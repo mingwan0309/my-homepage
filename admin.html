@@ -248,7 +248,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       </div>
       <div class="nav-item" onclick="showPage('notice',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('survey',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 설문조사</div>
-      <div class="nav-item" onclick="showPage('chat',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
+      <div class="nav-item" onclick="showPage('chat',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🗨️</span> 1:1 문의 <span id="chat-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-group">
         <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">🎬</span> 영상 <span class="nav-group-arrow">▾</span></div>
@@ -302,7 +302,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       </div>
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('survey',this)"><span class="ni">📋</span> 설문조사</div>
-      <div class="nav-item" onclick="showPage('chat',this)"><span class="ni">🗨️</span> 채팅 <span id="chat-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
+      <div class="nav-item" onclick="showPage('chat',this)"><span class="ni">🗨️</span> 1:1 문의 <span id="chat-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
       <div class="nav-group">
         <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">🎬</span> 영상 <span class="nav-group-arrow">▾</span></div>
@@ -625,7 +625,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 
     <!-- 채팅 -->
     <div id="page-chat" class="page">
-      <div class="page-header"><div class="page-title">채팅</div></div>
+      <div class="page-header"><div class="page-title">1:1 문의</div></div>
       <div style="display:grid;grid-template-columns:280px 1fr;gap:0;background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,0.07);overflow:hidden;height:600px;">
         <div style="border-right:1px solid #f1f5f9;overflow-y:auto;">
           <div id="chat-thread-list"><div style="padding:20px;color:#94a3b8;font-size:13px;text-align:center;">불러오는 중...</div></div>
@@ -3037,7 +3037,7 @@ function updateChatNavBadge(){
 }
 function renderChatThreads(){
   var box=document.getElementById('chat-thread-list');
-  if(!chatThreadsCache.length){box.innerHTML='<div style="padding:20px;color:#94a3b8;font-size:13px;text-align:center;">아직 채팅이 없습니다.</div>';return;}
+  if(!chatThreadsCache.length){box.innerHTML='<div style="padding:20px;color:#94a3b8;font-size:13px;text-align:center;">아직 온 문의가 없습니다.</div>';return;}
   box.innerHTML=chatThreadsCache.map(function(t){
     var unread=t.unreadForTeacher||0;
     var displayName=t.studentName||t.studentId||'(알 수 없음)';
