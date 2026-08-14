@@ -774,12 +774,6 @@ api.markHwReminderSent = function(db, p){
   });
 };
 
-api.logMcReminder = function(db, p){
-  var roleLabel = p.byRole==='assistant' ? '조교' : '선생님';
-  logActivity(db, p.by||'', p.by||'', p.byRole||'teacher', (p.by||roleLabel)+'('+roleLabel+')님이 '+(p.studentName||p.studentId)+' 학생에게 의무클리닉 재촉 알림톡을 보냈습니다.', 'MC_REMINDER_SENT');
-  return Promise.resolve({ success:true });
-};
-
 // submissionUrl 필드가 예전엔 문자열 하나였고 지금은 배열임 — 둘 다 안전하게 배열로 통일
 function hwUrlsToArray(v){
   if (Array.isArray(v)) return v.filter(function(u){ return u; });
@@ -1230,6 +1224,21 @@ api.setMandatoryClinicAttendance = function(db, p){
   data[byField] = p.by || '';
   return db.collection('mandatory_clinic').doc(String(p.id)).update(data)
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
+// 의무클리닉 알림톡(재촉/출석/결석/귀가) 발송 기록 — 화면에 "마지막 알림톡: ..." 으로 바로 보여주기 위함
+api.logMcAlimtalk = function(db, p){
+  var ref = db.collection('mandatory_clinic').doc(String(p.id));
+  var entry = { type:p.type||'', at:nowStr(), by:p.by||'' };
+  var roleLabel = p.byRole==='assistant' ? '조교' : '선생님';
+  return ref.get().then(function(doc){
+    var logs = (doc.exists && doc.data().alimtalkLogs) || [];
+    logs = logs.concat([entry]).slice(-30);
+    return ref.set({ alimtalkLogs:logs }, {merge:true}).then(function(){
+      logActivity(db, p.by||'', p.by||'', p.byRole||'teacher', (p.by||roleLabel)+'('+roleLabel+')님이 '+(p.studentName||'')+' 학생에게 의무클리닉 '+(p.type||'')+' 알림톡을 보냈습니다.', 'MC_ALIMTALK_SENT');
+      return { success:true };
+    });
+  });
 };
 
 // 의무클리닉에서 본 맞춤 테스트 점수 기록 (날짜별). 저장 시 아직 '알림톡에 보고 안 됨' 상태로 시작.
