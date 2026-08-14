@@ -1734,6 +1734,12 @@ function renderMsgTokenBar(){
   if(type==='hw') tokens=tokens.concat(MSG_TOKENS_HW);
   var hasMc=Object.keys(scoreSelected).some(function(id){return mcListSession[id];});
   if(hasMc) tokens.push(['의무클리닉','{의무클리닉}']);
+  if(homeworks && homeworks.length>1){
+    homeworks.forEach(function(hw){
+      var shortName=hw.name.length>8?hw.name.slice(0,8)+'…':hw.name;
+      tokens.push([shortName+' 상태','{상태:'+hw.id+'}']);
+    });
+  }
   document.getElementById('msg-token-bar').innerHTML=tokens.map(function(t){
     return '<button type="button" onclick="insertMsgToken(\''+t[1]+'\')" style="padding:6px 12px;background:#eff6ff;color:#2563eb;border:none;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;">'+t[0]+'</button>';
   }).join('');
@@ -1762,6 +1768,16 @@ function computeMsgTokens(studentId){
     tokens['{의무클리닉}']=mc.day+'요일 '+mc.time+' 의무클리닉'+(mc.targetDay?'('+mc.targetDay+'요일 몫)':'')+' — 오늘 '+status;
   } else {
     tokens['{의무클리닉}']='';
+  }
+  // 이 차시에 과제가 여러 개면, 과제마다 따로 상태를 넣을 수 있게 과제별로 각각 다른 토큰을 만듦
+  // (예: 복습노트는 {상태:hwId1}, 워크북은 {상태:hwId2} — 문구에 여러 개 넣어도 서로 안 섞임)
+  if(homeworks && homeworks.length){
+    var HW_LABELS_ALL={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
+    homeworks.forEach(function(hw){
+      var hs=(hwStatusMap[studentId]||{})[hw.id];
+      tokens['{상태:'+hw.id+'}']=hs&&hs.pass?HW_LABELS_ALL[hs.pass]:'미제출';
+      tokens['{코멘트:'+hw.id+'}']=hs&&hs.feedback?hs.feedback:'—';
+    });
   }
   var selVal=document.getElementById('msg-assessment').value;
   if(!selVal)return tokens;
