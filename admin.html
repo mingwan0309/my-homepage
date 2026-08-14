@@ -2557,7 +2557,7 @@ async function sendHwReminder(id){
   try{
     var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
     if(r.success){
-      await fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||'')+'&text='+encodeURIComponent(text));
+      await fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||'')+'&text='+encodeURIComponent(text)+'&studentName='+encodeURIComponent(h.studentName||'')+'&hwName='+encodeURIComponent(h.hwName||''));
       alert('알림톡 발송 완료!');
       loadHwManage();
     } else {
@@ -2649,7 +2649,7 @@ async function bulkSendHwReminder(){
     if(r.success){
       await Promise.all(preview.map(function(p){
         var h=p.h;
-        return fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||'')+'&text='+encodeURIComponent(p.text));
+        return fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||'')+'&text='+encodeURIComponent(p.text)+'&studentName='+encodeURIComponent(h.studentName||'')+'&hwName='+encodeURIComponent(h.hwName||''));
       }));
       alert(items.length+'명에게 알림톡 발송 완료!');
       hwSelected={};

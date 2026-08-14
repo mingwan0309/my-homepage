@@ -767,7 +767,10 @@ api.markHwReminderSent = function(db, p){
     logs = logs.concat([entry]).slice(-30); // 최근 30건까지만 보관
     return ref.set({
       lastReminderAt:entry.at, lastReminderBy:entry.by, lastReminderText:entry.text, reminderLogs:logs
-    },{merge:true}).then(function(){ return { success:true }; });
+    },{merge:true}).then(function(){
+      logActivity(db, p.by||'', p.by||'', 'teacher', (p.by||'선생님')+'님이 '+(p.studentName||p.studentId)+' 학생에게 ['+(p.hwName||'숙제')+'] 재촉 알림톡을 보냈습니다.', 'HW_REMINDER_SENT');
+      return { success:true };
+    });
   });
 };
 
