@@ -1734,14 +1734,15 @@ function renderMsgTokenBar(){
   if(type==='hw') tokens=tokens.concat(MSG_TOKENS_HW);
   var hasMc=Object.keys(scoreSelected).some(function(id){return mcListSession[id];});
   if(hasMc) tokens.push(['의무클리닉','{의무클리닉}']);
-  if(homeworks && homeworks.length>1){
-    homeworks.forEach(function(hw){
-      var shortName=hw.name.length>8?hw.name.slice(0,8)+'…':hw.name;
-      tokens.push([shortName+' 상태','{상태:'+hw.id+'}']);
-    });
-  }
   document.getElementById('msg-token-bar').innerHTML=tokens.map(function(t){
-    return '<button type="button" onclick="insertMsgToken(\''+t[1]+'\')" style="padding:6px 12px;background:#eff6ff;color:#2563eb;border:none;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;">'+t[0]+'</button>';
+    // "상태"/"코멘트"는 지금 "데이터 기준"에서 고른 과제에 딱 묶인 토큰을 매번 새로 만들어서 넣음
+    // → 복습노트 골라서 상태 누르고, 워크북으로 바꿔서 상태 또 눌러도 서로 안 섞이고 각자 값으로 채워짐
+    var tokenToInsert = t[1];
+    if((t[1]==='{상태}'||t[1]==='{코멘트}') && type==='hw'){
+      var hwId=val.split(':')[1];
+      tokenToInsert = t[1].slice(0,-1)+':'+hwId+'}';
+    }
+    return '<button type="button" onclick="insertMsgToken(\''+tokenToInsert+'\')" style="padding:6px 12px;background:#eff6ff;color:#2563eb;border:none;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;">'+t[0]+'</button>';
   }).join('');
 }
 function insertMsgToken(token){
