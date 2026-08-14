@@ -967,10 +967,12 @@ async function loadInfo() {
 }
 
 // ── 채팅 / 비밀번호 모달 ──
-function openChat(){
+function openChat(tries){
+  tries = tries || 0;
   var b = document.getElementById('mk-chat-bubble');
-  if (b) b.click();
-  else alert('채팅을 불러오는 중입니다. 잠시 후 다시 눌러주세요.');
+  if (b) { b.click(); return; }
+  if (tries < 15) { setTimeout(function(){ openChat(tries+1); }, 200); return; }
+  alert('1:1 문의를 불러오지 못했습니다. 새로고침 후 다시 눌러주세요.');
 }
 function openPwModal(){
   if(isPreviewMode){ alert('비밀번호 변경은 학생 본인만 할 수 있어요 (선생님 계정으로는 학생의 현재 비밀번호를 확인할 수 없어서 기술적으로 불가능해요).'); return; }
