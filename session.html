@@ -1740,7 +1740,10 @@ function renderMsgTokenBar(){
     var tokenToInsert = t[1];
     if((t[1]==='{상태}'||t[1]==='{코멘트}') && type==='hw'){
       var hwId=val.split(':')[1];
-      tokenToInsert = t[1].slice(0,-1)+':'+hwId+'}';
+      var hwList2=allClassHomeworks.length?allClassHomeworks:homeworks;
+      var hwObj=hwList2.find(function(h){return String(h.id)===String(hwId);});
+      var hwName=hwObj?hwObj.name:hwId;
+      tokenToInsert = t[1].slice(0,-1)+':'+hwName+'}';
     }
     return '<button type="button" onclick="insertMsgToken(\''+tokenToInsert+'\')" style="padding:6px 12px;background:#eff6ff;color:#2563eb;border:none;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;">'+t[0]+'</button>';
   }).join('');
@@ -1771,13 +1774,15 @@ function computeMsgTokens(studentId){
     tokens['{의무클리닉}']='';
   }
   // 이 차시에 과제가 여러 개면, 과제마다 따로 상태를 넣을 수 있게 과제별로 각각 다른 토큰을 만듦
-  // (예: 복습노트는 {상태:hwId1}, 워크북은 {상태:hwId2} — 문구에 여러 개 넣어도 서로 안 섞임)
-  if(homeworks && homeworks.length){
+  // (예: 복습노트는 {상태:복습노트}, 워크북은 {상태:워크북} — 문구에 여러 개 넣어도 서로 안 섞임)
+  // 토큰 키는 과제 이름(과제 id 대신)이라 문구가 짧고 알아보기 쉬움 — 다른 차시라도 같은 이름의 과제가 있으면 그 값으로 합쳐짐(드문 경우, 감수)
+  var hwListForTokens=(allClassHomeworks&&allClassHomeworks.length)?allClassHomeworks:homeworks;
+  if(hwListForTokens && hwListForTokens.length){
     var HW_LABELS_ALL={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
-    homeworks.forEach(function(hw){
+    hwListForTokens.forEach(function(hw){
       var hs=(hwStatusMap[studentId]||{})[hw.id];
-      tokens['{상태:'+hw.id+'}']=hs&&hs.pass?HW_LABELS_ALL[hs.pass]:'미제출';
-      tokens['{코멘트:'+hw.id+'}']=hs&&hs.feedback?hs.feedback:'—';
+      tokens['{상태:'+hw.name+'}']=hs&&hs.pass?HW_LABELS_ALL[hs.pass]:'미제출';
+      tokens['{코멘트:'+hw.name+'}']=hs&&hs.feedback?hs.feedback:'—';
     });
   }
   var selVal=document.getElementById('msg-assessment').value;
