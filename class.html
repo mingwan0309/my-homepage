@@ -606,6 +606,22 @@ tr:hover td{background:#fafbff;}
   </div>
 </div>
 
+<!-- 반 이동 모달 -->
+<div class="modal-bg" id="move-class-modal" onclick="if(event.target===this)closeMoveClass()">
+  <div class="modal">
+    <h3>반 이동</h3>
+    <p style="font-size:13px;color:#64748b;margin-bottom:14px;"><b id="mc-stu-name"></b> 학생을 옮길 반을 선택하세요.</p>
+    <div class="fg"><label>이동할 반</label>
+      <select id="mc-class-select" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;box-sizing:border-box;"></select>
+    </div>
+    <p id="move-class-msg" style="font-size:13px;margin-bottom:8px;min-height:18px;"></p>
+    <div class="modal-btns">
+      <button type="button" class="btn-cl" onclick="closeMoveClass()">취소</button>
+      <button type="button" class="btn-ok" onclick="doMoveClass()">이동</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SU = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 const session = JSON.parse(localStorage.getItem('mkmath_session')||'null');
@@ -712,6 +728,7 @@ function renderStudents(){
         +'<td style="font-size:12px;color:#475569;">'+(st.school||'-')+'</td>'
         +'<td style="padding:8px 14px;"><div class="att-chips-wrap" id="att-'+st.id+'"><span style="color:#cbd5e1;font-size:10px;">로딩...</span></div></td>'
         +'<td style="padding:8px 10px;white-space:nowrap;">'
+        +'<button onclick="openMoveClass(\''+st.id+'\',\''+escHtml(st.name)+'\')" style="background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;margin-right:4px;">🔀 반이동</button>'
         +'<button onclick="delStuFromClass(\''+st.id+'\',\''+escHtml(st.name)+'\')" style="background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">🗑 삭제</button>'
         +'</td>'
         +'</tr>';
@@ -1582,6 +1599,41 @@ async function purgeStudentClassData(id){
     scSnap.forEach(function(doc){ if(sesIds.indexOf(String(doc.data().sessionId))>=0) dels.push(doc.ref.delete()); });
     await Promise.all(dels);
   }catch(e){}
+}
+
+// ── 반 이동 ──
+var moveClassStuId=null;
+async function openMoveClass(id, name){
+  moveClassStuId=id;
+  document.getElementById('mc-stu-name').textContent=name;
+  document.getElementById('move-class-msg').textContent='';
+  var sel=document.getElementById('mc-class-select');
+  sel.innerHTML='<option value="">불러오는 중...</option>';
+  document.getElementById('move-class-modal').classList.add('show');
+  try{
+    var r=await fetch(SU+'?action=getClasses').then(function(r){return r.json();});
+    var list=(r.classes||[]).filter(function(c){return String(c.id)!==String(classId);});
+    if(!list.length){ sel.innerHTML='<option value="">이동 가능한 다른 반이 없습니다</option>'; return; }
+    sel.innerHTML=list.map(function(c){return '<option value="'+c.id+'">'+escHtml(c.name)+'</option>';}).join('');
+  }catch(e){ sel.innerHTML='<option value="">반 목록을 불러오지 못했습니다</option>'; }
+}
+function closeMoveClass(){
+  document.getElementById('move-class-modal').classList.remove('show');
+  moveClassStuId=null;
+}
+async function doMoveClass(){
+  var targetId=document.getElementById('mc-class-select').value;
+  if(!targetId){ document.getElementById('move-class-msg').textContent='이동할 반을 선택하세요.'; return; }
+  try{
+    var res=await fetch(SU+'?action=assignStudentClass&studentId='+encodeURIComponent(moveClassStuId)+'&classId='+encodeURIComponent(targetId)).then(function(r){return r.json();});
+    if(res.success){
+      students=students.filter(function(s){return s.id!==moveClassStuId;});
+      renderStudents();
+      closeMoveClass();
+    } else {
+      document.getElementById('move-class-msg').textContent='이동 실패. 다시 시도해주세요.';
+    }
+  }catch(e){ document.getElementById('move-class-msg').textContent='오류가 발생했습니다.'; }
 }
 
 async function delStuFromClass(id, name){
