@@ -2319,6 +2319,7 @@ function renderMcList(){
       +'<div style="display:flex;gap:6px;">'
       +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'출석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(status==='출석'?'#16a34a':'#e2e8f0')+';background:'+(status==='출석'?'#16a34a':'#fff')+';color:'+(status==='출석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">출석</button>'
       +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'결석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(status==='결석'?'#dc2626':'#e2e8f0')+';background:'+(status==='결석'?'#dc2626':'#fff')+';color:'+(status==='결석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">결석</button>'
+      +'<button onclick="mcSendReminder(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #fdba74;background:#fff7ed;color:#c2410c;font-size:13px;font-weight:700;cursor:pointer;">🔔 재촉</button>'
       +'</div>'
       +(status==='출석'?('<div style="display:flex;align-items:center;gap:6px;">'
         +'<input type="text" id="mc-score-'+m.id+'" placeholder="테스트 점수" value="'+escHtml((m.testScores&&m.testScores[today.dateStr])||'')+'" autocomplete="off" style="width:110px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12.5px;outline:none;font-family:inherit;">'
@@ -2336,6 +2337,24 @@ async function saveMcTestScore(id){
   await fetch(SU+'?action=setMandatoryClinicTestScore&id='+encodeURIComponent(id)+'&date='+encodeURIComponent(today.dateStr)+'&score='+encodeURIComponent(score));
   alert('저장했어요. 다음 수업 결과 알림톡을 보낼 때 이 학생 메시지에 자동으로 들어가요.');
   loadMclinic();
+}
+async function mcSendReminder(id, studentId, name){
+  var today=mcTodayInfo();
+  var student=mcStudents.find(function(s){return s.id===studentId;});
+  var text=name+' 학생, 오늘('+today.dayName+'요일) 의무클리닉 시간입니다. 잊지 말고 와주세요!';
+  if(!confirm(name+' 학생에게 아래 알림톡을 보낼까요?\n(카카오 알림톡 발송 - 비용이 발생합니다)\n\n"'+text+'"'))return;
+  var msgs=[];
+  if(student&&student.studentPhone) msgs.push({phone:student.studentPhone, name:name, className:'의무클리닉', sessionNum:today.dateStr, message:text});
+  if(!msgs.length){ alert('⚠️ '+name+' 학생은 등록된 전화번호가 없어서 알림톡을 보낼 수 없어요.'); return; }
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+    if(r.success){
+      await fetch(SU,{method:'POST',body:JSON.stringify({action:'logMcReminder',studentId:studentId,studentName:name,by:(cu&&(cu.name||cu.id))||'',byRole:(cu&&cu.role)||''})});
+      alert('알림톡 발송 완료!');
+    } else {
+      alert('발송 실패: '+(r.msg||''));
+    }
+  }catch(e){ alert('발송 중 오류: '+e.message); }
 }
 async function markMcAttendance(id, studentId, name, status){
   var today=mcTodayInfo();

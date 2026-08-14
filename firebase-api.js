@@ -774,6 +774,12 @@ api.markHwReminderSent = function(db, p){
   });
 };
 
+api.logMcReminder = function(db, p){
+  var roleLabel = p.byRole==='assistant' ? '조교' : '선생님';
+  logActivity(db, p.by||'', p.by||'', p.byRole||'teacher', (p.by||roleLabel)+'('+roleLabel+')님이 '+(p.studentName||p.studentId)+' 학생에게 의무클리닉 재촉 알림톡을 보냈습니다.', 'MC_REMINDER_SENT');
+  return Promise.resolve({ success:true });
+};
+
 // submissionUrl 필드가 예전엔 문자열 하나였고 지금은 배열임 — 둘 다 안전하게 배열로 통일
 function hwUrlsToArray(v){
   if (Array.isArray(v)) return v.filter(function(u){ return u; });
