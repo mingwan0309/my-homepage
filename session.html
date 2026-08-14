@@ -1801,7 +1801,10 @@ function computeMsgTokens(studentId){
   } else if(type==='hw'){
     var HW_LABELS={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
     var s=(hwStatusMap[studentId]||{})[id];
-    tokens['{상태}']=s&&s.pass?HW_LABELS[s.pass]:'미제출';
+    // hwStatusMap에 이 학생×이 과제 데이터가 아예 없는 경우(데이터 로딩 문제 등)엔
+    // "미제출"이라고 함부로 단정하지 말고 눈에 띄는 경고로 표시 — 잘못된 정보가 그대로 발송되는 사고 방지
+    if(!s){ tokens['{상태}']='⚠️확인필요'; }
+    else { tokens['{상태}']=s.pass?HW_LABELS[s.pass]:'미제출'; }
     tokens['{코멘트}']=s&&s.feedback?s.feedback:(HW_STATUS_TEMPLATE[(s&&s.pass)||'notsub']||'—');
     // 지난 차시에 미이행이었던 숙제를 (증빙 사진으로) 다시 제출했는지 여부에 따라 자동 멘트 생성
     var hasSubmission=!!(s&&s.submissionUrls&&s.submissionUrls.length);
