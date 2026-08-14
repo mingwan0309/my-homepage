@@ -923,8 +923,10 @@ async function loadAttendance(){
 }
 
 function getSessionStudents(){
-  return students.filter(function(st){return attMap[st.id]!==undefined;})
-    .sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ko');});
+  // 반에 등록된 학생은(언제 들어왔든) 항상 출석표에 자동으로 보임 — 성적 탭과 동일한 기준.
+  // '학생 추가' 모달은 이 반 소속이 아닌 학생(다른 반 학생 보강 등)을 이 차시에만 끼워넣을 때 씀
+  // (선택 시 students 배열에 바로 합쳐지므로 여기서 따로 처리할 필요 없음).
+  return students.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ko');});
 }
 
 var selectedIds=new Set();
