@@ -318,10 +318,12 @@ a{text-decoration:none;}
 
     <!-- 숙제 현황 (기록이 있는 학생만 노출) -->
     <div class="card" id="hw-status-card" style="display:none;">
-      <div class="card-title"><span>📝</span> 내 숙제 <span id="hw-badge" class="hw-badge-count" style="display:none;"></span></div>
-      <div id="hw-list-needs" style="margin-top:8px;"></div>
-      <button type="button" class="vid-drop-head" id="hw-done-toggle" onclick="toggleAttDrop(this)" style="display:none;margin-top:8px;"><span id="hw-done-toggle-label">완료된 숙제 보기</span><span class="vid-drop-arrow">▾</span></button>
-      <div id="hw-list-done" style="display:none;margin-top:8px;"></div>
+      <button type="button" class="vid-drop-head" id="hw-main-toggle" onclick="toggleAttDrop(this)" style="width:100%;background:none;border:none;padding:0;text-align:left;"><span class="card-title" style="margin:0;"><span>📝</span> 내 숙제 <span id="hw-badge" class="hw-badge-count" style="display:none;"></span></span><span class="vid-drop-arrow">▾</span></button>
+      <div id="hw-main-body" style="display:none;margin-top:8px;">
+        <div id="hw-list-needs"></div>
+        <button type="button" class="vid-drop-head" id="hw-done-toggle" onclick="toggleAttDrop(this)" style="display:none;margin-top:8px;"><span id="hw-done-toggle-label">완료된 숙제 보기</span><span class="vid-drop-arrow">▾</span></button>
+        <div id="hw-list-done" style="display:none;margin-top:8px;"></div>
+      </div>
     </div>
     <input type="file" id="hw-file-input" accept="image/*" multiple style="display:none;" onchange="onHwFileSelected(event)">
 
