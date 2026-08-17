@@ -449,7 +449,12 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
               <th style="padding:8px 10px;">고등학교</th>
               <th style="padding:8px 10px;">학년</th>
               <th style="padding:8px 10px;">성별</th>
-              <th style="padding:8px 10px;">반 배정</th>
+              <th style="padding:8px 6px;">
+                <select id="stu-class-filter" onchange="renderStu()" style="padding:5px 6px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-weight:700;font-family:inherit;background:#fff;color:#334155;cursor:pointer;">
+                  <option value="">반 배정 (전체)</option>
+                  <option value="__none__">— 반 미배정 —</option>
+                </select>
+              </th>
               <th style="padding:8px 10px;">등록일자</th>
               <th style="padding:8px 10px;">계정상태</th>
             </tr>
@@ -1545,14 +1550,25 @@ async function loadStu(){
     renderStu();
     var sclassEl=document.getElementById('sclass');
     if(sclassEl) sclassEl.innerHTML='<option value="">— 미배정 —</option>'+allClasses.map(function(c){return '<option value="'+c.id+'">'+escHtml(c.name)+'</option>';}).join('');
+    var filterEl=document.getElementById('stu-class-filter');
+    if(filterEl){
+      var curVal=filterEl.value;
+      filterEl.innerHTML='<option value="">반 배정 (전체)</option><option value="__none__">— 반 미배정 —</option>'
+        +allClasses.map(function(c){return '<option value="'+c.id+'">'+escHtml(c.name)+'</option>';}).join('');
+      filterEl.value=curVal;
+    }
   }catch(e){a.innerHTML='<tr><td colspan="10" style="padding:20px;color:#dc2626;">불러오기 실패</td></tr>';}
 }
 function renderStu(){
   var a=document.getElementById('stu-list');
   var q=(document.getElementById('stu-search').value||'').trim().toLowerCase();
+  var classFilterEl=document.getElementById('stu-class-filter');
+  var classFilter=classFilterEl?classFilterEl.value:'';
   var list=allStudents.filter(function(s){
-    if(!q) return true;
-    return (s.name||'').toLowerCase().includes(q) || (s.studentPhone||'').includes(q) || (s.parentPhone||'').includes(q);
+    if(q && !((s.name||'').toLowerCase().includes(q) || (s.studentPhone||'').includes(q) || (s.parentPhone||'').includes(q))) return false;
+    if(classFilter==='__none__') return !s.classId;
+    if(classFilter) return String(s.classId||'')===classFilter;
+    return true;
   });
   document.getElementById('stu-count').textContent='('+list.length+'명)';
   if(!list.length){a.innerHTML='<tr><td colspan="10" style="padding:20px;color:#94a3b8;">등록된 학생이 없습니다</td></tr>';updateStuBulkBar();return;}
