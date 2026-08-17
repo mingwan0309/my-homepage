@@ -1559,17 +1559,20 @@ async function loadStu(){
     }
   }catch(e){a.innerHTML='<tr><td colspan="10" style="padding:20px;color:#dc2626;">불러오기 실패</td></tr>';}
 }
-function renderStu(){
-  var a=document.getElementById('stu-list');
+function getFilteredStudents(){
   var q=(document.getElementById('stu-search').value||'').trim().toLowerCase();
   var classFilterEl=document.getElementById('stu-class-filter');
   var classFilter=classFilterEl?classFilterEl.value:'';
-  var list=allStudents.filter(function(s){
+  return allStudents.filter(function(s){
     if(q && !((s.name||'').toLowerCase().includes(q) || (s.studentPhone||'').includes(q) || (s.parentPhone||'').includes(q))) return false;
     if(classFilter==='__none__') return !s.classId;
     if(classFilter) return String(s.classId||'')===classFilter;
     return true;
   });
+}
+function renderStu(){
+  var a=document.getElementById('stu-list');
+  var list=getFilteredStudents();
   document.getElementById('stu-count').textContent='('+list.length+'명)';
   if(!list.length){a.innerHTML='<tr><td colspan="10" style="padding:20px;color:#94a3b8;">등록된 학생이 없습니다</td></tr>';updateStuBulkBar();return;}
   a.innerHTML=list.map(function(s){
@@ -1704,7 +1707,7 @@ function toggleStuSel(id,checked){
 }
 function toggleAllStu(checked){
   stuSelected={};
-  if(checked) allStudents.forEach(function(s){stuSelected[s.id]=true;});
+  if(checked) getFilteredStudents().forEach(function(s){stuSelected[s.id]=true;});
   renderStu();
 }
 function updateStuBulkBar(){
