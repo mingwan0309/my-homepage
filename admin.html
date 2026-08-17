@@ -406,6 +406,11 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
             </select>
           </div>
           <div class="fg" style="max-width:130px;"><label>초기 비밀번호</label><input type="text" id="npw" value="123456" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+          <div class="fg" style="max-width:160px;"><label>반 배정</label>
+            <select id="sclass" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+              <option value="">— 미배정 —</option>
+            </select>
+          </div>
         </div>
         <button class="btn-primary" style="margin-top:12px;" onclick="addSingle()">추가</button>
         <div id="add-msg"></div>
@@ -1431,24 +1436,25 @@ async function addSingle(){
   var school=document.getElementById('sschool').value.trim();
   var grade=document.getElementById('sgrade').value;
   var gender=document.getElementById('sgender').value;
+  var classId=document.getElementById('sclass').value;
   var m=document.getElementById('add-msg');
   if(!sp||!pp){showMsg(m,'학생/학부모 번호를 모두 입력해주세요','error');return;}
-  var ok=await callAdd(sp,pp,pw,name,school,grade,gender);
+  var ok=await callAdd(sp,pp,pw,name,school,grade,gender,classId);
   if(ok){
     showMsg(m,'추가되었습니다!','success');
     ['sname','sp','pp','sschool'].forEach(function(id){document.getElementById(id).value='';});
-    document.getElementById('sgrade').value=''; document.getElementById('sgender').value='';
+    document.getElementById('sgrade').value=''; document.getElementById('sgender').value=''; document.getElementById('sclass').value='';
     loadStu();
   } else showMsg(m,'오류가 발생했습니다 (이미 존재하는 번호일 수 있어요)','error');
 }
-async function callAdd(sp,pp,pw,name,school,grade,gender){
-  var d=await callAddDetailed(sp,pp,pw,name,school,grade,gender);
+async function callAdd(sp,pp,pw,name,school,grade,gender,classId){
+  var d=await callAddDetailed(sp,pp,pw,name,school,grade,gender,classId);
   return d.success;
 }
-async function callAddDetailed(sp,pp,pw,name,school,grade,gender){
+async function callAddDetailed(sp,pp,pw,name,school,grade,gender,classId){
   try{
     var url=SU+'?action=addStudent&teacherId='+encodeURIComponent(cu.id)+'&studentPhone='+encodeURIComponent(sp)+'&parentPhone='+encodeURIComponent(pp)+'&spw='+encodeURIComponent(pw)
-      +'&sname='+encodeURIComponent(name||'')+'&school='+encodeURIComponent(school||'')+'&grade='+encodeURIComponent(grade||'')+'&gender='+encodeURIComponent(gender||'');
+      +'&sname='+encodeURIComponent(name||'')+'&school='+encodeURIComponent(school||'')+'&grade='+encodeURIComponent(grade||'')+'&gender='+encodeURIComponent(gender||'')+'&classId='+encodeURIComponent(classId||'');
     var r=await fetch(url);var d=await r.json();return d;
   }catch(e){return {success:false,msg:e.message};}
 }
@@ -1537,6 +1543,8 @@ async function loadStu(){
     allClasses=cr.classes||[];
     stuSelected={};
     renderStu();
+    var sclassEl=document.getElementById('sclass');
+    if(sclassEl) sclassEl.innerHTML='<option value="">— 미배정 —</option>'+allClasses.map(function(c){return '<option value="'+c.id+'">'+escHtml(c.name)+'</option>';}).join('');
   }catch(e){a.innerHTML='<tr><td colspan="10" style="padding:20px;color:#dc2626;">불러오기 실패</td></tr>';}
 }
 function renderStu(){
