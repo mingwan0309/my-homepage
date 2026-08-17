@@ -813,12 +813,47 @@ api.updateHwItem = function(db, p){
   return db.collection('homeworks').doc(String(p.id)).update(data)
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
+// 반별 '숙제왕 베스트 2' 요약 — 학생은 서로의 숙제 기록을 못 읽게 막혀있어서(Firestore 규칙),
+// 교사/조교가 숙제 채점을 저장할 때마다 이 반의 순위를 다시 계산해서 이름 2명만 별도 문서로 저장해둠.
+// 점수/구체 기록은 안 들어가고 이름만 있어서 학생이 읽어도 프라이버시 문제 없음.
+function recomputeClassHwLeaderboard(db, classId){
+  if(!classId) return Promise.resolve();
+  return db.collection('sessions').where('classId','==',String(classId)).get().then(function(snap){
+    var sessionIds = snap.docs.map(function(d){ return d.id; });
+    if(!sessionIds.length) return null;
+    return Promise.all(sessionIds.map(function(sid){ return db.collection('hw_status').where('sessionId','==',sid).get(); }));
+  }).then(function(snaps){
+    if(!snaps) return db.collection('class_hw_leaderboard').doc(String(classId)).set({ classId:String(classId), top:[], updatedAt:nowStr() });
+    var tally={};
+    snaps.forEach(function(snap){
+      snap.forEach(function(doc){
+        var d=doc.data(); var sid=String(d.studentId);
+        if(!tally[sid]) tally[sid]={complete:0};
+        if(d.pass==='complete') tally[sid].complete++;
+      });
+    });
+    var ids=Object.keys(tally).filter(function(id){ return tally[id].complete>0; });
+    if(!ids.length) return db.collection('class_hw_leaderboard').doc(String(classId)).set({ classId:String(classId), top:[], updatedAt:nowStr() });
+    return Promise.all(ids.map(function(id){ return db.collection('students').doc(id).get(); })).then(function(docs){
+      var nameMap={}; docs.forEach(function(d){ if(d.exists) nameMap[d.id]=d.data().name||d.id; });
+      var ranked = ids.map(function(id){ return { studentId:id, name:nameMap[id]||id, complete:tally[id].complete }; })
+        .sort(function(a,b){ if(b.complete!==a.complete) return b.complete-a.complete; return a.name.localeCompare(b.name,'ko'); })
+        .slice(0,2);
+      return db.collection('class_hw_leaderboard').doc(String(classId)).set({ classId:String(classId), top:ranked, updatedAt:nowStr() });
+    });
+  }).catch(function(){});
+}
 api.setHwStatus = function(db, p){
   var key = String(p.sessionId)+'__'+String(p.studentId)+'__'+String(p.hwId);
   return db.collection('hw_status').doc(key).set({
     id:key, sessionId:String(p.sessionId), studentId:String(p.studentId), hwId:String(p.hwId),
     pass:p.pass||'', feedback:p.feedback||''
-  },{merge:true}).then(function(){ return { success:true }; });
+  },{merge:true}).then(function(){
+    db.collection('sessions').doc(String(p.sessionId)).get().then(function(d){
+      if(d.exists) recomputeClassHwLeaderboard(db, d.data().classId);
+    });
+    return { success:true };
+  });
 };
 api.getHwStatuses = function(db, p){
   return db.collection('hw_status').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
