@@ -88,32 +88,25 @@ tr:hover td{background:#fafbff;}
 .att-chips-wrap::-webkit-scrollbar{display:none;}
 .att-chip-sm{width:20px;height:20px;border-radius:4px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
 
-.stu-panel{position:fixed;top:0;right:-440px;width:420px;height:100vh;background:#fff;box-shadow:-4px 0 32px rgba(0,0,0,.12);z-index:900;transition:.28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column;}
-.stu-panel.open{right:0;}
-.stu-panel-backdrop{display:none;position:fixed;inset:0;z-index:899;}
-.stu-panel-backdrop.open{display:block;}
-.stu-panel-head{padding:20px 20px 14px;border-bottom:1px solid #f1f5f9;position:sticky;top:0;background:#fff;z-index:2;}
-.stu-panel-name{font-size:18px;font-weight:800;color:#1e293b;margin-bottom:2px;}
-.stu-panel-sub{font-size:12px;color:#94a3b8;}
-.stu-panel-close{position:absolute;top:16px;right:16px;background:#f1f5f9;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:15px;color:#64748b;display:flex;align-items:center;justify-content:center;}
-.stu-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 20px;}
-.stu-info-item{background:#f8fafc;border-radius:10px;padding:10px 13px;}
-.stu-info-label{font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:3px;}
-.stu-info-val{font-size:13px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:4px;}
-.copy-btn{background:none;border:none;cursor:pointer;font-size:12px;color:#94a3b8;padding:0;}
-.copy-btn:hover{color:#3b6cf7;}
-.stu-panel-tabs{display:flex;border-bottom:1px solid #e2e8f0;padding:0 20px;}
-.stu-ptab{padding:10px 14px;font-size:13px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
-.stu-ptab.active{color:#3b6cf7;border-bottom-color:#3b6cf7;}
-.stu-panel-body{padding:16px 20px;flex:1;}
-.att-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f8fafc;}
-.att-row:last-child{border-bottom:none;}
-.att-row-num{font-size:12px;color:#94a3b8;font-weight:600;width:42px;flex-shrink:0;}
-.att-row-date{font-size:12px;color:#64748b;flex:1;}
-.qna-item{padding:10px 0;border-bottom:1px solid #f8fafc;}
-.qna-item:last-child{border-bottom:none;}
-.qna-item-title{font-size:13px;font-weight:600;color:#1e293b;}
-.qna-item-date{font-size:11px;color:#94a3b8;margin-top:3px;}
+.sd-panel{position:fixed;top:0;right:-460px;width:440px;height:100vh;background:#fff;box-shadow:-4px 0 32px rgba(0,0,0,.14);z-index:900;transition:.28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column;box-sizing:border-box;}
+.sd-panel.open{right:0;}
+.sd-panel-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.15);z-index:899;}
+.sd-panel-backdrop.open{display:block;}
+.sd-panel-head{padding:22px 22px 16px;border-bottom:1px solid #f1f5f9;position:relative;}
+.sd-panel-close{position:absolute;top:18px;right:18px;background:#f1f5f9;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:15px;color:#64748b;}
+.sd-panel-name{font-size:19px;font-weight:800;color:#1e293b;margin-bottom:4px;}
+.sd-panel-sub{font-size:12.5px;color:#94a3b8;}
+.sd-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;padding:16px 22px;border-bottom:1px solid #f1f5f9;}
+.sd-info-item{font-size:12.5px;}
+.sd-info-label{color:#94a3b8;margin-bottom:2px;}
+.sd-info-val{color:#1e293b;font-weight:700;}
+.sd-tabs{display:flex;border-bottom:1px solid #e2e8f0;padding:0 22px;overflow-x:auto;white-space:nowrap;}
+.sd-tab{padding:12px 14px;font-size:13px;font-weight:700;color:#94a3b8;cursor:pointer;border-bottom:2.5px solid transparent;flex-shrink:0;}
+.sd-tab.active{color:#2563eb;border-bottom-color:#2563eb;}
+.sd-tab-body{padding:16px 22px 30px;flex:1;}
+.sd-hist-row{padding:10px 0;border-bottom:1px solid #f8fafc;font-size:13px;}
+.sd-hist-title{font-weight:700;color:#1e293b;}
+.sd-hist-sub{font-size:11.5px;color:#94a3b8;margin-top:2px;}
 
 /* 자료실 */
 .mat-layout{display:flex;gap:16px;align-items:flex-start;}
@@ -224,8 +217,9 @@ tr:hover td{background:#fafbff;}
   /* 자료 목록 */
   .mat-name{font-size:14px;}
   /* 패널 */
-  .stu-panel{width:100%;right:-100%;}
-  .stu-panel.open{right:0;}
+  .sd-panel{width:100%;right:-100%;}
+  .sd-panel.open{right:0;}
+  .sd-panel-head,.sd-info-grid,.sd-tabs,.sd-tab-body{padding-left:16px;padding-right:16px;}
   /* 모달 */
   .modal{width:95%;padding:20px 16px;max-height:88vh;overflow-y:auto;}
   .vmod{width:95%;max-height:90vh;}
@@ -530,22 +524,22 @@ tr:hover td{background:#fafbff;}
 </div>
 
 <!-- 학생 상세 패널 -->
-<div class="stu-panel-backdrop" id="stu-panel-backdrop" onclick="closeStudentDetail()"></div>
-<div class="stu-panel" id="stu-panel">
-  <div class="stu-panel-head">
-    <div class="stu-panel-name" id="sp-name"></div>
-    <div class="stu-panel-sub" id="sp-sub"></div>
-    <button class="stu-panel-close" onclick="closeStudentDetail()">✕</button>
+<div class="sd-panel-backdrop" id="sd-panel-backdrop" onclick="closeStuDetail()"></div>
+<div class="sd-panel" id="sd-panel">
+  <div class="sd-panel-head">
+    <button class="sd-panel-close" onclick="closeStuDetail()">✕</button>
+    <div class="sd-panel-name" id="sd-name">—</div>
+    <div class="sd-panel-sub" id="sd-sub">—</div>
+    <button id="sd-preview-btn" onclick="openStuPreview()" style="margin-top:10px;background:#eff6ff;color:#1d4ed8;border:none;padding:9px 16px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">📱 학생 화면 보기</button>
   </div>
-  <div class="stu-info-grid" id="sp-info-grid"></div>
-  <div class="stu-panel-tabs">
-    <div class="stu-ptab active" onclick="switchStuTab('att',this)">수강 이력</div>
-    <div class="stu-ptab" onclick="switchStuTab('qna',this)">질문 이력</div>
+  <div class="sd-info-grid" id="sd-info-grid"></div>
+  <div class="sd-tabs">
+    <div class="sd-tab active" onclick="switchSdTab('att',this)">수강 이력</div>
+    <div class="sd-tab" onclick="switchSdTab('clinic',this)">클리닉·상담 이력</div>
+    <div class="sd-tab" onclick="switchSdTab('qna',this)">질문 이력</div>
+    <div class="sd-tab" onclick="switchSdTab('score',this)">성적 이력</div>
   </div>
-  <div class="stu-panel-body">
-    <div id="sp-att"></div>
-    <div id="sp-qna" style="display:none;"></div>
-  </div>
+  <div class="sd-tab-body" id="sd-tab-body"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
 </div>
 
 <!-- 학생 추가 모달 -->
@@ -722,7 +716,7 @@ function renderStudents(){
     tbody.innerHTML=list.map(function(st,idx){
       return '<tr id="stu-row-'+st.id+'">'
         +'<td style="color:#94a3b8;font-weight:600;font-size:12px;">'+(idx+1)+'</td>'
-        +'<td><span class="stu-name-link" onclick="openStudentDetail(\''+st.id+'\')">'+escHtml(st.name)+'</span></td>'
+        +'<td><span class="stu-name-link" onclick="openStuDetail(\''+st.id+'\')">'+escHtml(st.name)+'</span></td>'
         +'<td class="stu-phone">'+(st.parentPhone?'<span class="phone-copy" onclick="copyText(\''+st.parentPhone+'\')" title="클릭하여 복사">'+st.parentPhone+'</span>':'-')+'</td>'
         +'<td class="stu-phone">'+(st.studentPhone?'<span class="phone-copy" onclick="copyText(\''+st.studentPhone+'\')" title="클릭하여 복사">'+st.studentPhone+'</span>':'-')+'</td>'
         +'<td style="font-size:12px;color:#475569;">'+(st.school||'-')+'</td>'
@@ -1509,80 +1503,78 @@ async function saveVideo(type){
   }catch(e){alert('오류가 발생했습니다.');}
 }
 
-// ── 학생 상세 패널 ──
-var currentStuId=null;
-function openStudentDetail(studentId){
-  var st=students.find(function(s){return s.id===studentId;});
-  if(!st)return;
-  currentStuId=studentId;
-  document.getElementById('sp-name').textContent=st.name;
-  document.getElementById('sp-sub').textContent=(st.school||'')+(st.grade?' · '+st.grade:'');
-  function infoItem(label,val,copy){
-    return '<div class="stu-info-item">'
-      +'<div class="stu-info-label">'+label+'</div>'
-      +'<div class="stu-info-val">'+escHtml(val||'-')+(copy&&val?'<button class="copy-btn" onclick="copyText(\''+val+'\')" title="복사">📋</button>':'')+'</div>'
-      +'</div>';
-  }
-  document.getElementById('sp-info-grid').innerHTML=
-    infoItem('학부모 전화번호',st.parentPhone,true)
-    +infoItem('학생 전화번호',st.studentPhone,true)
-    +infoItem('학교',st.school,false)
-    +infoItem('학년',st.grade,false)
-    +infoItem('성별',st.gender,false)
-    +infoItem('등록일',(st.createdAt||'').substring(0,10),false);
-  switchStuTab('att',document.querySelector('.stu-ptab'));
-  document.getElementById('sp-att').innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">로딩 중...</div>';
-  document.getElementById('sp-qna').innerHTML='';
-  document.getElementById('stu-panel').classList.add('open');
-  document.getElementById('stu-panel-backdrop').classList.add('open');
-  loadStudentAtt(studentId);
-}
-function closeStudentDetail(){
-  document.getElementById('stu-panel').classList.remove('open');
-  document.getElementById('stu-panel-backdrop').classList.remove('open');
-}
+// ── 학생 상세 패널 (admin.html '학생' 탭과 완전히 동일한 패널 — 항상 서로 일치하게 유지할 것) ──
 function copyText(txt){
   navigator.clipboard.writeText(txt).then(function(){alert('복사되었습니다.');}).catch(function(){});
 }
-function switchStuTab(tab, el){
-  document.querySelectorAll('.stu-ptab').forEach(function(t){t.classList.remove('active');});
-  el.classList.add('active');
-  document.getElementById('sp-att').style.display=tab==='att'?'':'none';
-  document.getElementById('sp-qna').style.display=tab==='qna'?'':'none';
-  if(tab==='qna'&&currentStuId) loadStudentQna(currentStuId);
-}
-function loadStudentAtt(studentId){
-  var data=(attMapGlobal[studentId]||[]).slice().reverse();
-  if(!data.length){
-    document.getElementById('sp-att').innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">출결 이력이 없습니다.</div>';
-    return;
-  }
-  var html=data.map(function(d){
-    return '<div class="att-row">'
-      +'<span class="att-row-num">'+d.sessionNum+'차시</span>'
-      +'<span class="att-row-date">'+(d.date||'')+'</span>'
-      +'<span class="att-chip s'+d.status+'" style="padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;">'+d.status+'</span>'
-      +'</div>';
-  }).join('');
-  document.getElementById('sp-att').innerHTML=html;
-}
-async function loadStudentQna(studentId){
-  var el=document.getElementById('sp-qna');
-  if(el.dataset.loaded===studentId) return;
-  el.innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">로딩 중...</div>';
+var sdCurrentStu=null, sdHistory=null, sdCurrentTab='att';
+async function openStuDetail(id){
+  var s=students.find(function(x){return x.id===id;});
+  if(!s) return;
+  sdCurrentStu=s;
+  sdHistory=null;
+  document.getElementById('sd-name').textContent=s.name||s.id;
+  document.getElementById('sd-sub').textContent=(s.school||'')+(s.grade?' · '+s.grade:'');
+  document.getElementById('sd-info-grid').innerHTML=
+    '<div class="sd-info-item"><div class="sd-info-label">학부모 전화번호</div><div class="sd-info-val">'+escHtml(s.parentPhone||'-')+'</div></div>'
+    +'<div class="sd-info-item"><div class="sd-info-label">학생 전화번호</div><div class="sd-info-val">'+escHtml(s.studentPhone||s.id||'-')+'</div></div>'
+    +'<div class="sd-info-item"><div class="sd-info-label">성별</div><div class="sd-info-val">'+escHtml(s.gender||'미입력')+'</div></div>'
+    +'<div class="sd-info-item"><div class="sd-info-label">학교</div><div class="sd-info-val">'+escHtml(s.school||'미입력')+'</div></div>'
+    +'<div class="sd-info-item"><div class="sd-info-label">학년</div><div class="sd-info-val">'+escHtml(s.grade||'미입력')+'</div></div>'
+    +'<div class="sd-info-item"><div class="sd-info-label">등록일</div><div class="sd-info-val">'+escHtml((s.createdAt||'-').substring(0,10))+'</div></div>';
+  sdCurrentTab='att';
+  document.querySelectorAll('.sd-tab').forEach(function(t,i){ t.classList.toggle('active', i===0); });
+  document.getElementById('sd-tab-body').innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  document.getElementById('sd-panel').classList.add('open');
+  document.getElementById('sd-panel-backdrop').classList.add('open');
   try{
-    var db=await window.mkdbReady;
-    var snap=await db.collection('qna').where('studentId','==',String(studentId)).get();
-    var items=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}).sort(function(a,b){return (b.createdAt||'').localeCompare(a.createdAt||'');});
-    if(!items.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">질문 이력이 없습니다.</div>';el.dataset.loaded=studentId;return;}
-    el.innerHTML=items.map(function(q){
-      return '<div class="qna-item">'
-        +'<div class="qna-item-title">'+escHtml(q.title||'(제목 없음)')+'</div>'
-        +'<div class="qna-item-date">'+(q.createdAt||'').substring(0,10)+(q.answered?' · 답변완료':' · 미답변')+'</div>'
-        +'</div>';
-    }).join('');
-    el.dataset.loaded=studentId;
-  }catch(e){el.innerHTML='<div style="color:#dc2626;font-size:13px;text-align:center;padding:20px;">불러오기 실패</div>';}
+    var r=await fetch(SU+'?action=getStudentFullHistory&studentId='+encodeURIComponent(id)).then(function(r){return r.json();});
+    sdHistory={ attendance:r.attendance||[], clinicHistory:r.clinicHistory||[], qna:r.qna||[], scores:r.scores||[] };
+  }catch(e){ sdHistory={ attendance:[], clinicHistory:[], qna:[], scores:[] }; }
+  renderSdTabBody();
+}
+function closeStuDetail(){
+  document.getElementById('sd-panel').classList.remove('open');
+  document.getElementById('sd-panel-backdrop').classList.remove('open');
+}
+function switchSdTab(tab,el){
+  sdCurrentTab=tab;
+  document.querySelectorAll('.sd-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  renderSdTabBody();
+}
+function renderSdTabBody(){
+  var body=document.getElementById('sd-tab-body');
+  if(!sdHistory){ body.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>'; return; }
+  if(sdCurrentTab==='att'){
+    var att=sdHistory.attendance;
+    body.innerHTML = att.length ? att.map(function(a){
+      return '<div class="sd-hist-row"><span class="sd-hist-title">'+(a.sessionNum?a.sessionNum+'차시':'')+' '+escHtml(a.className||'')+'</span> — '+escHtml(a.status||'-')
+        +'<div class="sd-hist-sub">'+(a.date||'')+(a.memo?' · '+escHtml(a.memo):'')+'</div></div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">출석 기록이 없어요.</div>';
+  } else if(sdCurrentTab==='clinic'){
+    var cl=sdHistory.clinicHistory;
+    body.innerHTML = cl.length ? cl.map(function(c){
+      return '<div class="sd-hist-row"><span class="sd-hist-title">['+escHtml(c.type)+'] '+escHtml(c.name)+'</span>'+(c.status?' — '+escHtml(c.status):'')
+        +'<div class="sd-hist-sub">'+escHtml(c.date||c.createdAt||'')+'</div></div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">클리닉·상담 이력이 없어요.</div>';
+  } else if(sdCurrentTab==='qna'){
+    var qn=sdHistory.qna;
+    body.innerHTML = qn.length ? qn.map(function(q){
+      return '<div class="sd-hist-row"><span class="sd-hist-title">'+escHtml(q.title||'(제목 없음)')+'</span>'
+        +'<div class="sd-hist-sub">'+escHtml(q.date||'')+' · '+(q.answered?'답변완료':'답변대기')+'</div></div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">질문 이력이 없어요.</div>';
+  } else if(sdCurrentTab==='score'){
+    var sc=sdHistory.scores;
+    body.innerHTML = sc.length ? sc.map(function(s){
+      return '<div class="sd-hist-row"><span class="sd-hist-title">'+escHtml(s.examName)+'</span> — '+(s.pass==='submit'?'통과':s.pass==='nosub'?'미통과':'-')+(s.score!==''?' ('+s.score+'점)':'')
+        +'<div class="sd-hist-sub">'+escHtml(s.className||'')+(s.sessionNum?' · '+s.sessionNum+'차시':'')+(s.feedback?' · '+escHtml(s.feedback):'')+'</div></div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">성적 이력이 없어요.</div>';
+  }
+}
+function openStuPreview(){
+  if(!sdCurrentStu) return;
+  window.open('mypage.html?previewStudentId='+encodeURIComponent(sdCurrentStu.id), '_blank');
 }
 
 // ── 학생 삭제 ──
