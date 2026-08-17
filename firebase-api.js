@@ -621,20 +621,113 @@ api.getAttendanceHistory = function(db, p){
   });
 };
 
+// 누적 성적표 (마이페이지) — 시험은 이름(예: '데일리TEST')이 같으면 같은 시리즈로 묶어서 회차별로 보여줌.
+// 학생 본인 점수/과제이행 문서만 읽으므로(Firestore 규칙) 다른 학생 정보는 노출되지 않음.
+api.getMyScoreHistory = function(db, p){
+  var studentId = String(p.studentId);
+  return Promise.all([
+    db.collection('scores').where('studentId','==',studentId).get(),
+    db.collection('hw_status').where('studentId','==',studentId).get()
+  ]).then(function(res){
+    var scoreDocs = docsToArr(res[0]).filter(function(r){ return r.score!==''&&r.score!==undefined&&r.score!==null; });
+    var hwDocs = docsToArr(res[1]).filter(function(r){ return r.pass; });
+    var examIds = Array.from(new Set(scoreDocs.map(function(r){ return String(r.examId); })));
+    var hwIds = Array.from(new Set(hwDocs.map(function(r){ return String(r.hwId); })));
+    var sessionIds = Array.from(new Set(
+      scoreDocs.map(function(r){ return String(r.sessionId); })
+        .concat(hwDocs.map(function(r){ return String(r.sessionId); }))
+    ));
+    return Promise.all([
+      Promise.all(examIds.map(function(id){ return db.collection('exams').doc(id).get(); })),
+      Promise.all(hwIds.map(function(id){ return db.collection('homeworks').doc(id).get(); })),
+      Promise.all(sessionIds.map(function(id){ return db.collection('sessions').doc(id).get(); }))
+    ]).then(function(res2){
+      var examMap={}; res2[0].forEach(function(d){ if(d.exists) examMap[d.id]=d.data(); });
+      var hwMap={}; res2[1].forEach(function(d){ if(d.exists) hwMap[d.id]=d.data(); });
+      var sessionMap={}; res2[2].forEach(function(d){ if(d.exists) sessionMap[d.id]=d.data(); });
+      var classId = String(p.classId||'');
+
+      var examGroups = {};
+      scoreDocs.forEach(function(r){
+        var exam = examMap[String(r.examId)];
+        var sess = sessionMap[String(r.sessionId)];
+        if(!exam || !sess) return;
+        if(classId && String(sess.classId)!==classId) return;
+        var name = exam.name || '시험';
+        if(!examGroups[name]) examGroups[name]=[];
+        examGroups[name].push({
+          sessionNum:Number(sess.sessionNum||0), date:sess.date||'',
+          score:r.score, scoreType:exam.scoreType||'score', totalQuestions:exam.totalQuestions||'',
+          pass:r.pass||'', rank:r.rank||null, grade:r.grade||null, cnt:r.cnt||null, avg:r.avg||null
+        });
+      });
+      Object.keys(examGroups).forEach(function(name){
+        examGroups[name].sort(function(a,b){ return a.sessionNum-b.sessionNum; });
+      });
+
+      var hwGroups = {};
+      hwDocs.forEach(function(r){
+        var hw = hwMap[String(r.hwId)];
+        var sess = sessionMap[String(r.sessionId)];
+        if(!hw || !sess) return;
+        if(classId && String(sess.classId)!==classId) return;
+        var name = hw.name || '과제';
+        if(!hwGroups[name]) hwGroups[name]=[];
+        hwGroups[name].push({ sessionNum:Number(sess.sessionNum||0), date:sess.date||'', pass:r.pass||'' });
+      });
+      Object.keys(hwGroups).forEach(function(name){
+        hwGroups[name].sort(function(a,b){ return a.sessionNum-b.sessionNum; });
+      });
+
+      return { examGroups: examGroups, hwGroups: hwGroups };
+    });
+  });
+};
+
 /* === 성적 (차시별) + 데일리 퀴즈 점수 === */
+// 학생이 자기 등수/등급을 볼 수 있게(누적 성적표), 점수를 저장할 때마다 그 시험 전체를 다시 채점해서
+// rank/grade/cnt/avg를 각 점수 문서에 같이 저장해둠 (session.html의 calcGrade와 같은 계산식).
+// 학생은 본인 점수 문서만 읽을 수 있어서(Firestore 규칙) 다른 학생의 실제 점수는 노출되지 않음.
+var SCORE_GRADE_PCTS=[0.10,0.34,0.66,0.90];
+function scoreCalcGrade(rank,total){
+  if(!total)return null;
+  var cuts=SCORE_GRADE_PCTS.map(function(p){return Math.max(1,Math.ceil(total*p));});
+  for(var i=0;i<cuts.length;i++){if(rank<=cuts[i])return i+1;}
+  return null;
+}
+function recomputeExamRanks(db, examId){
+  return db.collection('scores').where('examId','==',String(examId)).get().then(function(snap){
+    var docs = snap.docs.filter(function(d){ return d.data().score!==''&&d.data().score!==undefined&&d.data().score!==null; });
+    var list = docs.map(function(d){ return { ref:d.ref, score:Number(d.data().score) }; }).sort(function(a,b){ return b.score-a.score; });
+    var cnt = list.length;
+    if(!cnt) return;
+    var avg = Math.round(list.reduce(function(a,b){return a+b.score;},0)/cnt*10)/10;
+    var batch = db.batch();
+    list.forEach(function(item,idx){
+      var rank = list.filter(function(o){return o.score>item.score;}).length+1;
+      var grade = scoreCalcGrade(rank,cnt);
+      batch.update(item.ref,{ rank:rank, grade:grade, cnt:cnt, avg:avg });
+    });
+    return batch.commit();
+  }).catch(function(){});
+}
 api.setScore = function(db, p){
   var key = String(p.sessionId) + '__' + String(p.studentId) + '__' + String(p.examId);
   return db.collection('scores').doc(key).set({
     id:key, sessionId:String(p.sessionId), studentId:String(p.studentId), examId:String(p.examId),
     score:p.score||'', pass:p.pass||'', feedback:p.feedback||''
-  }).then(function(){ return { success:true }; });
+  }).then(function(){
+    recomputeExamRanks(db, p.examId);
+    return { success:true };
+  });
 };
 
 api.getScores = function(db, p){
   if (p.sessionId) {
     return db.collection('scores').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
       var scores = docsToArr(snap).map(function(r){
-        return { sessionId:String(r.sessionId), studentId:String(r.studentId), examId:String(r.examId), score:r.score||'', pass:r.pass||'', feedback:r.feedback||'' };
+        return { sessionId:String(r.sessionId), studentId:String(r.studentId), examId:String(r.examId), score:r.score||'', pass:r.pass||'', feedback:r.feedback||'',
+          rank:r.rank||null, grade:r.grade||null, cnt:r.cnt||null, avg:r.avg||null };
       });
       return { scores: scores };
     });
