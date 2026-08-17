@@ -1556,9 +1556,9 @@ function renderStu(){
   });
   document.getElementById('stu-count').textContent='('+list.length+'명)';
   if(!list.length){a.innerHTML='<tr><td colspan="10" style="padding:20px;color:#94a3b8;">등록된 학생이 없습니다</td></tr>';updateStuBulkBar();return;}
-  var clsOptions='<option value="">— 반 미배정 —</option>'+allClasses.map(function(c){return '<option value="'+c.id+'">'+c.name+'</option>';}).join('');
   a.innerHTML=list.map(function(s){
-    var selOpts=clsOptions.replace('value="'+(s.classId||'"'),'value="'+(s.classId||'')+'" selected');
+    var selOpts='<option value=""'+(!s.classId?' selected':'')+'>— 반 미배정 —</option>'
+      +allClasses.map(function(c){return '<option value="'+c.id+'"'+(String(s.classId||'')===String(c.id)?' selected':'')+'>'+escHtml(c.name)+'</option>';}).join('');
     var checked=stuSelected[s.id]?'checked':'';
     var active=s.active!==false;
     return '<tr style="border-bottom:1px solid #f1f5f9;">'
