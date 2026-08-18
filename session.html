@@ -2876,11 +2876,32 @@ function renderSessionDD(){
   if(!classSessions.length){menu.innerHTML='<div style="padding:12px 16px;font-size:13px;color:#94a3b8;">차시 없음</div>';return;}
   menu.innerHTML=classSessions.map(function(s){
     var isCur=s.id===sessionId;
-    return '<div class="session-dd-item'+(isCur?' current':'')+'" onclick="goToSession(\''+s.id+'\')">'
+    var delBtn = (session&&session.role==='teacher') ? '<span onclick="event.stopPropagation();deleteThisSession(\''+s.id+'\',\''+s.sessionNum+'\')" style="margin-left:auto;color:#dc2626;font-size:12px;padding:2px 4px;">🗑</span>' : '';
+    return '<div class="session-dd-item'+(isCur?' current':'')+'" onclick="goToSession(\''+s.id+'\')" style="display:flex;align-items:center;">'
       +s.sessionNum+'차시'
       +(s.date?'<span class="session-dd-date">'+s.date.substring(5)+'</span>':'')
+      +delBtn
       +'</div>';
   }).join('');
+}
+async function deleteThisSession(id, num){
+  if(!confirm(num+'차시를 삭제할까요?\n\n이 차시의 출석/성적/시험/과제 기록이 모두 함께 삭제되며, 되돌릴 수 없습니다.'))return;
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'deleteSession',id:id})}).then(function(r){return r.json();});
+    if(!r.success){ alert('삭제 실패. 다시 시도해주세요.'); return; }
+    if(id===sessionId){
+      var remaining=classSessions.filter(function(s){return s.id!==id;});
+      if(remaining.length){
+        remaining.sort(function(a,b){return b.sessionNum-a.sessionNum;});
+        location.href='session.html?id='+encodeURIComponent(remaining[0].id)+'&classId='+encodeURIComponent(classId);
+      } else {
+        location.href='class.html?id='+encodeURIComponent(classId);
+      }
+    } else {
+      classSessions=classSessions.filter(function(s){return s.id!==id;});
+      renderSessionDD();
+    }
+  }catch(e){ alert('오류가 발생했습니다.'); }
 }
 function goToSession(id){
   if(id===sessionId)return;

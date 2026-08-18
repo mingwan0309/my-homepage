@@ -570,9 +570,21 @@ api.addSession = function(db, p){
   });
 };
 
+// 차시를 지우면 그 차시에 딸린 출석/성적/시험/과제/과제이행 기록도 같이 정리(고아 데이터 방지)
 api.deleteSession = function(db, p){
-  return db.collection('sessions').doc(String(p.id)).delete()
-    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+  var sid = String(p.id);
+  return Promise.all([
+    db.collection('attendance').where('sessionId','==',sid).get(),
+    db.collection('scores').where('sessionId','==',sid).get(),
+    db.collection('exams').where('sessionId','==',sid).get(),
+    db.collection('homeworks').where('sessionId','==',sid).get(),
+    db.collection('hw_status').where('sessionId','==',sid).get()
+  ]).then(function(res){
+    var dels=[];
+    res.forEach(function(snap){ snap.forEach(function(doc){ dels.push(doc.ref.delete()); }); });
+    dels.push(db.collection('sessions').doc(sid).delete());
+    return Promise.all(dels);
+  }).then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
 api.getSession = function(db, p){
