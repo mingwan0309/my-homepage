@@ -1056,6 +1056,7 @@ function renderVideos(){
       if(vid) thumb='<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg" onerror="this.style.display=\'none\'">';
     }
     var badge='<span class="video-badge badge-drive">강의 영상</span>';
+    var editBtn=isStaff?'<button class="video-del-btn" onclick="event.stopPropagation();renameMat(\''+m.id+'\')">이름수정</button>':'';
     var delBtn=isStaff?'<button class="video-del-btn" onclick="event.stopPropagation();delMat(\''+m.id+'\')">삭제</button>':'';
     var viewBtn='';
     if(isStaff){
@@ -1066,7 +1067,7 @@ function renderVideos(){
     return '<div class="video-card" onclick="openVideo(\''+m.url+'\',\''+m.id+'\')">'
       +'<div class="video-thumb">'+thumb+'<div class="video-play-icon">▶</div></div>'
       +'<div class="video-info"><div class="video-title">'+escHtml(m.name)+'</div>'
-      +'<div class="video-meta"><span>'+badge+'</span><span style="display:flex;gap:6px;align-items:center;">'+viewBtn+delBtn+'</span></div>'
+      +'<div class="video-meta"><span>'+badge+'</span><span style="display:flex;gap:6px;align-items:center;">'+viewBtn+editBtn+delBtn+'</span></div>'
       +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+escHtml(m.memo)+'</div>':'')
       +'</div></div>';
   }).join('')+'</div>';
@@ -1192,6 +1193,16 @@ async function delMat(id){
   await fetch(SU+'?action=deleteMaterial&id='+encodeURIComponent(id));
   materials=materials.filter(function(m){return m.id!==id;});
   updateCounts();
+  renderCurrentCat();
+}
+async function renameMat(id){
+  var cur=materials.find(function(x){return x.id===id;});
+  var name=prompt('새 이름을 입력하세요', cur?cur.name:'');
+  if(name===null || !name.trim()) return;
+  name=name.trim();
+  await fetch(SU+'?action=updateMaterial&id='+encodeURIComponent(id)+'&name='+encodeURIComponent(name));
+  var m=materials.find(function(x){return x.id===id;});
+  if(m) m.name=name;
   renderCurrentCat();
 }
 

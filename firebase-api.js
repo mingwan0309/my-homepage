@@ -1257,6 +1257,14 @@ api.addMaterial = function(db, p){
   }).then(function(){ return { success:true, id:id }; });
 };
 
+api.updateMaterial = function(db, p){
+  var data={};
+  if(p.name!==undefined) data.name=p.name;
+  if(p.memo!==undefined) data.memo=p.memo;
+  return db.collection('materials').doc(String(p.id)).update(data)
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
 api.setMaterialWm = function(db, p){
   return db.collection('materials').doc(String(p.id)).update({ wmLevel:String(p.wmLevel||'0') })
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
