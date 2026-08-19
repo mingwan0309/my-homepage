@@ -317,10 +317,12 @@ tr:hover td{background:#fafbff;}
             <div class="card-title" id="mat-cat-title">PDF 자료</div>
             <button class="btn-add-mat" id="btn-add-mat" onclick="openAddMat()" style="display:none;">+ 자료 추가</button>
           </div>
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
           <table class="mat-table">
             <thead><tr><th>파일명</th><th>등록일</th><th>다운로드</th><th>메모</th><th></th></tr></thead>
             <tbody id="mat-tbody"><tr><td colspan="5" class="empty">불러오는 중...</td></tr></tbody>
           </table>
+          </div>
         </div>
       </div>
       <!-- 영상 자료 -->
