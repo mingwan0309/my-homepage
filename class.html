@@ -1313,7 +1313,9 @@ async function downloadMat(id){
   var fileId=extractDriveId(m.url);
   if(!fileId){ window.open(m.url,'_blank'); return; }
   countDl(id);
-  var needWm = m.wmLevel && m.wmLevel!=='0' && /\.pdf$/i.test(m.name||'');
+  // 목록에 보여주는 m.name은 업로드 시 확장자를 잘라내고 저장한 이름이라(.pdf 여부를 여기선 판단 못 함),
+  // 워터마크 단계가 설정돼 있으면 일단 실제 파일을 받아와서 진짜 파일명(d.name, Drive에 저장된 원본)으로 PDF 여부를 다시 확인한다.
+  var needWm = m.wmLevel && m.wmLevel!=='0';
   if(!needWm){ driveDirectDownload(fileId); return; }
   try{
     var res=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getFileBase64',fileId:fileId})});
