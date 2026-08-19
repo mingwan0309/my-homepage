@@ -11,15 +11,24 @@ function doPost(e) {
     }
     if (data.action === 'sendAlimtalk') return sendAlimtalk(data);
     if (data.action === 'getFileBase64') {
+      // 큰 파일(수 MB)을 한 번에 통째로 응답하면 Apps Script가 내부적으로
+      // script.googleusercontent.com 으로 리다이렉트시키는데, 이 리다이렉트가
+      // 종종 404로 실패한다(특히 파일이 클수록). 그래서 start/length가 오면
+      // 그 구간만 잘라서 작게 응답하고, 클라이언트가 여러 번 나눠 받아 이어붙인다.
       var gid = data.fileId;
       var gfile = DriveApp.getFileById(gid);
       var gblob = gfile.getBlob();
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        base64: Utilities.base64Encode(gblob.getBytes()),
-        mimeType: gblob.getContentType() || 'application/octet-stream',
-        name: gfile.getName()
-      })).setMimeType(ContentService.MimeType.JSON);
+      var allBytes = gblob.getBytes();
+      var totalSize = allBytes.length;
+      var mimeType = gblob.getContentType() || 'application/octet-stream';
+      var fname = gfile.getName();
+      if (data.start !== undefined && data.length !== undefined) {
+        var start = Number(data.start);
+        var length = Number(data.length);
+        var slice = allBytes.slice(start, Math.min(start + length, totalSize));
+        return json({ success: true, base64: Utilities.base64Encode(slice), totalSize: totalSize, mimeType: mimeType, name: fname });
+      }
+      return json({ success: true, base64: Utilities.base64Encode(allBytes), totalSize: totalSize, mimeType: mimeType, name: fname });
     }
     if (data.action === 'uploadFile') {
       var folderName = 'MKMath 자료실';

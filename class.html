@@ -1257,6 +1257,26 @@ function extractDriveId(url){
   var m=url.match(/\/d\/([^\/]+)/)||url.match(/[?&]id=([^&]+)/);
   return m?m[1]:'';
 }
+// 큰 파일을 한 번에 받으면 구글 쪽 응답이 404로 실패하는 경우가 있어서, 작은 조각(250KB)으로 나눠 받아 이어붙임.
+async function fetchFileBytesChunked(fileId, onProgress){
+  var CHUNK=250000;
+  var start=0, total=null, name='', mimeType='', chunks=[];
+  while(true){
+    var res=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getFileBase64',fileId:fileId,start:start,length:CHUNK})});
+    var d=await res.json();
+    if(!d.success || !d.base64) return {success:false};
+    var pieceBytes=base64ToBytes(d.base64);
+    chunks.push(pieceBytes);
+    if(total===null){ total=d.totalSize; name=d.name; mimeType=d.mimeType; }
+    start+=pieceBytes.length;
+    if(onProgress) onProgress(start, total);
+    if(pieceBytes.length===0 || start>=total) break;
+  }
+  var all=new Uint8Array(start);
+  var off=0;
+  chunks.forEach(function(c){ all.set(c, off); off+=c.length; });
+  return {success:true, bytes:all, name:name, mimeType:mimeType};
+}
 function triggerDownload(blob, filename){
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -1294,19 +1314,19 @@ async function downloadMat(id){
   // 목록에 보여주는 m.name은 업로드 시 확장자를 잘라내고 저장한 이름이라(.pdf 여부를 여기선 판단 못 함),
   // 워터마크 단계가 설정돼 있으면 일단 실제 파일을 받아와서 진짜 파일명(d.name, Drive에 저장된 원본)으로 PDF 여부를 다시 확인한다.
   var needWm = m.wmLevel && m.wmLevel!=='0';
-  console.log('[wm debug] needWm=',needWm,'wmLevel=',m.wmLevel);
   if(!needWm){ driveDirectDownload(fileId); return; }
+  var btn=event&&event.target;
+  var btnOrigText=btn?btn.textContent:'';
   try{
-    var res=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getFileBase64',fileId:fileId})});
-    var d=await res.json();
-    console.log('[wm debug] getFileBase64 result:', {success:d.success, hasBase64:!!d.base64, name:d.name, error:d.error, msg:d.msg});
-    if(!d.success || !d.base64) throw new Error('no data: '+JSON.stringify(d).slice(0,200));
-    var bytes=base64ToBytes(d.base64);
-    console.log('[wm debug] before watermark, bytes length=',bytes.length,'name for pdf-check=',d.name||m.name,'window.PDFLib=',!!window.PDFLib);
-    var out=await applyWatermark(bytes, m.wmLevel, d.name||m.name);
-    console.log('[wm debug] after watermark, out length=',out.length,'(same as input means it silently failed or skipped)');
+    if(btn) btn.textContent='받는 중...';
+    var d=await fetchFileBytesChunked(fileId, function(loaded,total){
+      if(btn && total) btn.textContent='받는 중 '+Math.round(loaded/total*100)+'%';
+    });
+    if(!d.success) throw new Error('파일을 받지 못했습니다');
+    var out=await applyWatermark(d.bytes, m.wmLevel, d.name||m.name);
     triggerDownload(new Blob([out],{type:d.mimeType||'application/pdf'}), d.name||m.name);
-  }catch(e){ console.error('[wm debug] downloadMat 실패, 원본으로 대체:', e); driveDirectDownload(fileId); }
+  }catch(e){ console.error('[다운로드] 실패, 원본으로 대체:', e); driveDirectDownload(fileId); }
+  finally{ if(btn) btn.textContent=btnOrigText||'다운로드'; }
 }
 // 파일별 워터마크 단계 변경 (선생님)
 async function setMatWm(id, level){
