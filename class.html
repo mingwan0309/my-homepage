@@ -1020,10 +1020,10 @@ function renderMaterials(){
     }
     var wmSel='';
     if(isStaff){
-      var lv=m.wmLevel||'0';
-      var labels={'0':'워터마크 없음','1':'1단계(상하단)','2':'2단계(중간)','3':'3단계(빽빽)'};
+      var lv=(m.wmLevel&&m.wmLevel!=='0')?'1':'0';
+      var labels={'0':'워터마크 없음','1':'워터마크'};
       wmSel='<select onchange="setMatWm(\''+m.id+'\',this.value)" style="font-size:11px;padding:4px 6px;border:1.5px solid #e2e8f0;border-radius:7px;margin-right:6px;cursor:pointer;">'
-        +['0','1','2','3'].map(function(v){return '<option value="'+v+'"'+(lv===v?' selected':'')+'>'+labels[v]+'</option>';}).join('')
+        +['0','1'].map(function(v){return '<option value="'+v+'"'+(lv===v?' selected':'')+'>'+labels[v]+'</option>';}).join('')
         +'</select>';
     }
     var dlBtn='<button onclick="downloadMat(\''+m.id+'\')" style="background:#eef2ff;color:#3b6cf7;border:1.5px solid #c7d2fe;font-size:11px;font-weight:700;padding:4px 12px;border-radius:7px;cursor:pointer;white-space:nowrap;margin-right:6px;">다운로드</button>';
@@ -1247,26 +1247,6 @@ function bytesToBase64(bytes){
   }
   return btoa(bin);
 }
-// 단계별로 로고를 찍을 위치 목록 계산 ('1'상하단만 / '2'중간중간 / '3'빽빽)
-function wmPositions(level, W, H, w, h){
-  var pos=[];
-  if(level==='1'){
-    // 상단 한 줄 + 하단 한 줄
-    [H-h-36, 30].forEach(function(yy){
-      for(var x=24;x<W-40;x+=200) pos.push({x:x,y:yy});
-    });
-  } else if(level==='2'){
-    // 중간중간 (여유 간격 그리드)
-    for(var y=70;y<H-40;y+=210){
-      for(var x=10;x<W-40;x+=230) pos.push({x:x,y:y});
-    }
-  } else { // '3' 빽빽
-    for(var y=-20;y<H+90;y+=150){
-      for(var x=-20;x<W+90;x+=175) pos.push({x:x,y:y});
-    }
-  }
-  return pos;
-}
 function base64ToBytes(b64){
   var bin=atob(b64), len=bin.length, bytes=new Uint8Array(len);
   for(var i=0;i<len;i++) bytes[i]=bin.charCodeAt(i);
@@ -1284,21 +1264,19 @@ function triggerDownload(blob, filename){
   document.body.appendChild(a); a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
-// PDF 바이트에 로고 워터마크를 단계별로 적용. 실패/없음/비PDF면 원본 그대로 반환.
+// PDF 바이트 정 가운데에 로고 워터마크 하나만 찍음. 실패/없음/비PDF면 원본 그대로 반환.
 async function applyWatermark(bytes, level, name){
   if(!level || level==='0' || !window.PDFLib) return bytes;
   if(!/\.pdf$/i.test(name||'')) return bytes;
   try{
-    var op = level==='1'?0.16 : level==='2'?0.13 : 0.11;
+    var op=0.16;
     var pdfDoc=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true});
     var png=await pdfDoc.embedPng(await getLogoBytes());
     var pages=pdfDoc.getPages();
     for(var p=0;p<pages.length;p++){
       var page=pages[p], sz=page.getSize();
-      var w=130, h=w*png.height/png.width;
-      wmPositions(level, sz.width, sz.height, w, h).forEach(function(pt){
-        page.drawImage(png,{x:pt.x,y:pt.y,width:w,height:h,opacity:op,rotate:PDFLib.degrees(30)});
-      });
+      var w=sz.width*0.5, h=w*png.height/png.width;
+      page.drawImage(png,{x:(sz.width-w)/2,y:(sz.height-h)/2,width:w,height:h,opacity:op,rotate:PDFLib.degrees(30)});
     }
     return await pdfDoc.save();
   }catch(e){ return bytes; }
