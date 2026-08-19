@@ -895,7 +895,7 @@ async function init(){
   document.getElementById('header-class').textContent=classInfo.name;
   var badge=document.getElementById('cls-badge-sm');
   if(badge){var n=classInfo.name||'?';badge.textContent=n[0];badge.style.background=badgeColor(n);}
-  document.getElementById('header-session-btn').textContent=sessionInfo.sessionNum+'차시 ▾';
+  document.getElementById('header-session-btn').textContent=(sessionInfo.label||(sessionInfo.sessionNum+'차시'))+' ▾';
   document.getElementById('stat-date').textContent=formatDate(sessionInfo.date);
   document.title=classInfo.name+' '+sessionInfo.sessionNum+'차시 — 김민관 수학';
 
@@ -2876,13 +2876,24 @@ function renderSessionDD(){
   if(!classSessions.length){menu.innerHTML='<div style="padding:12px 16px;font-size:13px;color:#94a3b8;">차시 없음</div>';return;}
   menu.innerHTML=classSessions.map(function(s){
     var isCur=s.id===sessionId;
-    var delBtn = (session&&session.role==='teacher') ? '<span onclick="event.stopPropagation();deleteThisSession(\''+s.id+'\',\''+s.sessionNum+'\')" style="margin-left:auto;color:#dc2626;font-size:12px;padding:2px 4px;">🗑</span>' : '';
+    var delBtn = (session&&session.role==='teacher') ? '<span onclick="event.stopPropagation();deleteThisSession(\''+s.id+'\',\''+s.sessionNum+'\')" style="margin-left:6px;color:#dc2626;font-size:12px;padding:2px 4px;">🗑</span>' : '';
+    var editBtn = (session&&(session.role==='teacher'||session.role==='assistant')) ? '<span onclick="event.stopPropagation();renameSessionDD(\''+s.id+'\',\''+s.sessionNum+'\')" style="margin-left:auto;color:#94a3b8;font-size:12px;padding:2px 4px;">✏️</span>' : '';
     return '<div class="session-dd-item'+(isCur?' current':'')+'" onclick="goToSession(\''+s.id+'\')" style="display:flex;align-items:center;">'
-      +s.sessionNum+'차시'
+      +(s.label?escHtml(s.label):(s.sessionNum+'차시'))
       +(s.date?'<span class="session-dd-date">'+s.date.substring(5)+'</span>':'')
+      +editBtn
       +delBtn
       +'</div>';
   }).join('');
+}
+async function renameSessionDD(id, sessionNum){
+  var cur=classSessions.find(function(s){return s.id===id;});
+  var name=prompt('이 차시를 목록에서 어떻게 표시할까요? (비워두면 "'+sessionNum+'차시"로 표시됩니다)', cur?cur.label:'');
+  if(name===null) return;
+  await fetch(SU+'?action=updateSession&id='+encodeURIComponent(id)+'&label='+encodeURIComponent(name.trim()));
+  if(cur) cur.label=name.trim();
+  if(id===sessionId){ sessionInfo.label=name.trim(); document.getElementById('header-session-btn').textContent=(sessionInfo.label||(sessionInfo.sessionNum+'차시'))+' ▾'; }
+  renderSessionDD();
 }
 async function deleteThisSession(id, num){
   if(!confirm(num+'차시를 삭제할까요?\n\n이 차시의 출석/성적/시험/과제 기록이 모두 함께 삭제되며, 되돌릴 수 없습니다.'))return;

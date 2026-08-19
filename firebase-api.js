@@ -552,10 +552,16 @@ api.getClassStudents = function(db, p){
 api.getSessions = function(db, p){
   return db.collection('sessions').where('classId','==',String(p.classId)).get().then(function(snap){
     var sessions = docsToArr(snap).map(function(r){
-      return { id:String(r.id), classId:String(r.classId), sessionNum:Number(r.sessionNum), date:r.date||'' };
+      return { id:String(r.id), classId:String(r.classId), sessionNum:Number(r.sessionNum), date:r.date||'', label:r.label||'' };
     }).sort(function(a,b){ return b.sessionNum - a.sessionNum; });
     return { sessions: sessions };
   });
+};
+
+// 차시 목록/드롭다운에 보여줄 이름만 따로 지정(선택) — {N}차시라는 실제 데이터/문자 발송 등에는 영향 없음, 순수 표시용
+api.updateSession = function(db, p){
+  return db.collection('sessions').doc(String(p.id)).update({ label: p.label||'' })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
 api.addSession = function(db, p){
@@ -591,7 +597,7 @@ api.getSession = function(db, p){
   return db.collection('sessions').doc(String(p.id)).get().then(function(doc){
     if (!doc.exists) return { success:false };
     var r = doc.data();
-    return { success:true, session:{ id:String(r.id), classId:String(r.classId), sessionNum:Number(r.sessionNum), date:r.date||'' } };
+    return { success:true, session:{ id:String(r.id), classId:String(r.classId), sessionNum:Number(r.sessionNum), date:r.date||'', label:r.label||'' } };
   });
 };
 
