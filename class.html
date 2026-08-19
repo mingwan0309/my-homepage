@@ -1275,8 +1275,8 @@ async function applyWatermark(bytes, level, name){
     var pages=pdfDoc.getPages();
     for(var p=0;p<pages.length;p++){
       var page=pages[p], sz=page.getSize();
-      var w=sz.width*0.5, h=w*png.height/png.width;
-      page.drawImage(png,{x:(sz.width-w)/2,y:(sz.height-h)/2,width:w,height:h,opacity:op,rotate:PDFLib.degrees(30)});
+      var w=sz.width*0.35, h=w*png.height/png.width;
+      page.drawImage(png,{x:(sz.width-w)/2,y:(sz.height-h)/2,width:w,height:h,opacity:op});
     }
     return await pdfDoc.save();
   }catch(e){ return bytes; }
