@@ -196,6 +196,7 @@ tr:hover td{background:#fafbff;}
   .cls-time{font-size:13px;}
   /* 자료실 — 사이드바를 가로 카테고리로 */
   .mat-layout{flex-direction:column;}
+  .mat-main{width:100%;}
   .mat-sidebar{width:100%;display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:10px;}
   .mat-sidebar-title{display:none;}
   .mat-cat{flex-shrink:0;white-space:nowrap;padding:12px 16px;font-size:14px;min-height:46px;display:flex;align-items:center;gap:6px;}
@@ -317,8 +318,8 @@ tr:hover td{background:#fafbff;}
             <div class="card-title" id="mat-cat-title">PDF 자료</div>
             <button class="btn-add-mat" id="btn-add-mat" onclick="openAddMat()" style="display:none;">+ 자료 추가</button>
           </div>
-          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-          <table class="mat-table">
+          <div style="max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;">
+          <table class="mat-table" style="min-width:600px;">
             <thead><tr><th>파일명</th><th>등록일</th><th>다운로드</th><th>메모</th><th></th></tr></thead>
             <tbody id="mat-tbody"><tr><td colspan="5" class="empty">불러오는 중...</td></tr></tbody>
           </table>
