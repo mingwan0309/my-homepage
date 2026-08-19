@@ -684,18 +684,9 @@ function renderSessions(){
   scroll.innerHTML=sessions.map(function(s){
     var dateLabel=s.date?formatDate(s.date):'';
     var titleText=s.label?escHtml(s.label):(s.sessionNum+'차시');
-    return '<div class="session-chip" style="position:relative;" onclick="goSession(\''+s.id+'\')">'
-      +(isStaff?'<span onclick="event.stopPropagation();renameSession(\''+s.id+'\',\''+s.sessionNum+'\')" style="position:absolute;top:2px;right:4px;font-size:11px;color:#94a3b8;cursor:pointer;padding:2px;">✏️</span>':'')
+    return '<div class="session-chip" onclick="goSession(\''+s.id+'\')">'
       +'<div class="snum">'+titleText+'</div>'+(dateLabel?'<div class="sdate">'+dateLabel+'</div>':'')+'</div>';
   }).join('');
-}
-async function renameSession(id, sessionNum){
-  var cur=sessions.find(function(s){return s.id===id;});
-  var name=prompt('이 차시를 목록에서 어떻게 표시할까요? (비워두면 "'+sessionNum+'차시"로 표시됩니다)', cur?cur.label:'');
-  if(name===null) return;
-  await fetch(SU+'?action=updateSession&id='+encodeURIComponent(id)+'&label='+encodeURIComponent(name.trim()));
-  if(cur) cur.label=name.trim();
-  renderSessions();
 }
 
 function formatDate(d){
