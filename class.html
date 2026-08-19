@@ -1264,6 +1264,7 @@ async function fetchFileBytesChunked(fileId, onProgress){
   while(true){
     var res=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getFileBase64',fileId:fileId,start:start,length:CHUNK})});
     var d=await res.json();
+    console.log('[wm debug] chunk result start='+start,{success:d.success,hasBase64:!!d.base64,totalSize:d.totalSize,error:d.error,msg:d.msg});
     if(!d.success || !d.base64) return {success:false};
     var pieceBytes=base64ToBytes(d.base64);
     chunks.push(pieceBytes);
