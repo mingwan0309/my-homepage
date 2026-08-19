@@ -306,7 +306,8 @@ function renderVideoArea(){
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function ytId(url){
   if(!url) return '';
-  var m = url.match(/[?&]v=([^&]+)/) || url.match(/youtu\.be\/([^?]+)/) || url.match(/embed\/([^?]+)/);
+  var m = url.match(/[?&]v=([^&]+)/) || url.match(/youtu\.be\/([^?&]+)/) || url.match(/embed\/([^?&]+)/)
+    || url.match(/shorts\/([^?&]+)/) || url.match(/\/live\/([^?&]+)/);
   return m ? m[1] : '';
 }
 
