@@ -1568,7 +1568,7 @@ function renderSdTabBody(){
   if(sdCurrentTab==='att'){
     var att=sdHistory.attendance;
     body.innerHTML = att.length ? att.map(function(a){
-      return '<div class="sd-hist-row"><span class="sd-hist-title">'+(a.sessionNum?a.sessionNum+'차시':'')+' '+escHtml(a.className||'')+'</span> — '+escHtml(a.status||'-')
+      return '<div class="sd-hist-row"><span class="sd-hist-title">'+(a.sessionNum?escHtml(a.sessLabel||(a.sessionNum+'차시')):'')+' '+escHtml(a.className||'')+'</span> — '+escHtml(a.status||'-')
         +'<div class="sd-hist-sub">'+(a.date||'')+(a.memo?' · '+escHtml(a.memo):'')+'</div></div>';
     }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">출석 기록이 없어요.</div>';
   } else if(sdCurrentTab==='clinic'){
@@ -1587,7 +1587,7 @@ function renderSdTabBody(){
     var sc=sdHistory.scores;
     body.innerHTML = sc.length ? sc.map(function(s){
       return '<div class="sd-hist-row"><span class="sd-hist-title">'+escHtml(s.examName)+'</span> — '+(s.pass==='submit'?'통과':s.pass==='nosub'?'미통과':'-')+(s.score!==''?' ('+s.score+'점)':'')
-        +'<div class="sd-hist-sub">'+escHtml(s.className||'')+(s.sessionNum?' · '+s.sessionNum+'차시':'')+(s.feedback?' · '+escHtml(s.feedback):'')+'</div></div>';
+        +'<div class="sd-hist-sub">'+escHtml(s.className||'')+(s.sessionNum?' · '+escHtml(s.sessLabel||(s.sessionNum+'차시')):'')+(s.feedback?' · '+escHtml(s.feedback):'')+'</div></div>';
     }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">성적 이력이 없어요.</div>';
   }
 }

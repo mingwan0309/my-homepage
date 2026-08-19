@@ -1810,7 +1810,7 @@ api.getStudentFullHistory = function(db, p){
         var clsMap={}; classDocs.forEach(function(d){ if(d.exists) clsMap[d.id]=d.data(); });
         var attendance = attRows.map(function(r){
           var ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
-          return { sessionNum:ses.sessionNum||'', date:ses.date||'', className:cls.name||'', status:r.status||'', memo:r.memo||'' };
+          return { sessionNum:ses.sessionNum||'', sessLabel:ses.label||'', date:ses.date||'', className:cls.name||'', status:r.status||'', memo:r.memo||'' };
         }).sort(function(a,b){ return (a.date||'')<(b.date||'')?1:-1; });
         var clinicHistory = cbRows.map(function(r){
           return { type:'클리닉 신청', name:r.clinicName||'클리닉', date:(r.date||'')+' '+(r.time||''), status:r.status||'', createdAt:r.createdAt||r.date||'' };
@@ -1823,7 +1823,7 @@ api.getStudentFullHistory = function(db, p){
         }).sort(function(a,b){ return (a.date||'')<(b.date||'')?1:-1; });
         var scores = scoreRows.map(function(r){
           var exam=examMap[r.examId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
-          return { examName:exam.name||'(삭제된 시험)', className:cls.name||'', sessionNum:ses.sessionNum||0, score:r.score||'', pass:r.pass||'', feedback:r.feedback||'' };
+          return { examName:exam.name||'(삭제된 시험)', className:cls.name||'', sessionNum:ses.sessionNum||0, sessLabel:ses.label||'', score:r.score||'', pass:r.pass||'', feedback:r.feedback||'' };
         }).sort(function(a,b){ return (Number(a.sessionNum)||0)<(Number(b.sessionNum)||0)?1:-1; });
         return { attendance:attendance, clinicHistory:clinicHistory, qna:qna, scores:scores };
       });

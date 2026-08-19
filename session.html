@@ -862,6 +862,8 @@ const isStaff = session && (session.role==='teacher' || session.role==='assistan
 const ATT_TYPES=['출석','지각','영상대체','보강','조퇴','결석','부재','퇴원'];
 
 var sessionInfo=null, classInfo=null, students=[], classSessions=[], attMap={}, exams=[], scoresMap={};
+// 차시를 사람이 보는 문구(알림톡, 화면 제목 등)로 바꿀 때 항상 이걸 통해서 — 이름을 지정해뒀으면 그 이름, 아니면 "N차시"
+function sessLabel(s){ return s ? (s.label || (s.sessionNum?s.sessionNum+'차시':'')) : ''; }
 var panelStudentId='', panelExamId='', panelPass='';
 var scoreSelected={};
 var homeworks=[], hwStatusMap={};
@@ -895,9 +897,9 @@ async function init(){
   document.getElementById('header-class').textContent=classInfo.name;
   var badge=document.getElementById('cls-badge-sm');
   if(badge){var n=classInfo.name||'?';badge.textContent=n[0];badge.style.background=badgeColor(n);}
-  document.getElementById('header-session-btn').textContent=(sessionInfo.label||(sessionInfo.sessionNum+'차시'))+' ▾';
+  document.getElementById('header-session-btn').textContent=sessLabel(sessionInfo)+' ▾';
   document.getElementById('stat-date').textContent=formatDate(sessionInfo.date);
-  document.title=classInfo.name+' '+sessionInfo.sessionNum+'차시 — 김민관 수학';
+  document.title=classInfo.name+' '+sessLabel(sessionInfo)+' — 김민관 수학';
 
   var link=document.getElementById('sam-class-link');
   if(link) link.href='class.html?id='+encodeURIComponent(classId);
@@ -1000,7 +1002,7 @@ function downloadExcel(){
   var ws=XLSX.utils.aoa_to_sheet(rows);
   var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'출석');
-  var fname=(classInfo?classInfo.name:'')+(sessionInfo?' '+sessionInfo.sessionNum+'차시':'')+'_출석.xlsx';
+  var fname=(classInfo?classInfo.name:'')+(sessionInfo?' '+sessLabel(sessionInfo):'')+'_출석.xlsx';
   XLSX.writeFile(wb,fname);
 }
 
@@ -1329,7 +1331,7 @@ async function doSendAlimtalk(){
   var template=document.getElementById('msg-template').value.trim();
   if(!template){alert('전달사항 내용을 입력해주세요.');return;}
   var className=classInfo?classInfo.name:'';
-  var sessionNum=sessionInfo?(sessionInfo.sessionNum+'차시'):'';
+  var sessionNum=sessionInfo?(sessLabel(sessionInfo)):'';
   var messages=[];
   ids.forEach(function(id){
     var st=students.find(function(s){return s.id===id;});
@@ -1385,7 +1387,7 @@ function saveMsgSendHistory(messages,success,errorMsg){
   list.unshift({
     sentAt:new Date().toISOString(),
     className:classInfo?classInfo.name:'',
-    sessionNum:sessionInfo?(sessionInfo.sessionNum+'차시'):'',
+    sessionNum:sessionInfo?(sessLabel(sessionInfo)):'',
     success:success,
     errorMsg:errorMsg||'',
     recipients:messages.map(function(m){return {name:m.name,label:m.label||'',phone:m.phone,message:m.message};})
@@ -1498,7 +1500,7 @@ async function openMsgModal(){
   await loadAllClassHomeworks();
   renderMsgAssessmentOptions();
   document.getElementById('msg-class-input').value=classInfo?classInfo.name:'';
-  document.getElementById('msg-session-input').value=sessionInfo?(sessionInfo.sessionNum+'차시'):'';
+  document.getElementById('msg-session-input').value=sessionInfo?(sessLabel(sessionInfo)):'';
   renderMsgTargetList();
   try{
     var r=await fetch(SU+'?action=getMandatoryClinic').then(function(r){return r.json();});
@@ -1531,7 +1533,7 @@ async function checkAlreadySentBanner(){
 }
 // 이 반의 모든 차시(현재 차시 포함)에 등록된 과제를 전부 모아옴 — '다음 차시'에서 '지난 차시' 과제 미이행을 문자에 넣을 수 있도록
 async function loadAllClassHomeworks(){
-  if(!classSessions.length){ allClassHomeworks=homeworks.map(function(h){return {id:h.id,name:h.name,sessionId:sessionId,sessionNum:sessionInfo?sessionInfo.sessionNum:''};}); return; }
+  if(!classSessions.length){ allClassHomeworks=homeworks.map(function(h){return {id:h.id,name:h.name,sessionId:sessionId,sessionNum:sessionInfo?sessionInfo.sessionNum:'',sessLabel:sessLabel(sessionInfo)};}); return; }
   try{
     var results=await Promise.all(classSessions.map(function(s){
       return fetch(SU+'?action=getHwItems&sessionId='+encodeURIComponent(s.id)).then(function(r){return r.json();});
@@ -1539,12 +1541,12 @@ async function loadAllClassHomeworks(){
     var list=[];
     classSessions.forEach(function(s,i){
       var hws=(results[i]&&results[i].homeworks)||[];
-      hws.forEach(function(h){ list.push({id:h.id,name:h.name,sessionId:s.id,sessionNum:s.sessionNum}); });
+      hws.forEach(function(h){ list.push({id:h.id,name:h.name,sessionId:s.id,sessionNum:s.sessionNum,sessLabel:sessLabel(s)}); });
     });
     list.sort(function(a,b){ return Number(b.sessionNum)-Number(a.sessionNum); }); // 최근 차시 과제가 위로
     allClassHomeworks=list;
   }catch(e){
-    allClassHomeworks=homeworks.map(function(h){return {id:h.id,name:h.name,sessionId:sessionId,sessionNum:sessionInfo?sessionInfo.sessionNum:''};});
+    allClassHomeworks=homeworks.map(function(h){return {id:h.id,name:h.name,sessionId:sessionId,sessionNum:sessionInfo?sessionInfo.sessionNum:'',sessLabel:sessLabel(sessionInfo)};});
   }
 }
 // 다른 차시 과제를 골랐을 때, 그 차시의 제출 현황(hw_status)을 가져와 hwStatusMap에 합쳐넣음
@@ -1570,7 +1572,7 @@ function saveMsgHistoryEntry(text,source){
     savedAt:new Date().toISOString(),
     source:source,
     className:classInfo?classInfo.name:'',
-    sessionNum:sessionInfo?(sessionInfo.sessionNum+'차시'):''
+    sessionNum:sessionInfo?(sessLabel(sessionInfo)):''
   });
   if(list.length>50)list=list.slice(0,50);
   localStorage.setItem(MSG_SAVE_KEY,JSON.stringify(list));
@@ -1705,9 +1707,9 @@ function renderMsgAssessmentOptions(){
   var sel=document.getElementById('msg-assessment');
   var opts=['<option value="">(선택 안 함)</option>'];
   exams.forEach(function(ex){opts.push('<option value="exam:'+ex.id+'">[시험] '+ex.name+'</option>');});
-  var hwList=allClassHomeworks.length?allClassHomeworks:homeworks.map(function(h){return {id:h.id,name:h.name,sessionId:sessionId,sessionNum:sessionInfo?sessionInfo.sessionNum:''};});
+  var hwList=allClassHomeworks.length?allClassHomeworks:homeworks.map(function(h){return {id:h.id,name:h.name,sessionId:sessionId,sessionNum:sessionInfo?sessionInfo.sessionNum:'',sessLabel:sessLabel(sessionInfo)};});
   hwList.forEach(function(hw){
-    var tag=String(hw.sessionId)===String(sessionId)?'현재 차시':hw.sessionNum+'차시';
+    var tag=String(hw.sessionId)===String(sessionId)?'현재 차시':(hw.sessLabel||(hw.sessionNum+'차시'));
     opts.push('<option value="hw:'+hw.id+'" data-session-id="'+hw.sessionId+'">[과제] '+hw.name+' · '+tag+'</option>');
   });
   sel.innerHTML=opts.join('');
@@ -1763,7 +1765,7 @@ function computeMsgTokens(studentId){
     '{이름}': st?st.name:'',
     '{출결}': att.status||'미정',
     '{반}': classInfo?classInfo.name:'',
-    '{차시}': sessionInfo?(sessionInfo.sessionNum+'차시'):''
+    '{차시}': sessionInfo?(sessLabel(sessionInfo)):''
   };
   var mc=mcListSession[studentId];
   if(mc){
@@ -1859,7 +1861,7 @@ function renderMsgPreview(){
   var previewId=(msgPreviewTargetId&&scoreSelected[msgPreviewTargetId])?msgPreviewTargetId:(ids[0]||null);
   var previewName=previewId?(students.find(function(s){return s.id===previewId;})||{}).name||'학생명':'학생명';
   document.getElementById('kt-class-name').textContent=classInfo?classInfo.name:'강의명';
-  document.getElementById('kt-session-name').textContent=sessionInfo?(sessionInfo.sessionNum+'차시'):'차시';
+  document.getElementById('kt-session-name').textContent=sessionInfo?(sessLabel(sessionInfo)):'차시';
   document.getElementById('kt-stu-name').textContent=previewName;
   var previewContent=previewId?buildStudentMsg(previewId):template;
   document.getElementById('kt-content-preview').textContent=previewContent;
@@ -1934,7 +1936,7 @@ function openPanel(studentId, examId){
   closeHwPanel();
   panelStudentId=studentId; panelExamId=examId; panelPass='';
   document.getElementById('panel-exam-name').textContent=exam.name;
-  document.getElementById('panel-sub').textContent=classInfo.name+' '+sessionInfo.sessionNum+'차시, '+st.name;
+  document.getElementById('panel-sub').textContent=classInfo.name+' '+sessLabel(sessionInfo)+', '+st.name;
   var st2=exam.scoreType||'score';
   var unit=st2==='count'?'개':'점';
   var maxScore=exam.totalQuestions?'/ '+exam.totalQuestions+unit:'';
@@ -2069,7 +2071,7 @@ function renderStuAtt(){
   if(!currentStuId){el.innerHTML='';return;}
   var att=attMap[currentStuId];
   if(!att){el.innerHTML='<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">출결 정보가 없습니다.</div>';return;}
-  el.innerHTML='<div class="att-row"><span class="att-row-num">'+sessionInfo.sessionNum+'차시</span>'
+  el.innerHTML='<div class="att-row"><span class="att-row-num">'+escHtml(sessLabel(sessionInfo))+'</span>'
     +'<span class="att-row-date">'+(sessionInfo.date||'')+'</span>'
     +'<span class="att-chip s'+(att.status||'미정')+'" style="padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;">'+(att.status||'미정')+'</span>'
     +(att.memo?'<span style="font-size:11px;color:#64748b;margin-left:4px;">'+escHtml(att.memo)+'</span>':'')
@@ -2187,7 +2189,7 @@ async function openAddExam(){
   renderExamModalRef();
 }
 async function loadAllClassExams(){
-  if(!classSessions.length){ allClassExams=exams.map(function(e){return Object.assign({},e,{sessionNum:sessionInfo?sessionInfo.sessionNum:''});}); return; }
+  if(!classSessions.length){ allClassExams=exams.map(function(e){return Object.assign({},e,{sessionNum:sessionInfo?sessionInfo.sessionNum:'',sessLabel:sessLabel(sessionInfo)});}); return; }
   try{
     var results=await Promise.all(classSessions.map(function(s){
       return fetch(SU+'?action=getExams&sessionId='+encodeURIComponent(s.id)).then(function(r){return r.json();});
@@ -2195,12 +2197,12 @@ async function loadAllClassExams(){
     var list=[];
     classSessions.forEach(function(s,i){
       var exs=(results[i]&&results[i].exams)||[];
-      exs.forEach(function(e){ list.push(Object.assign({},e,{sessionNum:s.sessionNum})); });
+      exs.forEach(function(e){ list.push(Object.assign({},e,{sessionNum:s.sessionNum,sessLabel:sessLabel(s)})); });
     });
     list.sort(function(a,b){ return Number(b.sessionNum)-Number(a.sessionNum); }); // 최근 차시가 위로
     allClassExams=list;
   }catch(e){
-    allClassExams=exams.map(function(e){return Object.assign({},e,{sessionNum:sessionInfo?sessionInfo.sessionNum:''});});
+    allClassExams=exams.map(function(e){return Object.assign({},e,{sessionNum:sessionInfo?sessionInfo.sessionNum:'',sessLabel:sessLabel(sessionInfo)});});
   }
 }
 function renderExamModalRef(){
@@ -2216,7 +2218,7 @@ function renderExamModalRef(){
       +'<span style="font-weight:700;font-size:13px;">'+escHtml(e.name)+'</span>'
       +'<button type="button" onclick=\'copyExamSetting('+JSON.stringify(e).replace(/'/g,"&#39;")+')\' style="background:#3b6cf7;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;">복사</button>'
       +'</div>'
-      +'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+(e.sessionNum?e.sessionNum+'차시 · ':'')+(info.length?info.join(' · '):'설정값 없음')+'</div>'
+      +'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+(e.sessionNum?escHtml(e.sessLabel||(e.sessionNum+'차시'))+' · ':'')+(info.length?info.join(' · '):'설정값 없음')+'</div>'
       +'</div>';
   }).join('');
 }
@@ -2381,7 +2383,7 @@ function openHwPanel(studentId, hwId){
   closePanel();
   hwPanelStudentId=studentId; hwPanelHwId=hwId; hwPanelPass='';
   document.getElementById('hw-panel-name').textContent=hw.name;
-  document.getElementById('hw-panel-sub').textContent=classInfo.name+' '+sessionInfo.sessionNum+'차시, '+st.name;
+  document.getElementById('hw-panel-sub').textContent=classInfo.name+' '+sessLabel(sessionInfo)+', '+st.name;
   var s=(hwStatusMap[studentId]||{})[hwId];
   hwPanelPass=s?s.pass||'':'';
   document.getElementById('hw-panel-feedback').value=s?s.feedback||'':'';
@@ -2892,7 +2894,7 @@ async function renameSessionDD(id, sessionNum){
   if(name===null) return;
   await fetch(SU+'?action=updateSession&id='+encodeURIComponent(id)+'&label='+encodeURIComponent(name.trim()));
   if(cur) cur.label=name.trim();
-  if(id===sessionId){ sessionInfo.label=name.trim(); document.getElementById('header-session-btn').textContent=(sessionInfo.label||(sessionInfo.sessionNum+'차시'))+' ▾'; }
+  if(id===sessionId){ sessionInfo.label=name.trim(); document.getElementById('header-session-btn').textContent=sessLabel(sessionInfo)+' ▾'; }
   renderSessionDD();
 }
 async function deleteThisSession(id, num){
