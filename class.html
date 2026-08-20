@@ -684,7 +684,7 @@ function logout(){localStorage.removeItem('mkmath_session');location.href='index
 const COLORS=['#3b6cf7','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4'];
 function badgeColor(n){var h=0;for(var i=0;i<n.length;i++)h+=n.charCodeAt(i);return COLORS[h%COLORS.length];}
 
-var classInfo=null, students=[], sessions=[], materials=[];
+var classInfo=null, students=[], sessions=[], materials=[], videoFolders=[];
 var currentCat='PDF 자료';
 
 async function init(){
@@ -917,9 +917,13 @@ async function viewPost(id){
 // ── 자료실 ──
 async function loadMaterials(){
   try{
-    var r=await fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(classId));
+    var [r,fr]=await Promise.all([
+      fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(classId)),
+      fetch(SU+'?action=getVideoFolders&classId='+encodeURIComponent(classId))
+    ]);
     var d=await r.json();
     materials=d.materials||[];
+    try{ var fd=await fr.json(); videoFolders=fd.folders||[]; }catch(e){ videoFolders=[]; }
     if(isStaff) await loadMatViews();
     else if(session.role==='student') await loadMyMatViews();
     updateCounts();
@@ -1117,14 +1121,16 @@ function videoCardHtml(m){
 function renderVideos(){
   var wrap=document.getElementById('video-list-wrap');
   var list=materials.filter(function(m){return m.category==='영상 자료';});
-  if(!list.length){
+  if(!list.length && !videoFolders.length){
     wrap.innerHTML='<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">영상을 끌어서 업로드해주세요.</div>'+(isStaff?'<button class="btn-add-video-empty" onclick="openVideoModal()">영상 추가하기</button>':'')+'</div>';
     return;
   }
-  // 폴더별로 묶기: 폴더가 없는 영상은 위에 그냥 나열, 폴더가 있는 영상은 폴더별 드롭다운으로 묶어서 표시
+  // 폴더별로 묶기: 폴더가 없는 영상은 위에 그냥 나열, 폴더가 있는 영상은 폴더별 드롭다운으로 묶어서 표시.
+  // 영상이 하나도 없는 '빈 폴더'도 미리 만들어둔 게 있으면 같이 보여줌(videoFolders).
   var noFolder=list.filter(function(m){return !m.folder;});
   var folderNames=[];
   list.forEach(function(m){ if(m.folder && folderNames.indexOf(m.folder)<0) folderNames.push(m.folder); });
+  videoFolders.forEach(function(vf){ if(vf.name && folderNames.indexOf(vf.name)<0) folderNames.push(vf.name); });
 
   var dl=document.getElementById('video-folder-list');
   if(dl) dl.innerHTML=folderNames.map(function(f){return '<option value="'+escHtml(f)+'">';}).join('');
@@ -1134,9 +1140,11 @@ function renderVideos(){
   folderNames.forEach(function(f, idx){
     var items=list.filter(function(m){return m.folder===f;});
     var openNow=folderPickMode; // 폴더 담기 모드에서는 다 펼쳐서 어디든 바로 고를 수 있게
+    var vf=videoFolders.find(function(x){return x.name===f;});
+    var delFolderBtn=(isStaff && !items.length && vf)?'<span onclick="event.stopPropagation();deleteEmptyFolder(\''+vf.id+'\')" style="color:#dc2626;font-size:11px;margin-left:8px;">🗑 폴더삭제</span>':'';
     html+='<button type="button" class="vid-drop-head'+(openNow?' open':'')+'" onclick="toggleVidFolder(this)" style="margin-top:'+(idx===0&&!noFolder.length?'0':'12px')+';">'
-      +'<span>📁 '+escHtml(f)+'<span class="cnt">'+items.length+'</span></span><span class="vid-drop-arrow">▾</span></button>'
-      +'<div class="vid-drop-body" style="display:'+(openNow?'block':'none')+';"><div class="video-grid">'+items.map(videoCardHtml).join('')+'</div></div>';
+      +'<span>📁 '+escHtml(f)+'<span class="cnt">'+items.length+'</span>'+delFolderBtn+'</span><span class="vid-drop-arrow">▾</span></button>'
+      +'<div class="vid-drop-body" style="display:'+(openNow?'block':'none')+';">'+(items.length?'<div class="video-grid">'+items.map(videoCardHtml).join('')+'</div>':'<div style="padding:16px 20px;color:#94a3b8;font-size:12.5px;">아직 이 폴더에 영상이 없어요. "+ 영상 추가" 또는 영상 카드의 "폴더이동"으로 넣어주세요.</div>')+'</div>';
   });
   wrap.innerHTML=html;
 }
@@ -1156,18 +1164,32 @@ async function changeMatFolder(id){
   renderVideos();
 }
 
-// ── 폴더 만들기: 이름 정하고 → 영상 여러 개 체크 → 한 번에 그 폴더로 이동 ──
+// ── 폴더 만들기: 이름 정하면 바로 빈 폴더로 저장(영상 없어도 유지됨) → 이어서 영상 체크해서 담기 ──
 var folderPickMode=false, folderPickName='', folderPickSelected={};
-function startFolderPick(){
+async function startFolderPick(){
   var name=prompt('새 폴더 이름을 입력하세요');
   if(name===null || !name.trim()) return;
-  folderPickName=name.trim();
+  name=name.trim();
+  if(materials.some(function(m){return m.category==='영상 자료'&&m.folder===name;}) || videoFolders.some(function(f){return f.name===name;})){
+    alert('이미 있는 폴더 이름이에요. 다른 이름을 써주세요.');
+    return;
+  }
+  var r=await fetch(SU+'?action=addVideoFolder&classId='+encodeURIComponent(classId)+'&name='+encodeURIComponent(name)).then(function(r){return r.json();});
+  if(!r||!r.success){ alert('폴더 생성 실패. 다시 시도해주세요.'); return; }
+  videoFolders.push({id:r.id, name:name});
+  folderPickName=name;
   folderPickMode=true;
   folderPickSelected={};
   document.getElementById('video-folder-pick-bar').style.display='flex';
-  document.getElementById('video-folder-pick-label').textContent='"'+folderPickName+'" 폴더에 넣을 영상을 선택하세요 (0개 선택됨)';
+  document.getElementById('video-folder-pick-label').textContent='"'+folderPickName+'" 폴더가 만들어졌어요. 지금 바로 넣을 영상을 선택하세요 (0개 선택됨) — 나중에 넣어도 됩니다.';
   document.getElementById('btn-add-video').style.display='none';
   document.getElementById('btn-add-folder').style.display='none';
+  renderVideos();
+}
+async function deleteEmptyFolder(id){
+  if(!confirm('이 빈 폴더를 삭제할까요?'))return;
+  await fetch(SU+'?action=deleteVideoFolder&id='+encodeURIComponent(id));
+  videoFolders=videoFolders.filter(function(f){return f.id!==id;});
   renderVideos();
 }
 function toggleFolderPickItem(id){
@@ -1185,7 +1207,6 @@ function cancelFolderPick(){
 }
 async function finishFolderPick(){
   var ids=Object.keys(folderPickSelected).filter(function(k){return folderPickSelected[k];});
-  if(!ids.length){ if(!confirm('선택된 영상이 없습니다. 그래도 폴더 만들기를 끝낼까요?')) return; }
   try{
     for(var i=0;i<ids.length;i++){
       await fetch(SU+'?action=updateMaterial&id='+encodeURIComponent(ids[i])+'&folder='+encodeURIComponent(folderPickName));
