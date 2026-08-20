@@ -1243,7 +1243,7 @@ api.getMaterials = function(db, p){
     var mats = docsToArr(snap).sort(function(a,b){ return (a.uploadDate||'') < (b.uploadDate||'') ? -1 : 1; })
       .map(function(r){
         return { id:String(r.id), classId:String(r.classId), category:r.category||'', name:r.name||'', url:r.url||'',
-                 size:r.size||'', uploadDate:r.uploadDate||'', downloadCount:Number(r.downloadCount||0), memo:r.memo||'', wmLevel:r.wmLevel||'0' };
+                 size:r.size||'', uploadDate:r.uploadDate||'', downloadCount:Number(r.downloadCount||0), memo:r.memo||'', wmLevel:r.wmLevel||'0', folder:r.folder||'' };
       });
     return { materials: mats };
   });
@@ -1253,7 +1253,7 @@ api.addMaterial = function(db, p){
   var id = genId('mat');
   return db.collection('materials').doc(id).set({
     id:id, classId:String(p.classId), category:p.category||'자습용 자료', name:p.name||'', url:p.url||'',
-    size:p.size||'', uploadDate:nowStr(), downloadCount:0, memo:p.memo||'', wmLevel:p.wmLevel||'0'
+    size:p.size||'', uploadDate:nowStr(), downloadCount:0, memo:p.memo||'', wmLevel:p.wmLevel||'0', folder:p.folder||''
   }).then(function(){ return { success:true, id:id }; });
 };
 
@@ -1261,6 +1261,7 @@ api.updateMaterial = function(db, p){
   var data={};
   if(p.name!==undefined) data.name=p.name;
   if(p.memo!==undefined) data.memo=p.memo;
+  if(p.folder!==undefined) data.folder=p.folder;
   return db.collection('materials').doc(String(p.id)).update(data)
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };

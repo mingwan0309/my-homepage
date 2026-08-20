@@ -141,6 +141,12 @@ tr:hover td{background:#fafbff;}
 .video-empty-text{color:#94a3b8;font-size:14px;}
 .btn-add-video-empty{background:#3b6cf7;color:#fff;border:none;padding:10px 22px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;}
 .video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;padding:16px 20px;}
+.vid-drop-head{width:calc(100% - 40px);margin:0 20px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f8fafc;border:1px solid #eef2f6;border-radius:11px;padding:13px 15px;font-size:14px;font-weight:800;color:#334155;cursor:pointer;font-family:inherit;text-align:left;}
+.vid-drop-head:hover{border-color:#c7d2fe;background:#f4f7ff;}
+.vid-drop-head .cnt{background:#eef2ff;color:#3b6cf7;font-size:11px;font-weight:800;border-radius:20px;padding:1px 9px;margin-left:6px;}
+.vid-drop-arrow{transition:transform .2s;color:#94a3b8;font-size:13px;flex-shrink:0;}
+.vid-drop-head.open .vid-drop-arrow{transform:rotate(180deg);}
+.vid-drop-body .video-grid{padding-top:8px;}
 .video-card{background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;cursor:pointer;transition:.15s;}
 .video-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.10);transform:translateY(-2px);}
 .video-thumb{width:100%;aspect-ratio:16/9;background:#1e293b;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
@@ -210,6 +216,7 @@ tr:hover td{background:#fafbff;}
   /* 영상 카드 크게 */
   .video-grid{grid-template-columns:1fr;padding:12px;gap:14px;}
   .video-title{font-size:15px;white-space:normal;}
+  .vid-drop-head{width:calc(100% - 24px);margin:0 12px;padding:14px 15px;min-height:46px;}
   /* 차시 칩 */
   .sessions-scroll{padding:10px 12px;}
   .session-chip{padding:11px 15px;min-height:52px;}
@@ -473,6 +480,7 @@ tr:hover td{background:#fafbff;}
         </div>
         <div class="fg"><label>영상 제목</label><input type="text" id="vd-name" placeholder="예) 2차시 개념설명 영상"></div>
         <div class="fg"><label>Google Drive 링크</label><input type="url" id="vd-url" placeholder="https://drive.google.com/file/d/..."></div>
+        <div class="fg"><label>폴더 (선택)</label><input type="text" id="vd-folder" list="video-folder-list" placeholder="예) 1단원 함수의 극한"></div>
         <div class="fg"><label>메모 (선택)</label><input type="text" id="vd-memo" placeholder="간단한 설명"></div>
         <div class="vmod-btns">
           <button class="vmod-btn-cl" onclick="closeVideoModal()">취소</button>
@@ -483,6 +491,7 @@ tr:hover td{background:#fafbff;}
       <div id="vtab-youtube" style="display:none;">
         <div class="fg"><label>영상 이름</label><input type="text" id="vy-name" placeholder="예) 수1 행렬 개념 강의"></div>
         <div class="fg"><label>영상 링크</label><input type="url" id="vy-url" placeholder="https://www.youtube.com/watch?v=..."></div>
+        <div class="fg"><label>폴더 (선택)</label><input type="text" id="vy-folder" list="video-folder-list" placeholder="예) 1단원 함수의 극한"></div>
         <div class="fg"><label>메모 (선택)</label><input type="text" id="vy-memo" placeholder="간단한 설명"></div>
         <div class="vmod-btns">
           <button class="vmod-btn-cl" onclick="closeVideoModal()">취소</button>
@@ -499,6 +508,7 @@ tr:hover td{background:#fafbff;}
     </div>
   </div>
 </div>
+<datalist id="video-folder-list"></datalist>
 
 <!-- 자료 확인 현황 모달 -->
 <div class="modal-bg" id="views-modal" onclick="closeViewsModal()">
@@ -1048,6 +1058,30 @@ function renderMaterials(){
   }).join('');
 }
 
+function videoCardHtml(m){
+  var isYt=m.url&&(m.url.includes('youtube.com')||m.url.includes('youtu.be'));
+  var thumb='';
+  if(isYt){
+    var vid=ytId(m.url);
+    if(vid) thumb='<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg" onerror="this.style.display=\'none\'">';
+  }
+  var badge='<span class="video-badge badge-drive">강의 영상</span>';
+  var editBtn=isStaff?'<button class="video-del-btn" onclick="event.stopPropagation();renameMat(\''+m.id+'\')">이름수정</button>':'';
+  var folderBtn=isStaff?'<button class="video-del-btn" onclick="event.stopPropagation();changeMatFolder(\''+m.id+'\')">폴더이동</button>':'';
+  var delBtn=isStaff?'<button class="video-del-btn" onclick="event.stopPropagation();delMat(\''+m.id+'\')">삭제</button>':'';
+  var viewBtn='';
+  if(isStaff){
+    var st=viewStats(m.id);
+    var color=st.seen>=st.total&&st.total>0?'#16a34a':'#3b6cf7';
+    viewBtn='<button onclick="event.stopPropagation();showViews(\''+m.id+'\',true)" style="background:none;border:1.5px solid '+color+';color:'+color+';font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;cursor:pointer;">시청 '+st.seen+'/'+st.total+'</button>';
+  }
+  return '<div class="video-card" onclick="openVideo(\''+m.url+'\',\''+m.id+'\')">'
+    +'<div class="video-thumb">'+thumb+'<div class="video-play-icon">▶</div></div>'
+    +'<div class="video-info"><div class="video-title">'+escHtml(m.name)+'</div>'
+    +'<div class="video-meta"><span>'+badge+'</span><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'+viewBtn+editBtn+folderBtn+delBtn+'</span></div>'
+    +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+escHtml(m.memo)+'</div>':'')
+    +'</div></div>';
+}
 function renderVideos(){
   var wrap=document.getElementById('video-list-wrap');
   var list=materials.filter(function(m){return m.category==='영상 자료';});
@@ -1055,30 +1089,38 @@ function renderVideos(){
     wrap.innerHTML='<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">영상을 끌어서 업로드해주세요.</div>'+(isStaff?'<button class="btn-add-video-empty" onclick="openVideoModal()">영상 추가하기</button>':'')+'</div>';
     return;
   }
-  var grid='<div class="video-grid">'+list.map(function(m){
-    var isYt=m.url&&(m.url.includes('youtube.com')||m.url.includes('youtu.be'));
-    var thumb='';
-    if(isYt){
-      var vid=ytId(m.url);
-      if(vid) thumb='<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg" onerror="this.style.display=\'none\'">';
-    }
-    var badge='<span class="video-badge badge-drive">강의 영상</span>';
-    var editBtn=isStaff?'<button class="video-del-btn" onclick="event.stopPropagation();renameMat(\''+m.id+'\')">이름수정</button>':'';
-    var delBtn=isStaff?'<button class="video-del-btn" onclick="event.stopPropagation();delMat(\''+m.id+'\')">삭제</button>':'';
-    var viewBtn='';
-    if(isStaff){
-      var st=viewStats(m.id);
-      var color=st.seen>=st.total&&st.total>0?'#16a34a':'#3b6cf7';
-      viewBtn='<button onclick="event.stopPropagation();showViews(\''+m.id+'\',true)" style="background:none;border:1.5px solid '+color+';color:'+color+';font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;cursor:pointer;">시청 '+st.seen+'/'+st.total+'</button>';
-    }
-    return '<div class="video-card" onclick="openVideo(\''+m.url+'\',\''+m.id+'\')">'
-      +'<div class="video-thumb">'+thumb+'<div class="video-play-icon">▶</div></div>'
-      +'<div class="video-info"><div class="video-title">'+escHtml(m.name)+'</div>'
-      +'<div class="video-meta"><span>'+badge+'</span><span style="display:flex;gap:6px;align-items:center;">'+viewBtn+editBtn+delBtn+'</span></div>'
-      +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+escHtml(m.memo)+'</div>':'')
-      +'</div></div>';
-  }).join('')+'</div>';
-  wrap.innerHTML=grid;
+  // 폴더별로 묶기: 폴더가 없는 영상은 위에 그냥 나열, 폴더가 있는 영상은 폴더별 드롭다운으로 묶어서 표시
+  var noFolder=list.filter(function(m){return !m.folder;});
+  var folderNames=[];
+  list.forEach(function(m){ if(m.folder && folderNames.indexOf(m.folder)<0) folderNames.push(m.folder); });
+
+  var dl=document.getElementById('video-folder-list');
+  if(dl) dl.innerHTML=folderNames.map(function(f){return '<option value="'+escHtml(f)+'">';}).join('');
+
+  var html='';
+  if(noFolder.length) html+='<div class="video-grid">'+noFolder.map(videoCardHtml).join('')+'</div>';
+  folderNames.forEach(function(f, idx){
+    var items=list.filter(function(m){return m.folder===f;});
+    html+='<button type="button" class="vid-drop-head" onclick="toggleVidFolder(this)" style="margin-top:'+(idx===0&&!noFolder.length?'0':'12px')+';">'
+      +'<span>📁 '+escHtml(f)+'<span class="cnt">'+items.length+'</span></span><span class="vid-drop-arrow">▾</span></button>'
+      +'<div class="vid-drop-body" style="display:none;"><div class="video-grid">'+items.map(videoCardHtml).join('')+'</div></div>';
+  });
+  wrap.innerHTML=html;
+}
+function toggleVidFolder(btn){
+  var body=btn.nextElementSibling;
+  var isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'block';
+  btn.classList.toggle('open',!isOpen);
+}
+async function changeMatFolder(id){
+  var m=materials.find(function(x){return x.id===id;});
+  var name=prompt('이 영상을 넣을 폴더 이름을 입력하세요 (비워두면 폴더에서 빠집니다)', m?m.folder:'');
+  if(name===null) return;
+  name=name.trim();
+  await fetch(SU+'?action=updateMaterial&id='+encodeURIComponent(id)+'&folder='+encodeURIComponent(name));
+  if(m) m.folder=name;
+  renderVideos();
 }
 
 function ytId(url){
@@ -1510,23 +1552,25 @@ async function addVideoFromLibrary(name, url, memo){
 }
 
 async function saveVideo(type){
-  var name,url,memo;
+  var name,url,memo,folder;
   if(type==='drive'){
     name=document.getElementById('vd-name').value.trim();
     url=document.getElementById('vd-url').value.trim();
     memo=document.getElementById('vd-memo').value.trim();
+    folder=document.getElementById('vd-folder').value.trim();
   }else{
     name=document.getElementById('vy-name').value.trim();
     url=document.getElementById('vy-url').value.trim();
     memo=document.getElementById('vy-memo').value.trim();
+    folder=document.getElementById('vy-folder').value.trim();
   }
   if(!name||!url){alert('제목과 링크를 입력하세요.');return;}
   try{
-    var r=await fetch(SU+'?action=addMaterial&classId='+encodeURIComponent(classId)+'&category='+encodeURIComponent('영상 자료')+'&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&size=&memo='+encodeURIComponent(memo));
+    var r=await fetch(SU+'?action=addMaterial&classId='+encodeURIComponent(classId)+'&category='+encodeURIComponent('영상 자료')+'&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&size=&memo='+encodeURIComponent(memo)+'&folder='+encodeURIComponent(folder));
     var d=await r.json();
     if(d.success){
       closeVideoModal();
-      ['vd-name','vd-url','vd-memo','vy-name','vy-url','vy-memo'].forEach(function(id){document.getElementById(id).value='';});
+      ['vd-name','vd-url','vd-memo','vd-folder','vy-name','vy-url','vy-memo','vy-folder'].forEach(function(id){document.getElementById(id).value='';});
       await loadMaterials();
     }
   }catch(e){alert('오류가 발생했습니다.');}
