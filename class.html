@@ -345,7 +345,17 @@ tr:hover td{background:#fafbff;}
         <div class="card">
           <div class="card-header">
             <div class="card-title">영상 자료</div>
-            <button class="btn-add-mat" id="btn-add-video" onclick="openVideoModal()" style="display:none;">+ 영상 추가</button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-add-mat" id="btn-add-folder" onclick="startFolderPick()" style="display:none;background:#fff;color:#3b6cf7;border:1.5px solid #c7d2fe;">+ 폴더 만들기</button>
+              <button class="btn-add-mat" id="btn-add-video" onclick="openVideoModal()" style="display:none;">+ 영상 추가</button>
+            </div>
+          </div>
+          <div id="video-folder-pick-bar" style="display:none;background:#eff6ff;border-bottom:1px solid #dbeafe;padding:12px 20px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:700;color:#1d4ed8;" id="video-folder-pick-label"></span>
+            <div style="display:flex;gap:8px;">
+              <button onclick="cancelFolderPick()" style="background:#fff;border:1.5px solid #e2e8f0;color:#64748b;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">취소</button>
+              <button onclick="finishFolderPick()" style="background:#3b6cf7;border:none;color:#fff;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">완료</button>
+            </div>
           </div>
           <div id="video-list-wrap"></div>
         </div>
@@ -706,6 +716,7 @@ function renderHeader(){
   if(isStaff){
     document.getElementById('btn-add-mat').style.display='';
     document.getElementById('btn-add-video').style.display='';
+    document.getElementById('btn-add-folder').style.display='';
   }
 }
 
@@ -1073,6 +1084,13 @@ function renderMaterials(){
 }
 
 function videoCardHtml(m){
+  if(folderPickMode){
+    var checked=folderPickSelected[m.id]?'checked':'';
+    return '<div class="video-card" onclick="toggleFolderPickItem(\''+m.id+'\')" style="cursor:pointer;position:relative;'+(checked?'outline:2.5px solid #3b6cf7;':'')+'">'
+      +'<div style="position:absolute;top:8px;left:8px;z-index:2;width:22px;height:22px;border-radius:50%;background:'+(checked?'#3b6cf7':'rgba(255,255,255,.9)')+';border:1.5px solid '+(checked?'#3b6cf7':'#cbd5e1')+';display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;">'+(checked?'✓':'')+'</div>'
+      +'<div class="video-thumb" style="opacity:.7;"><div class="video-play-icon">▶</div></div>'
+      +'<div class="video-info"><div class="video-title">'+escHtml(m.name)+'</div></div></div>';
+  }
   var isYt=m.url&&(m.url.includes('youtube.com')||m.url.includes('youtu.be'));
   var thumb='';
   if(isYt){
@@ -1115,9 +1133,10 @@ function renderVideos(){
   if(noFolder.length) html+='<div class="video-grid">'+noFolder.map(videoCardHtml).join('')+'</div>';
   folderNames.forEach(function(f, idx){
     var items=list.filter(function(m){return m.folder===f;});
-    html+='<button type="button" class="vid-drop-head" onclick="toggleVidFolder(this)" style="margin-top:'+(idx===0&&!noFolder.length?'0':'12px')+';">'
+    var openNow=folderPickMode; // 폴더 담기 모드에서는 다 펼쳐서 어디든 바로 고를 수 있게
+    html+='<button type="button" class="vid-drop-head'+(openNow?' open':'')+'" onclick="toggleVidFolder(this)" style="margin-top:'+(idx===0&&!noFolder.length?'0':'12px')+';">'
       +'<span>📁 '+escHtml(f)+'<span class="cnt">'+items.length+'</span></span><span class="vid-drop-arrow">▾</span></button>'
-      +'<div class="vid-drop-body" style="display:none;"><div class="video-grid">'+items.map(videoCardHtml).join('')+'</div></div>';
+      +'<div class="vid-drop-body" style="display:'+(openNow?'block':'none')+';"><div class="video-grid">'+items.map(videoCardHtml).join('')+'</div></div>';
   });
   wrap.innerHTML=html;
 }
@@ -1135,6 +1154,46 @@ async function changeMatFolder(id){
   await fetch(SU+'?action=updateMaterial&id='+encodeURIComponent(id)+'&folder='+encodeURIComponent(name));
   if(m) m.folder=name;
   renderVideos();
+}
+
+// ── 폴더 만들기: 이름 정하고 → 영상 여러 개 체크 → 한 번에 그 폴더로 이동 ──
+var folderPickMode=false, folderPickName='', folderPickSelected={};
+function startFolderPick(){
+  var name=prompt('새 폴더 이름을 입력하세요');
+  if(name===null || !name.trim()) return;
+  folderPickName=name.trim();
+  folderPickMode=true;
+  folderPickSelected={};
+  document.getElementById('video-folder-pick-bar').style.display='flex';
+  document.getElementById('video-folder-pick-label').textContent='"'+folderPickName+'" 폴더에 넣을 영상을 선택하세요 (0개 선택됨)';
+  document.getElementById('btn-add-video').style.display='none';
+  document.getElementById('btn-add-folder').style.display='none';
+  renderVideos();
+}
+function toggleFolderPickItem(id){
+  folderPickSelected[id]=!folderPickSelected[id];
+  var n=Object.keys(folderPickSelected).filter(function(k){return folderPickSelected[k];}).length;
+  document.getElementById('video-folder-pick-label').textContent='"'+folderPickName+'" 폴더에 넣을 영상을 선택하세요 ('+n+'개 선택됨)';
+  renderVideos();
+}
+function cancelFolderPick(){
+  folderPickMode=false; folderPickSelected={};
+  document.getElementById('video-folder-pick-bar').style.display='none';
+  document.getElementById('btn-add-video').style.display='';
+  document.getElementById('btn-add-folder').style.display='';
+  renderVideos();
+}
+async function finishFolderPick(){
+  var ids=Object.keys(folderPickSelected).filter(function(k){return folderPickSelected[k];});
+  if(!ids.length){ if(!confirm('선택된 영상이 없습니다. 그래도 폴더 만들기를 끝낼까요?')) return; }
+  try{
+    for(var i=0;i<ids.length;i++){
+      await fetch(SU+'?action=updateMaterial&id='+encodeURIComponent(ids[i])+'&folder='+encodeURIComponent(folderPickName));
+      var m=materials.find(function(x){return x.id===ids[i];});
+      if(m) m.folder=folderPickName;
+    }
+  }catch(e){alert('오류가 발생했습니다.');}
+  cancelFolderPick();
 }
 
 function ytId(url){
