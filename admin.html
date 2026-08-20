@@ -200,6 +200,13 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 .sd-hist-row{padding:10px 0;border-bottom:1px solid #f8fafc;font-size:13px;}
 .sd-hist-title{font-weight:700;color:#1e293b;}
 .sd-hist-sub{font-size:11.5px;color:#94a3b8;margin-top:2px;}
+.sd-edit-ic{cursor:pointer;font-size:11px;margin-left:5px;opacity:.6;}
+.sd-edit-ic:hover{opacity:1;}
+.sd-edit-row{display:flex;gap:5px;margin-top:3px;}
+.sd-edit-row input,.sd-edit-row select{flex:1;min-width:0;padding:5px 7px;border:1.5px solid #93c5fd;border-radius:6px;font-size:12.5px;font-family:inherit;}
+.sd-edit-row button{border:none;border-radius:6px;padding:5px 9px;font-size:11.5px;font-weight:700;cursor:pointer;}
+.sd-edit-row button.sd-save{background:#3b6cf7;color:#fff;}
+.sd-edit-row button.sd-cancel{background:#f1f5f9;color:#64748b;}
 @media (max-width:768px){
   .sd-panel{width:100%;right:-100%;}
   .sd-panel-head,.sd-info-grid,.sd-tabs,.sd-tab-body{padding-left:16px;padding-right:16px;}
@@ -1599,6 +1606,53 @@ function renderStu(){
 }
 // ── 학생 상세 슬라이드 패널 (수강/클리닉/질문/성적 이력 + 학생 화면 미리보기) ──
 var sdCurrentStu=null, sdHistory=null, sdCurrentTab='att';
+// 학생 상세 패널의 기본정보 칸 — 클릭해서 바로 수정 가능(학부모 전화번호/성별/학교/학년).
+// 학생 전화번호(로그인 아이디)는 문서 ID라 여기서 못 바꾸고, 등록일도 자동 기록값이라 수정 대상 아님.
+function sdInfoField(label, field, value, type){
+  var displayVal = value || (field==='parentPhone'?'-':'미입력');
+  var inputHtml = type==='select'
+    ? '<select id="sd-input-'+field+'"><option value=""'+(!value?' selected':'')+'>선택 안 함</option><option value="남"'+(value==='남'?' selected':'')+'>남</option><option value="여"'+(value==='여'?' selected':'')+'>여</option></select>'
+    : '<input id="sd-input-'+field+'" value="'+escHtml(value||'')+'">';
+  return '<div class="sd-info-item">'
+    +'<div class="sd-info-label">'+label+'</div>'
+    +'<div class="sd-info-val" id="sd-val-'+field+'">'+escHtml(displayVal)+'<span class="sd-edit-ic" onclick="sdStartEdit(\''+field+'\')">✏️</span></div>'
+    +'<div class="sd-edit-row" id="sd-edit-'+field+'" style="display:none;">'+inputHtml
+      +'<button class="sd-save" onclick="sdSaveField(\''+field+'\')">저장</button>'
+      +'<button class="sd-cancel" onclick="sdCancelEdit(\''+field+'\')">취소</button>'
+    +'</div></div>';
+}
+function renderSdInfoGrid(s){
+  return sdInfoField('학부모 전화번호','parentPhone',s.parentPhone,'text')
+    +'<div class="sd-info-item"><div class="sd-info-label">학생 전화번호</div><div class="sd-info-val">'+escHtml(s.studentPhone||s.id||'-')+'</div></div>'
+    +sdInfoField('성별','gender',s.gender,'select')
+    +sdInfoField('학교','school',s.school,'text')
+    +sdInfoField('학년','grade',s.grade,'text')
+    +'<div class="sd-info-item"><div class="sd-info-label">등록일</div><div class="sd-info-val">'+escHtml((s.createdAt||'-').substring(0,10))+'</div></div>';
+}
+function sdStartEdit(field){
+  document.getElementById('sd-val-'+field).style.display='none';
+  document.getElementById('sd-edit-'+field).style.display='flex';
+  var inp=document.getElementById('sd-input-'+field);
+  if(inp.focus) inp.focus();
+}
+function sdCancelEdit(field){
+  document.getElementById('sd-val-'+field).style.display='';
+  document.getElementById('sd-edit-'+field).style.display='none';
+}
+async function sdSaveField(field){
+  if(!sdCurrentStu) return;
+  var val=document.getElementById('sd-input-'+field).value.trim();
+  try{
+    var r=await fetch(SU+'?action=updateStudentInfo&id='+encodeURIComponent(sdCurrentStu.id)+'&'+field+'='+encodeURIComponent(val)).then(function(r){return r.json();});
+    if(!r||!r.success){ alert('저장 실패. 다시 시도해주세요.'); return; }
+    sdCurrentStu[field]=val;
+    var s2=allStudents.find(function(x){return x.id===sdCurrentStu.id;});
+    if(s2) s2[field]=val;
+    document.getElementById('sd-info-grid').innerHTML=renderSdInfoGrid(sdCurrentStu);
+    document.getElementById('sd-sub').textContent=(sdCurrentStu.school||'')+(sdCurrentStu.grade?' · '+sdCurrentStu.grade:'');
+    renderStu();
+  }catch(e){ alert('오류가 발생했습니다.'); }
+}
 async function openStuDetail(id){
   var s=allStudents.find(function(x){return x.id===id;});
   if(!s) return;
@@ -1606,13 +1660,7 @@ async function openStuDetail(id){
   sdHistory=null;
   document.getElementById('sd-name').textContent=s.name||s.id;
   document.getElementById('sd-sub').textContent=(s.school||'')+(s.grade?' · '+s.grade:'');
-  document.getElementById('sd-info-grid').innerHTML=
-    '<div class="sd-info-item"><div class="sd-info-label">학부모 전화번호</div><div class="sd-info-val">'+escHtml(s.parentPhone||'-')+'</div></div>'
-    +'<div class="sd-info-item"><div class="sd-info-label">학생 전화번호</div><div class="sd-info-val">'+escHtml(s.studentPhone||s.id||'-')+'</div></div>'
-    +'<div class="sd-info-item"><div class="sd-info-label">성별</div><div class="sd-info-val">'+escHtml(s.gender||'미입력')+'</div></div>'
-    +'<div class="sd-info-item"><div class="sd-info-label">학교</div><div class="sd-info-val">'+escHtml(s.school||'미입력')+'</div></div>'
-    +'<div class="sd-info-item"><div class="sd-info-label">학년</div><div class="sd-info-val">'+escHtml(s.grade||'미입력')+'</div></div>'
-    +'<div class="sd-info-item"><div class="sd-info-label">등록일</div><div class="sd-info-val">'+escHtml((s.createdAt||'-').substring(0,10))+'</div></div>';
+  document.getElementById('sd-info-grid').innerHTML=renderSdInfoGrid(s);
   sdCurrentTab='att';
   document.querySelectorAll('.sd-tab').forEach(function(t,i){ t.classList.toggle('active', i===0); });
   document.getElementById('sd-tab-body').innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
