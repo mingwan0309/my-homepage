@@ -428,7 +428,7 @@ async function login() {
         localStorage.removeItem('saved_login');
       }
       const sessionId = data.studentId || id;
-      currentUser = { id: sessionId, authId: id, role: data.role, name: data.name, classId: data.classId || '', className: data.className || '', studentIds: data.studentIds || [] };
+      currentUser = { id: sessionId, authId: data.authId || id, role: data.role, name: data.name, classId: data.classId || '', className: data.className || '', studentIds: data.studentIds || [] };
       localStorage.setItem('mkmath_session', JSON.stringify(currentUser));
       const returnUrl = localStorage.getItem('mkmath_return');
       if (returnUrl) {

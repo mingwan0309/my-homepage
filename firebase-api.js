@@ -172,7 +172,16 @@ api.login = function(db, p){
   var tryAuth = function(i){
     if (i >= authIds.length) return Promise.resolve({ success:false });
     return auth.signInWithEmailAndPassword(toAuthEmail(authIds[i]), toAuthPassword(password))
-      .then(function(){ return afterSignIn(authIds[i]); }, function(){ return tryAuth(i+1); });
+      .then(function(){
+        return afterSignIn(authIds[i]).then(function(res){
+          // 로그인은 입력 형식(하이픈 유무)을 이것저것 다 시도해서 성공하지만, 실제로 Auth 인증에 성공한
+          // 형식(authIds[i])을 클라이언트에 알려줘야 나중에 비밀번호 변경 같은 재인증이 똑같은 형식으로 될 수 있음.
+          // 이걸 안 돌려주면(예전 버그) 학생이 하이픈 없이 로그인해도 로그인은 되는데, 나중에 비밀번호 변경 시
+          // 클라이언트가 그냥 "입력했던 문자열"을 authId로 써버려서 실제 계정과 안 맞아 "현재 비밀번호 틀림"이 남.
+          if (res && res.success) res.authId = authIds[i];
+          return res;
+        });
+      }, function(){ return tryAuth(i+1); });
   };
   return tryAuth(0).then(function(res){
     if (res && res.success && (res.role==='student'||res.role==='assistant')) {
