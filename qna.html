@@ -370,13 +370,13 @@ async function loadQuestions() {
 function renderList() {
   const keyword = (document.getElementById('search-input').value || '').toLowerCase();
   const unansweredOnly = document.getElementById('toggle-unanswered').checked;
-  const pending = allQuestions.filter(q => q.status === 'pending').length;
+  const pending = allQuestions.filter(q => q.status !== 'answered').length;
   document.getElementById('unanswered-count').textContent = pending;
 
   const mineOnly = document.getElementById('toggle-mine') && document.getElementById('toggle-mine').checked;
   let list = allQuestions;
-  if (keyword) list = list.filter(q => q.title.toLowerCase().includes(keyword) || q.contentPreview.toLowerCase().includes(keyword));
-  if (unansweredOnly) list = list.filter(q => q.status === 'pending');
+  if (keyword) list = list.filter(q => (q.title||'').toLowerCase().includes(keyword) || (q.contentPreview||'').toLowerCase().includes(keyword));
+  if (unansweredOnly) list = list.filter(q => q.status !== 'answered');
   if (mineOnly) list = list.filter(q => q.studentId === (session.id || ''));
 
 
