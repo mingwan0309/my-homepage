@@ -330,14 +330,19 @@ tr:hover td{background:#fafbff;}
         <div class="card">
           <div class="card-header">
             <div class="card-title" id="mat-cat-title">PDF 자료</div>
-            <button class="btn-add-mat" id="btn-add-mat" onclick="openAddMat()" style="display:none;">+ 자료 추가</button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-add-mat" id="btn-add-matfolder" onclick="startFolderPick(currentCat)" style="display:none;background:#fff;color:#3b6cf7;border:1.5px solid #c7d2fe;">+ 폴더 만들기</button>
+              <button class="btn-add-mat" id="btn-add-mat" onclick="openAddMat()" style="display:none;">+ 자료 추가</button>
+            </div>
           </div>
-          <div style="max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;">
-          <table class="mat-table" style="min-width:600px;">
-            <thead><tr><th>파일명</th><th>등록일</th><th>다운로드</th><th>메모</th><th></th></tr></thead>
-            <tbody id="mat-tbody"><tr><td colspan="5" class="empty">불러오는 중...</td></tr></tbody>
-          </table>
+          <div id="mat-folder-pick-bar" style="display:none;background:#eff6ff;border-bottom:1px solid #dbeafe;padding:12px 20px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:700;color:#1d4ed8;" id="mat-folder-pick-label"></span>
+            <div style="display:flex;gap:8px;">
+              <button onclick="cancelFolderPick()" style="background:#fff;border:1.5px solid #e2e8f0;color:#64748b;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">취소</button>
+              <button onclick="finishFolderPick()" style="background:#3b6cf7;border:none;color:#fff;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">완료</button>
+            </div>
           </div>
+          <div id="mat-list-wrap"></div>
         </div>
       </div>
       <!-- 영상 자료 -->
@@ -346,7 +351,7 @@ tr:hover td{background:#fafbff;}
           <div class="card-header">
             <div class="card-title">영상 자료</div>
             <div style="display:flex;gap:8px;">
-              <button class="btn-add-mat" id="btn-add-folder" onclick="startFolderPick()" style="display:none;background:#fff;color:#3b6cf7;border:1.5px solid #c7d2fe;">+ 폴더 만들기</button>
+              <button class="btn-add-mat" id="btn-add-folder" onclick="startFolderPick('영상 자료')" style="display:none;background:#fff;color:#3b6cf7;border:1.5px solid #c7d2fe;">+ 폴더 만들기</button>
               <button class="btn-add-mat" id="btn-add-video" onclick="openVideoModal()" style="display:none;">+ 영상 추가</button>
             </div>
           </div>
@@ -453,6 +458,7 @@ tr:hover td{background:#fafbff;}
           <p style="font-size:12px;color:#94a3b8;margin-top:4px;">20MB 이하 파일 권장</p>
         </div>
         <div id="mat-queue" style="margin-top:10px;max-height:240px;overflow-y:auto;"></div>
+        <div class="fg" style="margin-top:10px;"><label>폴더 (선택)</label><input type="text" id="mat-folder-input" list="mat-folder-list" placeholder="예) 1단원 프린트"></div>
         <div class="vmod-btns">
           <button class="vmod-btn-cl" onclick="closeAddMat()">취소</button>
           <button class="vmod-btn-ok" id="mat-upload-btn" onclick="saveMatQueue()">0개 자료 업로드</button>
@@ -533,6 +539,7 @@ tr:hover td{background:#fafbff;}
   </div>
 </div>
 <datalist id="video-folder-list"></datalist>
+<datalist id="mat-folder-list"></datalist>
 
 <!-- 자료 확인 현황 모달 -->
 <div class="modal-bg" id="views-modal" onclick="closeViewsModal()">
@@ -684,7 +691,7 @@ function logout(){localStorage.removeItem('mkmath_session');location.href='index
 const COLORS=['#3b6cf7','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4'];
 function badgeColor(n){var h=0;for(var i=0;i<n.length;i++)h+=n.charCodeAt(i);return COLORS[h%COLORS.length];}
 
-var classInfo=null, students=[], sessions=[], materials=[], videoFolders=[];
+var classInfo=null, students=[], sessions=[], materials=[], materialFolders=[];
 var currentCat='PDF 자료';
 
 async function init(){
@@ -715,6 +722,7 @@ function renderHeader(){
   if(!isStaff) document.querySelector('.btn-add-session').style.display='none';
   if(isStaff){
     document.getElementById('btn-add-mat').style.display='';
+    document.getElementById('btn-add-matfolder').style.display='';
     document.getElementById('btn-add-video').style.display='';
     document.getElementById('btn-add-folder').style.display='';
   }
@@ -923,7 +931,7 @@ async function loadMaterials(){
     ]);
     var d=await r.json();
     materials=d.materials||[];
-    try{ var fd=await fr.json(); videoFolders=fd.folders||[]; }catch(e){ videoFolders=[]; }
+    try{ var fd=await fr.json(); materialFolders=fd.folders||[]; }catch(e){ materialFolders=[]; }
     if(isStaff) await loadMatViews();
     else if(session.role==='student') await loadMyMatViews();
     updateCounts();
@@ -1056,39 +1064,73 @@ function renderCurrentCat(){
   else renderMaterials();
 }
 
+function matRowHtml(m){
+  if(folderPickMode && folderPickCategory===currentCat){
+    var checked=folderPickSelected[m.id]?'checked':'';
+    return '<tr onclick="toggleFolderPickItem(\''+m.id+'\')" style="cursor:pointer;'+(checked?'background:#eff6ff;':'')+'">'
+      +'<td style="width:30px;"><input type="checkbox" '+checked+' onclick="event.preventDefault();toggleFolderPickItem(\''+m.id+'\')"></td>'
+      +'<td colspan="4"><span class="mat-name">'+escHtml(m.name)+'</span></td></tr>';
+  }
+  var delBtn=isStaff?'<button class="mat-del-btn" onclick="delMat(\''+m.id+'\')">삭제</button>':'';
+  var folderBtn=isStaff?'<button class="mat-del-btn" onclick="changeMatFolder(\''+m.id+'\')">폴더이동</button>':'';
+  var viewBadge='';
+  if(isStaff){
+    var st=viewStats(m.id);
+    var color=st.seen>=st.total&&st.total>0?'#16a34a':'#3b6cf7';
+    viewBadge='<button onclick="showViews(\''+m.id+'\',false)" style="background:none;border:1.5px solid '+color+';color:'+color+';font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;cursor:pointer;white-space:nowrap;margin-right:6px;">확인 '+st.seen+'/'+st.total+'</button>';
+  }
+  var wmSel='';
+  if(isStaff){
+    var lv=(m.wmLevel&&m.wmLevel!=='0')?'1':'0';
+    var labels={'0':'워터마크 없음','1':'워터마크'};
+    wmSel='<select onchange="setMatWm(\''+m.id+'\',this.value)" style="font-size:11px;padding:4px 6px;border:1.5px solid #e2e8f0;border-radius:7px;margin-right:6px;cursor:pointer;">'
+      +['0','1'].map(function(v){return '<option value="'+v+'"'+(lv===v?' selected':'')+'>'+labels[v]+'</option>';}).join('')
+      +'</select>';
+  }
+  var dlBtn='<button onclick="downloadMat(\''+m.id+'\')" style="background:#eef2ff;color:#3b6cf7;border:1.5px solid #c7d2fe;font-size:11px;font-weight:700;padding:4px 12px;border-radius:7px;cursor:pointer;white-space:nowrap;margin-right:6px;">다운로드</button>';
+  return '<tr>'+
+    '<td><span class="mat-name">'+escHtml(m.name)+'</span></td>'+
+    '<td style="font-size:12px;color:#94a3b8;">'+(m.uploadDate||'').substring(0,10)+'</td>'+
+    '<td style="font-size:12px;color:#64748b;text-align:center;">'+m.downloadCount+'</td>'+
+    '<td style="font-size:12px;color:#64748b;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(m.memo||'')+'</td>'+
+    '<td style="white-space:nowrap;">'+wmSel+viewBadge+dlBtn+folderBtn+delBtn+'</td></tr>';
+}
+function matTableHtml(list){
+  return '<div style="max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;">'
+    +'<table class="mat-table" style="min-width:600px;">'
+    +'<thead><tr><th>파일명</th><th>등록일</th><th>다운로드</th><th>메모</th><th></th></tr></thead>'
+    +'<tbody>'+list.map(matRowHtml).join('')+'</tbody></table></div>';
+}
 function renderMaterials(){
-  var tbody=document.getElementById('mat-tbody');
+  var wrap=document.getElementById('mat-list-wrap');
   document.getElementById('mat-cat-title').textContent=currentCat;
   var list=materials.filter(function(m){return m.category===currentCat;});
-  if(!list.length){tbody.innerHTML='<tr><td colspan="5" class="empty">등록된 자료가 없습니다</td></tr>';return;}
-  tbody.innerHTML=list.map(function(m){
-    var delBtn=isStaff?'<button class="mat-del-btn" onclick="delMat(\''+m.id+'\')">삭제</button>':'';
-    var viewBadge='';
-    if(isStaff){
-      var st=viewStats(m.id);
-      var color=st.seen>=st.total&&st.total>0?'#16a34a':'#3b6cf7';
-      viewBadge='<button onclick="showViews(\''+m.id+'\',false)" style="background:none;border:1.5px solid '+color+';color:'+color+';font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;cursor:pointer;white-space:nowrap;margin-right:6px;">확인 '+st.seen+'/'+st.total+'</button>';
-    }
-    var wmSel='';
-    if(isStaff){
-      var lv=(m.wmLevel&&m.wmLevel!=='0')?'1':'0';
-      var labels={'0':'워터마크 없음','1':'워터마크'};
-      wmSel='<select onchange="setMatWm(\''+m.id+'\',this.value)" style="font-size:11px;padding:4px 6px;border:1.5px solid #e2e8f0;border-radius:7px;margin-right:6px;cursor:pointer;">'
-        +['0','1'].map(function(v){return '<option value="'+v+'"'+(lv===v?' selected':'')+'>'+labels[v]+'</option>';}).join('')
-        +'</select>';
-    }
-    var dlBtn='<button onclick="downloadMat(\''+m.id+'\')" style="background:#eef2ff;color:#3b6cf7;border:1.5px solid #c7d2fe;font-size:11px;font-weight:700;padding:4px 12px;border-radius:7px;cursor:pointer;white-space:nowrap;margin-right:6px;">다운로드</button>';
-    return '<tr>'+
-      '<td><span class="mat-name">'+escHtml(m.name)+'</span></td>'+
-      '<td style="font-size:12px;color:#94a3b8;">'+(m.uploadDate||'').substring(0,10)+'</td>'+
-      '<td style="font-size:12px;color:#64748b;text-align:center;">'+m.downloadCount+'</td>'+
-      '<td style="font-size:12px;color:#64748b;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(m.memo||'')+'</td>'+
-      '<td style="white-space:nowrap;">'+wmSel+viewBadge+dlBtn+delBtn+'</td></tr>';
-  }).join('');
+  var catFolders=materialFolders.filter(function(f){return f.category===currentCat;});
+  if(!list.length && !catFolders.length){wrap.innerHTML='<table class="mat-table"><tbody><tr><td class="empty">등록된 자료가 없습니다</td></tr></tbody></table>';return;}
+
+  var dl=document.getElementById('mat-folder-list');
+  var noFolder=list.filter(function(m){return !m.folder;});
+  var folderNames=[];
+  list.forEach(function(m){ if(m.folder && folderNames.indexOf(m.folder)<0) folderNames.push(m.folder); });
+  catFolders.forEach(function(f){ if(f.name && folderNames.indexOf(f.name)<0) folderNames.push(f.name); });
+  if(dl) dl.innerHTML=folderNames.map(function(f){return '<option value="'+escHtml(f)+'">';}).join('');
+
+  var html='';
+  if(noFolder.length) html+=matTableHtml(noFolder);
+  folderNames.forEach(function(f, idx){
+    var items=list.filter(function(m){return m.folder===f;});
+    var openNow=folderPickMode && folderPickCategory===currentCat;
+    var vf=catFolders.find(function(x){return x.name===f;});
+    var delFolderBtn=(isStaff && !items.length && vf)?'<span onclick="event.stopPropagation();deleteEmptyFolder(\''+vf.id+'\')" style="color:#dc2626;font-size:11px;margin-left:8px;">🗑 폴더삭제</span>':'';
+    html+='<button type="button" class="vid-drop-head'+(openNow?' open':'')+'" onclick="toggleVidFolder(this)" style="margin-top:'+(idx===0&&!noFolder.length?'0':'12px')+';">'
+      +'<span>📁 '+escHtml(f)+'<span class="cnt">'+items.length+'</span>'+delFolderBtn+'</span><span class="vid-drop-arrow">▾</span></button>'
+      +'<div class="vid-drop-body" style="display:'+(openNow?'block':'none')+';">'+(items.length?matTableHtml(items):'<div style="padding:16px 20px;color:#94a3b8;font-size:12.5px;">아직 이 폴더에 자료가 없어요.</div>')+'</div>';
+  });
+  wrap.innerHTML=html || '<table class="mat-table"><tbody><tr><td class="empty">등록된 자료가 없습니다</td></tr></tbody></table>';
 }
 
 function videoCardHtml(m){
-  if(folderPickMode){
+  if(folderPickMode && folderPickCategory==='영상 자료'){
     var checked=folderPickSelected[m.id]?'checked':'';
     return '<div class="video-card" onclick="toggleFolderPickItem(\''+m.id+'\')" style="cursor:pointer;position:relative;'+(checked?'outline:2.5px solid #3b6cf7;':'')+'">'
       +'<div style="position:absolute;top:8px;left:8px;z-index:2;width:22px;height:22px;border-radius:50%;background:'+(checked?'#3b6cf7':'rgba(255,255,255,.9)')+';border:1.5px solid '+(checked?'#3b6cf7':'#cbd5e1')+';display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;">'+(checked?'✓':'')+'</div>'
@@ -1121,16 +1163,17 @@ function videoCardHtml(m){
 function renderVideos(){
   var wrap=document.getElementById('video-list-wrap');
   var list=materials.filter(function(m){return m.category==='영상 자료';});
-  if(!list.length && !videoFolders.length){
+  var catFolders=materialFolders.filter(function(f){return f.category==='영상 자료';});
+  if(!list.length && !catFolders.length){
     wrap.innerHTML='<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">영상을 끌어서 업로드해주세요.</div>'+(isStaff?'<button class="btn-add-video-empty" onclick="openVideoModal()">영상 추가하기</button>':'')+'</div>';
     return;
   }
   // 폴더별로 묶기: 폴더가 없는 영상은 위에 그냥 나열, 폴더가 있는 영상은 폴더별 드롭다운으로 묶어서 표시.
-  // 영상이 하나도 없는 '빈 폴더'도 미리 만들어둔 게 있으면 같이 보여줌(videoFolders).
+  // 영상이 하나도 없는 '빈 폴더'도 미리 만들어둔 게 있으면 같이 보여줌(catFolders).
   var noFolder=list.filter(function(m){return !m.folder;});
   var folderNames=[];
   list.forEach(function(m){ if(m.folder && folderNames.indexOf(m.folder)<0) folderNames.push(m.folder); });
-  videoFolders.forEach(function(vf){ if(vf.name && folderNames.indexOf(vf.name)<0) folderNames.push(vf.name); });
+  catFolders.forEach(function(vf){ if(vf.name && folderNames.indexOf(vf.name)<0) folderNames.push(vf.name); });
 
   var dl=document.getElementById('video-folder-list');
   if(dl) dl.innerHTML=folderNames.map(function(f){return '<option value="'+escHtml(f)+'">';}).join('');
@@ -1139,8 +1182,8 @@ function renderVideos(){
   if(noFolder.length) html+='<div class="video-grid">'+noFolder.map(videoCardHtml).join('')+'</div>';
   folderNames.forEach(function(f, idx){
     var items=list.filter(function(m){return m.folder===f;});
-    var openNow=folderPickMode; // 폴더 담기 모드에서는 다 펼쳐서 어디든 바로 고를 수 있게
-    var vf=videoFolders.find(function(x){return x.name===f;});
+    var openNow=folderPickMode && folderPickCategory==='영상 자료'; // 폴더 담기 모드에서는 다 펼쳐서 어디든 바로 고를 수 있게
+    var vf=catFolders.find(function(x){return x.name===f;});
     var delFolderBtn=(isStaff && !items.length && vf)?'<span onclick="event.stopPropagation();deleteEmptyFolder(\''+vf.id+'\')" style="color:#dc2626;font-size:11px;margin-left:8px;">🗑 폴더삭제</span>':'';
     html+='<button type="button" class="vid-drop-head'+(openNow?' open':'')+'" onclick="toggleVidFolder(this)" style="margin-top:'+(idx===0&&!noFolder.length?'0':'12px')+';">'
       +'<span>📁 '+escHtml(f)+'<span class="cnt">'+items.length+'</span>'+delFolderBtn+'</span><span class="vid-drop-arrow">▾</span></button>'
@@ -1154,56 +1197,70 @@ function toggleVidFolder(btn){
   body.style.display=isOpen?'none':'block';
   btn.classList.toggle('open',!isOpen);
 }
+function renderByCategory(cat){
+  if(cat==='영상 자료') renderVideos(); else renderMaterials();
+}
 async function changeMatFolder(id){
   var m=materials.find(function(x){return x.id===id;});
-  var name=prompt('이 영상을 넣을 폴더 이름을 입력하세요 (비워두면 폴더에서 빠집니다)', m?m.folder:'');
+  var name=prompt('이 자료를 넣을 폴더 이름을 입력하세요 (비워두면 폴더에서 빠집니다)', m?m.folder:'');
   if(name===null) return;
   name=name.trim();
   await fetch(SU+'?action=updateMaterial&id='+encodeURIComponent(id)+'&folder='+encodeURIComponent(name));
-  if(m) m.folder=name;
-  renderVideos();
+  if(m){ m.folder=name; renderByCategory(m.category); }
 }
 
-// ── 폴더 만들기: 이름 정하면 바로 빈 폴더로 저장(영상 없어도 유지됨) → 이어서 영상 체크해서 담기 ──
-var folderPickMode=false, folderPickName='', folderPickSelected={};
-async function startFolderPick(){
+// ── 폴더 만들기: 이름 정하면 바로 빈 폴더로 저장(자료 없어도 유지됨) → 이어서 자료 체크해서 담기 ──
+// 영상 자료/PDF 자료/손필기 자료 공통으로 쓰는 로직(카테고리는 folderPickCategory로 구분)
+var folderPickMode=false, folderPickName='', folderPickCategory='', folderPickSelected={};
+function pickBarIds(cat){
+  return cat==='영상 자료'
+    ? {bar:'video-folder-pick-bar', label:'video-folder-pick-label', addBtn:'btn-add-video', folderBtn:'btn-add-folder'}
+    : {bar:'mat-folder-pick-bar', label:'mat-folder-pick-label', addBtn:'btn-add-mat', folderBtn:'btn-add-matfolder'};
+}
+async function startFolderPick(cat){
   var name=prompt('새 폴더 이름을 입력하세요');
   if(name===null || !name.trim()) return;
   name=name.trim();
-  if(materials.some(function(m){return m.category==='영상 자료'&&m.folder===name;}) || videoFolders.some(function(f){return f.name===name;})){
+  if(materials.some(function(m){return m.category===cat&&m.folder===name;}) || materialFolders.some(function(f){return f.category===cat&&f.name===name;})){
     alert('이미 있는 폴더 이름이에요. 다른 이름을 써주세요.');
     return;
   }
-  var r=await fetch(SU+'?action=addVideoFolder&classId='+encodeURIComponent(classId)+'&name='+encodeURIComponent(name)).then(function(r){return r.json();});
+  var r=await fetch(SU+'?action=addVideoFolder&classId='+encodeURIComponent(classId)+'&name='+encodeURIComponent(name)+'&category='+encodeURIComponent(cat)).then(function(r){return r.json();});
   if(!r||!r.success){ alert('폴더 생성 실패. 다시 시도해주세요.'); return; }
-  videoFolders.push({id:r.id, name:name});
+  materialFolders.push({id:r.id, name:name, category:cat});
   folderPickName=name;
+  folderPickCategory=cat;
   folderPickMode=true;
   folderPickSelected={};
-  document.getElementById('video-folder-pick-bar').style.display='flex';
-  document.getElementById('video-folder-pick-label').textContent='"'+folderPickName+'" 폴더가 만들어졌어요. 지금 바로 넣을 영상을 선택하세요 (0개 선택됨) — 나중에 넣어도 됩니다.';
-  document.getElementById('btn-add-video').style.display='none';
-  document.getElementById('btn-add-folder').style.display='none';
-  renderVideos();
+  var ids=pickBarIds(cat);
+  document.getElementById(ids.bar).style.display='flex';
+  document.getElementById(ids.label).textContent='"'+folderPickName+'" 폴더가 만들어졌어요. 지금 바로 넣을 자료를 선택하세요 (0개 선택됨) — 나중에 넣어도 됩니다.';
+  document.getElementById(ids.addBtn).style.display='none';
+  document.getElementById(ids.folderBtn).style.display='none';
+  renderByCategory(cat);
 }
 async function deleteEmptyFolder(id){
   if(!confirm('이 빈 폴더를 삭제할까요?'))return;
+  var f=materialFolders.find(function(x){return x.id===id;});
   await fetch(SU+'?action=deleteVideoFolder&id='+encodeURIComponent(id));
-  videoFolders=videoFolders.filter(function(f){return f.id!==id;});
-  renderVideos();
+  materialFolders=materialFolders.filter(function(x){return x.id!==id;});
+  if(f) renderByCategory(f.category);
 }
 function toggleFolderPickItem(id){
   folderPickSelected[id]=!folderPickSelected[id];
   var n=Object.keys(folderPickSelected).filter(function(k){return folderPickSelected[k];}).length;
-  document.getElementById('video-folder-pick-label').textContent='"'+folderPickName+'" 폴더에 넣을 영상을 선택하세요 ('+n+'개 선택됨)';
-  renderVideos();
+  var ids=pickBarIds(folderPickCategory);
+  document.getElementById(ids.label).textContent='"'+folderPickName+'" 폴더에 넣을 자료를 선택하세요 ('+n+'개 선택됨)';
+  renderByCategory(folderPickCategory);
 }
 function cancelFolderPick(){
+  var cat=folderPickCategory;
+  var ids=pickBarIds(cat);
   folderPickMode=false; folderPickSelected={};
-  document.getElementById('video-folder-pick-bar').style.display='none';
-  document.getElementById('btn-add-video').style.display='';
-  document.getElementById('btn-add-folder').style.display='';
-  renderVideos();
+  document.getElementById(ids.bar).style.display='none';
+  document.getElementById(ids.addBtn).style.display='';
+  document.getElementById(ids.folderBtn).style.display='';
+  renderByCategory(cat);
 }
 async function finishFolderPick(){
   var ids=Object.keys(folderPickSelected).filter(function(k){return folderPickSelected[k];});
@@ -1554,11 +1611,13 @@ function removeMatQueue(i){
 async function saveMatQueue(){
   var done=matQueue.filter(function(m){return m.status==='done';});
   if(!done.length){alert('업로드 완료된 파일이 없습니다.');return;}
+  var folder=(document.getElementById('mat-folder-input').value||'').trim();
   try{
     for(var i=0;i<done.length;i++){
       var m=done[i];
-      await fetch(SU+'?action=addMaterial&classId='+encodeURIComponent(classId)+'&category='+encodeURIComponent(currentCat)+'&name='+encodeURIComponent(m.name)+'&url='+encodeURIComponent(m.url)+'&size=&memo=');
+      await fetch(SU+'?action=addMaterial&classId='+encodeURIComponent(classId)+'&category='+encodeURIComponent(currentCat)+'&name='+encodeURIComponent(m.name)+'&url='+encodeURIComponent(m.url)+'&size=&memo=&folder='+encodeURIComponent(folder));
     }
+    document.getElementById('mat-folder-input').value='';
     closeAddMat();
     await loadMaterials();
   }catch(e){alert('오류가 발생했습니다.');}

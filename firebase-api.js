@@ -1257,17 +1257,20 @@ api.addMaterial = function(db, p){
   }).then(function(){ return { success:true, id:id }; });
 };
 
-// 영상 폴더 — 아직 영상을 하나도 안 넣은 '빈 폴더'도 미리 만들어둘 수 있게 별도 컬렉션으로 관리.
-// 실제 영상은 materials 문서의 folder 필드(폴더 이름)로만 연결되고, 이 컬렉션은 폴더 자체의 존재/이름만 기록함.
+// 자료실 폴더(영상 자료/PDF 자료/손필기 자료 공통) — 아직 자료를 하나도 안 넣은 '빈 폴더'도
+// 미리 만들어둘 수 있게 별도 컬렉션으로 관리. 실제 자료는 materials 문서의 folder 필드(폴더 이름)로만
+// 연결되고, 이 컬렉션은 폴더 자체의 존재/이름/카테고리만 기록함(카테고리별로 폴더 목록이 안 섞이게).
 api.addVideoFolder = function(db, p){
   var id = genId('vfolder');
   return db.collection('video_folders').doc(id).set({
-    id:id, classId:String(p.classId), name:p.name||'', createdAt:nowStr()
+    id:id, classId:String(p.classId), name:p.name||'', category:p.category||'영상 자료', createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };
 api.getVideoFolders = function(db, p){
   return db.collection('video_folders').where('classId','==',String(p.classId)).get().then(function(snap){
-    var folders = docsToArr(snap).map(function(r){ return { id:String(r.id), name:r.name||'' }; });
+    var folders = docsToArr(snap)
+      .filter(function(r){ return !p.category || (r.category||'영상 자료')===p.category; })
+      .map(function(r){ return { id:String(r.id), name:r.name||'', category:r.category||'영상 자료' }; });
     return { folders: folders };
   });
 };

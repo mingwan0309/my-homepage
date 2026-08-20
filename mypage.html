@@ -1151,7 +1151,7 @@ async function loadClassMaterials(){
   try{
     var [r,fr] = await Promise.all([
       fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(session.classId)),
-      fetch(SU+'?action=getVideoFolders&classId='+encodeURIComponent(session.classId))
+      fetch(SU+'?action=getVideoFolders&classId='+encodeURIComponent(session.classId)+'&category='+encodeURIComponent('영상 자료'))
     ]);
     var d = await r.json();
     matList = (d.materials||[]).map(function(m){
