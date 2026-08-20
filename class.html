@@ -164,8 +164,8 @@ tr:hover td{background:#fafbff;}
 .vmod{background:#fff;border-radius:16px;padding:0;width:90%;max-width:560px;overflow:hidden;}
 .vmod-head{padding:22px 24px 0;border-bottom:1px solid #e2e8f0;}
 .vmod-head h3{font-size:17px;font-weight:800;color:#1e293b;margin-bottom:16px;}
-.vmod-tabs{display:flex;gap:0;}
-.vmod-tab{padding:10px 18px;font-size:13px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.vmod-tabs{display:flex;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.vmod-tab{padding:10px 18px;font-size:13px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;flex-shrink:0;}
 .vmod-tab.active{color:#3b6cf7;border-bottom-color:#3b6cf7;}
 .wm-opt{border:none;background:#fff;padding:7px 14px;font-size:12px;font-weight:700;color:#64748b;cursor:pointer;border-right:1px solid #e2e8f0;}
 .wm-opt:last-child{border-right:none;}
@@ -468,6 +468,7 @@ tr:hover td{background:#fafbff;}
         <div class="vmod-tab active" onclick="switchVTab('drive',this)">업로드 (Drive 링크)</div>
         <div class="vmod-tab" onclick="switchVTab('youtube',this)">유튜브 링크</div>
         <div class="vmod-tab" onclick="switchVTab('existing',this)">기존 영상에서 가져오기</div>
+        <div class="vmod-tab" onclick="switchVTab('otherclass',this)">다른 반에서 가져오기</div>
       </div>
     </div>
     <div class="vmod-body">
@@ -503,6 +504,19 @@ tr:hover td{background:#fafbff;}
         <div id="existing-video-list" style="max-height:320px;overflow-y:auto;"></div>
         <div class="vmod-btns">
           <button class="vmod-btn-cl" onclick="closeVideoModal()">취소</button>
+        </div>
+      </div>
+      <!-- 다른 반에서 가져오기 탭 -->
+      <div id="vtab-otherclass" style="display:none;">
+        <div class="fg"><label>어느 반에서 가져올까요?</label>
+          <select id="oc-class-select" onchange="loadOtherClassVideos()" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+            <option value="">반 선택</option>
+          </select>
+        </div>
+        <div id="oc-video-list" style="max-height:280px;overflow-y:auto;"></div>
+        <div class="vmod-btns">
+          <button class="vmod-btn-cl" onclick="closeVideoModal()">취소</button>
+          <button class="vmod-btn-ok" onclick="importSelectedOtherClassVideos()">가져오기</button>
         </div>
       </div>
     </div>
@@ -1499,7 +1513,77 @@ function switchVTab(tab,el){
   document.getElementById('vtab-drive').style.display=tab==='drive'?'':'none';
   document.getElementById('vtab-youtube').style.display=tab==='youtube'?'':'none';
   document.getElementById('vtab-existing').style.display=tab==='existing'?'':'none';
+  document.getElementById('vtab-otherclass').style.display=tab==='otherclass'?'':'none';
   if(tab==='existing') renderExistingVideos();
+  if(tab==='otherclass') initOtherClassImport();
+}
+
+// ── 다른 반 자료실에서 영상/폴더 통째로 가져오기 ──
+var ocClasses=[], ocMaterials=[], ocSelected={};
+async function initOtherClassImport(){
+  var sel=document.getElementById('oc-class-select');
+  if(!ocClasses.length){
+    try{
+      var r=await fetch(SU+'?action=getClasses').then(function(r){return r.json();});
+      ocClasses=(r.classes||[]).filter(function(c){return String(c.id)!==String(classId);});
+    }catch(e){ocClasses=[];}
+  }
+  sel.innerHTML='<option value="">반 선택</option>'+ocClasses.map(function(c){return '<option value="'+c.id+'">'+escHtml(c.name)+'</option>';}).join('');
+  document.getElementById('oc-video-list').innerHTML='';
+  ocMaterials=[]; ocSelected={};
+}
+async function loadOtherClassVideos(){
+  var cid=document.getElementById('oc-class-select').value;
+  var wrap=document.getElementById('oc-video-list');
+  ocSelected={};
+  if(!cid){ wrap.innerHTML=''; ocMaterials=[]; return; }
+  wrap.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  try{
+    var r=await fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(cid)).then(function(r){return r.json();});
+    ocMaterials=(r.materials||[]).filter(function(m){return m.category==='영상 자료';});
+  }catch(e){ocMaterials=[];}
+  renderOcVideoList();
+}
+function renderOcVideoList(){
+  var wrap=document.getElementById('oc-video-list');
+  if(!ocMaterials.length){ wrap.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">이 반에 등록된 영상이 없습니다.</div>'; return; }
+  var noFolder=ocMaterials.filter(function(m){return !m.folder;});
+  var folderNames=[]; ocMaterials.forEach(function(m){ if(m.folder&&folderNames.indexOf(m.folder)<0) folderNames.push(m.folder); });
+  function row(m){
+    var checked=ocSelected[m.id]?'checked':'';
+    return '<label style="display:flex;align-items:center;gap:8px;padding:8px 6px;border-bottom:1px solid #f8fafc;cursor:pointer;">'
+      +'<input type="checkbox" '+checked+' onchange="ocSelected[\''+m.id+'\']=this.checked;renderOcVideoList();">'
+      +'<span style="font-size:13px;color:#1e293b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(m.name)+'</span>'
+      +'</label>';
+  }
+  var html='';
+  if(noFolder.length) html+=noFolder.map(row).join('');
+  folderNames.forEach(function(f){
+    var items=ocMaterials.filter(function(m){return m.folder===f;});
+    var allChecked=items.every(function(m){return ocSelected[m.id];});
+    html+='<label style="display:flex;align-items:center;gap:8px;padding:8px 6px;background:#f8fafc;border-radius:8px;margin-top:8px;font-weight:700;font-size:12.5px;color:#334155;cursor:pointer;">'
+      +'<input type="checkbox" '+(allChecked?'checked':'')+' onchange="toggleOcFolder(\''+f.replace(/'/g,"\\'")+'\',this.checked)">'
+      +'<span>📁 '+escHtml(f)+' ('+items.length+')</span></label>'
+      +items.map(row).join('');
+  });
+  wrap.innerHTML=html;
+}
+function toggleOcFolder(folder, checked){
+  ocMaterials.filter(function(m){return m.folder===folder;}).forEach(function(m){ocSelected[m.id]=checked;});
+  renderOcVideoList();
+}
+async function importSelectedOtherClassVideos(){
+  var ids=Object.keys(ocSelected).filter(function(id){return ocSelected[id];});
+  if(!ids.length){alert('가져올 영상을 선택하세요.');return;}
+  try{
+    for(var i=0;i<ids.length;i++){
+      var m=ocMaterials.find(function(x){return x.id===ids[i];});
+      if(!m) continue;
+      await fetch(SU+'?action=addMaterial&classId='+encodeURIComponent(classId)+'&category='+encodeURIComponent('영상 자료')+'&name='+encodeURIComponent(m.name)+'&url='+encodeURIComponent(m.url)+'&size=&memo='+encodeURIComponent(m.memo||'')+'&folder='+encodeURIComponent(m.folder||''));
+    }
+    closeVideoModal();
+    await loadMaterials();
+  }catch(e){alert('오류가 발생했습니다.');}
 }
 
 var vlibCache=[];
