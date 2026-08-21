@@ -1617,7 +1617,7 @@ api.deleteWorkLog = function(db, p){
 api.clockIn = function(db, p){
   var assistantId = String(p.id);
   return db.collection('work_logs').where('assistantId','==',assistantId).where('clockOut','==','').get().then(function(snap){
-    if (!snap.empty) return { success:true, id:snap.docs[0].id }; // 이미 출근 중이면 중복 생성하지 않음
+    if (!snap.empty) return { success:true, id:snap.docs[0].id, isNew:false }; // 이미 출근 중이면 중복 생성하지 않음
     return db.collection('assistants').doc(assistantId).get().then(function(aDoc){
       var workTypeId = (aDoc.exists && aDoc.data().workTypeIds && aDoc.data().workTypeIds[0]) || '';
       var now = new Date();
@@ -1628,7 +1628,7 @@ api.clockIn = function(db, p){
         clockIn:formatTimeLocal(now), clockOut:'', workTypeId:workTypeId, breakMin:0,
         breakStartedAt:'', breakLogs:[],
         memo:'자동 출근(로그인)', cost:0, yearMonth:date.slice(0,7), createdAt:nowStr()
-      }).then(function(){ return { success:true, id:id }; });
+      }).then(function(){ return { success:true, id:id, isNew:true }; });
     });
   });
 };
@@ -2004,7 +2004,7 @@ window.mkNotifyAssistantEvent = notifyTeacherAssistantEvent;
 // 조교 로그인/로그아웃 시 자동 출퇴근 체크(각 페이지의 로그인/로그아웃 처리에서 호출)
 window.mkClockIn = function(session){
   return _dbReady.then(function(db){ return api.clockIn(db, { id:session.id, name:session.name }); })
-    .then(function(r){ notifyTeacherAssistantEvent('in', session.name); return r; })
+    .then(function(r){ if (r && r.isNew) notifyTeacherAssistantEvent('in', session.name); return r; })
     .catch(function(err){ console.error('[mkClockIn] 자동 출근 기록 실패:', err); });
 };
 window.mkClockOut = function(session){
