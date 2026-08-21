@@ -1274,7 +1274,36 @@ function setupAssistantSession(sessObj, isPreview){
     var bd=document.getElementById('assistant-popup-backdrop'); if(bd) bd.remove();
     mc.style.cssText='';
   };
+  refreshAstClockBar();
 }
+
+// 조교 화면 어디에 있든(메뉴 안 들어가도) 바로 출근/퇴근할 수 있게 화면 상단에 항상 떠 있는 바
+function ensureAstClockBar(){
+  if(document.getElementById('ast-clockbar')) return;
+  var bar=document.createElement('div');
+  bar.id='ast-clockbar';
+  bar.style.cssText='position:fixed;top:60px;right:12px;z-index:960;background:#1e293b;color:#fff;border-radius:12px;padding:9px 14px;display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.3);';
+  document.body.appendChild(bar);
+}
+async function refreshAstClockBar(){
+  if(!cu || cu.role!=='assistant') return;
+  ensureAstClockBar();
+  var bar=document.getElementById('ast-clockbar');
+  try{
+    var r=await fetch(SU+'?action=getMyWorkLogs&id='+encodeURIComponent(cu.id)).then(function(r){return r.json();});
+    var open=(r.logs||[]).find(function(l){return l.clockOut==='';});
+    if(open){
+      var onBreak=!!open.breakStartedAt;
+      bar.innerHTML=(onBreak?'☕ 휴식 중':'🟢 '+open.clockIn+' 출근중')
+        +'<button onclick="doAstBarClockOut()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">퇴근</button>';
+    } else {
+      bar.innerHTML='⚪ 출근 전'
+        +'<button onclick="doAstBarClockIn()" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">출근</button>';
+    }
+  }catch(e){ bar.innerHTML='<span style="color:#f87171;">불러오기 실패</span>'; }
+}
+async function doAstBarClockIn(){ await doMyClockIn(cu.id,'my-work-area-self'); refreshAstClockBar(); }
+async function doAstBarClockOut(){ await doMyClockOut(cu.id,'my-work-area-self'); refreshAstClockBar(); }
 
 // 반
 var allClasses = [];
