@@ -3899,7 +3899,7 @@ async function doMyClockOut(assistantId,targetElId){
   if(!window.mkClockOut) return;
   if(!confirm('퇴근 처리하시겠습니까?')) return;
   try{
-    await window.mkClockOut({ id:assistantId, name:(cu&&cu.name)||'' });
+    await window.mkClockOut({ id:assistantId, name:(cu&&cu.name)||'', role:'assistant' });
     loadMyWorkStatus(assistantId,targetElId);
     if(document.getElementById('my-work-history-self')) loadMySelfWorkHistory(assistantId);
   }catch(e){ alert('퇴근 처리 중 오류가 발생했습니다.'); }
