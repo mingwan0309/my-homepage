@@ -1185,8 +1185,6 @@ function showPage(page,el){
 }
 
 async function logout(){
-  // 퇴근 기록이 끝나기 전에 페이지가 이동하면 요청이 끊겨서 "근무 중"으로 계속 남는 문제가 있어서, 반드시 기다렸다가 이동함
-  if(window.mkClockOut && cu){ try{ await window.mkClockOut(cu); }catch(e){} }
   cu=null; localStorage.removeItem('mkmath_session'); location.href='homework.html';
 }
 
@@ -3820,10 +3818,15 @@ async function loadMyWorkStatus(assistantId,targetElId){
       var onBreak=!!open.breakStartedAt;
       html+='<div style="background:#eff6ff;border-radius:9px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
         +'<div style="font-weight:700;color:#2563eb;">'+(onBreak?'☕ 휴식 중 — '+open.breakStartedAt+'부터':'🟢 지금 근무 중 — '+open.date+' '+open.clockIn+'부터')+'</div>'
+        +'<div style="display:flex;gap:8px;">'
         +'<button onclick="toggleMyBreak(\''+assistantId+'\',\''+(targetElId||'my-work-area')+'\')" style="padding:7px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:'+(onBreak?'#16a34a':'#f59e0b')+';color:#fff;">'+(onBreak?'▶ 휴식 종료':'☕ 휴식 시작')+'</button>'
-        +'</div>';
+        +'<button onclick="doMyClockOut(\''+assistantId+'\',\''+(targetElId||'my-work-area')+'\')" style="padding:7px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:#dc2626;color:#fff;">🔴 퇴근</button>'
+        +'</div></div>';
     } else {
-      html+='<div style="background:#f1f5f9;border-radius:9px;padding:10px 14px;margin-bottom:10px;color:#64748b;">현재 근무 중이 아니에요 (로그인하면 자동으로 출근 체크됩니다)</div>';
+      html+='<div style="background:#f1f5f9;border-radius:9px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
+        +'<div style="color:#64748b;">현재 근무 중이 아니에요</div>'
+        +'<button onclick="doMyClockIn(\''+assistantId+'\',\''+(targetElId||'my-work-area')+'\')" style="padding:7px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:#2563eb;color:#fff;">🟢 출근</button>'
+        +'</div>';
     }
     var recent=logs.filter(function(l){return l.clockOut!=='';}).slice(0,5);
     if(recent.length){
@@ -3839,6 +3842,23 @@ async function loadMyWorkStatus(assistantId,targetElId){
   }catch(e){
     area.innerHTML='<div style="color:#dc2626;">불러오기 실패</div>';
   }
+}
+async function doMyClockIn(assistantId,targetElId){
+  if(!window.mkClockIn) return;
+  try{
+    await window.mkClockIn({ id:assistantId, name:(cu&&cu.name)||'' });
+    loadMyWorkStatus(assistantId,targetElId);
+    if(document.getElementById('my-work-history-self')) loadMySelfWorkHistory(assistantId);
+  }catch(e){ alert('출근 처리 중 오류가 발생했습니다.'); }
+}
+async function doMyClockOut(assistantId,targetElId){
+  if(!window.mkClockOut) return;
+  if(!confirm('퇴근 처리하시겠습니까?')) return;
+  try{
+    await window.mkClockOut({ id:assistantId, name:(cu&&cu.name)||'' });
+    loadMyWorkStatus(assistantId,targetElId);
+    if(document.getElementById('my-work-history-self')) loadMySelfWorkHistory(assistantId);
+  }catch(e){ alert('퇴근 처리 중 오류가 발생했습니다.'); }
 }
 var mySelfWorkTimer=null;
 async function loadMySelfWorkHistory(assistantId){

@@ -1270,7 +1270,6 @@
         // data.studentId: 학부모로 로그인 시 실제 학생 ID(학생 전화번호). 학생 직접 로그인 시 없음.
         var sessionId = data.studentId || id;
         localStorage.setItem('mkmath_session', JSON.stringify({ id: sessionId, authId: data.authId || id, role: data.role, name: data.name, classId: data.classId || '', className: data.className || '', studentIds: data.studentIds || [] }));
-        if (data.role === 'assistant' && window.mkClockIn) window.mkClockIn({ id: sessionId, name: data.name });
         closeLoginModal();
         updateLoginBtn();
         // 폰에서 학생이 로그인하면 바로 마이페이지로
@@ -1293,7 +1292,6 @@
       btn.href = '#';
       btn.onclick = function(e) {
         e.preventDefault();
-        if (window.mkClockOut) window.mkClockOut(session);
         localStorage.removeItem('mkmath_session');
         updateLoginBtn();
       };

@@ -440,7 +440,6 @@ async function login() {
         location.href = 'admin.html';
         return;
       } else if (data.role === 'assistant') {
-        if (window.mkClockIn) window.mkClockIn({ id: sessionId, name: data.name });
         location.href = 'admin.html';
         return;
       } else {
