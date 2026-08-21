@@ -435,6 +435,7 @@ tr:hover td{background:#fafbff;}
         <button class="pass-btn" id="hw-btn-partial" onclick="toggleHwPass('partial')" style="flex:1 1 45%;">일부미이행</button>
         <button class="pass-btn" id="hw-btn-incomplete" onclick="toggleHwPass('incomplete')" style="flex:1 1 45%;">미이행</button>
         <button class="pass-btn" id="hw-btn-notsub" onclick="toggleHwPass('notsub')" style="flex:1 1 45%;">미제출</button>
+        <button class="pass-btn" id="hw-btn-na" onclick="toggleHwPass('na')" style="flex:1 1 100%;">해당없음 (신입생 등 과제 대상 아님)</button>
       </div>
       <div class="feedback-wrap">
         <label>코멘트</label>
@@ -1276,7 +1277,7 @@ function renderScores(){
       }
       return '<td class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">—</td>';
     }).join('');
-    var HW_LABELS={complete:['#16a34a','제출'],partial:['#ca8a04','일부미이행'],incomplete:['#dc2626','미이행'],notsub:['#64748b','미제출']};
+    var HW_LABELS={complete:['#16a34a','제출'],partial:['#ca8a04','일부미이행'],incomplete:['#dc2626','미이행'],notsub:['#64748b','미제출'],na:['#94a3b8','해당없음']};
     var hwResultCols=homeworks.map(function(hw){
       var s=(hwStatusMap[st.id]||{})[hw.id];
       var lbl=s&&HW_LABELS[s.pass];
@@ -1783,11 +1784,12 @@ function computeMsgTokens(studentId){
   // 토큰 키는 과제 이름(과제 id 대신)이라 문구가 짧고 알아보기 쉬움 — 다른 차시라도 같은 이름의 과제가 있으면 그 값으로 합쳐짐(드문 경우, 감수)
   var hwListForTokens=(allClassHomeworks&&allClassHomeworks.length)?allClassHomeworks:homeworks;
   if(hwListForTokens && hwListForTokens.length){
-    var HW_LABELS_ALL={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
+    var HW_LABELS_ALL={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출',na:'해당없음'};
     hwListForTokens.forEach(function(hw){
       var hs=(hwStatusMap[studentId]||{})[hw.id];
-      tokens['{상태:'+hw.name+'}']=hs&&hs.pass?HW_LABELS_ALL[hs.pass]:'미제출';
-      tokens['{코멘트:'+hw.name+'}']=hs&&hs.feedback?hs.feedback:'—';
+      if(!hs){ tokens['{상태:'+hw.name+'}']='해당없음'; tokens['{코멘트:'+hw.name+'}']=''; return; }
+      tokens['{상태:'+hw.name+'}']=hs.pass?HW_LABELS_ALL[hs.pass]:'미제출';
+      tokens['{코멘트:'+hw.name+'}']=hs.feedback?hs.feedback:'—';
     });
   }
   var selVal=document.getElementById('msg-assessment').value;
@@ -1826,13 +1828,13 @@ function computeMsgTokens(studentId){
     tokens['{통과여부}']=passDisp;
     tokens['{피드백}']=feedback;
   } else if(type==='hw'){
-    var HW_LABELS={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
+    var HW_LABELS={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출',na:'해당없음'};
     var s=(hwStatusMap[studentId]||{})[id];
-    // hwStatusMap에 이 학생×이 과제 데이터가 아예 없는 경우(데이터 로딩 문제 등)엔
-    // "미제출"이라고 함부로 단정하지 말고 눈에 띄는 경고로 표시 — 잘못된 정보가 그대로 발송되는 사고 방지
-    if(!s){ tokens['{상태}']='⚠️확인필요'; }
+    // hwStatusMap에 이 학생×이 과제 데이터가 아예 없는 경우(신입생 등, 애초에 이 과제 대상이 아닌 학생 포함)엔
+    // "해당없음"으로 보냄 — 교사가 직접 [해당없음]으로 표시해둔 경우와 동일하게 처리
+    if(!s){ tokens['{상태}']='해당없음'; }
     else { tokens['{상태}']=s.pass?HW_LABELS[s.pass]:'미제출'; }
-    tokens['{코멘트}']=s&&s.feedback?s.feedback:(HW_STATUS_TEMPLATE[(s&&s.pass)||'notsub']||'—');
+    tokens['{코멘트}']=!s?'':(s.feedback?s.feedback:(HW_STATUS_TEMPLATE[s.pass||'notsub']||'—'));
     // 지난 차시에 미이행이었던 숙제를 (증빙 사진으로) 다시 제출했는지 여부에 따라 자동 멘트 생성
     var hasSubmission=!!(s&&s.submissionUrls&&s.submissionUrls.length);
     if(!s){ tokens['{제출멘트}']='—'; }
@@ -2410,7 +2412,8 @@ var HW_STATUS_TEMPLATE={
   complete:'제출하신 과제가 [제출] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!',
   partial:'제출하신 과제가 [일부미이행] 상태로 확인되었습니다.\n다음 수업 시간에 2차 점검이 예정되어 있으니, 반드시 완료하여 제출해 주시기 바랍니다.',
   incomplete:'제출하신 과제가 [미이행] 상태로 확인되었습니다.\n다음 수업 시간에 2차 점검이 예정되어 있으니, 반드시 완료하여 제출해 주시기 바랍니다.',
-  notsub:'제출하신 과제가 [미제출] 상태로 확인되었습니다.\n다음 수업 시간에 2차 점검이 예정되어 있으니, 반드시 완료하여 제출해 주시기 바랍니다.'
+  notsub:'제출하신 과제가 [미제출] 상태로 확인되었습니다.\n다음 수업 시간에 2차 점검이 예정되어 있으니, 반드시 완료하여 제출해 주시기 바랍니다.',
+  na:''
 };
 function toggleHwPass(p){
   hwPanelPass=hwPanelPass===p?'':p;
@@ -2425,6 +2428,7 @@ function updateHwPassBtns(){
   document.getElementById('hw-btn-partial').className='pass-btn'+(hwPanelPass==='partial'?' partial-active':'');
   document.getElementById('hw-btn-incomplete').className='pass-btn'+(hwPanelPass==='incomplete'?' incomplete-active':'');
   document.getElementById('hw-btn-notsub').className='pass-btn'+(hwPanelPass==='notsub'?' notsub-active':'');
+  document.getElementById('hw-btn-na').className='pass-btn'+(hwPanelPass==='na'?' notsub-active':'');
 }
 async function saveHwStatus(){
   if(!hwPanelStudentId||!hwPanelHwId)return;
