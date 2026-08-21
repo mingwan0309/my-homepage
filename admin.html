@@ -1282,8 +1282,12 @@ function ensureAstClockBar(){
   if(document.getElementById('ast-clockbar')) return;
   var bar=document.createElement('div');
   bar.id='ast-clockbar';
-  bar.style.cssText='position:fixed;top:64px;right:12px;z-index:99999;background:#1e293b;color:#fff;border-radius:12px;padding:9px 14px;display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.35);';
+  bar.style.cssText='position:fixed;top:0;left:0;right:0;height:40px;z-index:99999;background:#1e293b;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;font-size:13px;font-weight:700;box-shadow:0 2px 10px rgba(0,0,0,.3);box-sizing:border-box;';
   document.body.appendChild(bar);
+  // 바가 화면 최상단을 차지하니, 그만큼 사이드바/모바일상단바/본문을 아래로 밀어서 안 겹치게 함
+  var sb=document.querySelector('.sidebar'); if(sb) sb.style.top='40px';
+  var mt=document.querySelector('.mob-topbar'); if(mt) mt.style.top='40px';
+  var mn=document.querySelector('.main'); if(mn) mn.style.marginTop='40px';
 }
 async function refreshAstClockBar(){
   if(!cu || cu.role!=='assistant') return;
