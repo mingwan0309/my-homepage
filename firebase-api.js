@@ -981,7 +981,7 @@ api.getSignalBoard = function(db){
     db.collection('students').where('role','==','student').get(),
     db.collection('sessions').get(),
     db.collection('attendance').get(),
-    db.collection('hw_status').where('pass','in',['incomplete','partial']).get(),
+    db.collection('hw_status').where('pass','in',['incomplete','partial','notsub']).get(),
     db.collection('student_signals').get()
   ]).then(function(res){
     var students = docsToArr(res[0]).filter(function(s){ return s.active!==false; });
