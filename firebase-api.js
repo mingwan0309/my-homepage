@@ -391,7 +391,7 @@ api.submitQuestion = function(db, p){
 
 api.getQuestions = function(db, p){
   return db.collection('qna').get().then(function(snap){
-    var isTeacher = p.role === 'teacher';
+    var isTeacher = p.role === 'teacher' || p.role === 'assistant';
     var myId = p.studentId || '';
     var questions = docsToArr(snap)
       .filter(function(r){ return r.status !== 'deleted'; })
@@ -411,7 +411,7 @@ api.getQuestion = function(db, p){
   return db.collection('qna').doc(String(p.id)).get().then(function(doc){
     if (!doc.exists) return { success:false };
     var q = doc.data();
-    var isTeacher = p.role === 'teacher';
+    var isTeacher = p.role === 'teacher' || p.role === 'assistant';
     var myId = p.studentId || '';
     var isSecret = String(q.secret) === 'true';
     var isOwner = String(q.studentId) === myId;
@@ -425,7 +425,7 @@ api.getQuestion = function(db, p){
       var answer = null;
       if (!res[0].empty) {
         var a = res[0].docs[0].data();
-        answer = { id:a.id, questionId:a.questionId, content:a.content, date:a.date };
+        answer = { id:a.id, questionId:a.questionId, content:a.content, date:a.date, createdAt:a.date, answeredBy:a.answeredBy||'' };
       }
       var otherQs = docsToArr(res[1])
         .filter(function(r){ return r.id !== q.id && r.status !== 'deleted'; })
@@ -455,14 +455,14 @@ api.deleteQuestion = function(db, p){
 api.submitAnswer = function(db, p){
   var id = genId('a');
   return db.collection('qna_answers').doc(id).set({
-    id:id, questionId:String(p.questionId||''), content:p.content||'', date:nowStr()
+    id:id, questionId:String(p.questionId||''), content:p.content||'', date:nowStr(), answeredBy:p.by||'김민관 선생님'
   }).then(function(){
     return db.collection('qna').doc(String(p.questionId)).update({ status:'answered' }).catch(function(){});
   }).then(function(){ return { success:true }; });
 };
 
 api.updateAnswer = function(db, p){
-  return db.collection('qna_answers').doc(String(p.id)).update({ content:p.content||'', date:nowStr() })
+  return db.collection('qna_answers').doc(String(p.id)).update({ content:p.content||'', date:nowStr(), answeredBy:p.by||'김민관 선생님' })
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 

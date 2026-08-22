@@ -309,7 +309,7 @@ window.addEventListener('DOMContentLoaded', function() {
     // admin.html 안에 iframe으로 삽입된 경우 - 관리 페이지 자체 메뉴가 있으니 이 페이지의 상단바/탭은 중복이라 숨김
     var tb=document.querySelector('.topbar'); if(tb) tb.style.display='none';
   }
-  if (session.role !== 'teacher') {
+  if (session.role !== 'teacher' && session.role !== 'assistant') {
     document.getElementById('unanswered-wrap').classList.add('hidden');
     if (!isEmbedded) {
       var snav=document.getElementById('student-nav');if(snav){snav.style.display='flex';var mc=document.getElementById('snav-myclass');if(mc&&session.classId)mc.href='class.html?id='+session.classId;}
@@ -388,7 +388,7 @@ function renderList() {
   document.getElementById('list-container').innerHTML = list.map(function(q, i) {
     const num = allQuestions.indexOf(q) >= 0 ? allQuestions.length - allQuestions.indexOf(q) : '-';
     const lock = q.secret === 'true' ? ' 🔒' : '';
-    const canView = q.canSee === true || q.canSee === 'true' || session.role === 'teacher' || q.studentId === (session.id || '');
+    const canView = q.canSee === true || q.canSee === 'true' || session.role === 'teacher' || session.role === 'assistant' || q.studentId === (session.id || '');
     const badge = q.status === 'answered'
       ? '<span class="badge-answered">답변 완료</span>'
       : '<span class="badge-pending">답변 대기</span>';
@@ -413,8 +413,8 @@ async function loadDetail(id) {
   document.getElementById('detail-content').innerHTML = '';
   document.getElementById('answer-section').innerHTML = '';
 
-  // 선생님만 사이드바 표시
-  const isTeacher = session.role === 'teacher';
+  // 선생님/조교만 사이드바 표시
+  const isTeacher = session.role === 'teacher' || session.role === 'assistant';
   document.getElementById('sidebar').style.display = isTeacher ? '' : 'none';
   if (!isTeacher) {
     document.getElementById('detail-layout').style.gridTemplateColumns = '1fr';
@@ -489,7 +489,7 @@ async function loadDetail(id) {
 /* ========= ANSWER ========= */
 function renderAnswer() {
   const sec = document.getElementById('answer-section');
-  const isTeacher = session.role === 'teacher';
+  const isTeacher = session.role === 'teacher' || session.role === 'assistant';
 
   if (editingAnswer) {
     sec.innerHTML = '<div style="margin-top:24px;">'
@@ -520,7 +520,7 @@ function renderAnswer() {
   if (currentAnswer) {
     let html = '<div class="answer-box">'
       + '<div class="answer-header">답변</div>'
-      + '<div class="answer-teacher">김민관 선생님 · ' + relTime(currentAnswer.createdAt) + '</div>'
+      + '<div class="answer-teacher">' + esc(currentAnswer.answeredBy || '김민관 선생님') + ' · ' + relTime(currentAnswer.createdAt) + '</div>'
       + '<div class="answer-content">' + currentAnswer.content + '</div>';
     if (isTeacher) {
       html += '<div class="answer-btns">'
@@ -549,14 +549,16 @@ async function saveAnswer() {
   if (!el) return;
   const content = el.innerHTML.trim();
   if (!content) { alert('답변 내용을 입력해주세요.'); return; }
+  const answererName = session.role === 'assistant' ? ((session.name || '') + ' 조교') : '김민관 선생님';
   try {
     if (currentAnswer) {
-      await fetch(SU, {method:'POST',mode:'no-cors',body:JSON.stringify({action:'updateAnswer',id:currentAnswer.id,content:content})});
+      await fetch(SU, {method:'POST',mode:'no-cors',body:JSON.stringify({action:'updateAnswer',id:currentAnswer.id,content:content,by:answererName})});
       currentAnswer.content = content;
+      currentAnswer.answeredBy = answererName;
     } else {
       const newId = String(Date.now());
-      await fetch(SU, {method:'POST',mode:'no-cors',body:JSON.stringify({action:'submitAnswer',questionId:currentQuestion.id,content:content,id:newId})});
-      currentAnswer = { id: newId, content: content, createdAt: '방금 전' };
+      await fetch(SU, {method:'POST',mode:'no-cors',body:JSON.stringify({action:'submitAnswer',questionId:currentQuestion.id,content:content,id:newId,by:answererName})});
+      currentAnswer = { id: newId, content: content, createdAt: '방금 전', answeredBy: answererName };
       currentQuestion.status = 'answered';
       document.getElementById('detail-badge').innerHTML = '<span class="badge-answered">답변 완료</span>';
     }
