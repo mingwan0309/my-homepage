@@ -2851,7 +2851,7 @@ var TEST_KIND_LABEL={nosub:'미통과',absent:'미응시'};
 function renderTestCard(t){
   var badgeColor = t.kind==='absent' ? '#475569' : '#dc2626';
   var badgeBg = t.kind==='absent' ? '#f1f5f9' : '#fee2e2';
-  var lastRem = t.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재시험 안내: '+t.lastReminderAt+(t.lastReminderBy?' · '+t.lastReminderBy:'')+'</div>' : '';
+  var lastRem = t.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재촉: '+t.lastReminderAt+(t.lastReminderBy?' · '+t.lastReminderBy:'')+'</div>' : '';
   var subUrls = t.submissionUrls||[];
   var hasSubmission = subUrls.length>0;
   var photoLinks = hasSubmission
@@ -2878,7 +2878,7 @@ function renderTestCard(t){
     +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+TEST_KIND_LABEL[t.kind]+'</span>'
     +'</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
-    +'<button class="hw-action-btn" onclick="sendExamReminder(\''+t.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 재시험 안내</button>'
+    +'<button class="hw-action-btn" onclick="sendExamReminder(\''+t.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 재촉하기</button>'
     +'<button class="hw-action-btn" onclick="markExamResolved(\''+t.id+'\')" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;">✓ 해결 처리</button>'
     +'</div>'
     +'</div>';
