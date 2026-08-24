@@ -1711,10 +1711,10 @@ function renderMsgAssessmentOptions(){
   var sel=document.getElementById('msg-assessment');
   var opts=['<option value="">(선택 안 함)</option>'];
   exams.forEach(function(ex){opts.push('<option value="exam:'+ex.id+'">[시험] '+ex.name+'</option>');});
-  var hwList=allClassHomeworks.length?allClassHomeworks:homeworks.map(function(h){return {id:h.id,name:h.name,sessionId:sessionId,sessionNum:sessionInfo?sessionInfo.sessionNum:'',sessLabel:sessLabel(sessionInfo)};});
+  var hwListAll=allClassHomeworks.length?allClassHomeworks:homeworks.map(function(h){return {id:h.id,name:h.name,sessionId:sessionId,sessionNum:sessionInfo?sessionInfo.sessionNum:'',sessLabel:sessLabel(sessionInfo)};});
+  var hwList=hwListAll.filter(function(hw){return String(hw.sessionId)===String(sessionId);});
   hwList.forEach(function(hw){
-    var tag=String(hw.sessionId)===String(sessionId)?'현재 차시':(hw.sessLabel||(hw.sessionNum+'차시'));
-    opts.push('<option value="hw:'+hw.id+'" data-session-id="'+hw.sessionId+'">[과제] '+hw.name+' · '+tag+'</option>');
+    opts.push('<option value="hw:'+hw.id+'" data-session-id="'+hw.sessionId+'">[과제] '+hw.name+' · 현재 차시</option>');
   });
   sel.innerHTML=opts.join('');
 }
