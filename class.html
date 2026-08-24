@@ -270,9 +270,10 @@ tr:hover td{background:#fafbff;}
 
 <div class="class-header" id="class-header" style="display:none;">
   <div class="cls-badge" id="cls-badge"></div>
-  <div>
-    <div class="cls-name" id="cls-name"></div>
+  <div style="position:relative;">
+    <div id="cls-name" style="cursor:pointer;display:flex;align-items:center;gap:4px;" class="cls-name" onclick="toggleClassSwitcher()"><span id="cls-name-text"></span><span style="font-size:11px;color:#94a3b8;">▾</span></div>
     <div class="cls-time" id="cls-time"></div>
+    <div id="class-switcher-dd" style="display:none;position:absolute;top:100%;left:0;margin-top:6px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);min-width:200px;max-width:80vw;max-height:280px;overflow-y:auto;z-index:80;"></div>
   </div>
   <div class="header-right">
     <button class="btn-add-session" onclick="openAddSession()">+ 차시 추가</button>
@@ -712,11 +713,45 @@ async function init(){
   document.getElementById('stu-count-badge').textContent=students.length+'명';
 }
 
+var classSwitcherLoaded=false, allClassesForSwitch=[];
+async function toggleClassSwitcher(){
+  var dd=document.getElementById('class-switcher-dd');
+  if(dd.style.display==='block'){ dd.style.display='none'; return; }
+  dd.style.display='block';
+  if(!classSwitcherLoaded){
+    dd.innerHTML='<div style="padding:12px;color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+    try{
+      var r=await fetch(SU+'?action=getClasses').then(function(r){return r.json();});
+      allClassesForSwitch=(r.classes||[]).filter(function(c){return c.status!=='ended';}).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+      classSwitcherLoaded=true;
+    }catch(e){ dd.innerHTML='<div style="padding:12px;color:#dc2626;font-size:13px;">불러오기 실패</div>'; return; }
+  }
+  renderClassSwitcher();
+}
+function renderClassSwitcher(){
+  var dd=document.getElementById('class-switcher-dd');
+  if(!allClassesForSwitch.length){ dd.innerHTML='<div style="padding:12px;color:#94a3b8;font-size:13px;">반이 없습니다.</div>'; return; }
+  dd.innerHTML=allClassesForSwitch.map(function(c){
+    var isCur=String(c.id)===String(classId);
+    return '<div onclick="goToClass(\''+c.id+'\')" style="padding:11px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid #f1f5f9;'+(isCur?'background:#eff6ff;color:#2563eb;font-weight:700;':'color:#1e293b;')+'">'+escHtml(c.name)+(isCur?' <span style="font-size:11px;color:#94a3b8;">(현재)</span>':'')+'</div>';
+  }).join('');
+}
+function goToClass(id){
+  document.getElementById('class-switcher-dd').style.display='none';
+  if(String(id)===String(classId)) return;
+  location.href='class.html?id='+encodeURIComponent(id);
+}
+document.addEventListener('click', function(e){
+  var dd=document.getElementById('class-switcher-dd');
+  if(!dd || dd.style.display!=='block') return;
+  if(!e.target.closest('#cls-name') && !e.target.closest('#class-switcher-dd')) dd.style.display='none';
+});
+
 function renderHeader(){
   const color=badgeColor(classInfo.name);
   document.getElementById('cls-badge').style.background=color;
   document.getElementById('cls-badge').textContent=classInfo.name.substring(0,2);
-  document.getElementById('cls-name').textContent=classInfo.name;
+  document.getElementById('cls-name-text').textContent=classInfo.name;
   document.getElementById('cls-time').textContent=classInfo.time||'';
   document.title=classInfo.name+' — 김민관 수학';
   if(!isStaff) document.querySelector('.btn-add-session').style.display='none';
