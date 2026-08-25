@@ -1283,6 +1283,10 @@ api.getVideoFolders = function(db, p){
     return { folders: folders };
   });
 };
+api.updateVideoFolder = function(db, p){
+  return db.collection('video_folders').doc(String(p.id)).update({ name:p.name||'' })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
 api.deleteVideoFolder = function(db, p){
   return db.collection('video_folders').doc(String(p.id)).delete()
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });

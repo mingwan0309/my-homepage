@@ -1169,9 +1169,10 @@ function renderMaterials(){
     var items=list.filter(function(m){return m.folder===f;});
     var openNow=folderPickMode && folderPickCategory===currentCat;
     var vf=catFolders.find(function(x){return x.name===f;});
+    var renameFolderBtn=isStaff?'<span onclick="event.stopPropagation();renameFolder(\''+f.replace(/'/g,"\\'")+'\',\''+currentCat+'\')" style="color:#3b6cf7;font-size:11px;margin-left:8px;">✏️ 이름수정</span>':'';
     var delFolderBtn=(isStaff && !items.length && vf)?'<span onclick="event.stopPropagation();deleteEmptyFolder(\''+vf.id+'\')" style="color:#dc2626;font-size:11px;margin-left:8px;">🗑 폴더삭제</span>':'';
     html+='<button type="button" class="vid-drop-head'+(openNow?' open':'')+'" onclick="toggleVidFolder(this)" style="margin-top:'+(idx===0&&!noFolder.length?'0':'12px')+';">'
-      +'<span>📁 '+escHtml(f)+'<span class="cnt">'+items.length+'</span>'+delFolderBtn+'</span><span class="vid-drop-arrow">▾</span></button>'
+      +'<span>📁 '+escHtml(f)+'<span class="cnt">'+items.length+'</span>'+renameFolderBtn+delFolderBtn+'</span><span class="vid-drop-arrow">▾</span></button>'
       +'<div class="vid-drop-body" style="display:'+(openNow?'block':'none')+';">'+(items.length?matTableHtml(items):'<div style="padding:16px 20px;color:#94a3b8;font-size:12.5px;">아직 이 폴더에 자료가 없어요.</div>')+'</div>';
   });
   wrap.innerHTML=html || '<table class="mat-table"><tbody><tr><td class="empty">등록된 자료가 없습니다</td></tr></tbody></table>';
@@ -1232,9 +1233,10 @@ function renderVideos(){
     var items=list.filter(function(m){return m.folder===f;});
     var openNow=folderPickMode && folderPickCategory==='영상 자료'; // 폴더 담기 모드에서는 다 펼쳐서 어디든 바로 고를 수 있게
     var vf=catFolders.find(function(x){return x.name===f;});
+    var renameFolderBtn=isStaff?'<span onclick="event.stopPropagation();renameFolder(\''+f.replace(/'/g,"\\'")+'\',\'영상 자료\')" style="color:#3b6cf7;font-size:11px;margin-left:8px;">✏️ 이름수정</span>':'';
     var delFolderBtn=(isStaff && !items.length && vf)?'<span onclick="event.stopPropagation();deleteEmptyFolder(\''+vf.id+'\')" style="color:#dc2626;font-size:11px;margin-left:8px;">🗑 폴더삭제</span>':'';
     html+='<button type="button" class="vid-drop-head'+(openNow?' open':'')+'" onclick="toggleVidFolder(this)" style="margin-top:'+(idx===0&&!noFolder.length?'0':'12px')+';">'
-      +'<span>📁 '+escHtml(f)+'<span class="cnt">'+items.length+'</span>'+delFolderBtn+'</span><span class="vid-drop-arrow">▾</span></button>'
+      +'<span>📁 '+escHtml(f)+'<span class="cnt">'+items.length+'</span>'+renameFolderBtn+delFolderBtn+'</span><span class="vid-drop-arrow">▾</span></button>'
       +'<div class="vid-drop-body" style="display:'+(openNow?'block':'none')+';">'+(items.length?'<div class="video-grid">'+items.map(videoCardHtml).join('')+'</div>':'<div style="padding:16px 20px;color:#94a3b8;font-size:12.5px;">아직 이 폴더에 영상이 없어요. "+ 영상 추가" 또는 영상 카드의 "폴더이동"으로 넣어주세요.</div>')+'</div>';
   });
   wrap.innerHTML=html;
@@ -1293,6 +1295,28 @@ async function deleteEmptyFolder(id){
   await fetch(SU+'?action=deleteVideoFolder&id='+encodeURIComponent(id));
   materialFolders=materialFolders.filter(function(x){return x.id!==id;});
   if(f) renderByCategory(f.category);
+}
+async function renameFolder(oldName, category){
+  var newName=prompt('폴더 이름을 무엇으로 바꿀까요?', oldName);
+  if(newName===null || !newName.trim() || newName.trim()===oldName) return;
+  newName=newName.trim();
+  if(materials.some(function(m){return m.category===category&&m.folder===newName;}) || materialFolders.some(function(f){return f.category===category&&f.name===newName;})){
+    alert('이미 있는 폴더 이름이에요. 다른 이름을 써주세요.');
+    return;
+  }
+  try{
+    var vf=materialFolders.find(function(f){return f.category===category&&f.name===oldName;});
+    if(vf){
+      await fetch(SU+'?action=updateVideoFolder&id='+encodeURIComponent(vf.id)+'&name='+encodeURIComponent(newName));
+      vf.name=newName;
+    }
+    var items=materials.filter(function(m){return m.category===category&&m.folder===oldName;});
+    for(var i=0;i<items.length;i++){
+      await fetch(SU+'?action=updateMaterial&id='+encodeURIComponent(items[i].id)+'&folder='+encodeURIComponent(newName));
+      items[i].folder=newName;
+    }
+  }catch(e){alert('오류가 발생했습니다.');}
+  renderByCategory(category);
 }
 function toggleFolderPickItem(id){
   folderPickSelected[id]=!folderPickSelected[id];
