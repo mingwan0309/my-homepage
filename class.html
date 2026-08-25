@@ -467,9 +467,17 @@ tr:hover td{background:#fafbff;}
       </div>
       <!-- 기존 자료 탭 -->
       <div id="mattab-existing" style="display:none;">
-        <div id="existing-mat-list" style="max-height:340px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:9px;margin-bottom:14px;"></div>
+        <div class="fg"><label>어느 카테고리에서 가져올까요?</label>
+          <select id="em-source-cat" onchange="renderExistingMats()" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+            <option value="PDF 자료">PDF 자료</option>
+            <option value="손필기 자료">손필기 자료</option>
+            <option value="영상 자료">영상 자료</option>
+          </select>
+        </div>
+        <div id="existing-mat-list" style="max-height:320px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:9px;margin-bottom:14px;"></div>
         <div class="vmod-btns">
           <button class="vmod-btn-cl" onclick="closeAddMat()">취소</button>
+          <button class="vmod-btn-ok" onclick="importSelectedExistingMats()">가져오기</button>
         </div>
       </div>
     </div>
@@ -1451,6 +1459,8 @@ function openAddMat(){
   document.getElementById('mattab-upload').style.display='';
   document.getElementById('mattab-existing').style.display='none';
   document.querySelectorAll('#add-mat-modal .vmod-tab').forEach(function(t,i){t.classList.toggle('active',i===0);});
+  emSelected={};
+  document.getElementById('em-source-cat').dataset.inited='';
   document.getElementById('add-mat-modal').classList.add('show');
 }
 function closeAddMat(){document.getElementById('add-mat-modal').classList.remove('show');}
@@ -1658,18 +1668,64 @@ async function saveMatQueue(){
   }catch(e){alert('오류가 발생했습니다.');}
 }
 
+// ── 이미 업로드된 자료 가져오기 (다른 카테고리에서도 같은 반이면 자료/폴더 그대로 가져올 수 있음) ──
+var emSelected={};
 function renderExistingMats(){
   var wrap=document.getElementById('existing-mat-list');
-  var list=materials.filter(function(m){return m.category===currentCat;});
-  if(!list.length){wrap.innerHTML='<div style="text-align:center;padding:30px;color:#94a3b8;font-size:14px;">등록된 자료가 없습니다.</div>';return;}
-  wrap.innerHTML=list.map(function(m){
-    return '<div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;">'
-      +'<span style="font-size:20px;">📄</span>'
+  var sel=document.getElementById('em-source-cat');
+  // 처음 열 때는 지금 보고 있는 카테고리 말고 다른 카테고리를 기본으로 보여줌(같은 카테고리에서 가져오는 건 의미가 없어서)
+  if(sel.dataset.inited!=='1'){
+    var other=['PDF 자료','손필기 자료','영상 자료'].filter(function(c){return c!==currentCat;})[0];
+    sel.value=other;
+    sel.dataset.inited='1';
+    emSelected={};
+  }
+  var srcCat=sel.value;
+  var list=materials.filter(function(m){return m.category===srcCat;});
+  if(!list.length){wrap.innerHTML='<div style="text-align:center;padding:30px;color:#94a3b8;font-size:14px;">이 카테고리에 등록된 자료가 없습니다.</div>';return;}
+  var noFolder=list.filter(function(m){return !m.folder;});
+  var folderNames=[];
+  list.forEach(function(m){ if(m.folder && folderNames.indexOf(m.folder)<0) folderNames.push(m.folder); });
+  function row(m){
+    var checked=emSelected[m.id]?'checked':'';
+    return '<label style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #f8fafc;cursor:pointer;">'
+      +'<input type="checkbox" '+checked+' onchange="emSelected[\''+m.id+'\']=this.checked">'
+      +'<span style="font-size:20px;">'+(srcCat==='영상 자료'?'🎬':'📄')+'</span>'
       +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(m.name)+'</div>'
       +'<div style="font-size:11px;color:#94a3b8;">'+(m.uploadDate||'').substring(0,10)+'</div></div>'
-      +'<a href="'+m.url+'" target="_blank" style="font-size:12px;color:#3b6cf7;font-weight:600;white-space:nowrap;">열기</a>'
-      +'</div>';
-  }).join('');
+      +'</label>';
+  }
+  var html='';
+  if(noFolder.length) html+=noFolder.map(row).join('');
+  folderNames.forEach(function(f){
+    var items=list.filter(function(m){return m.folder===f;});
+    var allChecked=items.every(function(m){return emSelected[m.id];});
+    html+='<label style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f8fafc;font-weight:700;font-size:12.5px;color:#334155;cursor:pointer;">'
+      +'<input type="checkbox" '+(allChecked?'checked':'')+' onchange="toggleEmFolder(\''+f.replace(/'/g,"\\'")+'\',this.checked)">'
+      +'<span>📁 '+escHtml(f)+' ('+items.length+')</span></label>'
+      +items.map(row).join('');
+  });
+  wrap.innerHTML=html;
+}
+function toggleEmFolder(folder, checked){
+  var srcCat=document.getElementById('em-source-cat').value;
+  materials.filter(function(m){return m.category===srcCat&&m.folder===folder;}).forEach(function(m){emSelected[m.id]=checked;});
+  renderExistingMats();
+}
+async function importSelectedExistingMats(){
+  var ids=Object.keys(emSelected).filter(function(id){return emSelected[id];});
+  if(!ids.length){alert('가져올 자료를 선택하세요.');return;}
+  try{
+    for(var i=0;i<ids.length;i++){
+      var m=materials.find(function(x){return x.id===ids[i];});
+      if(!m) continue;
+      await fetch(SU+'?action=addMaterial&classId='+encodeURIComponent(classId)+'&category='+encodeURIComponent(currentCat)+'&name='+encodeURIComponent(m.name)+'&url='+encodeURIComponent(m.url)+'&size=&memo='+encodeURIComponent(m.memo||'')+'&folder='+encodeURIComponent(m.folder||''));
+    }
+    emSelected={};
+    document.getElementById('em-source-cat').dataset.inited='';
+    closeAddMat();
+    await loadMaterials();
+  }catch(e){alert('오류가 발생했습니다.');}
 }
 
 // ── 영상 모달 ──
