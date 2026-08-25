@@ -467,14 +467,19 @@ tr:hover td{background:#fafbff;}
       </div>
       <!-- 기존 자료 탭 -->
       <div id="mattab-existing" style="display:none;">
+        <div class="fg"><label>어느 반에서 가져올까요?</label>
+          <select id="em-source-class" onchange="onEmSourceChange()" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+            <option value="">이 반 (지금 보고 있는 반)</option>
+          </select>
+        </div>
         <div class="fg"><label>어느 카테고리에서 가져올까요?</label>
-          <select id="em-source-cat" onchange="renderExistingMats()" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+          <select id="em-source-cat" onchange="onEmSourceChange()" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
             <option value="PDF 자료">PDF 자료</option>
             <option value="손필기 자료">손필기 자료</option>
             <option value="영상 자료">영상 자료</option>
           </select>
         </div>
-        <div id="existing-mat-list" style="max-height:320px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:9px;margin-bottom:14px;"></div>
+        <div id="existing-mat-list" style="max-height:280px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:9px;margin-bottom:14px;"></div>
         <div class="vmod-btns">
           <button class="vmod-btn-cl" onclick="closeAddMat()">취소</button>
           <button class="vmod-btn-ok" onclick="importSelectedExistingMats()">가져오기</button>
@@ -1460,7 +1465,6 @@ function openAddMat(){
   document.getElementById('mattab-existing').style.display='none';
   document.querySelectorAll('#add-mat-modal .vmod-tab').forEach(function(t,i){t.classList.toggle('active',i===0);});
   emSelected={};
-  document.getElementById('em-source-cat').dataset.inited='';
   document.getElementById('add-mat-modal').classList.add('show');
 }
 function closeAddMat(){document.getElementById('add-mat-modal').classList.remove('show');}
@@ -1470,7 +1474,7 @@ function switchMatTab(tab,el){
   el.classList.add('active');
   document.getElementById('mattab-upload').style.display=tab==='upload'?'':'none';
   document.getElementById('mattab-existing').style.display=tab==='existing'?'':'none';
-  if(tab==='existing') renderExistingMats();
+  if(tab==='existing') initExistingMats();
 }
 
 function onFilePick(input){
@@ -1668,20 +1672,44 @@ async function saveMatQueue(){
   }catch(e){alert('오류가 발생했습니다.');}
 }
 
-// ── 이미 업로드된 자료 가져오기 (다른 카테고리에서도 같은 반이면 자료/폴더 그대로 가져올 수 있음) ──
-var emSelected={};
+// ── 이미 업로드된 자료 가져오기 (다른 카테고리는 물론, 다른 반에 올린 자료/폴더도 그대로 가져올 수 있음) ──
+var emSelected={}, emSourceList=[], emClassesLoaded=false;
+async function initExistingMats(){
+  var clsSel=document.getElementById('em-source-class');
+  if(!emClassesLoaded){
+    try{
+      var r=await fetch(SU+'?action=getClasses').then(function(r){return r.json();});
+      var others=(r.classes||[]).filter(function(c){return String(c.id)!==String(classId);});
+      clsSel.innerHTML='<option value="">이 반 (지금 보고 있는 반)</option>'+others.map(function(c){return '<option value="'+c.id+'">'+escHtml(c.name)+'</option>';}).join('');
+    }catch(e){}
+    emClassesLoaded=true;
+  }
+  var catSel=document.getElementById('em-source-cat');
+  // 처음 열 때는 지금 보고 있는 카테고리 말고 다른 카테고리를 기본으로 보여줌(같은 반+같은 카테고리에서 가져오는 건 의미가 없어서)
+  var other=['PDF 자료','손필기 자료','영상 자료'].filter(function(c){return c!==currentCat;})[0];
+  catSel.value=other;
+  emSelected={};
+  await onEmSourceChange();
+}
+async function onEmSourceChange(){
+  var wrap=document.getElementById('existing-mat-list');
+  var srcClassId=document.getElementById('em-source-class').value;
+  emSelected={};
+  wrap.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  if(!srcClassId){
+    emSourceList=materials;
+  } else {
+    try{
+      var r=await fetch(SU+'?action=getMaterials&classId='+encodeURIComponent(srcClassId)).then(function(r){return r.json();});
+      emSourceList=r.materials||[];
+    }catch(e){ emSourceList=[]; }
+  }
+  renderExistingMats();
+}
 function renderExistingMats(){
   var wrap=document.getElementById('existing-mat-list');
-  var sel=document.getElementById('em-source-cat');
-  // 처음 열 때는 지금 보고 있는 카테고리 말고 다른 카테고리를 기본으로 보여줌(같은 카테고리에서 가져오는 건 의미가 없어서)
-  if(sel.dataset.inited!=='1'){
-    var other=['PDF 자료','손필기 자료','영상 자료'].filter(function(c){return c!==currentCat;})[0];
-    sel.value=other;
-    sel.dataset.inited='1';
-    emSelected={};
-  }
-  var srcCat=sel.value;
-  var list=materials.filter(function(m){return m.category===srcCat;});
+  var srcCat=document.getElementById('em-source-cat').value;
+  var list=emSourceList.filter(function(m){return m.category===srcCat;});
   if(!list.length){wrap.innerHTML='<div style="text-align:center;padding:30px;color:#94a3b8;font-size:14px;">이 카테고리에 등록된 자료가 없습니다.</div>';return;}
   var noFolder=list.filter(function(m){return !m.folder;});
   var folderNames=[];
@@ -1709,7 +1737,7 @@ function renderExistingMats(){
 }
 function toggleEmFolder(folder, checked){
   var srcCat=document.getElementById('em-source-cat').value;
-  materials.filter(function(m){return m.category===srcCat&&m.folder===folder;}).forEach(function(m){emSelected[m.id]=checked;});
+  emSourceList.filter(function(m){return m.category===srcCat&&m.folder===folder;}).forEach(function(m){emSelected[m.id]=checked;});
   renderExistingMats();
 }
 async function importSelectedExistingMats(){
@@ -1717,12 +1745,11 @@ async function importSelectedExistingMats(){
   if(!ids.length){alert('가져올 자료를 선택하세요.');return;}
   try{
     for(var i=0;i<ids.length;i++){
-      var m=materials.find(function(x){return x.id===ids[i];});
+      var m=emSourceList.find(function(x){return x.id===ids[i];});
       if(!m) continue;
       await fetch(SU+'?action=addMaterial&classId='+encodeURIComponent(classId)+'&category='+encodeURIComponent(currentCat)+'&name='+encodeURIComponent(m.name)+'&url='+encodeURIComponent(m.url)+'&size=&memo='+encodeURIComponent(m.memo||'')+'&folder='+encodeURIComponent(m.folder||''));
     }
     emSelected={};
-    document.getElementById('em-source-cat').dataset.inited='';
     closeAddMat();
     await loadMaterials();
   }catch(e){alert('오류가 발생했습니다.');}
