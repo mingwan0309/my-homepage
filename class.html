@@ -456,7 +456,7 @@ tr:hover td{background:#fafbff;}
           ondrop="event.preventDefault();this.style.borderColor='';this.style.background='';onFileDrop(event)">
           <div class="drag-area-icon">📎</div>
           <p style="font-weight:600;color:#475569;">여기로 끌거나 눌러 업로드해주세요.</p>
-          <p style="font-size:12px;color:#94a3b8;margin-top:4px;">20MB 이하 파일 권장</p>
+          <p style="font-size:12px;color:#94a3b8;margin-top:4px;">35MB 이하 파일 권장</p>
         </div>
         <div id="mat-queue" style="margin-top:10px;max-height:240px;overflow-y:auto;"></div>
         <div class="fg" style="margin-top:10px;"><label>폴더 (선택)</label><input type="text" id="mat-folder-input" list="mat-folder-list" placeholder="예) 1단원 프린트"></div>
@@ -1629,8 +1629,8 @@ async function uploadFileToServer(item){
   item.status='uploading';
   renderMatQueue();
   try{
-    if(item.file.size > 25*1024*1024){
-      item.status='error';item.errMsg='파일이 너무 큽니다 (25MB 초과)';
+    if(item.file.size > 35*1024*1024){
+      item.status='error';item.errMsg='파일이 너무 큽니다 (35MB 초과)';
       renderMatQueue();return;
     }
     var base64 = await fileToBase64(item.file);
