@@ -2438,7 +2438,9 @@ function renderMcList(){
   var el=document.getElementById('mc-list');
   var today=mcTodayInfo();
   var list=mcShowAll?mcList:mcList.filter(function(m){
-    return m.type==='temp' ? m.date===today.dateStr : m.day===today.dayName;
+    // 실제로 오늘 오는 학생(day===오늘) + 원래 오늘 몫인데 다른 요일로 옮겨간 학생(targetDay===오늘, 참고용으로 같이 보여줌)
+    if(m.type==='temp') return m.date===today.dateStr || m.targetDay===today.dayName;
+    return m.day===today.dayName || m.targetDay===today.dayName;
   });
   if(astHasMyStudents()&&mcMineOnly) list=list.filter(function(m){ return cu.studentIds.indexOf(m.studentId)>-1; });
   if(!list.length){
@@ -2451,18 +2453,23 @@ function renderMcList(){
     var markedBy=(m.attendanceBy&&m.attendanceBy[today.dateStr])||'';
     var lastLog=(m.alimtalkLogs&&m.alimtalkLogs.length)?m.alimtalkLogs[m.alimtalkLogs.length-1]:null;
     var lastLogHtml=lastLog?('<div style="font-size:11px;color:#94a3b8;margin-top:2px;">🔔 마지막 알림톡: '+lastLog.type+' · '+lastLog.at+(lastLog.by?' · '+lastLog.by:'')+'</div>'):'';
-    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;">'
+    // 오늘이 원래 이 학생 몫(targetDay)인데, 실제로는 다른 요일에 오는 경우 - 오늘 출석 체크 대상이 아니라 참고용으로만 보여줌
+    var isMovedAway = m.targetDay===today.dayName && (m.type==='temp' ? m.date!==today.dateStr : m.day!==today.dayName);
+    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;'+(isMovedAway?'opacity:0.75;':'')+'">'
       +'<div style="min-width:160px;"><span style="font-weight:700;font-size:14px;">'+m.name+'</span>'
       +'<span style="margin-left:8px;font-size:12px;color:#64748b;">'+(m.type==='temp'?m.date:m.day+'요일')+' '+m.time+'</span>'
       +(m.type==='temp'
         ?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#c2410c;background:#fff7ed;padding:2px 7px;border-radius:20px;">이번 주만</span>'
         :'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#0891b2;background:#ecfeff;padding:2px 7px;border-radius:20px;">정규 변경</span>')
       +(m.targetDay?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#3b6cf7;background:#eff6ff;padding:2px 7px;border-radius:20px;">'+m.targetDay+'요일 몫</span>':'')
+      +(isMovedAway?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#94a3b8;background:#f1f5f9;padding:2px 7px;border-radius:20px;">↪ 오늘 아님, '+(m.type==='temp'?m.date:m.day+'요일')+'에 옴</span>':'')
       +(m.className?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#7c3aed;background:#f5f3ff;padding:2px 7px;border-radius:20px;">'+escHtml(m.className)+'</span>':'')
       +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+m.memo+'</div>':'')
       +(isTeacher&&markedBy?'<div style="font-size:10px;color:#94a3b8;margin-top:2px;">✓ '+markedBy+'님이 체크함</div>':'')
       +lastLogHtml+'</div>'
-      +'<div style="display:flex;gap:6px;">'
+      +(isMovedAway
+        ? (isTeacher?'<button onclick="delMclinic(\''+m.id+'\')" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:12px;">삭제</button>':'')
+        : '<div style="display:flex;gap:6px;">'
       +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'출석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(status==='출석'?'#16a34a':'#e2e8f0')+';background:'+(status==='출석'?'#16a34a':'#fff')+';color:'+(status==='출석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">출석</button>'
       +'<button onclick="markMcAttendance(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\',\'결석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(status==='결석'?'#dc2626':'#e2e8f0')+';background:'+(status==='결석'?'#dc2626':'#fff')+';color:'+(status==='결석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">결석</button>'
       +'<button onclick="mcSendReminder(\''+m.id+'\',\''+m.studentId+'\',\''+m.name+'\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #fdba74;background:#fff7ed;color:#c2410c;font-size:13px;font-weight:700;cursor:pointer;">🔔 재촉</button>'
@@ -2472,7 +2479,7 @@ function renderMcList(){
         +'<input type="text" id="mc-score-'+m.id+'" placeholder="테스트 점수" value="'+escHtml((m.testScores&&m.testScores[today.dateStr])||'')+'" autocomplete="off" style="width:110px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12.5px;outline:none;font-family:inherit;">'
         +'<button onclick="saveMcTestScore(\''+m.id+'\')" style="padding:8px 12px;min-height:38px;border-radius:7px;border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700;cursor:pointer;">점수 저장</button>'
         +'</div>'):'')
-      +(isTeacher?'<button onclick="delMclinic(\''+m.id+'\')" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:12px;">삭제</button>':'')
+      +(isTeacher?'<button onclick="delMclinic(\''+m.id+'\')" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:12px;">삭제</button>':''))
       +'</div>';
   }).join('');
 }
