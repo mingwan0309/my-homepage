@@ -1065,6 +1065,38 @@ api.deleteNotice = function(db, p){
   return db.collection('notices').doc(String(p.id)).delete().then(function(){ return { success:true }; });
 };
 
+// 신호판에서 "과제 N건 미제출" 배지 클릭 시, 그 학생의 미제출/미이행 과제 목록만 가볍게 조회
+api.getStudentHwIssues = function(db, p){
+  var sid = String(p.studentId);
+  return db.collection('hw_status').where('studentId','==',sid).where('pass','in',['incomplete','partial','notsub']).get().then(function(snap){
+    var rows = docsToArr(snap);
+    if (!rows.length) return { items: [] };
+    var hwIds=[], sessionIds=[];
+    rows.forEach(function(r){
+      if (hwIds.indexOf(r.hwId) < 0) hwIds.push(r.hwId);
+      if (sessionIds.indexOf(r.sessionId) < 0) sessionIds.push(r.sessionId);
+    });
+    return Promise.all([
+      Promise.all(hwIds.map(function(id){ return db.collection('homeworks').doc(id).get(); })),
+      Promise.all(sessionIds.map(function(id){ return db.collection('sessions').doc(id).get(); }))
+    ]).then(function(res){
+      var hwMap={}; res[0].forEach(function(d){ if(d.exists) hwMap[d.id]=d.data(); });
+      var sesMap={}; res[1].forEach(function(d){ if(d.exists) sesMap[d.id]=d.data(); });
+      var PASS_LABEL={incomplete:'미이행',partial:'일부미이행',notsub:'미제출'};
+      var items = rows.map(function(r){
+        var hw=hwMap[r.hwId]||{}, ses=sesMap[r.sessionId]||{};
+        return {
+          hwName: hw.name||'(삭제된 과제)',
+          sessLabel: ses.label || (ses.sessionNum?ses.sessionNum+'차시':''),
+          sessionNum: ses.sessionNum||0,
+          passLabel: PASS_LABEL[r.pass]||r.pass||''
+        };
+      });
+      items.sort(function(a,b){ return (Number(b.sessionNum)||0)-(Number(a.sessionNum)||0); });
+      return { items: items };
+    });
+  });
+};
 api.getIncompleteHomeworks = function(db){
   return db.collection('hw_status').where('pass','in',['incomplete','partial']).get().then(function(snap){
     var rows = docsToArr(snap);

@@ -1389,7 +1389,7 @@ function renderSignalBoard(){
     var li=LEVEL_INFO[s.level];
     var badges='';
     if(s.consecutiveAbsent>0) badges+='<span style="background:#fff;border:1px solid '+li.border+';color:'+li.color+';font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-right:4px;">연속 결석 '+s.consecutiveAbsent+'회</span>';
-    if(s.hwMissing>0) badges+='<span style="background:#fff;border:1px solid '+li.border+';color:'+li.color+';font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;">과제 '+s.hwMissing+'건 미제출</span>';
+    if(s.hwMissing>0) badges+='<span onclick="showStuHwIssues(\''+s.studentId+'\',event)" style="cursor:pointer;background:#fff;border:1px solid '+li.border+';color:'+li.color+';font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;text-decoration:underline;">과제 '+s.hwMissing+'건 미제출</span>';
     var className=signalClassMap[s.classId]||'';
     return '<div style="border:1.5px solid '+li.border+';background:'+(s.dismissed?'#f8fafc':li.bg)+';border-radius:12px;padding:14px 16px;margin-bottom:10px;'+(s.dismissed?'opacity:0.6;':'')+'">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">'
@@ -1408,6 +1408,30 @@ function renderSignalBoard(){
       +'</div>'
       +'</div>';
   }).join('');
+}
+async function showStuHwIssues(studentId,ev){
+  ev.stopPropagation();
+  var old=document.getElementById('stu-hw-issues-pop'); if(old) old.remove();
+  var pop=document.createElement('div');
+  pop.id='stu-hw-issues-pop';
+  pop.style.cssText='position:fixed;z-index:960;background:#1e293b;color:#fff;border-radius:10px;padding:10px 14px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:280px;';
+  var rect=ev.target.getBoundingClientRect();
+  pop.style.left=Math.min(rect.left,window.innerWidth-296)+'px';
+  pop.style.top=(rect.bottom+6)+'px';
+  pop.innerHTML='불러오는 중...';
+  document.body.appendChild(pop);
+  setTimeout(function(){
+    document.addEventListener('click', function closeOnce(e){
+      if(!pop.contains(e.target)){ pop.remove(); document.removeEventListener('click',closeOnce); }
+    });
+  },0);
+  try{
+    var r=await fetch(SU+'?action=getStudentHwIssues&studentId='+encodeURIComponent(studentId)).then(function(r){return r.json();});
+    var items=r.items||[];
+    pop.innerHTML=items.length
+      ? items.map(function(it){ return '<div style="padding:4px 0;border-bottom:1px solid #334155;">'+escHtml(it.sessLabel)+' · '+escHtml(it.hwName)+' <span style="color:#fbbf24;">('+it.passLabel+')</span></div>'; }).join('')
+      : '<div style="color:#94a3b8;">미이행 과제 정보가 없어요.</div>';
+  }catch(e){ pop.innerHTML='<div style="color:#f87171;">불러오기 실패</div>'; }
 }
 async function signalContactParent(studentId){
   var s=signalList.find(function(x){return x.studentId===studentId;});
