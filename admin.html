@@ -3727,11 +3727,8 @@ function calcPay(logs,wts,expLogs,astId){
   var total=0;
   (logs||[]).filter(function(l){return l.assistantId===astId;}).forEach(function(l){
     var wt=wts.find(function(w){return w.id===l.workTypeId;});
-    if(!wt)return;
-    var inM=timeToMin(l.clockIn), outM=timeToMin(l.clockOut);
-    if(outM<=inM)return;
-    var workMin=outM-inM-l.breakMin;
-    if(workMin<0)workMin=0;
+    if(!wt||!l.clockOut)return;
+    var workMin=workMinutes(l.clockIn,l.clockOut,l.breakMin);
     total+=Math.round((workMin/60)*wt.hourlyRate);
   });
   (expLogs||[]).filter(function(l){return l.assistantId===astId;}).forEach(function(l){total+=l.amount;});
@@ -3741,6 +3738,13 @@ function calcPay(logs,wts,expLogs,astId){
 function timeToMin(t){
   if(!t)return 0;
   var p=t.split(':'); return parseInt(p[0]||0)*60+parseInt(p[1]||0);
+}
+// 출근/퇴근이 자정을 넘어가는 경우(예: 20:51 출근 ~ 다음날 01:01 퇴근) 퇴근 시각이 출근 시각보다 작게 나오는데,
+// 단순히 뺄셈만 하면 음수가 되어 근무시간이 0으로 잘못 계산됨 — 그럴 땐 24시간(1440분)을 더해서 자정을 넘긴 것으로 처리
+function workMinutes(clockIn, clockOut, breakMin){
+  var inM=timeToMin(clockIn), outM=timeToMin(clockOut);
+  if(outM<inM) outM+=1440;
+  return Math.max(0, outM-inM-Number(breakMin||0));
 }
 function minToHM(m){
   var h=Math.floor(Math.abs(m)/60), mn=Math.abs(m)%60;
@@ -3798,8 +3802,7 @@ function renderAstLogDetail(astId){
   var totalMin=0, gross=0;
   logs.forEach(function(l){
     var wt=wtList.find(function(w){return w.id===l.workTypeId;});
-    var inM=timeToMin(l.clockIn), outM=timeToMin(l.clockOut);
-    var workMin=Math.max(0,outM-inM-l.breakMin);
+    var workMin=workMinutes(l.clockIn,l.clockOut,l.breakMin);
     totalMin+=workMin;
     if(wt)gross+=Math.round((workMin/60)*wt.hourlyRate);
   });
@@ -3811,7 +3814,7 @@ function renderAstLogDetail(astId){
   logs.forEach(function(l){
     var wt=wtList.find(function(w){return w.id===l.workTypeId;}); if(!wt)return;
     if(!wtUsed[wt.id])wtUsed[wt.id]={wt:wt,min:0};
-    var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-l.breakMin);
+    var workMin=workMinutes(l.clockIn,l.clockOut,l.breakMin);
     wtUsed[wt.id].min+=workMin;
   });
   var wtBadges=Object.values(wtUsed).map(function(u){
@@ -3820,8 +3823,7 @@ function renderAstLogDetail(astId){
   // 테이블 rows
   var rows=logs.map(function(l){
     var wt=wtList.find(function(w){return w.id===l.workTypeId;});
-    var inM=timeToMin(l.clockIn),outM=timeToMin(l.clockOut);
-    var workMin=Math.max(0,outM-inM-l.breakMin);
+    var workMin=workMinutes(l.clockIn,l.clockOut,l.breakMin);
     var pay=wt?Math.round((workMin/60)*wt.hourlyRate):0;
     var wtBadge=wt?'<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;color:#fff;background:'+wt.color+';">'+escHtml(wt.name)+'</span>':'-';
     return '<tr>'
@@ -3964,7 +3966,7 @@ function renderSelfWorkHistory(allLogs,openLog,rate){
   var thisMonth=logs.filter(function(l){return (l.date||'').slice(0,7)===ym;});
   var totalMin=0,totalPay=0;
   thisMonth.forEach(function(l){
-    var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-Number(l.breakMin||0));
+    var workMin=workMinutes(l.clockIn,l.clockOut,l.breakMin);
     totalMin+=workMin; totalPay+=Number(l.cost||0);
   });
   // 지금 근무 중이면 그 시간까지 실시간으로 합산 (30초마다 다시 계산해서 갱신)
@@ -3990,7 +3992,7 @@ function renderSelfWorkHistory(allLogs,openLog,rate){
     +'<td style="font-size:13px;font-weight:700;white-space:nowrap;">₩'+livePay.toLocaleString()+'</td></tr>'
   ):'';
   var rows=logs.slice(0,30).map(function(l){
-    var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-Number(l.breakMin||0));
+    var workMin=workMinutes(l.clockIn,l.clockOut,l.breakMin);
     return '<tr><td style="font-size:12px;color:#475569;white-space:nowrap;">'+fmtDateDow(l.date)+'</td>'
       +'<td style="font-size:13px;white-space:nowrap;">'+fmt24to12(l.clockIn)+'</td>'
       +'<td style="font-size:13px;white-space:nowrap;">'+fmt24to12(l.clockOut)+'</td>'
@@ -4156,7 +4158,7 @@ function exportAstExcel(){
   astWorkLogs.forEach(function(l){
     var ast=astList.find(function(a){return a.id===l.assistantId;});
     var wt=wtList.find(function(w){return w.id===l.workTypeId;});
-    var workMin=Math.max(0,timeToMin(l.clockOut)-timeToMin(l.clockIn)-l.breakMin);
+    var workMin=workMinutes(l.clockIn,l.clockOut,l.breakMin);
     var pay=wt?Math.round((workMin/60)*wt.hourlyRate):0;
     rows.push([ast?ast.name:'',l.date,l.clockIn,l.clockOut,workMin,wt?wt.name:'',pay]);
   });
