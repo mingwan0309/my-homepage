@@ -375,11 +375,11 @@ tr:hover td{background:#fafbff;}
   <div class="mat-layout">
     <div class="mat-sidebar">
       <div class="mat-sidebar-title">게시판</div>
-      <div class="mat-cat board-cat active" onclick="selectBoardCat('typo',this)">
-        <span>✏️ 오탈자 및 정정사항</span><span class="mat-cat-count" id="cnt-board-typo">0</span>
-      </div>
-      <div class="mat-cat board-cat" onclick="selectBoardCat('assignment',this)">
+      <div class="mat-cat board-cat active" onclick="selectBoardCat('assignment',this)">
         <span>📋 다음 시간까지의 과제</span><span class="mat-cat-count" id="cnt-board-assignment">0</span>
+      </div>
+      <div class="mat-cat board-cat" onclick="selectBoardCat('typo',this)">
+        <span>✏️ 오탈자 및 정정사항</span><span class="mat-cat-count" id="cnt-board-typo">0</span>
       </div>
     </div>
     <div class="mat-main">
@@ -876,7 +876,7 @@ function switchTab(tab,el){
 }
 
 // ── 강의 게시판 ──
-var boardPosts=[], boardCat='typo', boardCatCounts={};
+var boardPosts=[], boardCat='assignment', boardCatCounts={};
 var BOARD_CAT_LABEL={typo:'오탈자 및 정정사항', assignment:'다음 시간까지의 과제'};
 async function loadBoard(){
   document.getElementById('btn-add-post').style.display=isStaff?'':'none';
