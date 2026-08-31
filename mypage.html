@@ -634,16 +634,12 @@ loadInfo();
   renderFaq();
 });
 
-// 게임 교체 주기 — 3일마다 자동으로 새 주기 시작 (game.html과 동일한 기준일/주기를 써야 함)
-var GAME_CYCLE_DAYS = 3;
-var GAME_EPOCH = new Date('2026-08-27T00:00:00+09:00');
+// 게임 교체 주기 — 일주일(월요일 시작)마다 자동으로 새 주기 시작 (game.html과 동일한 기준)
 function renderGameDday(){
   var el=document.getElementById('game-dday-badge');
   if(!el) return;
-  var diffMs = Date.now() - GAME_EPOCH.getTime();
-  var diffDays = Math.max(0, Math.floor(diffMs / 86400000));
-  var dayInCycle = diffDays % GAME_CYCLE_DAYS;
-  var daysLeft = GAME_CYCLE_DAYS - 1 - dayInCycle;
+  var isoDay = new Date().getDay(); isoDay = isoDay===0 ? 7 : isoDay; // 월=1 ... 일=7
+  var daysLeft = isoDay===1 ? 0 : (8 - isoDay); // 월요일에 새 주기 시작(=D-DAY)
   el.textContent = daysLeft<=0 ? '오늘 게임 교체!' : 'D-'+daysLeft;
 }
 async function loadGameCard(){

@@ -101,18 +101,25 @@ a{text-decoration:none;}
 var session=null;
 var SU='https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 
-// 게임 교체 주기 — 3일마다 자동으로 새 주기 시작. 지금은 게임이 하나뿐이라 계속 같은 게임이 도는 것처럼 보이지만,
-// 나중에 GAME_ROTATION에 다른 게임 이름을 추가하면 그 순서대로 자동으로 바뀜.
-var GAME_CYCLE_DAYS = 3;
-var GAME_EPOCH = new Date('2026-08-27T00:00:00+09:00'); // 이 디데이 기능을 처음 건 날 = 1번째 주기 시작일
-var GAME_ROTATION = ['default']; // 게임이 추가되면 여기 이름만 늘리면 자동으로 돌아감
+// 게임 교체 주기 — 일주일(월요일 시작)마다 자동으로 새 주기 시작. 순위표 주간 리셋 기준(월요일)과 동일하게 맞춤.
+// 지금은 게임이 하나뿐이라 계속 같은 게임이 도는 것처럼 보이지만, 나중에 GAME_ROTATION에 다른 게임 이름을
+// 추가하면 매주 순서대로 자동으로 바뀌고, 그 주에 어떤 게임들을 했든 각 게임 최고점을 다 더한 게 그 주 총점이 됨.
+var GAME_ROTATION_EPOCH_MONDAY = '2026-08-24'; // 이 디데이 기능을 처음 건 주의 월요일 = 1번째 주기
+var GAME_ROTATION = ['default']; // 게임이 추가되면 여기 이름만 늘리면 매주 자동으로 돌아감
+function mondayOf(d){
+  var dt=new Date(d||new Date());
+  var day=dt.getDay();
+  var diff=(day===0?-6:1-day);
+  var mon=new Date(dt); mon.setDate(dt.getDate()+diff); mon.setHours(0,0,0,0);
+  return mon;
+}
 function getGameCycleInfo(){
-  var diffMs = Date.now() - GAME_EPOCH.getTime();
-  var diffDays = Math.max(0, Math.floor(diffMs / 86400000));
-  var cycleIndex = Math.floor(diffDays / GAME_CYCLE_DAYS);
-  var dayInCycle = diffDays % GAME_CYCLE_DAYS; // 0 ~ (GAME_CYCLE_DAYS-1)
-  var daysLeft = GAME_CYCLE_DAYS - 1 - dayInCycle; // 마지막 날 0(=D-DAY)
-  return { daysLeft: daysLeft, gameKey: GAME_ROTATION[cycleIndex % GAME_ROTATION.length] };
+  var thisMonday = mondayOf();
+  var epochMonday = mondayOf(new Date(GAME_ROTATION_EPOCH_MONDAY+'T00:00:00'));
+  var weekIndex = Math.max(0, Math.round((thisMonday - epochMonday) / (7*86400000)));
+  var isoDay = new Date().getDay(); isoDay = isoDay===0 ? 7 : isoDay; // 월=1 ... 일=7
+  var daysLeft = isoDay===1 ? 0 : (8 - isoDay); // 월요일에 새 주기 시작(=D-DAY), 그 다음날부터 D-6 ~ D-1
+  return { daysLeft: daysLeft, gameKey: GAME_ROTATION[weekIndex % GAME_ROTATION.length] };
 }
 function renderDdayBadge(){
   var el=document.getElementById('dday-badge');
@@ -314,7 +321,7 @@ function endGame(score){
 }
 async function submitScore(score){
   try{
-    var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'submitGameScore',studentId:session.id,studentName:session.name||'',score:score})});
+    var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'submitGameScore',studentId:session.id,studentName:session.name||'',score:score,gameKey:getGameCycleInfo().gameKey})});
     var d=await res.json();
     document.getElementById('r-msg').textContent = (d&&d.success!==false) ? '점수가 기록됐어요!' : (d&&d.msg?d.msg:'이미 오늘 도전한 기록이 있어요.');
   }catch(e){

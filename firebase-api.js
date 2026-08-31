@@ -1120,14 +1120,25 @@ api.getGameStatus = function(db, p){
     var attemptsToday = todayRows.length;
     var todayScore = todayRows.length ? Math.max.apply(null, todayRows.map(function(r){ return r.score||0; })) : null;
     return db.collection('game_scores').where('weekKey','==',wk).get().then(function(wsnap){
-      var best = {};
+      // 순위는 '이번 주 최고점 1개'가 아니라, 이번 주에 있었던 게임 종류별로 각자 최고점을 구해서 다 더한 총점 기준.
+      // (게임이 하나뿐일 땐 지금까지와 동일하게 그 게임 최고점 = 총점)
+      var bestByStudentGame = {}; // studentId -> { gameKey -> {score, name} }
       wsnap.forEach(function(d){
         var r = d.data();
-        if (!best[r.studentId] || r.score > best[r.studentId].score) {
-          best[r.studentId] = { studentId:r.studentId, studentName:r.studentName||'', score:r.score||0 };
+        var gk = r.gameKey || 'default';
+        if (!bestByStudentGame[r.studentId]) bestByStudentGame[r.studentId] = {};
+        var cur = bestByStudentGame[r.studentId][gk];
+        if (!cur || (r.score||0) > cur.score) {
+          bestByStudentGame[r.studentId][gk] = { score:r.score||0, studentName:r.studentName||'' };
         }
       });
-      var list = Object.values(best).sort(function(a,b){ return b.score-a.score; }).slice(0,10);
+      var totals = Object.keys(bestByStudentGame).map(function(stuId){
+        var games = bestByStudentGame[stuId];
+        var total = 0, name = '';
+        Object.keys(games).forEach(function(gk){ total += games[gk].score; name = games[gk].studentName || name; });
+        return { studentId: stuId, studentName: name, score: total };
+      });
+      var list = totals.sort(function(a,b){ return b.score-a.score; }).slice(0,10);
       return {
         playedToday: attemptsToday >= maxAttempts,
         attemptsToday: attemptsToday,
@@ -1146,7 +1157,8 @@ api.submitGameScore = function(db, p){
     if (snap.size >= maxAttempts) return { success:false, msg:'오늘은 더 이상 도전할 수 없어요.' };
     var id = today+'__'+sid+'__'+genId('g');
     return db.collection('game_scores').doc(id).set({
-      id:id, studentId:sid, studentName:p.studentName||'', score:Number(p.score)||0, date:today, weekKey:wk, createdAt:nowStr()
+      id:id, studentId:sid, studentName:p.studentName||'', score:Number(p.score)||0, date:today, weekKey:wk,
+      gameKey:p.gameKey||'default', createdAt:nowStr()
     }).then(function(){ return { success:true }; });
   });
 };
