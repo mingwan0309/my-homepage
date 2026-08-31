@@ -190,6 +190,14 @@
 - `activity_logs` 컬렉션(id, actorId, actorName, actorRole, message, code, createdAt). firebase-api.js의 `logActivity(db, actorId, actorName, actorRole, message, code)` 헬퍼가 각 API 함수(`api.login`, `api.submitHwProof`, `api.bookClinic`, `api.submitQuestion`, `api.submitSurveyResponse`) 안에서 성공 시점에 호출됨 — 새로운 핵심 활동을 추가로 기록하고 싶으면 이 패턴을 그대로 재사용.
 - `api.getActivityLogs(db)`가 최신순 최대 300건 반환. Firestore 규칙: `activity_logs`는 **읽기는 교사만, 쓰기(생성)는 로그인한 사람이면 누구나** — 학생/조교가 자기 활동을 기록해야 하므로 create는 열어두되, 남이 쓴 로그를 못 보게 read는 교사로 제한.
 
+## 미니게임 (2026-08-27 추가)
+학생 참여 유도용으로 만든 간단한 캐주얼 게임. `game.html`(학생 전용, 신규 페이지), mypage.html 상단에 "🎮 미니게임" 카드로 진입.
+- **하루 1회만 도전 가능** — `game_scores` 컬렉션 문서ID를 `{날짜YYYY-MM-DD}__{학생ID}`로 고정해서, 오늘 날짜 문서가 이미 있으면(`api.submitGameScore`가 존재 여부 확인 후 거부) 재도전 자체가 막힘. 서버(Firestore) 쪽에서 막는 구조라 새로고침/재접속으로 우회 불가.
+- **주간 순위표**: 월요일을 그 주의 시작으로 보고(`weekKeyOf()`), `weekKey` 필드로 그 주의 기록만 모아서 학생별 최고점만 추려 순위를 매김(`api.getGameStatus`). 매주 월요일이 되면 자동으로 순위가 리셋됨(과거 주 기록은 `game_scores`에 그대로 남아있지만 이번 주 집계에는 안 잡힘).
+- 게임 내용: 위에서 떨어지는 💩를 좌우로 피하는 캔버스 게임(`game.html`), 터치 드래그/좌우 방향키 지원, 생존 시간이 곧 점수, 시간이 지날수록 난이도(장애물 속도/spawn 간격) 자동 상승. 충돌하면 게임 종료 후 자동으로 점수 제출.
+- **캐릭터 이미지 커스터마이징 예정** — 지금은 플레이어를 이모지(🙂)로 표시 중. 나중에 실제 사진(원형 크롭)으로 교체할 수 있도록 `draw()` 함수의 플레이어 렌더링 부분만 손보면 됨(이미지 로드 후 `ctx.drawImage`로 교체).
+- Firestore 규칙: `game_scores`는 로그인하면 읽기 가능(순위표용), 생성은 본인(`studentId==loginId()`) 것만 가능, update/delete는 막아둠(점수 조작 방지 — 하루 1회 제한과 별개로 한번 기록되면 그 날짜 점수는 고정).
+
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
 - Apps Script 재배포 시 "새 버전" 안내 빼먹기
