@@ -1786,7 +1786,9 @@ function computeMsgTokens(studentId){
   var hwListForTokens=(allClassHomeworks&&allClassHomeworks.length)?allClassHomeworks:homeworks;
   if(hwListForTokens && hwListForTokens.length){
     var HW_LABELS_ALL={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출',na:'해당없음'};
-    hwListForTokens.forEach(function(hw){
+    // hwListForTokens는 최근 차시가 앞쪽에 오도록 정렬돼 있는데, 이 forEach는 나중에 처리된 값이 덮어쓰므로
+    // 뒤에서부터(오래된 차시부터) 돌려야 같은 이름의 과제가 여러 차시에 있을 때 최신 차시 값이 최종적으로 남는다.
+    hwListForTokens.slice().reverse().forEach(function(hw){
       var hs=(hwStatusMap[studentId]||{})[hw.id];
       if(!hs){ tokens['{상태:'+hw.name+'}']='해당없음'; tokens['{코멘트:'+hw.name+'}']=''; return; }
       tokens['{상태:'+hw.name+'}']=hs.pass?HW_LABELS_ALL[hs.pass]:'미제출';
