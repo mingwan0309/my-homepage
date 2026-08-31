@@ -35,10 +35,21 @@ a{text-decoration:none;}
 .btn-play{width:100%;min-height:52px;border:none;border-radius:12px;background:linear-gradient(135deg,#3b6cf7,#1d4ed8);color:#fff;font-size:16px;font-weight:800;cursor:pointer;}
 .btn-play:disabled{background:#334155;color:#64748b;cursor:default;}
 
-#game-wrap{display:none;}
+#game-wrap{display:none;position:fixed;inset:0;z-index:60;background:#0f172a;padding:16px;overflow-y:auto;}
+#game-wrap-inner{max-width:480px;margin:0 auto;}
 #game-canvas{width:100%;display:block;border-radius:14px;background:#1e2a45;touch-action:none;}
 .game-hud{display:flex;justify-content:space-between;align-items:center;padding:10px 2px;font-size:14px;font-weight:800;color:#e2e8f0;}
 .touch-hint{text-align:center;font-size:12px;color:#64748b;margin-top:8px;}
+
+#intro-overlay{display:none;position:fixed;inset:0;z-index:70;background:rgba(15,23,42,.97);align-items:center;justify-content:center;padding:24px;}
+#intro-card{background:#1e293b;border-radius:18px;padding:26px 22px;width:100%;max-width:340px;text-align:center;}
+.intro-title{font-size:18px;font-weight:900;color:#fff;margin-bottom:18px;}
+.intro-row{display:flex;align-items:center;gap:14px;text-align:left;background:#151f32;border-radius:12px;padding:12px 14px;margin-bottom:12px;}
+.intro-emoji{font-size:30px;flex-shrink:0;}
+.intro-text{font-size:13px;color:#cbd5e1;line-height:1.5;}
+.intro-text b{color:#fff;font-size:14px;}
+.intro-hint{font-size:12px;color:#64748b;margin:14px 0 18px;}
+#intro-start-btn{width:100%;}
 
 #result-box{display:none;background:#1e293b;border-radius:14px;padding:22px;text-align:center;margin-top:14px;}
 #result-box .r-title{font-size:14px;color:#94a3b8;margin-bottom:6px;}
@@ -76,13 +87,15 @@ a{text-decoration:none;}
 
     <div class="status-box" id="status-box">
       <div class="msg" id="status-msg">불러오는 중...</div>
-      <button class="btn-play" id="btn-play" onclick="startGame()" disabled>도전하기</button>
+      <button class="btn-play" id="btn-play" onclick="showIntro()" disabled>도전하기</button>
     </div>
 
     <div id="game-wrap">
-      <div class="game-hud"><span>점수 <b id="hud-score">0</b></span><span id="hud-timer"></span></div>
-      <canvas id="game-canvas" width="360" height="480"></canvas>
-      <div class="touch-hint">화면을 좌우로 드래그하거나 ←/→ 키로 피하세요</div>
+      <div id="game-wrap-inner">
+        <div class="game-hud"><span>점수 <b id="hud-score">0</b></span><span id="hud-timer"></span></div>
+        <canvas id="game-canvas" width="360" height="480"></canvas>
+        <div class="touch-hint">화면을 좌우로 드래그하거나 ←/→ 키로 피하세요</div>
+      </div>
     </div>
 
     <div id="result-box">
@@ -94,6 +107,17 @@ a{text-decoration:none;}
         <button class="btn-primary2" onclick="backToStatus()">확인</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- 시작 전 안내 화면 -->
+<div id="intro-overlay">
+  <div id="intro-card">
+    <div class="intro-title">게임 방법</div>
+    <div class="intro-row"><span class="intro-emoji">💩</span><div class="intro-text"><b>피하세요!</b><br>부딪히면 바로 게임 종료</div></div>
+    <div class="intro-row"><span class="intro-emoji">⭐</span><div class="intro-text"><b>먹으면 점수 획득!</b><br>빠르게 떨어지는 별일수록 점수가 커요</div></div>
+    <div class="intro-hint">화면을 좌우로 드래그하거나 ←/→ 키로 이동해요</div>
+    <button class="btn-play" id="intro-start-btn" onclick="closeIntroAndStart()">시작하기</button>
   </div>
 </div>
 
@@ -194,6 +218,13 @@ var startTime=0, lastSpawn=0, spawnInterval=900, fallSpeed=2.2, running=false;
 var lastBonusSpawn=0, nextBonusDelay=3000, bonusScore=0;
 var dragging=false;
 
+function showIntro(){
+  document.getElementById('intro-overlay').style.display='flex';
+}
+function closeIntroAndStart(){
+  document.getElementById('intro-overlay').style.display='none';
+  startGame();
+}
 function startGame(){
   document.getElementById('status-box').style.display='none';
   document.getElementById('result-box').style.display='none';
