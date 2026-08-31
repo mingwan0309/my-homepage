@@ -358,7 +358,7 @@ a{text-decoration:none;}
 
     <!-- 미니게임 -->
     <div class="card" id="game-card">
-      <div class="card-title"><span>🎮</span> 미니게임</div>
+      <div class="card-title"><span>🎮</span> 미니게임 <span id="game-dday-badge" style="margin-left:auto;background:#fef2f2;color:#dc2626;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;"></span></div>
       <div id="game-card-lb" style="margin-bottom:10px;"></div>
       <a href="game.html" id="game-card-btn" style="display:block;text-align:center;min-height:44px;line-height:44px;border-radius:10px;background:#3b6cf7;color:#fff;font-size:14px;font-weight:800;">도전하러 가기</a>
     </div>
@@ -634,7 +634,20 @@ loadInfo();
   renderFaq();
 });
 
+// 게임 교체 주기 — 3일마다 자동으로 새 주기 시작 (game.html과 동일한 기준일/주기를 써야 함)
+var GAME_CYCLE_DAYS = 3;
+var GAME_EPOCH = new Date('2026-08-27T00:00:00+09:00');
+function renderGameDday(){
+  var el=document.getElementById('game-dday-badge');
+  if(!el) return;
+  var diffMs = Date.now() - GAME_EPOCH.getTime();
+  var diffDays = Math.max(0, Math.floor(diffMs / 86400000));
+  var dayInCycle = diffDays % GAME_CYCLE_DAYS;
+  var daysLeft = GAME_CYCLE_DAYS - 1 - dayInCycle;
+  el.textContent = daysLeft<=0 ? '오늘 게임 교체!' : 'D-'+daysLeft;
+}
 async function loadGameCard(){
+  renderGameDday();
   var lbEl=document.getElementById('game-card-lb');
   var btn=document.getElementById('game-card-btn');
   try{

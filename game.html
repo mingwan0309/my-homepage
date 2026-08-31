@@ -65,6 +65,7 @@ a{text-decoration:none;}
   <div class="topbar">
     <a href="mypage.html">←</a>
     <h1>🎮 미니게임</h1>
+    <span id="dday-badge" style="margin-left:auto;background:rgba(248,113,113,.15);color:#f87171;font-size:12px;font-weight:800;padding:4px 10px;border-radius:20px;"></span>
   </div>
 
   <div class="container">
@@ -100,7 +101,28 @@ a{text-decoration:none;}
 var session=null;
 var SU='https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 
+// 게임 교체 주기 — 3일마다 자동으로 새 주기 시작. 지금은 게임이 하나뿐이라 계속 같은 게임이 도는 것처럼 보이지만,
+// 나중에 GAME_ROTATION에 다른 게임 이름을 추가하면 그 순서대로 자동으로 바뀜.
+var GAME_CYCLE_DAYS = 3;
+var GAME_EPOCH = new Date('2026-08-27T00:00:00+09:00'); // 이 디데이 기능을 처음 건 날 = 1번째 주기 시작일
+var GAME_ROTATION = ['default']; // 게임이 추가되면 여기 이름만 늘리면 자동으로 돌아감
+function getGameCycleInfo(){
+  var diffMs = Date.now() - GAME_EPOCH.getTime();
+  var diffDays = Math.max(0, Math.floor(diffMs / 86400000));
+  var cycleIndex = Math.floor(diffDays / GAME_CYCLE_DAYS);
+  var dayInCycle = diffDays % GAME_CYCLE_DAYS; // 0 ~ (GAME_CYCLE_DAYS-1)
+  var daysLeft = GAME_CYCLE_DAYS - 1 - dayInCycle; // 마지막 날 0(=D-DAY)
+  return { daysLeft: daysLeft, gameKey: GAME_ROTATION[cycleIndex % GAME_ROTATION.length] };
+}
+function renderDdayBadge(){
+  var el=document.getElementById('dday-badge');
+  if(!el) return;
+  var info=getGameCycleInfo();
+  el.textContent = info.daysLeft<=0 ? '오늘 게임 교체!' : 'D-'+info.daysLeft;
+}
+
 document.addEventListener('DOMContentLoaded', async function(){
+  renderDdayBadge();
   session = JSON.parse(localStorage.getItem('mkmath_session')||'null');
   if(!session || session.role!=='student'){
     document.getElementById('page-denied').style.display='block';
