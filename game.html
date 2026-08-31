@@ -158,8 +158,9 @@ function backToStatus(){
 /* ===== 게임 로직 ===== */
 var canvas, ctx, rafId=null;
 var player={x:180,w:34,h:34};
-var obstacles=[];
+var obstacles=[], bonuses=[], floaters=[];
 var startTime=0, lastSpawn=0, spawnInterval=900, fallSpeed=2.2, running=false;
+var lastBonusSpawn=0, nextBonusDelay=3000, bonusScore=0;
 var dragging=false;
 
 function startGame(){
@@ -170,9 +171,12 @@ function startGame(){
   ctx=canvas.getContext('2d');
   fitCanvas();
   player.x=canvas.width/2;
-  obstacles=[];
+  obstacles=[]; bonuses=[]; floaters=[];
+  bonusScore=0;
   startTime=performance.now();
   lastSpawn=startTime;
+  lastBonusSpawn=startTime;
+  nextBonusDelay=2500+Math.random()*2000;
   spawnInterval=900;
   fallSpeed=2.2;
   running=true;
@@ -203,12 +207,12 @@ function movePlayerToEvent(e){
 function loop(now){
   if(!running) return;
   var elapsed=now-startTime;
-  var score=Math.floor(elapsed/100);
+  var score=Math.floor(elapsed/100)+bonusScore;
   document.getElementById('hud-score').textContent=score;
 
-  // 난이도 상승
-  spawnInterval=Math.max(280, 900-elapsed/100);
-  fallSpeed=Math.min(7, 2.2+elapsed/6000);
+  // 난이도 상승 (시간이 지날수록 계속 더 빨라짐)
+  spawnInterval=Math.max(220, 900-elapsed/70);
+  fallSpeed=Math.min(11, 2.2+elapsed/4500);
 
   if(now-lastSpawn>spawnInterval){
     lastSpawn=now;
@@ -217,7 +221,19 @@ function loop(now){
   obstacles.forEach(function(o){ o.y+=fallSpeed*2; });
   obstacles=obstacles.filter(function(o){ return o.y<canvas.height+30; });
 
-  // 충돌 체크
+  // 보너스 점수 아이템 — 아주 빠르게 떨어짐, 먹으면 +5~+10점
+  if(now-lastBonusSpawn>nextBonusDelay){
+    lastBonusSpawn=now;
+    nextBonusDelay=3500+Math.random()*3000;
+    bonuses.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:15, value:5+Math.floor(Math.random()*6)});
+  }
+  bonuses.forEach(function(b){ b.y+=20; });
+  bonuses=bonuses.filter(function(b){ return b.y<canvas.height+30; });
+
+  floaters.forEach(function(f){ f.y-=1.2; f.life-=1; });
+  floaters=floaters.filter(function(f){ return f.life>0; });
+
+  // 충돌 체크(장애물)
   var py=canvas.height-46;
   for(var i=0;i<obstacles.length;i++){
     var o=obstacles[i];
@@ -225,6 +241,16 @@ function loop(now){
     if(Math.sqrt(dx*dx+dy*dy) < o.r*0.7+player.w*0.4){
       endGame(score);
       return;
+    }
+  }
+  // 보너스 획득 체크
+  for(var j=bonuses.length-1;j>=0;j--){
+    var b=bonuses[j];
+    var bdx=b.x-player.x, bdy=b.y-py;
+    if(Math.sqrt(bdx*bdx+bdy*bdy) < b.r+player.w*0.4){
+      bonusScore+=b.value;
+      floaters.push({x:b.x,y:b.y,text:'+'+b.value,life:36});
+      bonuses.splice(j,1);
     }
   }
 
@@ -235,12 +261,20 @@ function draw(py){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle='#1e2a45';
   ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.font='30px sans-serif';
   ctx.textAlign='center';
   ctx.textBaseline='middle';
   obstacles.forEach(function(o){
     ctx.font=(o.r*1.8)+'px sans-serif';
     ctx.fillText('💩', o.x, o.y);
+  });
+  bonuses.forEach(function(b){
+    ctx.font='26px sans-serif';
+    ctx.fillText('⭐', b.x, b.y);
+  });
+  floaters.forEach(function(f){
+    ctx.font='bold 15px sans-serif';
+    ctx.fillStyle='rgba(250,204,21,'+Math.min(1,f.life/36)+')';
+    ctx.fillText(f.text, f.x, f.y);
   });
   ctx.font='32px sans-serif';
   ctx.fillText('🙂', player.x, py);
