@@ -634,13 +634,13 @@ loadInfo();
   renderFaq();
 });
 
-// 게임 교체 주기 — 일주일(월요일 시작)마다 자동으로 새 주기 시작 (game.html과 동일한 기준)
+// 이번 주 순위표 마감(월요일 리셋)까지 남은 날 — game.html과 동일한 기준
 function renderGameDday(){
   var el=document.getElementById('game-dday-badge');
   if(!el) return;
   var isoDay = new Date().getDay(); isoDay = isoDay===0 ? 7 : isoDay; // 월=1 ... 일=7
-  var daysLeft = isoDay===1 ? 0 : (8 - isoDay); // 월요일에 새 주기 시작(=D-DAY)
-  el.textContent = daysLeft<=0 ? '오늘 게임 교체!' : 'D-'+daysLeft;
+  var daysLeft = 7 - isoDay;
+  el.textContent = daysLeft<=0 ? '오늘 순위 마감!' : '순위마감 D-'+daysLeft;
 }
 async function loadGameCard(){
   renderGameDday();

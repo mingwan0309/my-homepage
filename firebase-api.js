@@ -1110,6 +1110,8 @@ api.getStudentHwIssues = function(db, p){
 var GAME_UNLIMITED_IDS = ['1111']; // 테스트용 아이디 — 하루 제한 없이 계속 도전 가능
 var GAME_MAX_ATTEMPTS = 2;
 function gameMaxAttemptsFor(sid){ return GAME_UNLIMITED_IDS.indexOf(sid)>=0 ? Infinity : GAME_MAX_ATTEMPTS; }
+// 학생이 게임을 직접 골라서 하는 방식이라, 게임별로 오늘 몇 번 남았는지를 다 같이 내려줌(선택 화면에서 바로 보여주기 위함).
+// 순위 총점 계산은 게임 선택과 무관하게 그대로(이번 주에 한 게임들 각자 최고점을 다 더함).
 api.getGameStatus = function(db, p){
   var sid = String(p.studentId);
   var today = localDateStr();
@@ -1117,11 +1119,25 @@ api.getGameStatus = function(db, p){
   var maxAttempts = gameMaxAttemptsFor(sid);
   return db.collection('game_scores').where('date','==',today).where('studentId','==',sid).get().then(function(snap){
     var todayRows = docsToArr(snap);
-    var attemptsToday = todayRows.length;
-    var todayScore = todayRows.length ? Math.max.apply(null, todayRows.map(function(r){ return r.score||0; })) : null;
+    var byGame = {}; // gameKey -> { attemptsToday, todayScore }
+    todayRows.forEach(function(r){
+      var gk = r.gameKey || 'default';
+      if (!byGame[gk]) byGame[gk] = { attemptsToday:0, todayScore:null };
+      byGame[gk].attemptsToday++;
+      byGame[gk].todayScore = Math.max(byGame[gk].todayScore||0, r.score||0);
+    });
+    var perGame = {};
+    Object.keys(byGame).forEach(function(gk){
+      var b = byGame[gk];
+      perGame[gk] = {
+        attemptsToday: b.attemptsToday,
+        maxAttempts: (maxAttempts===Infinity ? -1 : maxAttempts),
+        playedToday: b.attemptsToday >= maxAttempts,
+        todayScore: b.todayScore
+      };
+    });
     return db.collection('game_scores').where('weekKey','==',wk).get().then(function(wsnap){
       // 순위는 '이번 주 최고점 1개'가 아니라, 이번 주에 있었던 게임 종류별로 각자 최고점을 구해서 다 더한 총점 기준.
-      // (게임이 하나뿐일 땐 지금까지와 동일하게 그 게임 최고점 = 총점)
       var bestByStudentGame = {}; // studentId -> { gameKey -> {score, name} }
       wsnap.forEach(function(d){
         var r = d.data();
@@ -1140,10 +1156,8 @@ api.getGameStatus = function(db, p){
       });
       var list = totals.sort(function(a,b){ return b.score-a.score; }).slice(0,10);
       return {
-        playedToday: attemptsToday >= maxAttempts,
-        attemptsToday: attemptsToday,
         maxAttempts: (maxAttempts===Infinity ? -1 : maxAttempts),
-        todayScore: todayScore, leaderboard: list, weekKey: wk
+        perGame: perGame, leaderboard: list, weekKey: wk
       };
     });
   });
@@ -1152,13 +1166,14 @@ api.submitGameScore = function(db, p){
   var sid = String(p.studentId);
   var today = localDateStr();
   var wk = weekKeyOf();
+  var gameKey = p.gameKey||'default';
   var maxAttempts = gameMaxAttemptsFor(sid);
-  return db.collection('game_scores').where('date','==',today).where('studentId','==',sid).get().then(function(snap){
-    if (snap.size >= maxAttempts) return { success:false, msg:'오늘은 더 이상 도전할 수 없어요.' };
+  return db.collection('game_scores').where('date','==',today).where('studentId','==',sid).where('gameKey','==',gameKey).get().then(function(snap){
+    if (snap.size >= maxAttempts) return { success:false, msg:'오늘 이 게임은 더 이상 도전할 수 없어요.' };
     var id = today+'__'+sid+'__'+genId('g');
     return db.collection('game_scores').doc(id).set({
       id:id, studentId:sid, studentName:p.studentName||'', score:Number(p.score)||0, date:today, weekKey:wk,
-      gameKey:p.gameKey||'default', createdAt:nowStr()
+      gameKey:gameKey, createdAt:nowStr()
     }).then(function(){ return { success:true }; });
   });
 };
