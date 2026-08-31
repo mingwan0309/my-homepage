@@ -113,9 +113,8 @@ a{text-decoration:none;}
 <!-- 시작 전 안내 화면 -->
 <div id="intro-overlay">
   <div id="intro-card">
-    <div class="intro-title">게임 방법</div>
-    <div class="intro-row"><span class="intro-emoji">💩</span><div class="intro-text"><b>피하세요!</b><br>부딪히면 바로 게임 종료</div></div>
-    <div class="intro-row"><span class="intro-emoji">⭐</span><div class="intro-text"><b>먹으면 점수 획득!</b><br>빠르게 떨어지는 별일수록 점수가 커요</div></div>
+    <div class="intro-title" id="intro-title">게임 방법</div>
+    <div id="intro-rows"></div>
     <div class="intro-hint">화면을 좌우로 드래그하거나 ←/→ 키로 이동해요</div>
     <button class="btn-play" id="intro-start-btn" onclick="closeIntroAndStart()">시작하기</button>
   </div>
@@ -129,7 +128,26 @@ var SU='https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33Pi
 // 지금은 게임이 하나뿐이라 계속 같은 게임이 도는 것처럼 보이지만, 나중에 GAME_ROTATION에 다른 게임 이름을
 // 추가하면 매주 순서대로 자동으로 바뀌고, 그 주에 어떤 게임들을 했든 각 게임 최고점을 다 더한 게 그 주 총점이 됨.
 var GAME_ROTATION_EPOCH_MONDAY = '2026-08-24'; // 이 디데이 기능을 처음 건 주의 월요일 = 1번째 주기
-var GAME_ROTATION = ['default']; // 게임이 추가되면 여기 이름만 늘리면 매주 자동으로 돌아감
+var GAME_ROTATION = ['default','numbercatch']; // 게임이 추가되면 여기 이름만 늘리면 매주 자동으로 돌아감
+
+// 게임별 설정 — 제목/안내문구/장애물·보너스를 어떻게 그릴지를 여기서 갈라서 처리
+var GAME_META = {
+  default: {
+    title: '똥 피하기',
+    introRows: [
+      ['💩','피하세요!','부딪히면 바로 게임 종료'],
+      ['⭐','먹으면 점수 획득!','빠르게 떨어지는 별일수록 점수가 커요']
+    ]
+  },
+  numbercatch: {
+    title: '숫자 잡기',
+    introRows: [
+      ['🔴','홀수는 피하세요!','부딪히면 바로 게임 종료'],
+      ['🟢','짝수를 잡으세요!','숫자만큼 점수를 얻어요']
+    ]
+  }
+};
+var activeGameKey = 'default';
 function mondayOf(d){
   var dt=new Date(d||new Date());
   var day=dt.getDay();
@@ -146,9 +164,12 @@ function getGameCycleInfo(){
   return { daysLeft: daysLeft, gameKey: GAME_ROTATION[weekIndex % GAME_ROTATION.length] };
 }
 function renderDdayBadge(){
+  var info=getGameCycleInfo();
+  activeGameKey = info.gameKey;
+  var meta = GAME_META[activeGameKey] || GAME_META.default;
+  document.querySelector('.topbar h1').textContent = '🎮 ' + meta.title;
   var el=document.getElementById('dday-badge');
   if(!el) return;
-  var info=getGameCycleInfo();
   el.textContent = info.daysLeft<=0 ? '오늘 게임 교체!' : 'D-'+info.daysLeft;
 }
 
@@ -218,7 +239,16 @@ var startTime=0, lastSpawn=0, spawnInterval=900, fallSpeed=2.2, running=false;
 var lastBonusSpawn=0, nextBonusDelay=3000, bonusScore=0;
 var dragging=false;
 
+function renderIntroContent(){
+  var meta = GAME_META[activeGameKey] || GAME_META.default;
+  var rowsHtml = meta.introRows.map(function(r){
+    return '<div class="intro-row"><span class="intro-emoji">'+r[0]+'</span><div class="intro-text"><b>'+r[1]+'</b><br>'+r[2]+'</div></div>';
+  }).join('');
+  document.getElementById('intro-title').textContent = meta.title;
+  document.getElementById('intro-rows').innerHTML = rowsHtml;
+}
 function showIntro(){
+  renderIntroContent();
   document.getElementById('intro-overlay').style.display='flex';
 }
 function closeIntroAndStart(){
@@ -226,6 +256,7 @@ function closeIntroAndStart(){
   startGame();
 }
 function startGame(){
+  activeGameKey = getGameCycleInfo().gameKey;
   document.getElementById('status-box').style.display='none';
   document.getElementById('result-box').style.display='none';
   document.getElementById('game-wrap').style.display='block';
@@ -278,16 +309,23 @@ function loop(now){
 
   if(now-lastSpawn>spawnInterval){
     lastSpawn=now;
-    obstacles.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:14+Math.random()*8});
+    var oItem={x:Math.random()*(canvas.width-28)+14, y:-20, r:14+Math.random()*8};
+    if(activeGameKey==='numbercatch'){ oItem.num=[1,3,5,7,9][Math.floor(Math.random()*5)]; }
+    obstacles.push(oItem);
   }
   obstacles.forEach(function(o){ o.y+=fallSpeed*2; });
   obstacles=obstacles.filter(function(o){ return o.y<canvas.height+30; });
 
-  // 보너스 점수 아이템 — 아주 빠르게 떨어짐, 먹으면 +5~+10점
+  // 보너스 점수 아이템 — 아주 빠르게 떨어짐, 먹으면 점수 획득(기본 게임은 +5~+10, 숫자 잡기는 숫자만큼)
   if(now-lastBonusSpawn>nextBonusDelay){
     lastBonusSpawn=now;
     nextBonusDelay=3500+Math.random()*3000;
-    bonuses.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:15, value:5+Math.floor(Math.random()*6)});
+    if(activeGameKey==='numbercatch'){
+      var n=[2,4,6,8][Math.floor(Math.random()*4)];
+      bonuses.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:15, value:n, num:n});
+    } else {
+      bonuses.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:15, value:5+Math.floor(Math.random()*6)});
+    }
   }
   bonuses.forEach(function(b){ b.y+=20; });
   bonuses=bonuses.filter(function(b){ return b.y<canvas.height+30; });
@@ -325,14 +363,25 @@ function draw(py){
   ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.textAlign='center';
   ctx.textBaseline='middle';
-  obstacles.forEach(function(o){
-    ctx.font=(o.r*1.8)+'px sans-serif';
-    ctx.fillText('💩', o.x, o.y);
-  });
-  bonuses.forEach(function(b){
-    ctx.font='26px sans-serif';
-    ctx.fillText('⭐', b.x, b.y);
-  });
+  if(activeGameKey==='numbercatch'){
+    obstacles.forEach(function(o){
+      ctx.beginPath(); ctx.arc(o.x,o.y,o.r,0,Math.PI*2); ctx.fillStyle='#ef4444'; ctx.fill();
+      ctx.font='bold '+(o.r*1.1)+'px sans-serif'; ctx.fillStyle='#fff'; ctx.fillText(String(o.num), o.x, o.y);
+    });
+    bonuses.forEach(function(b){
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fillStyle='#22c55e'; ctx.fill();
+      ctx.font='bold '+(b.r*1.1)+'px sans-serif'; ctx.fillStyle='#fff'; ctx.fillText(String(b.num), b.x, b.y);
+    });
+  } else {
+    obstacles.forEach(function(o){
+      ctx.font=(o.r*1.8)+'px sans-serif';
+      ctx.fillText('💩', o.x, o.y);
+    });
+    bonuses.forEach(function(b){
+      ctx.font='26px sans-serif';
+      ctx.fillText('⭐', b.x, b.y);
+    });
+  }
   floaters.forEach(function(f){
     ctx.font='bold 15px sans-serif';
     ctx.fillStyle='rgba(250,204,21,'+Math.min(1,f.life/36)+')';
