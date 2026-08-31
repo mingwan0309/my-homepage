@@ -356,6 +356,13 @@ a{text-decoration:none;}
       </a>
     </div>
 
+    <!-- 미니게임 -->
+    <div class="card" id="game-card">
+      <div class="card-title"><span>🎮</span> 미니게임 · 똥 피하기</div>
+      <div id="game-card-lb" style="margin-bottom:10px;"></div>
+      <a href="game.html" id="game-card-btn" style="display:block;text-align:center;min-height:44px;line-height:44px;border-radius:10px;background:#3b6cf7;color:#fff;font-size:14px;font-weight:800;">도전하러 가기</a>
+    </div>
+
     <!-- 강의 자료 -->
     <div class="card">
       <div class="card-title"><span>📚</span> 강의 자료</div>
@@ -623,8 +630,33 @@ loadInfo();
   loadMyExamAlerts();
   loadMySurveys();
   loadAssignmentCard();
+  loadGameCard();
   renderFaq();
 });
+
+async function loadGameCard(){
+  var lbEl=document.getElementById('game-card-lb');
+  var btn=document.getElementById('game-card-btn');
+  try{
+    var r=await fetch(SU+'?action=getGameStatus&studentId='+encodeURIComponent(session.id)).then(function(r){return r.json();});
+    var list=(r.leaderboard||[]).slice(0,3);
+    lbEl.innerHTML = list.length
+      ? list.map(function(l,i){
+          var rank=i+1;
+          var isMe=l.studentId===session.id;
+          return '<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;padding:3px 0;'+(isMe?'color:#1d4ed8;font-weight:800;':'color:#475569;')+'">'
+            +'<span style="width:18px;text-align:center;">'+(rank===1?'👑':rank)+'</span>'
+            +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(l.studentName||'')+(isMe?' (나)':'')+'</span>'
+            +'<span style="font-weight:800;">'+l.score+'점</span>'
+            +'</div>';
+        }).join('')
+      : '<div style="font-size:12.5px;color:#94a3b8;">이번 주 아직 기록이 없어요. 첫 도전자가 되어보세요!</div>';
+    if(r.playedToday){
+      btn.textContent='오늘 점수: '+r.todayScore+'점 (내일 다시)';
+      btn.style.background='#94a3b8';
+    }
+  }catch(e){ lbEl.innerHTML='<div style="font-size:12.5px;color:#94a3b8;">불러오기 실패</div>'; }
+}
 
 // ── 강의 게시판 (다음 시간까지의 과제 / 오탈자 및 정정사항) ──
 function escHtmlBd(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

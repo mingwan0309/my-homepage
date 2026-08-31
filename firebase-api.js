@@ -66,6 +66,15 @@ function nowStr(){
   return d.getFullYear()+'.'+p(d.getMonth()+1)+'.'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
 }
 function genId(prefix){ return prefix + '_' + Date.now() + '_' + Math.floor(Math.random()*1000); }
+function localDateStr(d){ var dt=d||new Date(); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+// 미니게임 주간 순위 기준: 월요일 시작 주 (월요일 날짜를 그 주의 키로 사용)
+function weekKeyOf(d){
+  var dt=new Date(d||new Date());
+  var day=dt.getDay();
+  var diff=(day===0?-6:1-day);
+  var mon=new Date(dt); mon.setDate(dt.getDate()+diff);
+  return localDateStr(mon);
+}
 function docsToArr(snap){
   var arr = [];
   snap.forEach(function(doc){ var d = doc.data(); d._docId = doc.id; arr.push(d); });
@@ -1097,6 +1106,40 @@ api.getStudentHwIssues = function(db, p){
     });
   });
 };
+// ── 미니게임(똥 피하기): 하루 1회 도전, 주간(월요일 시작) 최고점 순위 ──
+api.getGameStatus = function(db, p){
+  var sid = String(p.studentId);
+  var today = localDateStr();
+  var wk = weekKeyOf();
+  return db.collection('game_scores').doc(today+'__'+sid).get().then(function(doc){
+    var playedToday = doc.exists;
+    var todayScore = doc.exists ? doc.data().score : null;
+    return db.collection('game_scores').where('weekKey','==',wk).get().then(function(snap){
+      var best = {};
+      snap.forEach(function(d){
+        var r = d.data();
+        if (!best[r.studentId] || r.score > best[r.studentId].score) {
+          best[r.studentId] = { studentId:r.studentId, studentName:r.studentName||'', score:r.score||0 };
+        }
+      });
+      var list = Object.values(best).sort(function(a,b){ return b.score-a.score; }).slice(0,10);
+      return { playedToday:playedToday, todayScore:todayScore, leaderboard:list, weekKey:wk };
+    });
+  });
+};
+api.submitGameScore = function(db, p){
+  var sid = String(p.studentId);
+  var today = localDateStr();
+  var wk = weekKeyOf();
+  var id = today+'__'+sid;
+  return db.collection('game_scores').doc(id).get().then(function(doc){
+    if (doc.exists) return { success:false, msg:'오늘은 이미 도전했어요.' };
+    return db.collection('game_scores').doc(id).set({
+      id:id, studentId:sid, studentName:p.studentName||'', score:Number(p.score)||0, date:today, weekKey:wk, createdAt:nowStr()
+    }).then(function(){ return { success:true }; });
+  });
+};
+
 api.getIncompleteHomeworks = function(db){
   return db.collection('hw_status').where('pass','in',['incomplete','partial']).get().then(function(snap){
     var rows = docsToArr(snap);

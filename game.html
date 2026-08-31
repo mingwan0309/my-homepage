@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>미니게임 — 김민관 수학</title>
+<script src="firebase-api.js?v=18"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}
+html{touch-action:manipulation;-webkit-text-size-adjust:100%;}
+body{background:#0f172a;color:#fff;min-height:100vh;}
+a{text-decoration:none;}
+
+#page-denied{display:none;text-align:center;padding:100px 20px;color:#1e293b;background:#f1f5f9;min-height:100vh;}
+
+.topbar{display:flex;align-items:center;gap:10px;padding:14px 16px;background:#1e293b;position:sticky;top:0;z-index:20;}
+.topbar a{color:#cbd5e1;font-size:20px;min-width:36px;min-height:36px;display:flex;align-items:center;justify-content:center;}
+.topbar h1{font-size:16px;font-weight:800;}
+
+.container{max-width:480px;margin:0 auto;padding:16px 16px 40px;}
+
+.lb-card{background:#1e293b;border-radius:14px;padding:14px 16px;margin-bottom:14px;}
+.lb-title{font-size:13px;font-weight:800;color:#fbbf24;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.lb-row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px;}
+.lb-rank{width:22px;text-align:center;font-weight:800;color:#94a3b8;flex-shrink:0;}
+.lb-rank.gold{color:#facc15;}
+.lb-name{flex:1;font-weight:700;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lb-score{font-weight:800;color:#60a5fa;}
+.lb-empty{color:#64748b;font-size:12.5px;padding:6px 0;}
+
+.status-box{background:#1e293b;border-radius:14px;padding:16px;text-align:center;margin-bottom:14px;}
+.status-box .msg{font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:10px;}
+.status-box .today-score{font-size:26px;font-weight:900;color:#4ade80;margin-bottom:4px;}
+.btn-play{width:100%;min-height:52px;border:none;border-radius:12px;background:linear-gradient(135deg,#3b6cf7,#1d4ed8);color:#fff;font-size:16px;font-weight:800;cursor:pointer;}
+.btn-play:disabled{background:#334155;color:#64748b;cursor:default;}
+
+#game-wrap{display:none;}
+#game-canvas{width:100%;display:block;border-radius:14px;background:#1e2a45;touch-action:none;}
+.game-hud{display:flex;justify-content:space-between;align-items:center;padding:10px 2px;font-size:14px;font-weight:800;color:#e2e8f0;}
+.touch-hint{text-align:center;font-size:12px;color:#64748b;margin-top:8px;}
+
+#result-box{display:none;background:#1e293b;border-radius:14px;padding:22px;text-align:center;margin-top:14px;}
+#result-box .r-title{font-size:14px;color:#94a3b8;margin-bottom:6px;}
+#result-box .r-score{font-size:38px;font-weight:900;color:#fbbf24;margin-bottom:14px;}
+#result-box .r-msg{font-size:13px;color:#94a3b8;margin-bottom:16px;}
+.btn-row{display:flex;gap:8px;}
+.btn-row button{flex:1;min-height:48px;border-radius:10px;border:none;font-size:14px;font-weight:800;cursor:pointer;}
+.btn-secondary{background:#334155;color:#e2e8f0;}
+.btn-primary2{background:#3b6cf7;color:#fff;}
+
+@media (max-width:480px){
+  .container{padding:14px 12px 40px;}
+}
+</style>
+</head>
+<body>
+
+<div id="page-denied">
+  <h2>접근 권한이 없습니다</h2>
+  <p style="margin-top:10px;color:#64748b;">학생 계정으로 로그인 후 이용해주세요.</p>
+</div>
+
+<div id="page-main" style="display:none;">
+  <div class="topbar">
+    <a href="mypage.html">←</a>
+    <h1>🎮 똥 피하기</h1>
+  </div>
+
+  <div class="container">
+    <div class="lb-card">
+      <div class="lb-title">🏆 이번 주 순위</div>
+      <div id="lb-list"><div class="lb-empty">불러오는 중...</div></div>
+    </div>
+
+    <div class="status-box" id="status-box">
+      <div class="msg" id="status-msg">불러오는 중...</div>
+      <button class="btn-play" id="btn-play" onclick="startGame()" disabled>도전하기</button>
+    </div>
+
+    <div id="game-wrap">
+      <div class="game-hud"><span>점수 <b id="hud-score">0</b></span><span id="hud-timer"></span></div>
+      <canvas id="game-canvas" width="360" height="480"></canvas>
+      <div class="touch-hint">화면을 좌우로 드래그하거나 ←/→ 키로 피하세요</div>
+    </div>
+
+    <div id="result-box">
+      <div class="r-title">이번 판 점수</div>
+      <div class="r-score" id="r-score">0</div>
+      <div class="r-msg" id="r-msg">제출하는 중...</div>
+      <div class="btn-row">
+        <button class="btn-secondary" onclick="location.href='mypage.html'">마이페이지로</button>
+        <button class="btn-primary2" onclick="backToStatus()">확인</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var session=null;
+var SU='https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
+
+document.addEventListener('DOMContentLoaded', async function(){
+  session = JSON.parse(localStorage.getItem('mkmath_session')||'null');
+  if(!session || session.role!=='student'){
+    document.getElementById('page-denied').style.display='block';
+    return;
+  }
+  document.getElementById('page-main').style.display='block';
+  await loadStatus();
+});
+
+var gameStatusCache=null;
+async function loadStatus(){
+  try{
+    var r=await fetch(SU+'?action=getGameStatus&studentId='+encodeURIComponent(session.id)).then(function(r){return r.json();});
+    gameStatusCache=r;
+    renderLeaderboard(r.leaderboard||[]);
+    renderStatus(r);
+  }catch(e){
+    document.getElementById('lb-list').innerHTML='<div class="lb-empty">불러오기 실패</div>';
+    document.getElementById('status-msg').textContent='불러오기 실패. 새로고침 해주세요.';
+  }
+}
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function renderLeaderboard(list){
+  var el=document.getElementById('lb-list');
+  if(!list.length){ el.innerHTML='<div class="lb-empty">아직 이번 주 기록이 없어요. 첫 도전자가 되어보세요!</div>'; return; }
+  el.innerHTML=list.map(function(l,i){
+    var rank=i+1;
+    var isMe=l.studentId===session.id;
+    return '<div class="lb-row">'
+      +'<span class="lb-rank'+(rank===1?' gold':'')+'">'+(rank===1?'👑':rank)+'</span>'
+      +'<span class="lb-name" style="'+(isMe?'color:#4ade80;':'')+'">'+escHtml(l.studentName)+(isMe?' (나)':'')+'</span>'
+      +'<span class="lb-score">'+l.score+'점</span>'
+      +'</div>';
+  }).join('');
+}
+function renderStatus(r){
+  var btn=document.getElementById('btn-play');
+  var msg=document.getElementById('status-msg');
+  if(r.playedToday){
+    msg.innerHTML='오늘의 점수 <div class="today-score">'+r.todayScore+'점</div>내일 다시 도전할 수 있어요!';
+    btn.disabled=true;
+    btn.textContent='오늘은 이미 도전했어요';
+  } else {
+    msg.textContent='하루에 한 번만 도전할 수 있어요. 준비되면 시작하세요!';
+    btn.disabled=false;
+    btn.textContent='▶ 도전하기';
+  }
+}
+function backToStatus(){
+  document.getElementById('result-box').style.display='none';
+  document.getElementById('status-box').style.display='block';
+  loadStatus();
+}
+
+/* ===== 게임 로직 ===== */
+var canvas, ctx, rafId=null;
+var player={x:180,w:34,h:34};
+var obstacles=[];
+var startTime=0, lastSpawn=0, spawnInterval=900, fallSpeed=2.2, running=false;
+var dragging=false;
+
+function startGame(){
+  document.getElementById('status-box').style.display='none';
+  document.getElementById('result-box').style.display='none';
+  document.getElementById('game-wrap').style.display='block';
+  canvas=document.getElementById('game-canvas');
+  ctx=canvas.getContext('2d');
+  fitCanvas();
+  player.x=canvas.width/2;
+  obstacles=[];
+  startTime=performance.now();
+  lastSpawn=startTime;
+  spawnInterval=900;
+  fallSpeed=2.2;
+  running=true;
+  bindControls();
+  rafId=requestAnimationFrame(loop);
+}
+function fitCanvas(){
+  var cssW=canvas.clientWidth;
+  canvas.width=cssW;
+  canvas.height=Math.round(cssW*4/3);
+}
+function bindControls(){
+  canvas.onpointerdown=function(e){ dragging=true; movePlayerToEvent(e); };
+  canvas.onpointermove=function(e){ if(dragging) movePlayerToEvent(e); };
+  canvas.onpointerup=function(){ dragging=false; };
+  canvas.onpointerleave=function(){ dragging=false; };
+  document.onkeydown=function(e){
+    if(!running) return;
+    if(e.key==='ArrowLeft') player.x=Math.max(player.w/2, player.x-24);
+    if(e.key==='ArrowRight') player.x=Math.min(canvas.width-player.w/2, player.x+24);
+  };
+}
+function movePlayerToEvent(e){
+  var rect=canvas.getBoundingClientRect();
+  var x=(e.clientX-rect.left)*(canvas.width/rect.width);
+  player.x=Math.max(player.w/2, Math.min(canvas.width-player.w/2, x));
+}
+function loop(now){
+  if(!running) return;
+  var elapsed=now-startTime;
+  var score=Math.floor(elapsed/100);
+  document.getElementById('hud-score').textContent=score;
+
+  // 난이도 상승
+  spawnInterval=Math.max(280, 900-elapsed/100);
+  fallSpeed=Math.min(7, 2.2+elapsed/6000);
+
+  if(now-lastSpawn>spawnInterval){
+    lastSpawn=now;
+    obstacles.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:14+Math.random()*8});
+  }
+  obstacles.forEach(function(o){ o.y+=fallSpeed*2; });
+  obstacles=obstacles.filter(function(o){ return o.y<canvas.height+30; });
+
+  // 충돌 체크
+  var py=canvas.height-46;
+  for(var i=0;i<obstacles.length;i++){
+    var o=obstacles[i];
+    var dx=o.x-player.x, dy=o.y-py;
+    if(Math.sqrt(dx*dx+dy*dy) < o.r*0.7+player.w*0.4){
+      endGame(score);
+      return;
+    }
+  }
+
+  draw(py);
+  rafId=requestAnimationFrame(loop);
+}
+function draw(py){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#1e2a45';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.font='30px sans-serif';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  obstacles.forEach(function(o){
+    ctx.font=(o.r*1.8)+'px sans-serif';
+    ctx.fillText('💩', o.x, o.y);
+  });
+  ctx.font='32px sans-serif';
+  ctx.fillText('🙂', player.x, py);
+}
+function endGame(score){
+  running=false;
+  if(rafId) cancelAnimationFrame(rafId);
+  document.getElementById('game-wrap').style.display='none';
+  document.getElementById('result-box').style.display='block';
+  document.getElementById('r-score').textContent=score;
+  document.getElementById('r-msg').textContent='제출하는 중...';
+  submitScore(score);
+}
+async function submitScore(score){
+  try{
+    var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'submitGameScore',studentId:session.id,studentName:session.name||'',score:score})});
+    var d=await res.json();
+    document.getElementById('r-msg').textContent = (d&&d.success!==false) ? '점수가 기록됐어요!' : (d&&d.msg?d.msg:'이미 오늘 도전한 기록이 있어요.');
+  }catch(e){
+    document.getElementById('r-msg').textContent='제출 중 오류가 발생했어요. 다시 확인해주세요.';
+  }
+}
+</script>
+</body>
+</html>
