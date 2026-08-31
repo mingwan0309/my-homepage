@@ -139,12 +139,14 @@ function renderLeaderboard(list){
 function renderStatus(r){
   var btn=document.getElementById('btn-play');
   var msg=document.getElementById('status-msg');
+  var max=r.maxAttempts;
+  var left=(max===-1) ? -1 : Math.max(0, max-(r.attemptsToday||0));
   if(r.playedToday){
-    msg.innerHTML='오늘의 점수 <div class="today-score">'+r.todayScore+'점</div>내일 다시 도전할 수 있어요!';
+    msg.innerHTML='오늘의 최고 점수 <div class="today-score">'+r.todayScore+'점</div>내일 다시 도전할 수 있어요!';
     btn.disabled=true;
-    btn.textContent='오늘은 이미 도전했어요';
+    btn.textContent='오늘은 이미 다 도전했어요';
   } else {
-    msg.textContent='하루에 한 번만 도전할 수 있어요. 준비되면 시작하세요!';
+    msg.textContent=(max===-1?'준비되면 시작하세요!':('오늘 '+left+'번 더 도전할 수 있어요. 준비되면 시작하세요!'));
     btn.disabled=false;
     btn.textContent='▶ 도전하기';
   }

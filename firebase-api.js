@@ -1106,38 +1106,34 @@ api.getStudentHwIssues = function(db, p){
     });
   });
 };
-// ── 미니게임(똥 피하기): 하루 1회 도전, 주간(월요일 시작) 최고점 순위 ──
-var GAME_UNLIMITED_IDS = ['1111']; // 테스트용 아이디 — 하루 1회 제한 없이 계속 도전 가능
+// ── 미니게임(똥 피하기): 하루 2회 도전, 주간(월요일 시작) 최고점 순위 ──
+var GAME_UNLIMITED_IDS = ['1111']; // 테스트용 아이디 — 하루 제한 없이 계속 도전 가능
+var GAME_MAX_ATTEMPTS = 2;
+function gameMaxAttemptsFor(sid){ return GAME_UNLIMITED_IDS.indexOf(sid)>=0 ? Infinity : GAME_MAX_ATTEMPTS; }
 api.getGameStatus = function(db, p){
   var sid = String(p.studentId);
   var today = localDateStr();
   var wk = weekKeyOf();
-  if (GAME_UNLIMITED_IDS.indexOf(sid) >= 0) {
-    return db.collection('game_scores').where('weekKey','==',wk).get().then(function(snap){
+  var maxAttempts = gameMaxAttemptsFor(sid);
+  return db.collection('game_scores').where('date','==',today).where('studentId','==',sid).get().then(function(snap){
+    var todayRows = docsToArr(snap);
+    var attemptsToday = todayRows.length;
+    var todayScore = todayRows.length ? Math.max.apply(null, todayRows.map(function(r){ return r.score||0; })) : null;
+    return db.collection('game_scores').where('weekKey','==',wk).get().then(function(wsnap){
       var best = {};
-      snap.forEach(function(d){
+      wsnap.forEach(function(d){
         var r = d.data();
         if (!best[r.studentId] || r.score > best[r.studentId].score) {
           best[r.studentId] = { studentId:r.studentId, studentName:r.studentName||'', score:r.score||0 };
         }
       });
       var list = Object.values(best).sort(function(a,b){ return b.score-a.score; }).slice(0,10);
-      return { playedToday:false, todayScore:null, leaderboard:list, weekKey:wk };
-    });
-  }
-  return db.collection('game_scores').doc(today+'__'+sid).get().then(function(doc){
-    var playedToday = doc.exists;
-    var todayScore = doc.exists ? doc.data().score : null;
-    return db.collection('game_scores').where('weekKey','==',wk).get().then(function(snap){
-      var best = {};
-      snap.forEach(function(d){
-        var r = d.data();
-        if (!best[r.studentId] || r.score > best[r.studentId].score) {
-          best[r.studentId] = { studentId:r.studentId, studentName:r.studentName||'', score:r.score||0 };
-        }
-      });
-      var list = Object.values(best).sort(function(a,b){ return b.score-a.score; }).slice(0,10);
-      return { playedToday:playedToday, todayScore:todayScore, leaderboard:list, weekKey:wk };
+      return {
+        playedToday: attemptsToday >= maxAttempts,
+        attemptsToday: attemptsToday,
+        maxAttempts: (maxAttempts===Infinity ? -1 : maxAttempts),
+        todayScore: todayScore, leaderboard: list, weekKey: wk
+      };
     });
   });
 };
@@ -1145,15 +1141,10 @@ api.submitGameScore = function(db, p){
   var sid = String(p.studentId);
   var today = localDateStr();
   var wk = weekKeyOf();
-  if (GAME_UNLIMITED_IDS.indexOf(sid) >= 0) {
-    var freeId = today+'__'+sid+'__'+genId('g');
-    return db.collection('game_scores').doc(freeId).set({
-      id:freeId, studentId:sid, studentName:p.studentName||'', score:Number(p.score)||0, date:today, weekKey:wk, createdAt:nowStr()
-    }).then(function(){ return { success:true }; });
-  }
-  var id = today+'__'+sid;
-  return db.collection('game_scores').doc(id).get().then(function(doc){
-    if (doc.exists) return { success:false, msg:'오늘은 이미 도전했어요.' };
+  var maxAttempts = gameMaxAttemptsFor(sid);
+  return db.collection('game_scores').where('date','==',today).where('studentId','==',sid).get().then(function(snap){
+    if (snap.size >= maxAttempts) return { success:false, msg:'오늘은 더 이상 도전할 수 없어요.' };
+    var id = today+'__'+sid+'__'+genId('g');
     return db.collection('game_scores').doc(id).set({
       id:id, studentId:sid, studentName:p.studentName||'', score:Number(p.score)||0, date:today, weekKey:wk, createdAt:nowStr()
     }).then(function(){ return { success:true }; });

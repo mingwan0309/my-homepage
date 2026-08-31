@@ -652,8 +652,10 @@ async function loadGameCard(){
         }).join('')
       : '<div style="font-size:12.5px;color:#94a3b8;">이번 주 아직 기록이 없어요. 첫 도전자가 되어보세요!</div>';
     if(r.playedToday){
-      btn.textContent='오늘 점수: '+r.todayScore+'점 (내일 다시)';
+      btn.textContent='오늘 최고점: '+r.todayScore+'점 (내일 다시)';
       btn.style.background='#94a3b8';
+    } else if(r.maxAttempts!==-1 && r.attemptsToday>0){
+      btn.textContent='도전하러 가기 (오늘 '+(r.maxAttempts-r.attemptsToday)+'번 남음)';
     }
   }catch(e){ lbEl.innerHTML='<div style="font-size:12.5px;color:#94a3b8;">불러오기 실패</div>'; }
 }
