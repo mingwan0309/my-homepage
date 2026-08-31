@@ -436,6 +436,25 @@ tr:hover td{background:#fafbff;}
   </div>
 </div>
 
+<!-- 폴더 이동 모달 -->
+<div class="modal-bg" id="move-folder-modal">
+  <div class="modal">
+    <h3>폴더 이동</h3>
+    <div class="fg">
+      <label>넣을 폴더를 선택하세요</label>
+      <select id="move-folder-select" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;"></select>
+    </div>
+    <div class="fg">
+      <label>또는 새 폴더 이름 입력 (선택사항)</label>
+      <input type="text" id="move-folder-new" placeholder="새 폴더 이름">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="closeMoveFolderModal()">취소</button>
+      <button class="btn-ok" onclick="confirmMoveFolder()">이동</button>
+    </div>
+  </div>
+</div>
+
 <!-- 일반 자료 추가 모달 -->
 <div class="modal-bg" id="add-mat-modal">
   <div class="vmod" style="max-width:600px;">
@@ -1250,13 +1269,34 @@ function toggleVidFolder(btn){
 function renderByCategory(cat){
   if(cat==='영상 자료') renderVideos(); else renderMaterials();
 }
-async function changeMatFolder(id){
+var moveFolderTargetId='';
+function changeMatFolder(id){
   var m=materials.find(function(x){return x.id===id;});
-  var name=prompt('이 자료를 넣을 폴더 이름을 입력하세요 (비워두면 폴더에서 빠집니다)', m?m.folder:'');
-  if(name===null) return;
-  name=name.trim();
+  if(!m) return;
+  moveFolderTargetId=id;
+  var catFolders=materialFolders.filter(function(f){return f.category===m.category;});
+  var names=catFolders.map(function(f){return f.name;});
+  materials.forEach(function(x){ if(x.category===m.category && x.folder && names.indexOf(x.folder)<0) names.push(x.folder); });
+  var sel=document.getElementById('move-folder-select');
+  sel.innerHTML='<option value="">(폴더 없음 — 폴더에서 뺌)</option>'+names.map(function(n){
+    return '<option value="'+escHtml(n)+'"'+(m.folder===n?' selected':'')+'>'+escHtml(n)+'</option>';
+  }).join('');
+  document.getElementById('move-folder-new').value='';
+  document.getElementById('move-folder-modal').classList.add('show');
+}
+function closeMoveFolderModal(){
+  document.getElementById('move-folder-modal').classList.remove('show');
+}
+async function confirmMoveFolder(){
+  var id=moveFolderTargetId;
+  var m=materials.find(function(x){return x.id===id;});
+  if(!m) return;
+  var newFolder=document.getElementById('move-folder-new').value.trim();
+  var name=newFolder || document.getElementById('move-folder-select').value;
   await fetch(SU+'?action=updateMaterial&id='+encodeURIComponent(id)+'&folder='+encodeURIComponent(name));
-  if(m){ m.folder=name; renderByCategory(m.category); }
+  m.folder=name;
+  closeMoveFolderModal();
+  renderByCategory(m.category);
 }
 
 // ── 폴더 만들기: 이름 정하면 바로 빈 폴더로 저장(자료 없어도 유지됨) → 이어서 자료 체크해서 담기 ──
