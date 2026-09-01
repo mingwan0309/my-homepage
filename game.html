@@ -140,7 +140,8 @@ var GAME_META = {
     title: '똥 피하기', icon: '💩',
     introRows: [
       ['💩','피하세요!','부딪히면 바로 게임 종료'],
-      ['⭐','먹으면 점수 획득!','빠르게 떨어지는 별일수록 점수가 커요']
+      ['복','복습노트! 먹으면 5점','반짝이는 글씨를 잡아서 점수를 모으세요'],
+      ['워','워크북! 먹으면 7점','반짝이는 글씨를 잡아서 점수를 모으세요']
     ]
   },
   numbercatch: {
@@ -318,7 +319,8 @@ function loop(now){
       var n=[2,4,6,8][Math.floor(Math.random()*4)];
       bonuses.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:15, value:n, num:n});
     } else {
-      bonuses.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:15, value:5+Math.floor(Math.random()*6)});
+      var word = Math.random()<0.5 ? {ch:'복', v:5} : {ch:'워', v:7};
+      bonuses.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:15, value:word.v, word:word.ch});
     }
   }
   bonuses.forEach(function(b){ b.y+=20; });
@@ -372,8 +374,8 @@ function draw(py){
       ctx.fillText('💩', o.x, o.y);
     });
     bonuses.forEach(function(b){
-      ctx.font='26px sans-serif';
-      ctx.fillText('⭐', b.x, b.y);
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fillStyle='#facc15'; ctx.fill();
+      ctx.font='bold '+(b.r*1.1)+'px "Pretendard","Malgun Gothic",sans-serif'; ctx.fillStyle='#1e2a45'; ctx.fillText(b.word, b.x, b.y);
     });
   }
   floaters.forEach(function(f){
