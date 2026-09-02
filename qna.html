@@ -669,18 +669,37 @@ function handleFileDrop(e, editorId) {
   insertImages(e.dataTransfer.files, editorId);
 }
 
-function insertImages(files, editorId) {
+async function insertImages(files, editorId) {
   const el = document.getElementById(editorId === 'write' ? 'write-editor' : 'ans-editor');
   if (!el) return;
-  Array.from(files).forEach(function(file) {
-    if (!file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      el.focus();
-      document.execCommand('insertImage', false, ev.target.result);
-    };
-    reader.readAsDataURL(file);
-  });
+  const imgFiles = Array.from(files).filter(function(f){ return f.type && f.type.indexOf('image/') === 0; });
+  for (const file of imgFiles) {
+    if (file.size > 8 * 1024 * 1024) { alert(file.name + ' 파일이 너무 커요 (8MB 이하로 올려주세요).'); continue; }
+    el.focus();
+    const marker = 'img-up-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    document.execCommand('insertHTML', false, '<span id="' + marker + '" style="color:#94a3b8;">[이미지 업로드 중...]</span>');
+    try {
+      const base64 = await new Promise(function(resolve, reject){
+        const reader = new FileReader();
+        reader.onload = function(ev){ resolve(ev.target.result.split(',')[1]); };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const up = await fetch(SU, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'uploadFile', fileName: 'qna_' + (session.id || '') + '_' + Date.now(), mimeType: file.type || 'image/jpeg', fileData: base64 })
+      }).then(function(r){ return r.json(); });
+      const span = document.getElementById(marker);
+      if (up.success && span) {
+        span.outerHTML = '<img src="' + up.url + '" style="max-width:100%;">';
+      } else if (span) {
+        span.outerHTML = '[이미지 업로드 실패]';
+      }
+    } catch (e) {
+      const span = document.getElementById(marker);
+      if (span) span.outerHTML = '[이미지 업로드 실패]';
+    }
+  }
 }
 
 /* ========= HELPERS ========= */
