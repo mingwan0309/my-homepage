@@ -511,8 +511,8 @@ tr:hover td{background:#fafbff;}
           <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">통과 커트라인 <span style="font-weight:400;color:#94a3b8;">(선택, 입력 시 점수에 따라 자동으로 통과/미통과 판정)</span></label>
           <input id="exam-detail-cutoff" type="number" min="0" placeholder="예: 80" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
-        <button onclick="saveExamDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
-        <button onclick="openAnswerKeyModal()" style="padding:12px;background:#fff7ed;color:#c2410c;border:1.5px solid #fdba74;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📝 답안 등록 (자동채점용)</button>
+        <button onclick="openAnswerKeyModal()" style="margin-top:4px;padding:12px;background:#fff7ed;color:#c2410c;border:1.5px solid #fdba74;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📝 답안 등록 (자동채점용)</button>
+        <button onclick="saveExamDetail()" style="padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
         <div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:14px;">
           <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:4px;">📱 학생 실시간 응시</div>
           <div id="exam-open-status" style="font-size:12px;color:#94a3b8;margin-bottom:10px;">—</div>
@@ -2667,10 +2667,13 @@ async function openAnswerKeyModal(){
   var ex=exams.find(function(e){return e.id===currentExamId;});
   if(!ex)return;
   var saved=await fetchExamKey(currentExamId);
-  akIsCount=(ex.scoreType==='count');
+  // 저장을 안 누른 상태에서 열 수도 있으므로, 화면에 입력돼 있는 값을 우선으로 읽는다
+  akIsCount=(currentScoreType==='count');
+  var liveTotal=Number((document.getElementById('exam-detail-total')||{}).value)||Number(ex.totalQuestions)||0;
+  var exLive=Object.assign({}, ex, { scoreType:currentScoreType, totalQuestions:liveTotal });
   // 문항 수: 저장된 답안 > (개수형이면 총 문항 수) > 기본 20
-  var qcount = (saved&&saved.length) ? saved.length : (akIsCount ? (Number(ex.totalQuestions)||10) : 20);
-  buildAkRows(qcount, saved, ex);
+  var qcount = (saved&&saved.length) ? saved.length : (akIsCount ? (liveTotal||10) : 20);
+  buildAkRows(qcount, saved, exLive);
   document.getElementById('ak-qcount').value=qcount;
   document.getElementById('ak-help').textContent = akIsCount
     ? '각 문제의 정답을 설정하세요. 이 시험은 "개수"로 채점하므로 배점 없이 맞은 개수가 점수가 돼요.'
@@ -2692,7 +2695,8 @@ function buildAkRows(qcount, saved, ex){
 function changeAkQCount(val){
   var n=Math.max(1,Math.min(50,Number(val)||1));
   var ex=exams.find(function(e){return e.id===currentExamId;});
-  buildAkRows(n, null, ex);
+  var liveTotal=Number((document.getElementById('exam-detail-total')||{}).value)||Number(ex&&ex.totalQuestions)||0;
+  buildAkRows(n, null, Object.assign({}, ex, { totalQuestions:liveTotal }));
   document.getElementById('ak-qcount').value=n;
   renderAnswerKeyRows();
 }
