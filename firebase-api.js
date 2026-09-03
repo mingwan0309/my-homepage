@@ -683,39 +683,40 @@ api.getMyScoreHistory = function(db, p){
       var sessionMap={}; res2[2].forEach(function(d){ if(d.exists) sessionMap[d.id]=d.data(); });
       var classId = String(p.classId||'');
 
-      var examGroups = {};
+      // 테스트: 유형별(일일테스트 daily / 실전 모의고사 mock)로 묶어서 차시순 정렬
+      var examsByType = { daily:[], mock:[] };
       scoreDocs.forEach(function(r){
         var exam = examMap[String(r.examId)];
         var sess = sessionMap[String(r.sessionId)];
         if(!exam || !sess) return;
         if(classId && String(sess.classId)!==classId) return;
-        var name = exam.name || '시험';
-        if(!examGroups[name]) examGroups[name]=[];
-        examGroups[name].push({
-          sessionNum:Number(sess.sessionNum||0), date:sess.date||'',
+        var type = (exam.examType==='mock') ? 'mock' : 'daily';
+        examsByType[type].push({
+          sessionNum:Number(sess.sessionNum||0), sessLabel:sess.label||'', date:sess.date||'',
+          examName:exam.name||'시험',
           score:r.score, scoreType:exam.scoreType||'score', totalQuestions:exam.totalQuestions||'',
           pass:r.pass||'', rank:r.rank||null, grade:r.grade||null, cnt:r.cnt||null, avg:r.avg||null
         });
       });
-      Object.keys(examGroups).forEach(function(name){
-        examGroups[name].sort(function(a,b){ return a.sessionNum-b.sessionNum; });
+      Object.keys(examsByType).forEach(function(t){
+        examsByType[t].sort(function(a,b){ return a.sessionNum-b.sessionNum; });
       });
 
-      var hwGroups = {};
+      // 과제: 차시별로 묶어서(그 차시에 낸 과제들 + 각각의 이행 상태) 최근 차시부터
+      var hwSessMap = {};
       hwDocs.forEach(function(r){
         var hw = hwMap[String(r.hwId)];
         var sess = sessionMap[String(r.sessionId)];
         if(!hw || !sess) return;
         if(classId && String(sess.classId)!==classId) return;
-        var name = hw.trackName || hw.name || '과제';
-        if(!hwGroups[name]) hwGroups[name]=[];
-        hwGroups[name].push({ sessionNum:Number(sess.sessionNum||0), date:sess.date||'', pass:r.pass||'', hwName:hw.name||'' });
+        var sid = String(r.sessionId);
+        if(!hwSessMap[sid]) hwSessMap[sid] = { sessionNum:Number(sess.sessionNum||0), sessLabel:sess.label||'', date:sess.date||'', items:[] };
+        hwSessMap[sid].items.push({ name:hw.name||'과제', pass:r.pass||'' });
       });
-      Object.keys(hwGroups).forEach(function(name){
-        hwGroups[name].sort(function(a,b){ return a.sessionNum-b.sessionNum; });
-      });
+      var hwBySession = Object.keys(hwSessMap).map(function(k){ return hwSessMap[k]; })
+        .sort(function(a,b){ return b.sessionNum-a.sessionNum; });
 
-      return { examGroups: examGroups, hwGroups: hwGroups };
+      return { examsByType: examsByType, hwBySession: hwBySession };
     });
   });
 };
@@ -789,6 +790,7 @@ api.addExam = function(db, p){
   return db.collection('exams').doc(id).set({
     id:id, sessionId:String(p.sessionId), name:p.name||'시험',
     range:p.range||'', totalQuestions:p.totalQuestions||'', scoreType:p.scoreType||'score', passCutoff:p.passCutoff||'',
+    examType:p.examType||'daily',
     createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };
@@ -796,7 +798,7 @@ api.addExam = function(db, p){
 api.getExams = function(db, p){
   return db.collection('exams').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
     var exams = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; })
-      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', totalQuestions:r.totalQuestions||'', scoreType:r.scoreType||'score', passCutoff:r.passCutoff||'', grade1:r.grade1||'', grade2:r.grade2||'', grade3:r.grade3||'', grade4:r.grade4||'', answerKey:r.answerKey||null, createdAt:r.createdAt||'' }; });
+      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', totalQuestions:r.totalQuestions||'', scoreType:r.scoreType||'score', passCutoff:r.passCutoff||'', examType:r.examType||'daily', grade1:r.grade1||'', grade2:r.grade2||'', grade3:r.grade3||'', grade4:r.grade4||'', answerKey:r.answerKey||null, createdAt:r.createdAt||'' }; });
     return { exams: exams };
   });
 };
@@ -813,6 +815,7 @@ api.updateExam = function(db, p){
   if(p.totalQuestions!==undefined) data.totalQuestions=p.totalQuestions;
   if(p.scoreType!==undefined) data.scoreType=p.scoreType;
   if(p.passCutoff!==undefined) data.passCutoff=p.passCutoff;
+  if(p.examType!==undefined) data.examType=p.examType;
   return db.collection('exams').doc(String(p.id)).update(data)
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
@@ -825,35 +828,16 @@ api.setExamAnswerKey = function(db, p){
 };
 
 /* === 과제 (session.html 과제 탭) === */
-// 숙제 "누적 그룹" 미리 정해둔 목록 — 교사가 관리, 과제 추가할 때 이 중에서 골라 씀(조교도 목록에서 선택만 가능)
-api.getHwTracks = function(db){
-  return db.collection('hw_tracks').get().then(function(snap){
-    var tracks = docsToArr(snap).map(function(r){ return { id:r.id, name:r.name||'' }; })
-      .sort(function(a,b){ return a.name.localeCompare(b.name,'ko'); });
-    return { tracks: tracks };
-  });
-};
-api.addHwTrack = function(db, p){
-  var name = String(p.name||'').trim();
-  if (!name) return Promise.resolve({ success:false });
-  var id = genId('hwt');
-  return db.collection('hw_tracks').doc(id).set({ id:id, name:name, createdAt:nowStr() })
-    .then(function(){ return { success:true, id:id, name:name }; });
-};
-api.deleteHwTrack = function(db, p){
-  return db.collection('hw_tracks').doc(String(p.id)).delete()
-    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
-};
 api.addHwItem = function(db, p){
   var id = genId('hw');
   return db.collection('homeworks').doc(id).set({
-    id:id, sessionId:String(p.sessionId), name:p.name||'과제', range:p.range||'', trackName:(p.trackName||p.name||'과제'), createdAt:nowStr()
+    id:id, sessionId:String(p.sessionId), name:p.name||'과제', range:p.range||'', createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };
 api.getHwItems = function(db, p){
   return db.collection('homeworks').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
     var hws = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; })
-      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', trackName:r.trackName||r.name||'', createdAt:r.createdAt||'' }; });
+      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', createdAt:r.createdAt||'' }; });
     return { homeworks: hws };
   });
 };
@@ -865,7 +849,6 @@ api.updateHwItem = function(db, p){
   var data={};
   if(p.name!==undefined) data.name=p.name;
   if(p.range!==undefined) data.range=p.range;
-  if(p.trackName!==undefined) data.trackName=p.trackName;
   return db.collection('homeworks').doc(String(p.id)).update(data)
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };

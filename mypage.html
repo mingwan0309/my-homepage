@@ -427,7 +427,14 @@ a{text-decoration:none;}
       <div style="font-weight:800;font-size:16px;">📊 누적 성적표</div>
       <button onclick="closeScoreHistory()" style="background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer;">✕</button>
     </div>
-    <select id="sh-select" onchange="renderScoreHistoryGroup()" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-weight:700;margin-bottom:14px;box-sizing:border-box;"></select>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button type="button" id="sh-tab-hw" onclick="switchShTab('hw')" style="flex:1;min-height:44px;border-radius:10px;border:1.5px solid #3b6cf7;background:#eff4ff;color:#3b6cf7;font-size:14px;font-weight:800;cursor:pointer;">📋 과제</button>
+      <button type="button" id="sh-tab-exam" onclick="switchShTab('exam')" style="flex:1;min-height:44px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;color:#94a3b8;font-size:14px;font-weight:800;cursor:pointer;">📝 테스트</button>
+    </div>
+    <div id="sh-exam-type-row" style="display:none;gap:8px;margin-bottom:14px;">
+      <button type="button" id="sh-type-daily" onclick="switchShExamType('daily')" style="flex:1;min-height:40px;border-radius:9px;border:1.5px solid #3b6cf7;background:#eff4ff;color:#3b6cf7;font-size:13px;font-weight:700;cursor:pointer;">일일테스트</button>
+      <button type="button" id="sh-type-mock" onclick="switchShExamType('mock')" style="flex:1;min-height:40px;border-radius:9px;border:1.5px solid #e2e8f0;background:#fff;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer;">실전 모의고사</button>
+    </div>
     <div id="sh-body"><div class="spinner">불러오는 중...</div></div>
   </div>
 </div>
@@ -501,76 +508,141 @@ function toggleAttDrop(btn){
 
 // ── 누적 성적표 ──
 var shData = null; // { examGroups:{name:[...]}, hwGroups:{name:[...]} }
-var HW_PASS_LABEL={complete:'완료',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
+var HW_PASS_LABEL={complete:'완료',partial:'일부미이행',incomplete:'미이행',notsub:'미제출',na:'해당없음'};
 var HW_PASS_PCT={complete:100,partial:50,incomplete:15,notsub:0};
-var HW_PASS_COLOR={complete:'#16a34a',partial:'#ca8a04',incomplete:'#dc2626',notsub:'#cbd5e1'};
+var HW_PASS_COLOR={complete:'#16a34a',partial:'#ca8a04',incomplete:'#dc2626',notsub:'#cbd5e1',na:'#94a3b8'};
+var shTab='hw', shExamType='daily';
 async function openScoreHistory(){
   document.getElementById('score-history-modal').classList.add('show');
   document.getElementById('sh-body').innerHTML='<div class="spinner">불러오는 중...</div>';
-  document.getElementById('sh-select').innerHTML='';
   try{
     var r = await fetch(SU+'?action=getMyScoreHistory&studentId='+encodeURIComponent(session.id)+'&classId='+encodeURIComponent(session.classId||'')).then(function(res){return res.json();});
     shData = r;
-    var opts=[];
-    Object.keys(r.examGroups||{}).forEach(function(name){ opts.push({v:'exam:'+name, label:'📝 '+name}); });
-    Object.keys(r.hwGroups||{}).forEach(function(name){ opts.push({v:'hw:'+name, label:'📋 '+name}); });
-    if(!opts.length){ document.getElementById('sh-body').innerHTML='<div class="empty-msg">아직 쌓인 성적/과제 기록이 없어요.</div>'; return; }
-    document.getElementById('sh-select').innerHTML = opts.map(function(o){ return '<option value="'+o.v+'">'+o.label+'</option>'; }).join('');
-    renderScoreHistoryGroup();
+    switchShTab(shTab);
   }catch(e){
     document.getElementById('sh-body').innerHTML='<div class="empty-msg">불러오지 못했어요.</div>';
   }
 }
 function closeScoreHistory(){ document.getElementById('score-history-modal').classList.remove('show'); }
-function renderScoreHistoryGroup(){
-  if(!shData) return;
-  var val = document.getElementById('sh-select').value;
-  var type = val.split(':')[0], name = val.slice(type.length+1);
-  var body = document.getElementById('sh-body');
-  if(type==='exam'){
-    var list = shData.examGroups[name]||[];
-    var bars = list.map(function(e){
-      var pct = e.cnt ? Math.max(6, Math.min(100, Math.round((e.score/(e.avg*2||e.score||1))*100))) : 50;
-      return '<div style="flex-shrink:0;width:34px;text-align:center;">'
-        +'<div style="height:70px;display:flex;align-items:flex-end;justify-content:center;">'
-        +'<div style="width:16px;height:'+pct+'%;background:linear-gradient(180deg,#60a5fa,#3b6cf7);border-radius:4px 4px 0 0;"></div>'
-        +'</div>'
-        +'<div style="font-size:10px;color:#94a3b8;margin-top:4px;">'+e.sessionNum+'차시</div>'
+function switchShTab(tab){
+  shTab = tab;
+  var hwBtn=document.getElementById('sh-tab-hw'), exBtn=document.getElementById('sh-tab-exam');
+  var on='1.5px solid #3b6cf7', onBg='#eff4ff', onColor='#3b6cf7';
+  var off='1.5px solid #e2e8f0', offBg='#fff', offColor='#94a3b8';
+  hwBtn.style.border=(tab==='hw'?on:off); hwBtn.style.background=(tab==='hw'?onBg:offBg); hwBtn.style.color=(tab==='hw'?onColor:offColor);
+  exBtn.style.border=(tab==='exam'?on:off); exBtn.style.background=(tab==='exam'?onBg:offBg); exBtn.style.color=(tab==='exam'?onColor:offColor);
+  document.getElementById('sh-exam-type-row').style.display=(tab==='exam'?'flex':'none');
+  if(tab==='hw') renderShHomework(); else switchShExamType(shExamType);
+}
+function switchShExamType(type){
+  shExamType = type;
+  var dBtn=document.getElementById('sh-type-daily'), mBtn=document.getElementById('sh-type-mock');
+  var on='1.5px solid #3b6cf7', onBg='#eff4ff', onColor='#3b6cf7';
+  var off='1.5px solid #e2e8f0', offBg='#fff', offColor='#94a3b8';
+  dBtn.style.border=(type==='daily'?on:off); dBtn.style.background=(type==='daily'?onBg:offBg); dBtn.style.color=(type==='daily'?onColor:offColor);
+  mBtn.style.border=(type==='mock'?on:off); mBtn.style.background=(type==='mock'?onBg:offBg); mBtn.style.color=(type==='mock'?onColor:offColor);
+  renderShExam();
+}
+// ── 과제: 차시별 이행 정도 ──
+function renderShHomework(){
+  var body=document.getElementById('sh-body');
+  var list=(shData&&shData.hwBySession)||[];
+  if(!list.length){ body.innerHTML='<div class="empty-msg">아직 쌓인 과제 기록이 없어요.</div>'; return; }
+  body.innerHTML = list.map(function(s){
+    var done=s.items.filter(function(i){return i.pass==='complete';}).length;
+    var total=s.items.filter(function(i){return i.pass!=='na';}).length;
+    var pct=total?Math.round(done/total*100):0;
+    var barColor = pct>=100?'#16a34a' : (pct>=50?'#ca8a04':'#dc2626');
+    var itemsHtml=s.items.map(function(i){
+      var color=HW_PASS_COLOR[i.pass]||'#94a3b8';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12.5px;">'
+        +'<span style="color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;">'+escHtml(i.name)+'</span>'
+        +'<span style="color:'+color+';font-weight:700;flex-shrink:0;">'+(HW_PASS_LABEL[i.pass]||'해당없음')+'</span>'
         +'</div>';
     }).join('');
-    var rows = list.map(function(e){
-      var unit = e.scoreType==='count' ? '개' : '점';
-      return '<tr>'
-        +'<td style="padding:6px 4px;color:#475569;">'+e.sessionNum+'차시'+(e.date?' ('+e.date+')':'')+'</td>'
-        +'<td style="padding:6px 4px;text-align:right;font-weight:700;color:#1e293b;">'+(e.score!==''?e.score+unit:'—')+'</td>'
-        +'<td style="padding:6px 4px;text-align:right;color:#475569;">'+(e.rank?e.rank+'등/'+e.cnt+'명':'—')+'</td>'
-        +'<td style="padding:6px 4px;text-align:right;">'+(e.grade?'<span style="background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:11.5px;font-weight:700;">'+e.grade+'등급</span>':'—')+'</td>'
-        +'</tr>';
-    }).join('');
-    body.innerHTML = (list.length?('<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;">'+bars+'</div>'):'')
-      + '<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><thead><tr style="color:#94a3b8;font-size:11px;"><th style="text-align:left;padding:4px;">회차</th><th style="text-align:right;padding:4px;">점수</th><th style="text-align:right;padding:4px;">등수</th><th style="text-align:right;padding:4px;">등급</th></tr></thead><tbody>'+rows+'</tbody></table>';
-  } else {
-    var hlist = shData.hwGroups[name]||[];
-    var hbars = hlist.map(function(h){
-      var pct = HW_PASS_PCT[h.pass]!==undefined ? HW_PASS_PCT[h.pass] : 0;
-      var color = HW_PASS_COLOR[h.pass]||'#cbd5e1';
-      return '<div style="flex-shrink:0;width:34px;text-align:center;">'
-        +'<div style="height:70px;display:flex;align-items:flex-end;justify-content:center;">'
-        +'<div style="width:16px;height:'+Math.max(6,pct)+'%;background:'+color+';border-radius:4px 4px 0 0;"></div>'
-        +'</div>'
-        +'<div style="font-size:10px;color:#94a3b8;margin-top:4px;">'+h.sessionNum+'차시</div>'
-        +'</div>';
-    }).join('');
-    var hrows = hlist.map(function(h){
-      var color = HW_PASS_COLOR[h.pass]||'#94a3b8';
-      return '<tr>'
-        +'<td style="padding:6px 4px;color:#475569;">'+h.sessionNum+'차시'+(h.date?' ('+h.date+')':'')+'</td>'
-        +'<td style="padding:6px 4px;text-align:right;"><span style="color:'+color+';font-weight:700;">'+(HW_PASS_LABEL[h.pass]||'—')+'</span></td>'
-        +'</tr>';
-    }).join('');
-    body.innerHTML = (hlist.length?('<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;">'+hbars+'</div>'):'')
-      + '<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><thead><tr style="color:#94a3b8;font-size:11px;"><th style="text-align:left;padding:4px;">회차</th><th style="text-align:right;padding:4px;">이행도</th></tr></thead><tbody>'+hrows+'</tbody></table>';
-  }
+    return '<div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+      +'<span style="font-weight:800;font-size:13.5px;color:#1e293b;">'+escHtml(s.sessLabel||(s.sessionNum+'차시'))+(s.date?' <span style="font-weight:400;color:#94a3b8;font-size:12px;">'+s.date+'</span>':'')+'</span>'
+      +'<span style="font-size:12px;font-weight:800;color:'+barColor+';">'+done+'/'+total+' 완료</span>'
+      +'</div>'
+      +'<div style="height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden;margin-bottom:6px;"><div style="height:100%;width:'+pct+'%;background:'+barColor+';"></div></div>'
+      +itemsHtml
+      +'</div>';
+  }).join('');
+}
+// ── 테스트: 유형별 점수 그래프 + 등수/평균 비교 ──
+function renderShExam(){
+  var body=document.getElementById('sh-body');
+  var list=((shData&&shData.examsByType)||{})[shExamType]||[];
+  var typeLabel = shExamType==='mock' ? '실전 모의고사' : '일일테스트';
+  if(!list.length){ body.innerHTML='<div class="empty-msg">아직 '+typeLabel+' 기록이 없어요.</div>'; return; }
+  // 요약(최근 점수 / 평균 대비 / 최고점)
+  var nums=list.map(function(e){return Number(e.score);}).filter(function(n){return !isNaN(n);});
+  var lastE=list[list.length-1];
+  var myAvg=nums.length?Math.round(nums.reduce(function(a,b){return a+b;},0)/nums.length*10)/10:0;
+  var best=nums.length?Math.max.apply(null,nums):0;
+  var unit=lastE.scoreType==='count'?'개':'점';
+  var summary='<div style="display:flex;gap:8px;margin-bottom:14px;">'
+    +'<div style="flex:1;background:#f8fafc;border-radius:10px;padding:10px;text-align:center;"><div style="font-size:11px;color:#94a3b8;">최근</div><div style="font-size:17px;font-weight:800;color:#1e293b;">'+lastE.score+unit+'</div></div>'
+    +'<div style="flex:1;background:#f8fafc;border-radius:10px;padding:10px;text-align:center;"><div style="font-size:11px;color:#94a3b8;">내 평균</div><div style="font-size:17px;font-weight:800;color:#3b6cf7;">'+myAvg+unit+'</div></div>'
+    +'<div style="flex:1;background:#f8fafc;border-radius:10px;padding:10px;text-align:center;"><div style="font-size:11px;color:#94a3b8;">최고점</div><div style="font-size:17px;font-weight:800;color:#16a34a;">'+best+unit+'</div></div>'
+    +'</div>';
+  var rows=list.map(function(e){
+    var u=e.scoreType==='count'?'개':'점';
+    var diff = (e.avg!==null && e.avg!==undefined && e.avg!=='' && !isNaN(Number(e.score))) ? (Number(e.score)-Number(e.avg)) : null;
+    var diffHtml = diff===null ? '—'
+      : '<span style="color:'+(diff>=0?'#16a34a':'#dc2626')+';font-weight:700;">'+(diff>=0?'+':'')+(Math.round(diff*10)/10)+'</span>';
+    return '<tr>'
+      +'<td style="padding:7px 4px;color:#475569;white-space:nowrap;">'+escHtml(e.sessLabel||(e.sessionNum+'차시'))+'</td>'
+      +'<td style="padding:7px 4px;text-align:right;font-weight:800;color:#1e293b;white-space:nowrap;">'+(e.score!==''?e.score+u:'—')+'</td>'
+      +'<td style="padding:7px 4px;text-align:right;color:#64748b;white-space:nowrap;">'+((e.avg!==null&&e.avg!==undefined&&e.avg!=='')?e.avg+u:'—')+'</td>'
+      +'<td style="padding:7px 4px;text-align:right;white-space:nowrap;">'+diffHtml+'</td>'
+      +'<td style="padding:7px 4px;text-align:right;color:#475569;white-space:nowrap;">'+(e.rank?e.rank+'등'+(e.cnt?'/'+e.cnt:''):'—')+'</td>'
+      +'</tr>';
+  }).join('');
+  body.innerHTML = summary
+    + shExamChartSvg(list)
+    + '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:300px;">'
+    + '<thead><tr style="color:#94a3b8;font-size:11px;"><th style="text-align:left;padding:4px;">회차</th><th style="text-align:right;padding:4px;">내 점수</th><th style="text-align:right;padding:4px;">반 평균</th><th style="text-align:right;padding:4px;">평균 대비</th><th style="text-align:right;padding:4px;">등수</th></tr></thead>'
+    + '<tbody>'+rows+'</tbody></table></div>';
+}
+// 내 점수(파란 선)와 반 평균(회색 점선)을 같이 그리는 간단한 꺾은선 그래프
+function shExamChartSvg(list){
+  var W=320, H=150, padL=30, padR=10, padT=14, padB=24;
+  var pts=list.map(function(e,i){ return { i:i, score:Number(e.score), avg:(e.avg===''||e.avg===null||e.avg===undefined)?null:Number(e.avg), label:(e.sessLabel||(e.sessionNum+'차시')) }; })
+    .filter(function(p){ return !isNaN(p.score); });
+  if(pts.length<1) return '';
+  var allVals=pts.map(function(p){return p.score;}).concat(pts.filter(function(p){return p.avg!==null&&!isNaN(p.avg);}).map(function(p){return p.avg;}));
+  var maxV=Math.max.apply(null,allVals), minV=Math.min.apply(null,allVals);
+  if(maxV===minV){ maxV=maxV+1; minV=Math.max(0,minV-1); }
+  var span=maxV-minV;
+  var x=function(i){ return pts.length===1 ? (padL+(W-padL-padR)/2) : (padL + i*(W-padL-padR)/(pts.length-1)); };
+  var y=function(v){ return padT + (1-(v-minV)/span)*(H-padT-padB); };
+  var myLine=pts.map(function(p,i){ return (i?'L':'M')+x(i).toFixed(1)+' '+y(p.score).toFixed(1); }).join(' ');
+  var avgPts=pts.filter(function(p){return p.avg!==null&&!isNaN(p.avg);});
+  var avgLine=avgPts.length>1 ? avgPts.map(function(p,i){ return (i?'L':'M')+x(pts.indexOf(p)).toFixed(1)+' '+y(p.avg).toFixed(1); }).join(' ') : '';
+  var dots=pts.map(function(p,i){
+    return '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.score).toFixed(1)+'" r="3.5" fill="#3b6cf7"></circle>'
+      +'<text x="'+x(i).toFixed(1)+'" y="'+(y(p.score)-8).toFixed(1)+'" text-anchor="middle" font-size="9" fill="#1e293b" font-weight="700">'+p.score+'</text>';
+  }).join('');
+  var xLabels=pts.map(function(p,i){
+    if(pts.length>6 && i%2===1) return '';
+    return '<text x="'+x(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" font-size="8.5" fill="#94a3b8">'+escHtml(p.label)+'</text>';
+  }).join('');
+  return '<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:8px;margin-bottom:12px;overflow-x:auto;">'
+    +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;min-width:280px;height:auto;display:block;">'
+    +'<line x1="'+padL+'" y1="'+padT+'" x2="'+padL+'" y2="'+(H-padB)+'" stroke="#e2e8f0"></line>'
+    +'<line x1="'+padL+'" y1="'+(H-padB)+'" x2="'+(W-padR)+'" y2="'+(H-padB)+'" stroke="#e2e8f0"></line>'
+    +'<text x="4" y="'+(padT+4)+'" font-size="8.5" fill="#94a3b8">'+Math.round(maxV)+'</text>'
+    +'<text x="4" y="'+(H-padB)+'" font-size="8.5" fill="#94a3b8">'+Math.round(minV)+'</text>'
+    +(avgLine?'<path d="'+avgLine+'" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4 3"></path>':'')
+    +'<path d="'+myLine+'" fill="none" stroke="#3b6cf7" stroke-width="2"></path>'
+    +dots+xLabels
+    +'</svg>'
+    +'<div style="display:flex;gap:12px;justify-content:center;font-size:10.5px;color:#94a3b8;padding-top:2px;">'
+    +'<span><span style="display:inline-block;width:14px;height:2px;background:#3b6cf7;vertical-align:middle;"></span> 내 점수</span>'
+    +'<span><span style="display:inline-block;width:14px;height:2px;background:#cbd5e1;vertical-align:middle;"></span> 반 평균</span>'
+    +'</div></div>';
 }
 
 var isPreviewMode = false;
@@ -840,7 +912,7 @@ async function loadMyHomework(){
     renderMyHomework();
   }catch(e){}
 }
-var HW_MAX_PHOTOS=6;
+var HW_MAX_PHOTOS=10;
 function renderMyHomework(){
   var needsAction=myHwItems.filter(function(h){return h.pass==='incomplete'||h.pass==='partial'||h.pass==='notsub';});
   var doneItems=myHwItems.filter(function(h){return h.pass==='complete';});

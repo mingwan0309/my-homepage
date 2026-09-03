@@ -487,6 +487,13 @@ tr:hover td{background:#fafbff;}
           <input id="exam-detail-range" type="text" placeholder="예: [03/09]" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
         <div>
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">시험 유형 <span style="font-weight:400;color:#94a3b8;">(학생 누적성적표에서 이 유형끼리 묶임)</span></label>
+          <select id="exam-detail-type" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
+            <option value="daily">일일테스트</option>
+            <option value="mock">실전 모의고사</option>
+          </select>
+        </div>
+        <div>
           <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">성적 입력 방식</label>
           <div style="display:flex;gap:8px;">
             <button id="score-type-score" onclick="setScoreType('score')" style="flex:1;padding:10px;border:2px solid #3b6cf7;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;background:#eff4ff;color:#3b6cf7;">점수 (예: 87점)</button>
@@ -579,10 +586,6 @@ tr:hover td{background:#fafbff;}
           <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">날짜</label>
           <input id="hw-detail-range" type="text" placeholder="예: [07/17]" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
-        <div>
-          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">누적 그룹 <span style="font-weight:400;color:#94a3b8;">(학생 마이페이지 "누적성적표"에서 묶여 보이는 그룹)</span></label>
-          <select id="hw-detail-track" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;"></select>
-        </div>
         <button onclick="saveHwDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
       </div>
     </div>
@@ -597,10 +600,6 @@ tr:hover td{background:#fafbff;}
       <h3>과제 추가</h3>
       <div class="fg">
         <label>과제 이름 <span style="font-weight:400;color:#94a3b8;">(여러 개를 한 번에 추가할 수 있어요)</span></label>
-        <p style="font-size:11.5px;color:#94a3b8;margin:-2px 0 8px;display:flex;align-items:center;justify-content:space-between;gap:6px;">
-          <span>누적 그룹: 학생 마이페이지 "누적성적표"에서 같은 과제 시리즈로 묶어서 보여줄 그룹이에요. 이름이 매번 달라도 같은 그룹으로 지정하면 하나로 이어서 보여요.</span>
-          <span id="hw-track-manage-link" style="display:none;color:#3b6cf7;font-weight:700;cursor:pointer;white-space:nowrap;" onclick="openHwTrackManage()">그룹 관리</span>
-        </p>
         <div id="hw-name-rows"></div>
         <button type="button" onclick="addHwNameRow()" style="margin-top:6px;background:#f1f5f9;border:none;color:#475569;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">+ 칸 추가</button>
       </div>
@@ -613,21 +612,6 @@ tr:hover td{background:#fafbff;}
     <div style="flex:1;min-width:220px;border-left:1px solid #f1f5f9;padding-left:20px;">
       <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:8px;">📋 최근 과제</div>
       <div id="hw-modal-board-ref" style="font-size:13px;color:#94a3b8;white-space:pre-wrap;line-height:1.6;max-height:320px;overflow-y:auto;">불러오는 중...</div>
-    </div>
-  </div>
-</div>
-
-<!-- 숙제 누적 그룹 관리 모달 (교사 전용) -->
-<div class="modal-bg" id="hw-track-manage-modal">
-  <div class="modal">
-    <h3>누적 그룹 관리</h3>
-    <div style="display:flex;gap:6px;margin-bottom:14px;">
-      <input type="text" id="hw-track-new-input" placeholder="새 그룹 이름 (예: 복습노트)" style="flex:1;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;box-sizing:border-box;">
-      <button type="button" onclick="addHwTrack()" style="background:#3b6cf7;color:#fff;border:none;padding:0 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">추가</button>
-    </div>
-    <div id="hw-track-manage-list" style="max-height:280px;overflow-y:auto;"></div>
-    <div class="modal-btns">
-      <button class="btn-cl" onclick="closeHwTrackManage()">닫기</button>
     </div>
   </div>
 </div>
@@ -863,6 +847,13 @@ tr:hover td{background:#fafbff;}
         </div>
       </div>
       <div class="fg"><label>시험 이름</label><input type="text" id="exam-name-input" placeholder="예: 실전모의고사 1회"></div>
+      <div class="fg">
+        <label>시험 유형 <span style="font-weight:400;color:#94a3b8;">(학생 누적성적표에서 이 유형끼리 묶여서 그래프로 보여요)</span></label>
+        <select id="exam-type-input" style="width:100%;padding:11px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;box-sizing:border-box;">
+          <option value="daily">일일테스트</option>
+          <option value="mock">실전 모의고사</option>
+        </select>
+      </div>
       <div class="fg" id="exam-copy-status" style="font-size:12px;color:#3b6cf7;font-weight:700;display:none;"></div>
       <div class="modal-btns">
         <button class="btn-cl" onclick="closeAddExam()">취소</button>
@@ -2205,6 +2196,7 @@ var examCopySource=null; // 참고 목록에서 '복사' 누른 시험 설정(�
 var allClassExams=[];
 async function openAddExam(){
   document.getElementById('exam-name-input').value='';
+  document.getElementById('exam-type-input').value='daily';
   examCopySource=null;
   document.getElementById('exam-copy-status').style.display='none';
   document.getElementById('add-exam-modal').classList.add('show');
@@ -2250,24 +2242,27 @@ function renderExamModalRef(){
 function copyExamSetting(e){
   examCopySource=e;
   document.getElementById('exam-name-input').value=e.name;
+  document.getElementById('exam-type-input').value=e.examType||'daily';
   var st=document.getElementById('exam-copy-status');
   st.style.display='';
   st.textContent='"'+e.name+'" 시험의 설정(입력방식/총문항수/커트라인)을 그대로 가져와요.';
 }
 function closeAddExam(){document.getElementById('add-exam-modal').classList.remove('show');}
-function setExamPreset(name){document.getElementById('exam-name-input').value=name;examCopySource=null;document.getElementById('exam-copy-status').style.display='none';}
+function setExamPreset(name){document.getElementById('exam-name-input').value=name;document.getElementById('exam-type-input').value='daily';examCopySource=null;document.getElementById('exam-copy-status').style.display='none';}
 function setExamPresetNum(prefix){
   var cur=document.getElementById('exam-name-input').value;
   var m=cur.match(/(\d+)/);
   var n=m?parseInt(m[1]):1;
   var next=cur.startsWith(prefix)?(n+1):1;
   document.getElementById('exam-name-input').value=prefix+' '+next+'회';
+  document.getElementById('exam-type-input').value='mock';
   examCopySource=null;document.getElementById('exam-copy-status').style.display='none';
 }
 async function saveExam(){
   var name=document.getElementById('exam-name-input').value.trim();
   if(!name){alert('시험 이름을 입력해주세요');return;}
-  var url=SU+'?action=addExam&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(name);
+  var examType=document.getElementById('exam-type-input').value||'daily';
+  var url=SU+'?action=addExam&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(name)+'&examType='+encodeURIComponent(examType);
   if(examCopySource){
     url+='&scoreType='+encodeURIComponent(examCopySource.scoreType||'score')
       +'&totalQuestions='+encodeURIComponent(examCopySource.totalQuestions||'')
@@ -2320,16 +2315,13 @@ function renderHwList(){
   }).join('');
 }
 var currentHwId='';
-async function openHwDetail(hwId){
+function openHwDetail(hwId){
   var hw=homeworks.find(function(h){return h.id===hwId;});
   if(!hw)return;
   currentHwId=hwId;
   document.getElementById('hw-detail-name').textContent=hw.name;
   document.getElementById('hw-detail-name-input').value=hw.name;
   document.getElementById('hw-detail-range').value=hw.range||'';
-  await loadHwTracks();
-  var trackVal=(hw.trackName && hw.trackName!==hw.name) ? hw.trackName : '';
-  document.getElementById('hw-detail-track').innerHTML=hwTrackOptionsHtml(trackVal);
   document.getElementById('hw-list-view').style.display='none';
   document.getElementById('hw-detail-view').style.display='';
 }
@@ -2340,57 +2332,16 @@ function closeHwDetail(){
 async function saveHwDetail(){
   var name=document.getElementById('hw-detail-name-input').value.trim();
   var range=document.getElementById('hw-detail-range').value.trim();
-  var track=document.getElementById('hw-detail-track').value.trim();
   if(!name){alert('과제 이름을 입력해주세요');return;}
-  var r=await fetch(SU+'?action=updateHwItem&id='+encodeURIComponent(currentHwId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&trackName='+encodeURIComponent(track||name)).then(function(r){return r.json();});
+  var r=await fetch(SU+'?action=updateHwItem&id='+encodeURIComponent(currentHwId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)).then(function(r){return r.json();});
   if(r.success){
     var hw=homeworks.find(function(h){return h.id===currentHwId;});
-    if(hw){hw.name=name;hw.range=range;hw.trackName=track||name;}
+    if(hw){hw.name=name;hw.range=range;}
     document.getElementById('hw-detail-name').textContent=name;
     renderHwList();
     renderScores();
     alert('저장됐습니다.');
   }
-}
-async function openHwTrackManage(){
-  await loadHwTracks();
-  renderHwTrackManageList();
-  document.getElementById('hw-track-new-input').value='';
-  document.getElementById('hw-track-manage-modal').classList.add('show');
-}
-function closeHwTrackManage(){
-  document.getElementById('hw-track-manage-modal').classList.remove('show');
-  // 관리 모달에서 바뀐 목록을 과제 추가 창의 드롭다운들에도 반영
-  document.querySelectorAll('.hw-track-row-select').forEach(function(sel){
-    var cur=sel.value;
-    sel.innerHTML=hwTrackOptionsHtml(cur);
-  });
-}
-function renderHwTrackManageList(){
-  var el=document.getElementById('hw-track-manage-list');
-  if(!hwTracks.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">등록된 그룹이 없어요.</div>'; return; }
-  el.innerHTML=hwTracks.map(function(t){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 4px;border-bottom:1px solid #f1f5f9;font-size:14px;">'
-      +'<span>'+escHtml(t.name)+'</span>'
-      +'<button type="button" onclick="deleteHwTrackUI(\''+t.id+'\')" style="background:none;border:none;color:#ef4444;font-size:12px;cursor:pointer;">삭제</button>'
-      +'</div>';
-  }).join('');
-}
-async function addHwTrack(){
-  var input=document.getElementById('hw-track-new-input');
-  var name=input.value.trim();
-  if(!name){alert('그룹 이름을 입력해주세요');return;}
-  if(hwTracks.some(function(t){return t.name===name;})){alert('이미 있는 그룹이에요.');return;}
-  await fetch(SU+'?action=addHwTrack&name='+encodeURIComponent(name)).then(function(r){return r.json();});
-  input.value='';
-  await loadHwTracks();
-  renderHwTrackManageList();
-}
-async function deleteHwTrackUI(id){
-  if(!confirm('이 그룹을 삭제할까요? (이미 지정된 과제의 값은 그대로 남아요)'))return;
-  await fetch(SU+'?action=deleteHwTrack&id='+encodeURIComponent(id));
-  await loadHwTracks();
-  renderHwTrackManageList();
 }
 async function deleteHwFromDetail(){
   if(!confirm('과제를 삭제하시겠습니까?'))return;
@@ -2399,16 +2350,6 @@ async function deleteHwFromDetail(){
   closeHwDetail();
   renderHwList();
   renderScores();
-}
-var hwTracks=[];
-async function loadHwTracks(){
-  try{ var r=await fetch(SU+'?action=getHwTracks').then(function(r){return r.json();}); hwTracks=r.tracks||[]; }
-  catch(e){ hwTracks=[]; }
-}
-function hwTrackOptionsHtml(selected){
-  var opts='<option value="">(이름과 동일)</option>';
-  opts+=hwTracks.map(function(t){ return '<option value="'+escHtml(t.name)+'"'+(t.name===selected?' selected':'')+'>'+escHtml(t.name)+'</option>'; }).join('');
-  return opts;
 }
 function renderHwNameRows(){
   var wrap=document.getElementById('hw-name-rows');
@@ -2419,16 +2360,13 @@ function addHwNameRow(){
   var wrap=document.getElementById('hw-name-rows');
   var row=document.createElement('div');
   row.style.cssText='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;';
-  row.innerHTML='<input type="text" class="hw-name-row-input" placeholder="예: 워크북 3단원" style="flex:2;min-width:110px;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;box-sizing:border-box;">'
-    +'<select class="hw-track-row-select" style="flex:1;min-width:110px;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:12.5px;font-family:inherit;box-sizing:border-box;color:#64748b;">'+hwTrackOptionsHtml('')+'</select>'
+  row.innerHTML='<input type="text" class="hw-name-row-input" placeholder="예: 워크북 3단원" style="flex:1;min-width:110px;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;box-sizing:border-box;">'
     +'<button type="button" onclick="this.parentElement.remove()" style="background:#f8fafc;border:1.5px solid #e2e8f0;color:#94a3b8;width:38px;border-radius:8px;cursor:pointer;font-size:16px;flex-shrink:0;">✕</button>';
   wrap.appendChild(row);
   row.querySelector('input').focus();
 }
 async function openAddHw(){
-  await loadHwTracks();
   renderHwNameRows();
-  document.getElementById('hw-track-manage-link').style.display=(session&&session.role==='teacher')?'inline':'none';
   document.getElementById('hw-range-input').value='';document.getElementById('add-hw-modal').classList.add('show');
   var ref=document.getElementById('hw-modal-board-ref');
   ref.textContent='불러오는 중...';
@@ -2440,21 +2378,14 @@ async function openAddHw(){
 }
 function closeAddHw(){document.getElementById('add-hw-modal').classList.remove('show');}
 async function saveHw(){
-  var nameInputs=document.querySelectorAll('.hw-name-row-input');
-  var trackInputs=document.querySelectorAll('.hw-track-row-select');
-  var rows=[];
-  for(var ri=0;ri<nameInputs.length;ri++){
-    var nm=nameInputs[ri].value.trim();
-    if(!nm) continue;
-    rows.push({ name:nm, track:(trackInputs[ri]?trackInputs[ri].value.trim():'') });
-  }
+  var names=Array.prototype.map.call(document.querySelectorAll('.hw-name-row-input'),function(inp){return inp.value.trim();}).filter(function(s){return s;});
   var range=document.getElementById('hw-range-input').value.trim();
-  if(!rows.length){alert('과제 이름을 입력해주세요');return;}
+  if(!names.length){alert('과제 이름을 입력해주세요');return;}
   var btn=document.querySelector('#add-hw-modal .btn-ok');
   if(btn){ btn.disabled=true; btn.textContent='추가 중...'; }
   try{
-    for(var i=0;i<rows.length;i++){
-      await fetch(SU+'?action=addHwItem&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(rows[i].name)+'&trackName='+encodeURIComponent(rows[i].track||rows[i].name)+'&range='+encodeURIComponent(range)).then(r=>r.json());
+    for(var i=0;i<names.length;i++){
+      await fetch(SU+'?action=addHwItem&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(names[i])+'&range='+encodeURIComponent(range)).then(r=>r.json());
     }
     closeAddHw();
     await loadHw();
@@ -2566,6 +2497,7 @@ function openExamDetail(examId){
   document.getElementById('exam-detail-range').value=ex.range||'';
   document.getElementById('exam-detail-total').value=ex.totalQuestions||'';
   document.getElementById('exam-detail-cutoff').value=ex.passCutoff||'';
+  document.getElementById('exam-detail-type').value=ex.examType||'daily';
   setScoreType(ex.scoreType||'score');
   document.getElementById('exam-list-view').style.display='none';
   document.getElementById('exam-detail-view').style.display='';
@@ -2604,11 +2536,12 @@ async function saveExamDetail(){
   var range=document.getElementById('exam-detail-range').value.trim();
   var total=document.getElementById('exam-detail-total').value.trim();
   var cutoff=document.getElementById('exam-detail-cutoff').value.trim();
+  var examType=document.getElementById('exam-detail-type').value||'daily';
   if(!name){alert('시험 이름을 입력해주세요');return;}
-  var r=await fetch(SU+'?action=updateExam&id='+encodeURIComponent(currentExamId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&totalQuestions='+encodeURIComponent(total)+'&scoreType='+encodeURIComponent(currentScoreType)+'&passCutoff='+encodeURIComponent(cutoff)).then(function(r){return r.json();});
+  var r=await fetch(SU+'?action=updateExam&id='+encodeURIComponent(currentExamId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&totalQuestions='+encodeURIComponent(total)+'&scoreType='+encodeURIComponent(currentScoreType)+'&passCutoff='+encodeURIComponent(cutoff)+'&examType='+encodeURIComponent(examType)).then(function(r){return r.json();});
   if(r.success){
     var ex=exams.find(function(e){return e.id===currentExamId;});
-    if(ex){ex.name=name;ex.range=range;ex.totalQuestions=total;ex.scoreType=currentScoreType;ex.passCutoff=cutoff;}
+    if(ex){ex.name=name;ex.range=range;ex.totalQuestions=total;ex.scoreType=currentScoreType;ex.passCutoff=cutoff;ex.examType=examType;}
     document.getElementById('exam-detail-name').textContent=name;
     renderExamList();
     renderScores();
