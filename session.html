@@ -2751,8 +2751,20 @@ async function saveAnswerKey(){
   if(r.success){
     var ex=exams.find(function(e){return e.id===currentExamId;});
     if(ex){ ex.hasAnswerKey=true; ex.questionCount=akRows.length; }
+    // 개수형 시험은 "총 문항 수"가 곧 문항 수 — 답안 등록에서 바꾼 문항 수를 위쪽 칸과 저장값에도 반영
+    if(akIsCount){
+      var totalInput=document.getElementById('exam-detail-total');
+      if(totalInput) totalInput.value=akRows.length;
+      if(ex) ex.totalQuestions=akRows.length;
+      try{
+        await fetch(SU+'?action=updateExam&id='+encodeURIComponent(currentExamId)+'&totalQuestions='+encodeURIComponent(akRows.length)).then(function(r){return r.json();});
+      }catch(e){}
+      if(typeof updateCutoffHint==='function') updateCutoffHint();
+      renderExamList();
+      renderScores();
+    }
     document.getElementById('answerkey-modal').classList.remove('show');
-    alert('답안이 저장됐어요.');
+    alert('답안이 저장됐어요.'+(akIsCount?'\n총 문항 수도 '+akRows.length+'개로 맞췄어요.':''));
   } else {
     alert('저장 실패했어요.\n\n'+((r&&r.msg)||'원인을 알 수 없어요.')+'\n\n(권한 오류라면 Firestore 규칙에 exam_keys 조항이 있는지 확인해주세요)');
   }
