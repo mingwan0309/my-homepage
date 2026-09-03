@@ -2906,26 +2906,37 @@ function updateHwBulkBar(){
 async function bulkSendHwReminder(){
   var items=hwmanageList.filter(function(h){ return hwSelected[h.id]; });
   if(!items.length){ alert('선택된 학생이 없어요.'); return; }
-  var names=items.map(function(h){return h.studentName;}).join(', ');
-  var preview=items.map(function(h){
-    return {h:h, text:buildHwReminderText(h)};
+  // 한 학생이 미이행 과제를 여러 개 갖고 있으면 알림톡을 여러 통 보내지 말고,
+  // 그 학생 몫을 한 통에 다 담아서 보낸다 (studentId 기준으로 묶음)
+  var groups={}, order=[];
+  items.forEach(function(h){
+    var key=String(h.studentId);
+    if(!groups[key]){ groups[key]={studentId:h.studentId, studentName:h.studentName, studentPhone:h.studentPhone, className:h.className, items:[]}; order.push(key); }
+    groups[key].items.push(h);
   });
-  var previewText=preview.slice(0,3).map(function(p){return p.h.studentName+': "'+p.text+'"';}).join('\n')+(preview.length>3?'\n...외 '+(preview.length-3)+'명':'');
-  if(!confirm(items.length+'명('+names+')에게 아래처럼 재촉 알림톡을 한 번에 보낼까요?\n(카카오 알림톡 발송 - 학생 수만큼 비용이 발생합니다)\n\n'+previewText))return;
+  var studentNames=order.map(function(k){return groups[k].studentName;}).join(', ');
+  var preview=order.map(function(k){
+    var g=groups[k];
+    var text=g.items.map(function(h){ return buildHwReminderText(h); }).join('\n\n');
+    return {g:g, text:text};
+  });
+  var previewText=preview.slice(0,3).map(function(p){return p.g.studentName+'('+p.g.items.length+'건): "'+p.text+'"';}).join('\n')+(preview.length>3?'\n...외 '+(preview.length-3)+'명':'');
+  if(!confirm(order.length+'명('+studentNames+')에게 아래처럼 재촉 알림톡을 한 번에 보낼까요? (한 학생당 1통)\n(카카오 알림톡 발송 - 학생 수만큼 비용이 발생합니다)\n\n'+previewText))return;
   var msgs=[];
   preview.forEach(function(p){
-    var h=p.h, text=p.text;
-    if(h.studentPhone) msgs.push({phone:h.studentPhone, name:h.studentName, className:h.className||'숙제 알림', sessionNum:h.hwName, message:text});
+    var g=p.g;
+    if(g.studentPhone) msgs.push({phone:g.studentPhone, name:g.studentName, className:g.className||'숙제 알림', sessionNum:g.items.length+'건', message:p.text});
   });
   if(!msgs.length){ alert('⚠️ 선택된 학생들에게 등록된 전화번호가 없어서 알림톡을 보낼 수 없어요.'); return; }
   try{
     var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
     if(r.success){
       await Promise.all(preview.map(function(p){
-        var h=p.h;
-        return fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||'')+'&text='+encodeURIComponent(p.text)+'&studentName='+encodeURIComponent(h.studentName||'')+'&hwName='+encodeURIComponent(h.hwName||''));
+        return Promise.all(p.g.items.map(function(h){
+          return fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent((cu&&(cu.name||cu.id))||'')+'&text='+encodeURIComponent(buildHwReminderText(h))+'&studentName='+encodeURIComponent(h.studentName||'')+'&hwName='+encodeURIComponent(h.hwName||''));
+        }));
       }));
-      alert(items.length+'명에게 알림톡 발송 완료!');
+      alert(order.length+'명에게 알림톡 발송 완료!');
       hwSelected={};
       loadHwManage();
     } else {
