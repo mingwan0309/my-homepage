@@ -890,13 +890,13 @@ api.getMyOpenExams = function(db, p){
     })).then(function(lists){
       var open = [].concat.apply([], lists);
       if (!open.length) return { exams: [] };
-      return Promise.all(open.map(function(e){
-        return db.collection('exam_submissions').doc(e.id+'__'+sid).get().then(function(d){
-          e.submitted = d.exists;
-          return e;
-        });
-      })).then(function(withState){
-        return { exams: withState.filter(function(e){ return !e.submitted && e.questionCount>0; }) };
+      // 아직 없는 문서를 studentId로 하나씩 get()하면, 보안 규칙이 "그 문서의 studentId가 나인지" 확인하려다
+      // 문서 자체가 없어서(resource==null) 오히려 권한거부로 막힌다(교사 계정은 전권이라 안 걸렸던 것).
+      // 그래서 존재 확인은 doc()이 아니라 studentId로 쿼리해서 실제로 있는 것만 받아오는 방식으로 우회한다.
+      return db.collection('exam_submissions').where('studentId','==',sid).get().then(function(subSnap){
+        var submittedIds = {};
+        subSnap.forEach(function(d){ submittedIds[d.data().examId] = true; });
+        return { exams: open.filter(function(e){ return !submittedIds[e.id] && e.questionCount>0; }) };
       });
     });
   });
@@ -909,8 +909,9 @@ api.submitExamAnswers = function(db, p){
   try { answers = (typeof p.answers==='string') ? JSON.parse(p.answers) : (p.answers||{}); } catch(e) { answers = {}; }
   return db.collection('exams').doc(eid).get().then(function(ex){
     if (!ex.exists || ex.data().submitOpen!==true) return { success:false, msg:'지금은 제출할 수 없어요. (마감됨)' };
-    return db.collection('exam_submissions').doc(docId).get().then(function(d){
-      if (d.exists) return { success:false, msg:'이미 제출했어요.' };
+    // doc().get()으로 존재 확인하면 보안 규칙상 없는 문서라 권한거부로 막힐 수 있어서(getMyOpenExams와 동일한 이유), 쿼리로 우회
+    return db.collection('exam_submissions').where('examId','==',eid).where('studentId','==',sid).get().then(function(qs){
+      if (!qs.empty) return { success:false, msg:'이미 제출했어요.' };
       return db.collection('exam_submissions').doc(docId).set({
         id:docId, examId:eid, sessionId:String(p.sessionId||ex.data().sessionId||''),
         studentId:sid, studentName:p.studentName||'', answers:answers,
