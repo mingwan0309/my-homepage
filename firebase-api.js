@@ -1207,7 +1207,7 @@ api.getIncompleteHomeworks = function(db){
             pass:r.pass||'', feedback:r.feedback||'',
             submissionUrls:hwUrlsToArray(r.submissionUrl), submittedAt:r.submittedAt||'',
             lastReminderAt:r.lastReminderAt||'', lastReminderBy:r.lastReminderBy||'', lastReminderText:r.lastReminderText||'', reminderLogs:r.reminderLogs||[],
-            hwName:hw.name||'(삭제된 과제)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
+            hwName:hw.name||'(삭제된 과제)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'', sessLabel:ses.label||'',
             classId:String(ses.classId||''), className:cls.name||'',
             studentName:stu.name||r.studentId, studentPhone:r.studentId, parentPhone:stu.parentPhone||''
           };
