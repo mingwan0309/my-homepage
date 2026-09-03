@@ -2542,7 +2542,7 @@ async function checkMcHourReminders(){
     var todays=list.filter(function(m){ return m.type==='temp' ? m.date===today.dateStr : m.day===today.dayName; });
     if(!todays.length) return;
     var candidates=todays.filter(function(m){
-      if(m.hourReminderSent && m.hourReminderSent[today.dateStr]) return false;
+      if(m.lastHourReminderDate===today.dateStr) return false;
       var mins=mcParseTimeToMinutes(m.time);
       if(mins===null) return false;
       var now=new Date();

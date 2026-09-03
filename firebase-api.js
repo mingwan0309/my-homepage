@@ -1677,11 +1677,12 @@ api.markMandatoryClinicTestReported = function(db, p){
   })).then(function(){ return { success:true }; });
 };
 
-// 의무클리닉 "오기 1시간 전" 자동 알림 — 같은 날짜에 중복으로 다시 보내지 않도록 표시해둠
+// 의무클리닉 "오기 1시간 전" 자동 알림 — 같은 날짜에 중복으로 다시 보내지 않도록 표시해둠.
+// 단순 최상위 필드로 둔 이유: Code.gs(Apps Script 예약 실행)의 Firestore REST 호출에서도 같은 필드를
+// 건드리는데, 중첩 맵 필드(hourReminderSent.2026-09-04 같은)는 REST updateMask 경로 이스케이프가 까다로워서
+// 실수하기 쉬움 — 그래서 날짜 하나만 저장하는 단순 문자열 필드로 통일함(하루 1번이면 충분하므로 날짜만 있으면 됨).
 api.markMcHourReminderSent = function(db, p){
-  var data = {};
-  data['hourReminderSent.' + String(p.date)] = true;
-  return db.collection('mandatory_clinic').doc(String(p.id)).update(data)
+  return db.collection('mandatory_clinic').doc(String(p.id)).update({ lastHourReminderDate: String(p.date) })
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
