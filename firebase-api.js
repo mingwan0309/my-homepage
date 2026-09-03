@@ -828,10 +828,15 @@ api.setExamAnswerKey = function(db, p){
   var key = Array.isArray(p.answerKey) ? p.answerKey : [];
   return db.collection('exam_keys').doc(String(p.examId)).set({ examId:String(p.examId), answerKey:key, updatedAt:nowStr() })
     .then(function(){
-      // 예전에 exams 문서 안에 저장돼 있던 정답은 학생도 읽을 수 있으므로 같이 지움
-      return db.collection('exams').doc(String(p.examId)).update({ answerKey: null, questionCount: key.length });
+      // 예전에 exams 문서 안에 저장돼 있던 정답은 학생도 읽을 수 있으므로 같이 지움.
+      // 이 단계가 실패해도 정답 저장 자체는 이미 끝났으므로 실패로 처리하지 않음.
+      return db.collection('exams').doc(String(p.examId)).update({ answerKey: null, questionCount: key.length })
+        .catch(function(e){ console.warn('[setExamAnswerKey] exams 정리 실패(무시):', e); });
     })
-    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+    .then(function(){ return { success:true }; }, function(e){
+      console.error('[setExamAnswerKey] 저장 실패:', e);
+      return { success:false, msg:(e&&e.message)||String(e) };
+    });
 };
 // 정답 조회 (교사/조교만 — Firestore 규칙으로 막혀 있음). 예전 데이터는 exams 문서 안에 있으므로 그쪽도 확인
 api.getExamKey = function(db, p){
