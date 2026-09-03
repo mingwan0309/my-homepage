@@ -2684,8 +2684,11 @@ async function openAnswerKeyModal(){
   akIsCount=(currentScoreType==='count');
   var liveTotal=Number((document.getElementById('exam-detail-total')||{}).value)||Number(ex.totalQuestions)||0;
   var exLive=Object.assign({}, ex, { scoreType:currentScoreType, totalQuestions:liveTotal });
-  // 문항 수: 저장된 답안 > (개수형이면 총 문항 수) > 기본 20
-  var qcount = (saved&&saved.length) ? saved.length : (akIsCount ? (liveTotal||10) : 20);
+  // 문항 수 — 개수형은 "총 문항 수"가 곧 문항 수라 위쪽 값을 그대로 따라감(이미 등록한 정답은 유지).
+  // 점수형은 총점(만점)이 문항 수와 다른 값이라 저장된 답안 개수를 우선.
+  var qcount = akIsCount
+    ? (liveTotal || (saved&&saved.length) || 10)
+    : ((saved&&saved.length) ? saved.length : 20);
   buildAkRows(qcount, saved, exLive);
   document.getElementById('ak-qcount').value=qcount;
   document.getElementById('ak-help').textContent = akIsCount
