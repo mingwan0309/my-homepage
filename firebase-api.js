@@ -825,6 +825,25 @@ api.setExamAnswerKey = function(db, p){
 };
 
 /* === 과제 (session.html 과제 탭) === */
+// 숙제 "누적 그룹" 미리 정해둔 목록 — 교사가 관리, 과제 추가할 때 이 중에서 골라 씀(조교도 목록에서 선택만 가능)
+api.getHwTracks = function(db){
+  return db.collection('hw_tracks').get().then(function(snap){
+    var tracks = docsToArr(snap).map(function(r){ return { id:r.id, name:r.name||'' }; })
+      .sort(function(a,b){ return a.name.localeCompare(b.name,'ko'); });
+    return { tracks: tracks };
+  });
+};
+api.addHwTrack = function(db, p){
+  var name = String(p.name||'').trim();
+  if (!name) return Promise.resolve({ success:false });
+  var id = genId('hwt');
+  return db.collection('hw_tracks').doc(id).set({ id:id, name:name, createdAt:nowStr() })
+    .then(function(){ return { success:true, id:id, name:name }; });
+};
+api.deleteHwTrack = function(db, p){
+  return db.collection('hw_tracks').doc(String(p.id)).delete()
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
 api.addHwItem = function(db, p){
   var id = genId('hw');
   return db.collection('homeworks').doc(id).set({
