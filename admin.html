@@ -2618,6 +2618,9 @@ function toggleHwClassDrop(btn){
 var hwSessionDropState={};
 function toggleHwSessionDrop(btn){
   var body=btn.nextElementSibling;
+  if(!body||!body.classList||!body.classList.contains('vid-drop-body')){
+    body=btn.parentElement.nextElementSibling;
+  }
   if(!body) return;
   var isOpen=body.style.display!=='none';
   body.style.display=isOpen?'none':'block';
@@ -2789,12 +2792,16 @@ function renderHwManageList(){
       var sessPending=sg.items.filter(function(h){return (h.submissionUrls||[]).length>0;}).length;
       var sessOpen=(hwSessionDropState.hasOwnProperty(sessKey))?hwSessionDropState[sessKey]:true;
       var sessBadge=sessPending?'<span style="background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:800;border-radius:20px;padding:1px 7px;margin-left:6px;">📷 '+sessPending+'</span>':'';
+      var allSelectedInSess=sg.items.every(function(h){return hwSelected[h.id];});
       return '<div style="margin-bottom:8px;">'
-        + '<button type="button" class="vid-drop-head'+(sessOpen?' open':'')+'" data-sesskey="'+escHtml(sessKey)+'" onclick="toggleHwSessionDrop(this)" style="padding:8px 12px;font-size:12.5px;">'
+        + '<div style="display:flex;align-items:center;gap:6px;">'
+        + '<button type="button" class="vid-drop-head'+(sessOpen?' open':'')+'" data-sesskey="'+escHtml(sessKey)+'" onclick="toggleHwSessionDrop(this)" style="padding:8px 12px;font-size:12.5px;flex:1;">'
         +   '<span>📅 '+escHtml(sg.label)+' <span class="cnt">'+sg.items.length+'</span></span>'
         +   sessBadge
         +   '<span class="vid-drop-arrow">▾</span>'
         + '</button>'
+        + '<button type="button" onclick="hwSelectSession(\''+escHtml(skey).replace(/'/g,"\\'")+'\','+(allSelectedInSess?'false':'true')+')" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:5px 10px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">'+(allSelectedInSess?'이 차시 해제':'이 차시 전체선택')+'</button>'
+        + '</div>'
         + '<div class="vid-drop-body" style="display:'+(sessOpen?'block':'none')+';margin-top:6px;">'+sg.items.map(renderHwCard).join('')+'</div>'
         + '</div>';
     }).join('');
@@ -2886,6 +2893,15 @@ function hwSelectClass(cls, checked){
     if(checked) hwSelected[h.id]=true; else delete hwSelected[h.id];
   });
   hwClassDropState[cls]=true;
+  renderHwManageList();
+  updateHwBulkBar();
+}
+function hwSelectSession(skey, checked){
+  var srcList=hwmanageList;
+  if(astHasMyStudents()&&hwMineOnly) srcList=srcList.filter(function(h){ return cu.studentIds.indexOf(h.studentId)>-1; });
+  srcList.filter(function(h){ return String(h.sessionId||h.sessionNum||'')===skey; }).forEach(function(h){
+    if(checked) hwSelected[h.id]=true; else delete hwSelected[h.id];
+  });
   renderHwManageList();
   updateHwBulkBar();
 }
