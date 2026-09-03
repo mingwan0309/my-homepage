@@ -2557,7 +2557,8 @@ async function checkMcHourReminders(){
       var m=candidates[i];
       var student=studentsMap[m.studentId];
       var msgs=[];
-      var text=m.name+' 학생, 1시간 후('+m.time+') 의무클리닉 시간입니다. 잊지 말고 와주세요!';
+      var changeLabel = (m.targetDay && m.day) ? (m.targetDay+'요일→'+m.day+'요일로 변경된 ') : '';
+      var text=m.name+' 학생, '+changeLabel+'의무클리닉 1시간 전('+m.time+')입니다. 잊지 말고 와주세요!';
       if(student&&student.studentPhone) msgs.push({phone:student.studentPhone, name:m.name, className:'의무클리닉', sessionNum:today.dateStr, message:text});
       if(student&&student.parentPhone) msgs.push({phone:student.parentPhone, name:m.name, className:'의무클리닉', sessionNum:today.dateStr, message:text});
       if(!msgs.length) continue;
