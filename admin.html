@@ -1144,6 +1144,7 @@ window.addEventListener('DOMContentLoaded',function(){
     initChatPage();
     refreshHwNavBadge();
     initActiveAstWidget();
+    startMcHourReminderTimer();
   }
 });
 
@@ -1216,6 +1217,7 @@ function setupAssistantSession(sessObj, isPreview){
   astIsPreviewMode=!!isPreview;
   document.getElementById('dashboard').style.display='flex';
   document.getElementById('sb-user').textContent=sessObj.name||sessObj.id;
+  if(!isPreview) startMcHourReminderTimer();
   var mcAllowedPages=['classes','students','mclinic','hwmanage','qna','pwchange','assistants','astguide','astcheck'];
   document.querySelectorAll('.sidebar-nav .nav-item, .mob-drawer-panel .nav-item').forEach(function(n){
     if(n.classList.contains('nav-group-head')){
@@ -2515,6 +2517,62 @@ async function mcSendAlimtalk(msgs, name, mcId, type){
     }
   }catch(e){ alert('발송 중 오류: '+e.message); }
 }
+// ── 의무클리닉 "오기 1시간 전" 자동 알림 ──
+// 화면을 켜둔 동안(선생님/조교 누구든) 1분마다 확인해서, 시간대가 바뀐 학생이 오기 1시간 전이면 자동으로 알림톡을 보냄.
+// 서버에서 저절로 도는 게 아니라 이 화면이 열려있어야 작동함(별도 예약 서버가 없어서 — 화면 하나만 켜져 있으면 충분).
+var mcHourReminderTimer=null;
+function startMcHourReminderTimer(){
+  if(mcHourReminderTimer) return;
+  checkMcHourReminders();
+  mcHourReminderTimer=setInterval(checkMcHourReminders, 60*1000);
+}
+function mcParseTimeToMinutes(t){
+  var m=String(t||'').match(/(\d{1,2})\s*[:시]\s*(\d{0,2})/);
+  if(!m) return null;
+  var h=parseInt(m[1],10), mi=m[2]?parseInt(m[2],10):0;
+  if(isNaN(h)||h<0||h>23) return null;
+  return h*60+(isNaN(mi)?0:mi);
+}
+async function checkMcHourReminders(){
+  try{
+    var today=mcTodayInfo();
+    var mr=await fetch(SU+'?action=getMandatoryClinic').then(function(r){return r.json();});
+    var list=mr.list||[];
+    // 오늘 실제로 오는(시간대가 바뀐) 학생만 — 참고용으로 뜨는 "오늘 아님" 항목은 제외
+    var todays=list.filter(function(m){ return m.type==='temp' ? m.date===today.dateStr : m.day===today.dayName; });
+    if(!todays.length) return;
+    var candidates=todays.filter(function(m){
+      if(m.hourReminderSent && m.hourReminderSent[today.dateStr]) return false;
+      var mins=mcParseTimeToMinutes(m.time);
+      if(mins===null) return false;
+      var now=new Date();
+      var nowMins=now.getHours()*60+now.getMinutes();
+      var diff=mins-nowMins; // 도착 시각까지 남은 분
+      return diff<=60 && diff>=50; // 1시간 전 근처(10분 폭, 1분마다 체크하니 놓치지 않음)
+    });
+    if(!candidates.length) return;
+    var sr=await fetch(SU+'?action=getStudents').then(function(r){return r.json();});
+    var studentsMap={}; (sr.students||[]).forEach(function(s){ studentsMap[s.id]=s; });
+    for(var i=0;i<candidates.length;i++){
+      var m=candidates[i];
+      var student=studentsMap[m.studentId];
+      var msgs=[];
+      var text=m.name+' 학생, 1시간 후('+m.time+') 의무클리닉 시간입니다. 잊지 말고 와주세요!';
+      if(student&&student.studentPhone) msgs.push({phone:student.studentPhone, name:m.name, className:'의무클리닉', sessionNum:today.dateStr, message:text});
+      if(student&&student.parentPhone) msgs.push({phone:student.parentPhone, name:m.name, className:'의무클리닉', sessionNum:today.dateStr, message:text});
+      if(!msgs.length) continue;
+      try{
+        var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+        if(res.success){
+          await fetch(SU+'?action=markMcHourReminderSent&id='+encodeURIComponent(m.id)+'&date='+encodeURIComponent(today.dateStr));
+          await fetch(SU,{method:'POST',body:JSON.stringify({action:'logMcAlimtalk',id:m.id,type:'1시간전 자동알림',studentName:m.name,by:(cu&&(cu.name||cu.id))||'',byRole:(cu&&cu.role)||''})});
+        }
+      }catch(e){ console.warn('[의무클리닉 1시간전 알림] 발송 실패:', e); }
+    }
+    if(document.getElementById('page-mclinic') && document.getElementById('page-mclinic').classList.contains('active')) loadMclinic();
+  }catch(e){ console.warn('[의무클리닉 1시간전 알림] 확인 실패:', e); }
+}
+
 async function mcSendReminder(id, studentId, name){
   var today=mcTodayInfo();
   var text=name+' 학생, 오늘('+today.dayName+'요일) 의무클리닉 시간입니다. 잊지 말고 와주세요!';

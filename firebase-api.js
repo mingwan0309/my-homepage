@@ -1677,6 +1677,14 @@ api.markMandatoryClinicTestReported = function(db, p){
   })).then(function(){ return { success:true }; });
 };
 
+// 의무클리닉 "오기 1시간 전" 자동 알림 — 같은 날짜에 중복으로 다시 보내지 않도록 표시해둠
+api.markMcHourReminderSent = function(db, p){
+  var data = {};
+  data['hourReminderSent.' + String(p.date)] = true;
+  return db.collection('mandatory_clinic').doc(String(p.id)).update(data)
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
 /* === 클리닉 === */
 api.getClinics = function(db){
   return db.collection('clinics').get().then(function(snap){
