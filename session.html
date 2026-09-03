@@ -2356,14 +2356,24 @@ function renderHwNameRows(){
   wrap.innerHTML='';
   addHwNameRow();
 }
+// 자주 쓰는 과제는 드롭다운에서 바로 고르고, 그 외에는 오른쪽 칸에 이름을 직접 입력
+var HW_PRESET_NAMES=['복습노트','워크북','감잡기','부교재'];
 function addHwNameRow(){
   var wrap=document.getElementById('hw-name-rows');
   var row=document.createElement('div');
   row.style.cssText='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;';
-  row.innerHTML='<input type="text" class="hw-name-row-input" placeholder="예: 워크북 3단원" style="flex:1;min-width:110px;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;box-sizing:border-box;">'
+  var opts='<option value="">직접 입력</option>'+HW_PRESET_NAMES.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('');
+  row.innerHTML='<select class="hw-preset-select" onchange="applyHwPreset(this)" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13.5px;font-family:inherit;box-sizing:border-box;background:#f8fafc;color:#475569;">'+opts+'</select>'
+    +'<input type="text" class="hw-name-row-input" placeholder="과제 이름 (직접 입력)" style="flex:2;min-width:120px;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;box-sizing:border-box;">'
     +'<button type="button" onclick="this.parentElement.remove()" style="background:#f8fafc;border:1.5px solid #e2e8f0;color:#94a3b8;width:38px;border-radius:8px;cursor:pointer;font-size:16px;flex-shrink:0;">✕</button>';
   wrap.appendChild(row);
   row.querySelector('input').focus();
+}
+function applyHwPreset(sel){
+  var input=sel.parentElement.querySelector('.hw-name-row-input');
+  if(!input)return;
+  if(sel.value) input.value=sel.value;
+  input.focus();
 }
 async function openAddHw(){
   renderHwNameRows();
