@@ -734,11 +734,16 @@ loadInfo();
 // ── 실시간 응시 테스트 ──
 var liveExams=[], liveExamCur=null, liveExamAnswers={};
 async function loadLiveExams(){
+  var dbgErr='';
   try{
     var r=await fetch(SU+'?action=getMyOpenExams&studentId='+encodeURIComponent(session.id)+'&classId='+encodeURIComponent(session.classId||'')).then(function(r){return r.json();});
     liveExams=r.exams||[];
-  }catch(e){ liveExams=[]; }
+  }catch(e){ liveExams=[]; dbgErr=String(e&&e.message||e); }
   var card=document.getElementById('live-exam-card');
+  // 임시 디버그 표시 — 화면 하단에 확인용 정보를 잠깐 보여줌(문제 해결되면 지울 것)
+  var dbg=document.getElementById('live-exam-debug');
+  if(!dbg){ dbg=document.createElement('div'); dbg.id='live-exam-debug'; dbg.style.cssText='margin:10px 16px;padding:10px 14px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;font-size:11px;color:#92400e;word-break:break-all;'; document.querySelector('.container').insertBefore(dbg, document.querySelector('.container').firstChild); }
+  dbg.textContent='[디버그] id='+session.id+' classId='+(session.classId||'없음')+' 결과건수='+liveExams.length+(dbgErr?' 오류='+dbgErr:'');
   if(!liveExams.length){ card.style.display='none'; return; }
   card.style.display='';
   document.getElementById('live-exam-list').innerHTML=liveExams.map(function(e,i){
