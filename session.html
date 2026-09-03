@@ -943,6 +943,40 @@ async function init(){
   await loadAttendance();
   await loadScores();
   await loadHw();
+  startExamSubmissionWatch();
+}
+
+// 이 차시 화면을 열어두는 동안, 학생이 제출하는 즉시 자동으로 채점해서 성적에 반영(실시간)
+var examSubWatchUnsub=null;
+function startExamSubmissionWatch(){
+  if(examSubWatchUnsub || !isStaff) return;
+  window.mkdbReady.then(function(db){
+    examSubWatchUnsub = db.collection('exam_submissions')
+      .where('sessionId','==',sessionId).where('graded','==',false)
+      .onSnapshot(function(snap){
+        snap.docChanges().forEach(function(ch){
+          if(ch.type==='added' || ch.type==='modified') autoGradeSubmission(ch.doc.id, ch.doc.data());
+        });
+      }, function(err){ console.warn('[실시간 채점] 구독 실패:', err); });
+  });
+}
+var autoGradingInFlight={};
+async function autoGradeSubmission(docId, s){
+  if(autoGradingInFlight[docId]) return;
+  autoGradingInFlight[docId]=true;
+  try{
+    var ex=exams.find(function(e){return e.id===s.examId;});
+    if(!ex) return; // 이 화면에 없는 시험이면 다음에 그 화면에서 채점됨
+    var key=await fetchExamKey(s.examId);
+    if(!key.some(function(r){return r.correct!=null;})) return;
+    var g=gradeWithAnswerKey(s.answers||{}, key);
+    var pass=(ex.passCutoff!==''&&ex.passCutoff!=null)?(Number(g.score)>=Number(ex.passCutoff)?'submit':'nosub'):'';
+    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(s.examId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=').then(function(r){return r.json();});
+    await fetch(SU+'?action=markSubmissionGraded&id='+encodeURIComponent(docId));
+    await loadScores();
+    renderScores();
+  }catch(e){ console.warn('[실시간 채점] 실패:', e); }
+  finally{ delete autoGradingInFlight[docId]; }
 }
 
 async function loadAttendance(){
