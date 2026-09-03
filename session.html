@@ -484,7 +484,7 @@ tr:hover td{background:#fafbff;}
         </div>
         <div>
           <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">날짜</label>
-          <input id="exam-detail-range" type="text" placeholder="예: [03/09]" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
+          <input id="exam-detail-range" type="date" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
         <div>
           <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">시험 유형 <span style="font-weight:400;color:#94a3b8;">(학생 누적성적표에서 이 유형끼리 묶임)</span></label>
@@ -594,7 +594,7 @@ tr:hover td{background:#fafbff;}
         </div>
         <div>
           <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">날짜</label>
-          <input id="hw-detail-range" type="text" placeholder="예: [07/17]" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
+          <input id="hw-detail-range" type="date" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
         <button onclick="saveHwDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
       </div>
@@ -613,7 +613,7 @@ tr:hover td{background:#fafbff;}
         <div id="hw-name-rows"></div>
         <button type="button" onclick="addHwNameRow()" style="margin-top:6px;background:#f1f5f9;border:none;color:#475569;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">+ 칸 추가</button>
       </div>
-      <div class="fg"><label>날짜 (선택, 전체 공통)</label><input type="text" id="hw-range-input" placeholder="예: [07/17]"></div>
+      <div class="fg"><label>날짜 (선택, 전체 공통)</label><input type="date" id="hw-range-input"></div>
       <div class="modal-btns">
         <button class="btn-cl" onclick="closeAddHw()">취소</button>
         <button class="btn-ok" onclick="saveHw()">추가</button>
@@ -2331,7 +2331,7 @@ function openHwDetail(hwId){
   currentHwId=hwId;
   document.getElementById('hw-detail-name').textContent=hw.name;
   document.getElementById('hw-detail-name-input').value=hw.name;
-  document.getElementById('hw-detail-range').value=hw.range||'';
+  document.getElementById('hw-detail-range').value=rangeToDateInput(hw.range);
   document.getElementById('hw-list-view').style.display='none';
   document.getElementById('hw-detail-view').style.display='';
 }
@@ -2341,7 +2341,7 @@ function closeHwDetail(){
 }
 async function saveHwDetail(){
   var name=document.getElementById('hw-detail-name-input').value.trim();
-  var range=document.getElementById('hw-detail-range').value.trim();
+  var range=dateInputToRange(document.getElementById('hw-detail-range').value);
   if(!name){alert('과제 이름을 입력해주세요');return;}
   var r=await fetch(SU+'?action=updateHwItem&id='+encodeURIComponent(currentHwId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)).then(function(r){return r.json();});
   if(r.success){
@@ -2399,7 +2399,7 @@ async function openAddHw(){
 function closeAddHw(){document.getElementById('add-hw-modal').classList.remove('show');}
 async function saveHw(){
   var names=Array.prototype.map.call(document.querySelectorAll('.hw-name-row-input'),function(inp){return inp.value.trim();}).filter(function(s){return s;});
-  var range=document.getElementById('hw-range-input').value.trim();
+  var range=dateInputToRange(document.getElementById('hw-range-input').value);
   if(!names.length){alert('과제 이름을 입력해주세요');return;}
   var btn=document.querySelector('#add-hw-modal .btn-ok');
   if(btn){ btn.disabled=true; btn.textContent='추가 중...'; }
@@ -2522,7 +2522,7 @@ function openExamDetail(examId){
   currentExamId=examId;
   document.getElementById('exam-detail-name').textContent=ex.name;
   document.getElementById('exam-detail-name-input').value=ex.name;
-  document.getElementById('exam-detail-range').value=ex.range||'';
+  document.getElementById('exam-detail-range').value=rangeToDateInput(ex.range);
   document.getElementById('exam-detail-total').value=ex.totalQuestions||'';
   document.getElementById('exam-detail-cutoff').value=ex.passCutoff||'';
   document.getElementById('exam-detail-type').value=ex.examType||'daily';
@@ -2563,7 +2563,7 @@ function updateCutoffHint(){
 }
 async function saveExamDetail(){
   var name=document.getElementById('exam-detail-name-input').value.trim();
-  var range=document.getElementById('exam-detail-range').value.trim();
+  var range=dateInputToRange(document.getElementById('exam-detail-range').value);
   var total=document.getElementById('exam-detail-total').value.trim();
   var cutoff=document.getElementById('exam-detail-cutoff').value.trim();
   var examType=document.getElementById('exam-detail-type').value||'daily';
@@ -2578,6 +2578,19 @@ async function saveExamDetail(){
     closeExamDetail();
   }
 }
+// ── 날짜 칸: 화면에선 달력으로 고르고, 저장은 기존과 같은 [MM/DD] 형식으로 ──
+function rangeToDateInput(range){
+  var m=String(range||'').match(/(\d{1,2})\s*\/\s*(\d{1,2})/);
+  if(!m) return '';
+  var year=(sessionInfo&&sessionInfo.date)?String(sessionInfo.date).slice(0,4):String(new Date().getFullYear());
+  return year+'-'+String(m[1]).padStart(2,'0')+'-'+String(m[2]).padStart(2,'0');
+}
+function dateInputToRange(v){
+  var p=String(v||'').split('-');
+  if(p.length<3) return '';
+  return '['+p[1]+'/'+p[2]+']';
+}
+
 // ── 학생 실시간 응시(수업 중에만 열기) ──
 function renderExamOpenState(ex){
   var btn=document.getElementById('exam-open-btn');
