@@ -1179,7 +1179,7 @@ api.submitGameScore = function(db, p){
 };
 
 api.getIncompleteHomeworks = function(db){
-  return db.collection('hw_status').where('pass','in',['incomplete','partial']).get().then(function(snap){
+  return db.collection('hw_status').where('pass','in',['incomplete','partial','notsub']).get().then(function(snap){
     var rows = docsToArr(snap);
     if (!rows.length) return { items: [] };
     var hwIds=[], sessionIds=[], studentIds=[];

@@ -587,7 +587,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <button type="button" id="hwtest-tab-test" class="hwtest-subtab" onclick="switchHwTestTab('test')">📝 테스트 관리</button>
       </div>
       <div id="hwtest-pane-hw">
-        <p style="font-size:12px;color:#94a3b8;margin:-4px 0 14px;">'일부미이행' 또는 '미이행'으로 표시된 과제만 모아서 보여줘요. 완료로 바뀌면 이 목록에서 자동으로 빠져요.</p>
+        <p style="font-size:12px;color:#94a3b8;margin:-4px 0 14px;">'일부미이행'/'미이행'/'미제출'로 표시된 과제만 모아서 보여줘요. 완료로 바뀌면 이 목록에서 자동으로 빠져요.</p>
         <label id="hw-mine-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;margin:-6px 0 12px;">
           <input type="checkbox" id="hw-mine" checked onchange="toggleHwMineOnly(this.checked)"> 내 담당 학생만 보기
         </label>
@@ -2574,7 +2574,7 @@ function closeHwPhoto(){
   document.getElementById('hw-photo-modal-img').src='';
 }
 
-// ── 숙제관리 (미이행/일부미이행 재촉·확인) ──
+// ── 숙제관리 (미이행/일부미이행/미제출 재촉·확인) ──
 var hwmanageList=[];
 var HW_STATUS_LABEL_ADMIN={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
 async function refreshHwNavBadge(){
@@ -2677,7 +2677,7 @@ function renderHwManageList(){
   var srcList=hwmanageList;
   if(astHasMyStudents()&&hwMineOnly) srcList=srcList.filter(function(h){ return cu.studentIds.indexOf(h.studentId)>-1; });
   if(!srcList.length){
-    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">'+(astHasMyStudents()&&hwMineOnly?'🎉 담당 학생 중 미이행/일부미이행 과제가 없어요.':'🎉 미이행/일부미이행 과제가 없어요.')+'</div>';
+    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">'+(astHasMyStudents()&&hwMineOnly?'🎉 담당 학생 중 미이행/일부미이행/미제출 과제가 없어요.':'🎉 미이행/일부미이행/미제출 과제가 없어요.')+'</div>';
     return;
   }
   // 반별로 묶기 (classId 기준 — 이름이 같은 반이 있어도 안 섞이게)
