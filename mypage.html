@@ -294,7 +294,17 @@ a{text-decoration:none;}
 <div id="page-main" style="display:none;">
   <div class="container">
 
-    <!-- 실시간 응시 중인 테스트 (선생님이 열었을 때만 노출, 제일 위) -->
+    <!-- 내 반 · 차시별 출결 (제일 위) -->
+    <div class="card">
+      <div class="card-title"><span>🗓️</span> 출결</div>
+      <div class="dash-sec-head" style="justify-content:space-between;">
+        <span class="dash-class" id="dash-class">내 반</span>
+        <a href="#" onclick="openScoreHistory();return false;" style="font-size:12.5px;font-weight:700;color:#3b6cf7;white-space:nowrap;">누적성적표 &gt;</a>
+      </div>
+      <div id="att-list"><div class="spinner">불러오는 중...</div></div>
+    </div>
+
+    <!-- 실시간 응시 중인 테스트 (선생님이 열었을 때만 노출) -->
     <div class="card" id="live-exam-card" style="display:none;border:2px solid #3b6cf7;">
       <div class="card-title"><span>📱</span> 지금 응시할 수 있는 테스트</div>
       <div id="live-exam-list"></div>
@@ -319,16 +329,6 @@ a{text-decoration:none;}
 
     <!-- 반 숙제왕 베스트 2 (기록 있을 때만 노출) -->
     <div id="hw-leaderboard-bar" style="display:none;background:linear-gradient(90deg,#fff7ed,#fef3c7);border:1px solid #fde68a;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:13px;font-weight:700;color:#92400e;text-align:center;"></div>
-
-    <!-- 내 반 · 차시별 출결 -->
-    <div class="card">
-      <div class="card-title"><span>🗓️</span> 출결</div>
-      <div class="dash-sec-head" style="justify-content:space-between;">
-        <span class="dash-class" id="dash-class">내 반</span>
-        <a href="#" onclick="openScoreHistory();return false;" style="font-size:12.5px;font-weight:700;color:#3b6cf7;white-space:nowrap;">누적성적표 &gt;</a>
-      </div>
-      <div id="att-list"><div class="spinner">불러오는 중...</div></div>
-    </div>
 
     <!-- 다음 시간까지의 과제 (등록된 게시글이 있을 때만 노출) -->
     <div class="card" id="assignment-card" style="display:none;">
@@ -385,7 +385,6 @@ a{text-decoration:none;}
     <!-- 하단 아이콘 -->
     <div class="card">
       <div class="dash-icons">
-        <a href="#" onclick="window.mkOpenNoticeModal&&window.mkOpenNoticeModal();return false;" class="dash-ic" style="position:relative;"><div class="ic">📢</div><div>공지사항</div><span id="notice-nav-badge" style="display:none;position:absolute;top:2px;right:18%;background:#ef4444;color:#fff;font-size:10px;font-weight:800;min-width:15px;height:15px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px;"></span></a>
         <a href="#" onclick="openChat();return false;" class="dash-ic"><div class="ic">💬</div><div>1:1 문의</div></a>
         <a href="reviews.html" class="dash-ic"><div class="ic">😊</div><div>수강후기</div></a>
         <a href="#" onclick="openTypoModal();return false;" class="dash-ic"><div class="ic">✏️</div><div>정정사항</div></a>
