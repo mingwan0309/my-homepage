@@ -294,6 +294,16 @@ a{text-decoration:none;}
 <div id="page-main" style="display:none;">
   <div class="container">
 
+    <!-- 실시간 응시 중인 테스트 (선생님이 열었을 때만 노출, 제일 위) -->
+    <div class="card" id="live-exam-card" style="display:none;border:2px solid #3b6cf7;">
+      <div class="card-title"><span>📱</span> 지금 응시할 수 있는 테스트</div>
+      <div id="live-exam-list"></div>
+    </div>
+    <div class="card" id="live-exam-done-card" style="display:none;border:2px solid #4ade80;background:#f0fdf4;">
+      <div style="display:flex;align-items:center;gap:8px;font-weight:800;color:#16a34a;font-size:14px;">✅ <span id="live-exam-done-text"></span></div>
+      <div style="font-size:12px;color:#166534;margin-top:4px;">선생님이 확인하시면 성적에 반영돼요.</div>
+    </div>
+
     <!-- 헤더 -->
     <div class="dash-head">
       <div class="dash-logo"><img src="logo.png" alt="로고"></div>
@@ -357,12 +367,6 @@ a{text-decoration:none;}
         <div class="dash-bigbtn-t">질의응답<br>바로가기</div><div class="dash-bigbtn-ic">💬</div>
         <span id="qna-nav-badge" style="display:none;position:absolute;top:10px;right:10px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;min-width:15px;height:15px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px;"></span>
       </a>
-    </div>
-
-    <!-- 실시간 응시 중인 테스트 (선생님이 열었을 때만 노출) -->
-    <div class="card" id="live-exam-card" style="display:none;border:2px solid #3b6cf7;">
-      <div class="card-title"><span>📱</span> 지금 응시할 수 있는 테스트</div>
-      <div id="live-exam-list"></div>
     </div>
 
     <!-- 미니게임 -->
@@ -734,25 +738,33 @@ loadInfo();
 // ── 실시간 응시 테스트 ──
 var liveExams=[], liveExamCur=null, liveExamAnswers={};
 async function loadLiveExams(){
-  var dbgErr='';
+  var all=[];
   try{
     var r=await fetch(SU+'?action=getMyOpenExams&studentId='+encodeURIComponent(session.id)+'&classId='+encodeURIComponent(session.classId||'')).then(function(r){return r.json();});
-    liveExams=r.exams||[];
-  }catch(e){ liveExams=[]; dbgErr=String(e&&e.message||e); }
+    all=r.exams||[];
+  }catch(e){ all=[]; }
+  liveExams = all.filter(function(e){ return !e.submitted; });
+  var doneList = all.filter(function(e){ return e.submitted; });
+
   var card=document.getElementById('live-exam-card');
-  // 임시 디버그 표시 — 화면 하단에 확인용 정보를 잠깐 보여줌(문제 해결되면 지울 것)
-  var dbg=document.getElementById('live-exam-debug');
-  if(!dbg){ dbg=document.createElement('div'); dbg.id='live-exam-debug'; dbg.style.cssText='margin:10px 16px;padding:10px 14px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;font-size:11px;color:#92400e;word-break:break-all;'; document.querySelector('.container').insertBefore(dbg, document.querySelector('.container').firstChild); }
-  dbg.textContent='[디버그] id='+session.id+' classId='+(session.classId||'없음')+' 결과건수='+liveExams.length+(dbgErr?' 오류='+dbgErr:'');
-  if(!liveExams.length){ card.style.display='none'; return; }
-  card.style.display='';
-  document.getElementById('live-exam-list').innerHTML=liveExams.map(function(e,i){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #f1f5f9;flex-wrap:wrap;">'
-      +'<div><div style="font-weight:800;font-size:14px;color:#1e293b;">'+escHtml(e.name)+'</div>'
-      +'<div style="font-size:12px;color:#94a3b8;">'+escHtml(e.sessLabel||'')+' · '+e.questionCount+'문항</div></div>'
-      +'<button onclick="openLiveExam('+i+')" style="background:#3b6cf7;color:#fff;border:none;padding:10px 18px;border-radius:9px;font-size:13.5px;font-weight:800;cursor:pointer;min-height:44px;">응시하기</button>'
-      +'</div>';
-  }).join('');
+  if(!liveExams.length){ card.style.display='none'; }
+  else{
+    card.style.display='';
+    document.getElementById('live-exam-list').innerHTML=liveExams.map(function(e,i){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #f1f5f9;flex-wrap:wrap;">'
+        +'<div><div style="font-weight:800;font-size:14px;color:#1e293b;">'+escHtml(e.name)+'</div>'
+        +'<div style="font-size:12px;color:#94a3b8;">'+escHtml(e.sessLabel||'')+' · '+e.questionCount+'문항</div></div>'
+        +'<button onclick="openLiveExam('+i+')" style="background:#3b6cf7;color:#fff;border:none;padding:10px 18px;border-radius:9px;font-size:13.5px;font-weight:800;cursor:pointer;min-height:44px;">응시하기</button>'
+        +'</div>';
+    }).join('');
+  }
+
+  var doneCard=document.getElementById('live-exam-done-card');
+  if(!doneList.length){ doneCard.style.display='none'; }
+  else{
+    doneCard.style.display='';
+    document.getElementById('live-exam-done-text').textContent = doneList.map(function(e){return e.name;}).join(', ') + ' 제출 완료!';
+  }
 }
 function openLiveExam(idx){
   liveExamCur=liveExams[idx];

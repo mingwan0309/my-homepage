@@ -888,7 +888,7 @@ api.getMyOpenExams = function(db, p){
           });
       });
     })).then(function(lists){
-      var open = [].concat.apply([], lists);
+      var open = [].concat.apply([], lists).filter(function(e){ return e.questionCount>0; });
       if (!open.length) return { exams: [] };
       // 아직 없는 문서를 studentId로 하나씩 get()하면, 보안 규칙이 "그 문서의 studentId가 나인지" 확인하려다
       // 문서 자체가 없어서(resource==null) 오히려 권한거부로 막힌다(교사 계정은 전권이라 안 걸렸던 것).
@@ -896,7 +896,10 @@ api.getMyOpenExams = function(db, p){
       return db.collection('exam_submissions').where('studentId','==',sid).get().then(function(subSnap){
         var submittedIds = {};
         subSnap.forEach(function(d){ submittedIds[d.data().examId] = true; });
-        return { exams: open.filter(function(e){ return !submittedIds[e.id] && e.questionCount>0; }) };
+        // 제출 여부와 상관없이 지금 열려있는 시험을 전부 내려줌(submitted 표시 포함) — 학생 화면에서
+        // "제출 완료"를 새로고침해도 계속 보여줄 수 있도록. 응시 화면에서는 !submitted인 것만 쓰면 됨.
+        open.forEach(function(e){ e.submitted = !!submittedIds[e.id]; });
+        return { exams: open };
       });
     });
   });
