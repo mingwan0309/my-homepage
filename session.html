@@ -2495,12 +2495,20 @@ function renderExamList(){
     return;
   }
   body.innerHTML=exams.map(function(ex){
-    return '<div onclick="openExamDetail(\''+ex.id+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:10px;cursor:pointer;background:#fff;">'
-      +'<div>'
-      +'<div style="font-weight:600;font-size:14px;">'+ex.name+'</div>'
-      +(ex.range?'<div style="font-size:12px;color:#64748b;margin-top:3px;">'+ex.range+'</div>':'')
+    var hasKey = ex.hasAnswerKey || Number(ex.questionCount||0)>0;
+    // 응시 열기/닫기를 목록에서 바로 — 수업 중에 상세까지 들어가지 않아도 되게
+    var liveBtn = !hasKey
+      ? '<span style="font-size:11px;color:#cbd5e1;white-space:nowrap;">답안 등록 필요</span>'
+      : (ex.submitOpen
+        ? '<button type="button" onclick="event.stopPropagation();toggleExamOpenFromList(\''+ex.id+'\')" style="background:#dc2626;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;min-height:38px;">■ 마감</button>'
+        : '<button type="button" onclick="event.stopPropagation();toggleExamOpenFromList(\''+ex.id+'\')" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;min-height:38px;">▶ 응시 시작</button>');
+    var openBadge = ex.submitOpen ? '<span style="margin-left:6px;font-size:10px;font-weight:800;color:#16a34a;background:#dcfce7;padding:2px 7px;border-radius:20px;">🟢 응시 중</span>' : '';
+    return '<div onclick="openExamDetail(\''+ex.id+'\')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border:1px solid '+(ex.submitOpen?'#86efac':'#e2e8f0')+';border-radius:10px;margin-bottom:10px;cursor:pointer;background:'+(ex.submitOpen?'#f0fdf4':'#fff')+';flex-wrap:wrap;">'
+      +'<div style="flex:1;min-width:120px;">'
+      +'<div style="font-weight:600;font-size:14px;">'+escHtml(ex.name)+openBadge+'</div>'
+      +(ex.range?'<div style="font-size:12px;color:#64748b;margin-top:3px;">'+escHtml(ex.range)+'</div>':'')
       +'</div>'
-      +'<span style="color:#94a3b8;font-size:18px;">›</span>'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'+liveBtn+'<span style="color:#94a3b8;font-size:18px;">›</span></div>'
       +'</div>';
   }).join('');
 }
@@ -2586,6 +2594,24 @@ function renderExamOpenState(ex){
     st.textContent='닫혀 있어요. 시작을 누르면 학생 화면에 시험이 나타나요.';
     btn.textContent='▶ 응시 시작';
     btn.style.background='#16a34a';
+  }
+}
+// 시험 목록에서 바로 응시 열기/닫기 (상세로 안 들어가고)
+async function toggleExamOpenFromList(examId){
+  var ex=exams.find(function(e){return e.id===examId;});
+  if(!ex)return;
+  var next=!ex.submitOpen;
+  if(next && !confirm('"'+ex.name+'" 시험을 학생들이 폰으로 제출할 수 있게 열까요?\n(끝나면 꼭 "마감"을 눌러주세요)'))return;
+  var r=await fetch(SU+'?action=setExamOpen&examId='+encodeURIComponent(examId)+'&open='+(next?'true':'false')).then(function(r){return r.json();});
+  if(!r.success){ alert('처리 실패했어요.'); return; }
+  ex.submitOpen=next;
+  renderExamList();
+  if(!next){
+    // 마감할 때 그 시험의 제출 답안을 바로 채점
+    var prev=currentExamId;
+    currentExamId=examId;
+    await gradeSubmissions(true);
+    currentExamId=prev;
   }
 }
 async function toggleExamOpen(){
