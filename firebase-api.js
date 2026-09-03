@@ -848,8 +848,23 @@ api.getExamKey = function(db, p){
 /* === 학생 실시간 응시 (수업 중에만 열림) === */
 // 교사가 "응시 시작/마감"을 눌러 여닫음
 api.setExamOpen = function(db, p){
-  return db.collection('exams').doc(String(p.examId)).update({ submitOpen: String(p.open)==='true' })
-    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+  var eid = String(p.examId);
+  var open = String(p.open)==='true';
+  var ref = db.collection('exams').doc(eid);
+  if (!open) {
+    return ref.update({ submitOpen:false }).then(function(){ return { success:true }; }, function(){ return { success:false }; });
+  }
+  // 열 때: 예전에 만든 시험은 questionCount가 없어서 학생 화면에 안 뜨므로, 정답 개수로 채워준다
+  return ref.get().then(function(doc){
+    if (!doc.exists) return { success:false };
+    var cnt = Number(doc.data().questionCount||0);
+    if (cnt > 0) return ref.update({ submitOpen:true }).then(function(){ return { success:true }; });
+    return api.getExamKey(db, { examId:eid }).then(function(r){
+      var n = (r.answerKey||[]).length;
+      if (!n) return { success:false, msg:'먼저 답안(정답)을 등록해주세요.' };
+      return ref.update({ submitOpen:true, questionCount:n }).then(function(){ return { success:true }; });
+    });
+  }, function(){ return { success:false }; });
 };
 // 학생 화면: 지금 응시할 수 있는 시험 목록(내 반 + 열려있음 + 아직 제출 안 함). 정답은 절대 포함하지 않음
 api.getMyOpenExams = function(db, p){

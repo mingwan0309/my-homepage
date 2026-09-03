@@ -2603,7 +2603,7 @@ async function toggleExamOpenFromList(examId){
   var next=!ex.submitOpen;
   if(next && !confirm('"'+ex.name+'" 시험을 학생들이 폰으로 제출할 수 있게 열까요?\n(끝나면 꼭 "마감"을 눌러주세요)'))return;
   var r=await fetch(SU+'?action=setExamOpen&examId='+encodeURIComponent(examId)+'&open='+(next?'true':'false')).then(function(r){return r.json();});
-  if(!r.success){ alert('처리 실패했어요.'); return; }
+  if(!r.success){ alert((r&&r.msg)||'처리 실패했어요.'); return; }
   ex.submitOpen=next;
   renderExamList();
   if(!next){
@@ -2624,7 +2624,7 @@ async function toggleExamOpen(){
     ex.submitOpen=next;
     renderExamOpenState(ex);
     if(!next) gradeSubmissions(true); // 마감할 때 남은 제출분 채점
-  } else { alert('처리 실패했어요.'); }
+  } else { alert((r&&r.msg)||'처리 실패했어요.'); }
 }
 // 학생이 제출한 답안을 정답과 대조해 채점하고 성적에 저장 (정답은 교사 화면에서만 다뤄짐)
 async function gradeSubmissions(showAlert){
