@@ -553,8 +553,12 @@ tr:hover td{background:#fafbff;}
       <h3 style="margin:0;">답안 등록</h3>
       <button onclick="document.getElementById('answerkey-modal').classList.remove('show')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
     </div>
-    <p style="font-size:12px;color:#94a3b8;margin:0 0 14px;">OMR 답안지 1~20번 문제의 정답과 배점을 설정하세요. 나중에 스캔한 OMR을 업로드하면 여기 등록한 정답과 자동으로 비교해서 채점돼요.</p>
-    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;font-size:12px;color:#64748b;">총 <span id="ak-total" style="font-weight:700;color:#1e293b;">0</span>점</div>
+    <p style="font-size:12px;color:#94a3b8;margin:0 0 12px;" id="ak-help">각 문제의 정답을 설정하세요. 여기 등록한 정답으로 학생 제출 답안과 OMR 스캔이 자동 채점돼요.</p>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <label style="font-size:12.5px;font-weight:700;color:#475569;white-space:nowrap;">문항 수</label>
+      <input type="number" id="ak-qcount" min="1" max="50" onchange="changeAkQCount(this.value)" style="width:80px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;text-align:center;">
+      <span style="font-size:11.5px;color:#94a3b8;" id="ak-total-wrap">총 <span id="ak-total" style="font-weight:700;color:#1e293b;">0</span><span id="ak-total-unit">점</span></span>
+    </div>
     <div id="answerkey-rows"></div>
     <div class="modal-btns">
       <button class="btn-cl" onclick="document.getElementById('answerkey-modal').classList.remove('show')">취소</button>
@@ -2658,19 +2662,39 @@ async function fetchExamKey(examId){
     return r.answerKey||[];
   }catch(e){ return []; }
 }
+var akIsCount=false; // 개수형 시험이면 배점 없이 1문제=1개로 채점
 async function openAnswerKeyModal(){
   var ex=exams.find(function(e){return e.id===currentExamId;});
   if(!ex)return;
   var saved=await fetchExamKey(currentExamId);
-  var totalScore=Number(ex.totalQuestions)||100;
-  var defaultPt=Math.round((totalScore/20)*10)/10;
-  akRows=[];
-  for(var q=1;q<=20;q++){
-    var found=saved&&saved.find(function(r){return r.q===q;});
-    akRows.push({ q:q, correct: found?found.correct:null, points: found?found.points:defaultPt });
-  }
+  akIsCount=(ex.scoreType==='count');
+  // 문항 수: 저장된 답안 > (개수형이면 총 문항 수) > 기본 20
+  var qcount = (saved&&saved.length) ? saved.length : (akIsCount ? (Number(ex.totalQuestions)||10) : 20);
+  buildAkRows(qcount, saved, ex);
+  document.getElementById('ak-qcount').value=qcount;
+  document.getElementById('ak-help').textContent = akIsCount
+    ? '각 문제의 정답을 설정하세요. 이 시험은 "개수"로 채점하므로 배점 없이 맞은 개수가 점수가 돼요.'
+    : '각 문제의 정답과 배점을 설정하세요. 여기 등록한 정답으로 학생 제출 답안과 OMR 스캔이 자동 채점돼요.';
+  document.getElementById('ak-total-unit').textContent = akIsCount ? '개' : '점';
   renderAnswerKeyRows();
   document.getElementById('answerkey-modal').classList.add('show');
+}
+function buildAkRows(qcount, saved, ex){
+  var totalScore=Number(ex&&ex.totalQuestions)||100;
+  var defaultPt = akIsCount ? 1 : (Math.round((totalScore/qcount)*10)/10);
+  var prev=akRows||[];
+  akRows=[];
+  for(var q=1;q<=qcount;q++){
+    var found=(saved&&saved.find(function(r){return r.q===q;})) || prev.find(function(r){return r.q===q;});
+    akRows.push({ q:q, correct: found?found.correct:null, points: akIsCount?1:(found&&found.points!=null?found.points:defaultPt) });
+  }
+}
+function changeAkQCount(val){
+  var n=Math.max(1,Math.min(50,Number(val)||1));
+  var ex=exams.find(function(e){return e.id===currentExamId;});
+  buildAkRows(n, null, ex);
+  document.getElementById('ak-qcount').value=n;
+  renderAnswerKeyRows();
 }
 function renderAnswerKeyRows(){
   var el=document.getElementById('answerkey-rows');
@@ -2679,11 +2703,13 @@ function renderAnswerKeyRows(){
       var active=r.correct===o;
       return '<button type="button" onclick="setAkCorrect('+r.q+','+o+')" style="width:30px;height:30px;border-radius:50%;border:1.5px solid '+(active?'#1e293b':'#e2e8f0')+';background:'+(active?'#1e293b':'#fff')+';color:'+(active?'#fff':'#334155')+';font-size:13px;font-weight:700;cursor:pointer;">'+o+'</button>';
     }).join('');
+    var ptCell = akIsCount ? ''
+      : '<input type="number" step="0.1" value="'+r.points+'" onchange="setAkPoints('+r.q+',this.value)" style="width:60px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;text-align:center;">'
+        +'<span style="font-size:12px;color:#94a3b8;">점</span>';
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">'
       +'<span style="width:22px;font-size:13px;font-weight:700;color:#64748b;">'+r.q+'</span>'
       +'<div style="display:flex;gap:5px;">'+opts+'</div>'
-      +'<input type="number" step="0.1" value="'+r.points+'" onchange="setAkPoints('+r.q+',this.value)" style="width:60px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;text-align:center;">'
-      +'<span style="font-size:12px;color:#94a3b8;">점</span>'
+      +ptCell
       +'<button type="button" onclick="setAkCorrect('+r.q+',null)" style="margin-left:auto;background:#f1f5f9;border:none;color:#94a3b8;font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;">제외</button>'
       +'</div>';
   }).join('');
