@@ -512,7 +512,13 @@ tr:hover td{background:#fafbff;}
           <input id="exam-detail-cutoff" type="number" min="0" placeholder="예: 80" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
         <button onclick="saveExamDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
-        <button onclick="openAnswerKeyModal()" style="padding:12px;background:#fff7ed;color:#c2410c;border:1.5px solid #fdba74;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📝 답안 등록 (OMR 자동채점용)</button>
+        <button onclick="openAnswerKeyModal()" style="padding:12px;background:#fff7ed;color:#c2410c;border:1.5px solid #fdba74;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📝 답안 등록 (자동채점용)</button>
+        <div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:14px;">
+          <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:4px;">📱 학생 실시간 응시</div>
+          <div id="exam-open-status" style="font-size:12px;color:#94a3b8;margin-bottom:10px;">—</div>
+          <button id="exam-open-btn" onclick="toggleExamOpen()" style="width:100%;padding:12px;border:none;border-radius:9px;font-size:14px;font-weight:800;cursor:pointer;color:#fff;background:#16a34a;">▶ 응시 시작</button>
+          <button onclick="gradeSubmissions(true)" style="width:100%;margin-top:8px;padding:10px;background:#eff6ff;color:#1d4ed8;border:1.5px solid #93c5fd;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;">🔄 제출 답안 채점하기</button>
+        </div>
         <button onclick="openOmrUploadModal()" style="padding:12px;background:#eff6ff;color:#1d4ed8;border:1.5px solid #93c5fd;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📷 OMR 업로드 · 자동채점</button>
       </div>
     </div>
@@ -2508,6 +2514,8 @@ function openExamDetail(examId){
   document.getElementById('exam-detail-total').value=ex.totalQuestions||'';
   document.getElementById('exam-detail-cutoff').value=ex.passCutoff||'';
   document.getElementById('exam-detail-type').value=ex.examType||'daily';
+  renderExamOpenState(ex);
+  gradeSubmissions(false); // 학생이 폰으로 제출해둔 답안이 있으면 조용히 채점해서 성적에 넣어줌
   setScoreType(ex.scoreType||'score');
   document.getElementById('exam-list-view').style.display='none';
   document.getElementById('exam-detail-view').style.display='';
@@ -2558,12 +2566,76 @@ async function saveExamDetail(){
     closeExamDetail();
   }
 }
-// ── 답안 등록 (OMR 자동채점용) ──
-var akRows=[]; // [{q, correct(1-5 또는 null=제외), points}]
-function openAnswerKeyModal(){
+// ── 학생 실시간 응시(수업 중에만 열기) ──
+function renderExamOpenState(ex){
+  var btn=document.getElementById('exam-open-btn');
+  var st=document.getElementById('exam-open-status');
+  if(!btn||!st)return;
+  var hasKey = ex.hasAnswerKey || Number(ex.questionCount||0)>0;
+  if(!hasKey){
+    st.textContent='먼저 "답안 등록"으로 정답을 넣어야 학생이 응시할 수 있어요.';
+    btn.disabled=true; btn.style.background='#cbd5e1'; btn.textContent='▶ 응시 시작 (답안 등록 필요)';
+    return;
+  }
+  btn.disabled=false;
+  if(ex.submitOpen){
+    st.innerHTML='<span style="color:#16a34a;font-weight:700;">🟢 지금 열려 있어요</span> — 학생 마이페이지에서 응시할 수 있어요';
+    btn.textContent='■ 응시 마감';
+    btn.style.background='#dc2626';
+  } else {
+    st.textContent='닫혀 있어요. 시작을 누르면 학생 화면에 시험이 나타나요.';
+    btn.textContent='▶ 응시 시작';
+    btn.style.background='#16a34a';
+  }
+}
+async function toggleExamOpen(){
   var ex=exams.find(function(e){return e.id===currentExamId;});
   if(!ex)return;
-  var saved=ex.answerKey;
+  var next=!ex.submitOpen;
+  if(next && !confirm('지금부터 학생들이 폰으로 답을 제출할 수 있게 열까요?\n(수업이 끝나면 꼭 "응시 마감"을 눌러주세요)'))return;
+  var r=await fetch(SU+'?action=setExamOpen&examId='+encodeURIComponent(currentExamId)+'&open='+(next?'true':'false')).then(function(r){return r.json();});
+  if(r.success){
+    ex.submitOpen=next;
+    renderExamOpenState(ex);
+    if(!next) gradeSubmissions(true); // 마감할 때 남은 제출분 채점
+  } else { alert('처리 실패했어요.'); }
+}
+// 학생이 제출한 답안을 정답과 대조해 채점하고 성적에 저장 (정답은 교사 화면에서만 다뤄짐)
+async function gradeSubmissions(showAlert){
+  var ex=exams.find(function(e){return e.id===currentExamId;});
+  if(!ex)return;
+  try{
+    var sr=await fetch(SU+'?action=getExamSubmissions&examId='+encodeURIComponent(currentExamId)).then(function(r){return r.json();});
+    var subs=(sr.submissions||[]).filter(function(s){return !s.graded;});
+    if(!subs.length){ if(showAlert) alert('새로 채점할 제출 답안이 없어요.'); return; }
+    var key=await fetchExamKey(currentExamId);
+    if(!key.some(function(r){return r.correct!=null;})){ if(showAlert) alert('정답이 등록되어 있지 않아요.'); return; }
+    for(var i=0;i<subs.length;i++){
+      var s=subs[i];
+      var g=gradeWithAnswerKey(s.answers||{}, key);
+      var pass=(ex.passCutoff!==''&&ex.passCutoff!=null)?(Number(g.score)>=Number(ex.passCutoff)?'submit':'nosub'):'';
+      await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId||sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=').then(function(r){return r.json();});
+      await fetch(SU+'?action=markSubmissionGraded&id='+encodeURIComponent(s.id));
+    }
+    await loadScores();
+    renderScores();
+    if(showAlert) alert(subs.length+'명의 제출 답안을 채점해서 성적에 넣었어요.');
+  }catch(e){ if(showAlert) alert('채점 중 오류가 발생했어요.'); }
+}
+
+// ── 답안 등록 (OMR 자동채점용) ──
+var akRows=[]; // [{q, correct(1-5 또는 null=제외), points}]
+// 정답은 exams가 아니라 교사 전용 컬렉션에 있으므로 필요할 때 따로 불러온다
+async function fetchExamKey(examId){
+  try{
+    var r=await fetch(SU+'?action=getExamKey&examId='+encodeURIComponent(examId)).then(function(r){return r.json();});
+    return r.answerKey||[];
+  }catch(e){ return []; }
+}
+async function openAnswerKeyModal(){
+  var ex=exams.find(function(e){return e.id===currentExamId;});
+  if(!ex)return;
+  var saved=await fetchExamKey(currentExamId);
   var totalScore=Number(ex.totalQuestions)||100;
   var defaultPt=Math.round((totalScore/20)*10)/10;
   akRows=[];
@@ -2609,7 +2681,7 @@ async function saveAnswerKey(){
   var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'setExamAnswerKey',examId:currentExamId,answerKey:akRows})}).then(function(r){return r.json();});
   if(r.success){
     var ex=exams.find(function(e){return e.id===currentExamId;});
-    if(ex) ex.answerKey=akRows;
+    if(ex){ ex.hasAnswerKey=true; ex.questionCount=akRows.length; }
     document.getElementById('answerkey-modal').classList.remove('show');
     alert('답안이 저장됐어요.');
   } else {
@@ -2788,7 +2860,8 @@ async function handleOmrFiles(fileList){
   var files=Array.from(fileList);
   if(!files.length) return;
   var ex=exams.find(function(e){return e.id===currentExamId;});
-  if(!ex||!ex.answerKey||!ex.answerKey.some(function(r){return r.correct!=null;})){
+  var omrKey=ex?await fetchExamKey(currentExamId):[];
+  if(!ex||!omrKey.some(function(r){return r.correct!=null;})){
     alert('먼저 "답안 등록"으로 정답을 입력해주세요.');
     return;
   }
@@ -2818,7 +2891,7 @@ async function handleOmrFiles(fileList){
         continue;
       }
       var student=findStudentByPhone(sheet.phone);
-      var graded=gradeWithAnswerKey(sheet.answers, ex.answerKey);
+      var graded=gradeWithAnswerKey(sheet.answers, omrKey);
       omrResultList.push({
         ok:true, fileName:files[fi2].name, pageNum:pi+1,
         phone:sheet.phone, answers:sheet.answers,

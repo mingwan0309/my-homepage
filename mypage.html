@@ -356,6 +356,12 @@ a{text-decoration:none;}
       </a>
     </div>
 
+    <!-- 실시간 응시 중인 테스트 (선생님이 열었을 때만 노출) -->
+    <div class="card" id="live-exam-card" style="display:none;border:2px solid #3b6cf7;">
+      <div class="card-title"><span>📱</span> 지금 응시할 수 있는 테스트</div>
+      <div id="live-exam-list"></div>
+    </div>
+
     <!-- 미니게임 -->
     <div class="card" id="game-card">
       <div class="card-title"><span>🎮</span> 미니게임 <span id="game-dday-badge" style="margin-left:auto;background:#fef2f2;color:#dc2626;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;"></span></div>
@@ -436,6 +442,19 @@ a{text-decoration:none;}
       <button type="button" id="sh-type-mock" onclick="switchShExamType('mock')" style="flex:1;min-height:40px;border-radius:9px;border:1.5px solid #e2e8f0;background:#fff;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer;">실전 모의고사</button>
     </div>
     <div id="sh-body"><div class="spinner">불러오는 중...</div></div>
+  </div>
+</div>
+
+<!-- 테스트 응시 -->
+<div id="live-exam-modal" class="pw-modal-bg" onclick="if(event.target===this)closeLiveExam()">
+  <div style="background:#fff;border-radius:16px;padding:20px 18px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="font-weight:800;font-size:16px;" id="live-exam-title">테스트</div>
+      <button onclick="closeLiveExam()" style="background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:12.5px;color:#94a3b8;margin-bottom:14px;">답을 고르고 맨 아래 <b>제출하기</b>를 누르세요. 한 번 제출하면 수정할 수 없어요.</div>
+    <div id="live-exam-questions"></div>
+    <button id="live-exam-submit" onclick="submitLiveExam()" style="width:100%;margin-top:14px;padding:14px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;min-height:48px;">제출하기</button>
   </div>
 </div>
 
@@ -703,8 +722,86 @@ loadInfo();
   loadMySurveys();
   loadAssignmentCard();
   loadGameCard();
+  loadLiveExams();
   renderFaq();
 });
+
+// ── 실시간 응시 테스트 ──
+var liveExams=[], liveExamCur=null, liveExamAnswers={};
+async function loadLiveExams(){
+  try{
+    var r=await fetch(SU+'?action=getMyOpenExams&studentId='+encodeURIComponent(session.id)+'&classId='+encodeURIComponent(session.classId||'')).then(function(r){return r.json();});
+    liveExams=r.exams||[];
+  }catch(e){ liveExams=[]; }
+  var card=document.getElementById('live-exam-card');
+  if(!liveExams.length){ card.style.display='none'; return; }
+  card.style.display='';
+  document.getElementById('live-exam-list').innerHTML=liveExams.map(function(e,i){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #f1f5f9;flex-wrap:wrap;">'
+      +'<div><div style="font-weight:800;font-size:14px;color:#1e293b;">'+escHtml(e.name)+'</div>'
+      +'<div style="font-size:12px;color:#94a3b8;">'+escHtml(e.sessLabel||'')+' · '+e.questionCount+'문항</div></div>'
+      +'<button onclick="openLiveExam('+i+')" style="background:#3b6cf7;color:#fff;border:none;padding:10px 18px;border-radius:9px;font-size:13.5px;font-weight:800;cursor:pointer;min-height:44px;">응시하기</button>'
+      +'</div>';
+  }).join('');
+}
+function openLiveExam(idx){
+  liveExamCur=liveExams[idx];
+  if(!liveExamCur)return;
+  liveExamAnswers={};
+  document.getElementById('live-exam-title').textContent=liveExamCur.name;
+  var html='';
+  for(var q=1;q<=liveExamCur.questionCount;q++){
+    html+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9;">'
+      +'<span style="width:28px;font-size:13.5px;font-weight:800;color:#475569;flex-shrink:0;">'+q+'</span>'
+      +'<div style="display:flex;gap:6px;flex:1;">';
+    for(var c=1;c<=5;c++){
+      html+='<button type="button" id="lq-'+q+'-'+c+'" onclick="pickLiveAnswer('+q+','+c+')" style="flex:1;min-height:44px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;">'+'①②③④⑤'.charAt(c-1)+'</button>';
+    }
+    html+='</div></div>';
+  }
+  document.getElementById('live-exam-questions').innerHTML=html;
+  var btn=document.getElementById('live-exam-submit');
+  btn.disabled=false; btn.textContent='제출하기'; btn.style.background='#3b6cf7';
+  document.getElementById('live-exam-modal').classList.add('show');
+}
+function closeLiveExam(){ document.getElementById('live-exam-modal').classList.remove('show'); }
+function pickLiveAnswer(q,c){
+  liveExamAnswers[q]=c;
+  for(var i=1;i<=5;i++){
+    var b=document.getElementById('lq-'+q+'-'+i);
+    if(!b)continue;
+    var on=(i===c);
+    b.style.border=on?'1.5px solid #3b6cf7':'1.5px solid #e2e8f0';
+    b.style.background=on?'#3b6cf7':'#fff';
+    b.style.color=on?'#fff':'#64748b';
+  }
+}
+async function submitLiveExam(){
+  if(!liveExamCur)return;
+  var answered=Object.keys(liveExamAnswers).length;
+  if(answered<liveExamCur.questionCount){
+    if(!confirm((liveExamCur.questionCount-answered)+'문항이 비어 있어요. 그래도 제출할까요?\n(제출하면 수정할 수 없어요)'))return;
+  } else {
+    if(!confirm('제출할까요? 제출하면 수정할 수 없어요.'))return;
+  }
+  var btn=document.getElementById('live-exam-submit');
+  btn.disabled=true; btn.textContent='제출 중...'; btn.style.background='#94a3b8';
+  try{
+    var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'submitExamAnswers',examId:liveExamCur.id,sessionId:liveExamCur.sessionId,studentId:session.id,studentName:session.name||'',answers:liveExamAnswers})});
+    var d=await res.json();
+    if(d&&d.success){
+      alert('제출 완료! 선생님이 확인하면 성적에 반영돼요.');
+      closeLiveExam();
+      loadLiveExams();
+    } else {
+      alert((d&&d.msg)||'제출하지 못했어요.');
+      btn.disabled=false; btn.textContent='제출하기'; btn.style.background='#3b6cf7';
+    }
+  }catch(e){
+    alert('제출 중 오류가 발생했어요. 다시 시도해주세요.');
+    btn.disabled=false; btn.textContent='제출하기'; btn.style.background='#3b6cf7';
+  }
+}
 
 // 이번 주 순위표 마감(월요일 리셋)까지 남은 날 — game.html과 동일한 기준
 function renderGameDday(){

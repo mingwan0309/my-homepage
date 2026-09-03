@@ -798,7 +798,8 @@ api.addExam = function(db, p){
 api.getExams = function(db, p){
   return db.collection('exams').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
     var exams = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; })
-      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', totalQuestions:r.totalQuestions||'', scoreType:r.scoreType||'score', passCutoff:r.passCutoff||'', examType:r.examType||'daily', grade1:r.grade1||'', grade2:r.grade2||'', grade3:r.grade3||'', grade4:r.grade4||'', answerKey:r.answerKey||null, createdAt:r.createdAt||'' }; });
+      // answerKey는 여기서 안 내려줌 — 학생도 읽을 수 있는 API라 정답이 새면 안 됨 (교사는 getExamKey로 따로 조회)
+      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', totalQuestions:r.totalQuestions||'', scoreType:r.scoreType||'score', passCutoff:r.passCutoff||'', examType:r.examType||'daily', grade1:r.grade1||'', grade2:r.grade2||'', grade3:r.grade3||'', grade4:r.grade4||'', hasAnswerKey:(Array.isArray(r.answerKey)&&r.answerKey.length>0)||Number(r.questionCount||0)>0, questionCount:Number(r.questionCount||0), submitOpen:r.submitOpen===true, createdAt:r.createdAt||'' }; });
     return { exams: exams };
   });
 };
@@ -821,9 +822,94 @@ api.updateExam = function(db, p){
 };
 
 // OMR 자동채점용 정답/배점 등록 (1~20번 문제, 각 {q, correct(1-5 또는 null=제외), points})
+// 정답(answerKey)은 학생이 읽으면 안 되므로 exam_keys(교사/조교 전용 컬렉션)에 따로 저장한다.
+// exams 문서에는 문항 수(questionCount)만 남겨서 학생 응시 화면이 몇 문제인지 알 수 있게 함.
 api.setExamAnswerKey = function(db, p){
   var key = Array.isArray(p.answerKey) ? p.answerKey : [];
-  return db.collection('exams').doc(String(p.examId)).update({ answerKey: key })
+  return db.collection('exam_keys').doc(String(p.examId)).set({ examId:String(p.examId), answerKey:key, updatedAt:nowStr() })
+    .then(function(){
+      // 예전에 exams 문서 안에 저장돼 있던 정답은 학생도 읽을 수 있으므로 같이 지움
+      return db.collection('exams').doc(String(p.examId)).update({ answerKey: null, questionCount: key.length });
+    })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+// 정답 조회 (교사/조교만 — Firestore 규칙으로 막혀 있음). 예전 데이터는 exams 문서 안에 있으므로 그쪽도 확인
+api.getExamKey = function(db, p){
+  var eid = String(p.examId);
+  return db.collection('exam_keys').doc(eid).get().then(function(doc){
+    if (doc.exists && Array.isArray(doc.data().answerKey)) return { answerKey: doc.data().answerKey };
+    return db.collection('exams').doc(eid).get().then(function(ex){
+      var legacy = ex.exists ? ex.data().answerKey : null;
+      return { answerKey: Array.isArray(legacy) ? legacy : [] };
+    });
+  });
+};
+
+/* === 학생 실시간 응시 (수업 중에만 열림) === */
+// 교사가 "응시 시작/마감"을 눌러 여닫음
+api.setExamOpen = function(db, p){
+  return db.collection('exams').doc(String(p.examId)).update({ submitOpen: String(p.open)==='true' })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+// 학생 화면: 지금 응시할 수 있는 시험 목록(내 반 + 열려있음 + 아직 제출 안 함). 정답은 절대 포함하지 않음
+api.getMyOpenExams = function(db, p){
+  var sid = String(p.studentId), classId = String(p.classId||'');
+  if (!classId) return Promise.resolve({ exams: [] });
+  return db.collection('sessions').where('classId','==',classId).get().then(function(sesSnap){
+    var sessions = docsToArr(sesSnap);
+    if (!sessions.length) return { exams: [] };
+    return Promise.all(sessions.map(function(s){
+      return db.collection('exams').where('sessionId','==',String(s.id)).get().then(function(exSnap){
+        return docsToArr(exSnap).filter(function(e){ return e.submitOpen===true; })
+          .map(function(e){
+            return { id:String(e.id), name:e.name||'시험', sessionId:String(s.id),
+              sessLabel:s.label||(s.sessionNum?s.sessionNum+'차시':''), date:s.date||'',
+              questionCount:Number(e.questionCount||0) };
+          });
+      });
+    })).then(function(lists){
+      var open = [].concat.apply([], lists);
+      if (!open.length) return { exams: [] };
+      return Promise.all(open.map(function(e){
+        return db.collection('exam_submissions').doc(e.id+'__'+sid).get().then(function(d){
+          e.submitted = d.exists;
+          return e;
+        });
+      })).then(function(withState){
+        return { exams: withState.filter(function(e){ return !e.submitted && e.questionCount>0; }) };
+      });
+    });
+  });
+};
+// 학생 제출 — 한 번 내면 못 고침(이미 있으면 거부)
+api.submitExamAnswers = function(db, p){
+  var eid = String(p.examId), sid = String(p.studentId);
+  var docId = eid+'__'+sid;
+  var answers = {};
+  try { answers = (typeof p.answers==='string') ? JSON.parse(p.answers) : (p.answers||{}); } catch(e) { answers = {}; }
+  return db.collection('exams').doc(eid).get().then(function(ex){
+    if (!ex.exists || ex.data().submitOpen!==true) return { success:false, msg:'지금은 제출할 수 없어요. (마감됨)' };
+    return db.collection('exam_submissions').doc(docId).get().then(function(d){
+      if (d.exists) return { success:false, msg:'이미 제출했어요.' };
+      return db.collection('exam_submissions').doc(docId).set({
+        id:docId, examId:eid, sessionId:String(p.sessionId||ex.data().sessionId||''),
+        studentId:sid, studentName:p.studentName||'', answers:answers,
+        graded:false, submittedAt:nowStr()
+      }).then(function(){ return { success:true }; });
+    });
+  });
+};
+// 교사 화면: 이 시험에 들어온 제출 답안들
+api.getExamSubmissions = function(db, p){
+  return db.collection('exam_submissions').where('examId','==',String(p.examId)).get().then(function(snap){
+    return { submissions: docsToArr(snap).map(function(r){
+      return { id:r.id, examId:r.examId, sessionId:r.sessionId, studentId:r.studentId,
+        studentName:r.studentName||'', answers:r.answers||{}, graded:r.graded===true, submittedAt:r.submittedAt||'' };
+    }) };
+  });
+};
+api.markSubmissionGraded = function(db, p){
+  return db.collection('exam_submissions').doc(String(p.id)).update({ graded:true })
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
