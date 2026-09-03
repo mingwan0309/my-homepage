@@ -711,6 +711,8 @@ document.addEventListener('DOMContentLoaded', async function(){
   if (!isPreviewMode) {
     // 세션 id가 하이픈 없는 형식이거나 예전 형식이어도, 실제 존재하는 학생 문서를 찾아 교정한다(자가 치유)
     await normalizeSessionId();
+    // 로그인한 뒤에 반이 배정/변경됐을 수 있으므로 매번 최신 반 정보로 갱신 (안 하면 다시 로그인할 때까지 "배정된 반이 없습니다"로 남음)
+    await refreshSessionClass();
   }
 
 loadInfo();
@@ -1258,6 +1260,29 @@ function switchTab(name) {
 }
 
 // ── 내 정보 (대시보드 헤더/반 이름) ──
+// 로그인 이후에 선생님이 반을 배정/변경한 경우를 반영 (localStorage 세션의 반 정보를 최신으로 갱신)
+async function refreshSessionClass(){
+  try{
+    var db = await window.mkdbReady;
+    var doc = await db.collection('students').doc(session.id).get();
+    if(!doc.exists) return;
+    var cid = String(doc.data().classId||'');
+    if(cid === String(session.classId||'')) return;
+    session.classId = cid;
+    session.className = '';
+    if(cid){
+      try{
+        var c = await db.collection('classes').doc(cid).get();
+        if(c.exists) session.className = c.data().name||'';
+      }catch(e){}
+    }
+    localStorage.setItem('mkmath_session', JSON.stringify(session));
+    var dc = document.getElementById('dash-class');
+    if(dc) dc.textContent = session.className || '내 반';
+    var sub = document.getElementById('ph-sub');
+    if(sub) sub.textContent = session.className ? session.className + ' 수강 중' : '';
+  }catch(e){}
+}
 async function loadInfo() {
   var dc = document.getElementById('dash-class');
   if (dc) dc.textContent = session.className || '내 반';
