@@ -579,6 +579,10 @@ tr:hover td{background:#fafbff;}
           <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">날짜</label>
           <input id="hw-detail-range" type="text" placeholder="예: [07/17]" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
+        <div>
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">누적 그룹 <span style="font-weight:400;color:#94a3b8;">(학생 마이페이지 "누적성적표"에서 묶여 보이는 이름)</span></label>
+          <input id="hw-detail-track" type="text" placeholder="비워두면 과제 이름과 동일" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
+        </div>
         <button onclick="saveHwDetail()" style="margin-top:4px;padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
       </div>
     </div>
@@ -593,6 +597,7 @@ tr:hover td{background:#fafbff;}
       <h3>과제 추가</h3>
       <div class="fg">
         <label>과제 이름 <span style="font-weight:400;color:#94a3b8;">(여러 개를 한 번에 추가할 수 있어요)</span></label>
+        <p style="font-size:11.5px;color:#94a3b8;margin:-2px 0 8px;">누적 그룹: 학생 마이페이지 "누적성적표"에서 같은 과제 시리즈로 묶어서 보여줄 이름이에요. 매번 이름이 조금씩 달라져도(예: "복습노트"/"복습노트 2차시") 같은 그룹으로 지정해두면 하나로 이어서 보여요.</p>
         <div id="hw-name-rows"></div>
         <button type="button" onclick="addHwNameRow()" style="margin-top:6px;background:#f1f5f9;border:none;color:#475569;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">+ 칸 추가</button>
       </div>
@@ -2304,6 +2309,7 @@ function openHwDetail(hwId){
   document.getElementById('hw-detail-name').textContent=hw.name;
   document.getElementById('hw-detail-name-input').value=hw.name;
   document.getElementById('hw-detail-range').value=hw.range||'';
+  document.getElementById('hw-detail-track').value=hw.trackName||'';
   document.getElementById('hw-list-view').style.display='none';
   document.getElementById('hw-detail-view').style.display='';
 }
@@ -2314,11 +2320,12 @@ function closeHwDetail(){
 async function saveHwDetail(){
   var name=document.getElementById('hw-detail-name-input').value.trim();
   var range=document.getElementById('hw-detail-range').value.trim();
+  var track=document.getElementById('hw-detail-track').value.trim();
   if(!name){alert('과제 이름을 입력해주세요');return;}
-  var r=await fetch(SU+'?action=updateHwItem&id='+encodeURIComponent(currentHwId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)).then(function(r){return r.json();});
+  var r=await fetch(SU+'?action=updateHwItem&id='+encodeURIComponent(currentHwId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&trackName='+encodeURIComponent(track||name)).then(function(r){return r.json();});
   if(r.success){
     var hw=homeworks.find(function(h){return h.id===currentHwId;});
-    if(hw){hw.name=name;hw.range=range;}
+    if(hw){hw.name=name;hw.range=range;hw.trackName=track||name;}
     document.getElementById('hw-detail-name').textContent=name;
     renderHwList();
     renderScores();
@@ -2341,8 +2348,9 @@ function renderHwNameRows(){
 function addHwNameRow(){
   var wrap=document.getElementById('hw-name-rows');
   var row=document.createElement('div');
-  row.style.cssText='display:flex;gap:6px;margin-bottom:8px;';
-  row.innerHTML='<input type="text" class="hw-name-row-input" placeholder="예: 워크북 3단원" style="flex:1;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;box-sizing:border-box;">'
+  row.style.cssText='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;';
+  row.innerHTML='<input type="text" class="hw-name-row-input" placeholder="예: 워크북 3단원" style="flex:2;min-width:110px;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;box-sizing:border-box;">'
+    +'<input type="text" class="hw-track-row-input" placeholder="누적 그룹(선택, 비우면 이름과 동일)" style="flex:1;min-width:110px;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:12.5px;font-family:inherit;box-sizing:border-box;color:#64748b;">'
     +'<button type="button" onclick="this.parentElement.remove()" style="background:#f8fafc;border:1.5px solid #e2e8f0;color:#94a3b8;width:38px;border-radius:8px;cursor:pointer;font-size:16px;flex-shrink:0;">✕</button>';
   wrap.appendChild(row);
   row.querySelector('input').focus();
@@ -2360,14 +2368,21 @@ async function openAddHw(){
 }
 function closeAddHw(){document.getElementById('add-hw-modal').classList.remove('show');}
 async function saveHw(){
-  var names=Array.prototype.map.call(document.querySelectorAll('.hw-name-row-input'),function(inp){return inp.value.trim();}).filter(function(s){return s;});
+  var nameInputs=document.querySelectorAll('.hw-name-row-input');
+  var trackInputs=document.querySelectorAll('.hw-track-row-input');
+  var rows=[];
+  for(var ri=0;ri<nameInputs.length;ri++){
+    var nm=nameInputs[ri].value.trim();
+    if(!nm) continue;
+    rows.push({ name:nm, track:(trackInputs[ri]?trackInputs[ri].value.trim():'') });
+  }
   var range=document.getElementById('hw-range-input').value.trim();
-  if(!names.length){alert('과제 이름을 입력해주세요');return;}
+  if(!rows.length){alert('과제 이름을 입력해주세요');return;}
   var btn=document.querySelector('#add-hw-modal .btn-ok');
   if(btn){ btn.disabled=true; btn.textContent='추가 중...'; }
   try{
-    for(var i=0;i<names.length;i++){
-      await fetch(SU+'?action=addHwItem&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(names[i])+'&range='+encodeURIComponent(range)).then(r=>r.json());
+    for(var i=0;i<rows.length;i++){
+      await fetch(SU+'?action=addHwItem&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(rows[i].name)+'&trackName='+encodeURIComponent(rows[i].track||rows[i].name)+'&range='+encodeURIComponent(range)).then(r=>r.json());
     }
     closeAddHw();
     await loadHw();

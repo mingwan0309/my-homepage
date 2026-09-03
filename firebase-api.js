@@ -707,9 +707,9 @@ api.getMyScoreHistory = function(db, p){
         var sess = sessionMap[String(r.sessionId)];
         if(!hw || !sess) return;
         if(classId && String(sess.classId)!==classId) return;
-        var name = hw.name || '과제';
+        var name = hw.trackName || hw.name || '과제';
         if(!hwGroups[name]) hwGroups[name]=[];
-        hwGroups[name].push({ sessionNum:Number(sess.sessionNum||0), date:sess.date||'', pass:r.pass||'' });
+        hwGroups[name].push({ sessionNum:Number(sess.sessionNum||0), date:sess.date||'', pass:r.pass||'', hwName:hw.name||'' });
       });
       Object.keys(hwGroups).forEach(function(name){
         hwGroups[name].sort(function(a,b){ return a.sessionNum-b.sessionNum; });
@@ -828,13 +828,13 @@ api.setExamAnswerKey = function(db, p){
 api.addHwItem = function(db, p){
   var id = genId('hw');
   return db.collection('homeworks').doc(id).set({
-    id:id, sessionId:String(p.sessionId), name:p.name||'과제', range:p.range||'', createdAt:nowStr()
+    id:id, sessionId:String(p.sessionId), name:p.name||'과제', range:p.range||'', trackName:(p.trackName||p.name||'과제'), createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };
 api.getHwItems = function(db, p){
   return db.collection('homeworks').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
     var hws = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; })
-      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', createdAt:r.createdAt||'' }; });
+      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', trackName:r.trackName||r.name||'', createdAt:r.createdAt||'' }; });
     return { homeworks: hws };
   });
 };
@@ -846,6 +846,7 @@ api.updateHwItem = function(db, p){
   var data={};
   if(p.name!==undefined) data.name=p.name;
   if(p.range!==undefined) data.range=p.range;
+  if(p.trackName!==undefined) data.trackName=p.trackName;
   return db.collection('homeworks').doc(String(p.id)).update(data)
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
