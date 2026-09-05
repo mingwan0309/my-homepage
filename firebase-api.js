@@ -1143,7 +1143,7 @@ api.getMyHomeworkStatus = function(db, p){
       Object.keys(sesMap).forEach(function(k){ var cid=String(sesMap[k].classId||''); if(cid && classIds.indexOf(cid)<0) classIds.push(cid); });
       return Promise.all(classIds.map(function(id){ return db.collection('classes').doc(id).get(); })).then(function(classDocs){
         var clsMap={}; classDocs.forEach(function(d){ if(d.exists) clsMap[d.id]=d.data(); });
-        var items = rows.map(function(r){
+        var items = rows.filter(function(r){ return hwMap[r.hwId]; }).map(function(r){
           var hw=hwMap[r.hwId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
           return {
             id:r.id, sessionId:String(r.sessionId), hwId:String(r.hwId),
@@ -1377,7 +1377,7 @@ api.getIncompleteHomeworks = function(db){
       Object.keys(sesMap).forEach(function(k){ var cid=String(sesMap[k].classId||''); if(cid && classIds.indexOf(cid)<0) classIds.push(cid); });
       return Promise.all(classIds.map(function(id){ return db.collection('classes').doc(id).get(); })).then(function(classDocs){
         var clsMap={}; classDocs.forEach(function(d){ if(d.exists) clsMap[d.id]=d.data(); });
-        var items = rows.map(function(r){
+        var items = rows.filter(function(r){ return hwMap[r.hwId]; }).map(function(r){
           var hw=hwMap[r.hwId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{}, stu=stuMap[r.studentId]||{};
           return {
             id:r.id, sessionId:String(r.sessionId), hwId:String(r.hwId), studentId:String(r.studentId),
