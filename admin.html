@@ -1723,6 +1723,13 @@ async function sdSaveField(field){
     renderStu();
   }catch(e){ alert('오류가 발생했습니다.'); }
 }
+// 학생 탭이 아닌 다른 화면(숙제관리 등)에서 이름 클릭했을 때 — 학생 목록이 아직 안 불러와졌을 수 있어서 먼저 채워준다
+async function openStuDetailFromList(id){
+  if(!allStudents.length){
+    try{ var sr=await fetch(SU+'?action=getStudents').then(function(r){return r.json();}); allStudents=sr.students||[]; }catch(e){}
+  }
+  openStuDetail(id);
+}
 async function openStuDetail(id){
   var s=allStudents.find(function(x){return x.id===id;});
   if(!s) return;
@@ -2732,7 +2739,7 @@ function renderHwCard(h){
     +'<div style="display:flex;align-items:flex-start;gap:10px;">'
     +'<input type="checkbox" class="hw-select-cb" data-id="'+h.id+'" onchange="toggleHwSelect(\''+h.id+'\',this.checked)" '+(hwSelected[h.id]?'checked':'')+' style="width:19px;height:19px;flex-shrink:0;margin-top:2px;cursor:pointer;">'
     +'<div>'
-    +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;">'+escHtml(h.studentName)+' <span style="font-weight:800;color:#3b6cf7;font-size:14px;">'+(h.sessionNum?h.sessionNum+'차시':'')+'</span></div>'
+    +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;"><span onclick="openStuDetailFromList(\''+h.studentId+'\')" style="cursor:pointer;text-decoration:underline;text-underline-offset:2px;">'+escHtml(h.studentName)+'</span> <span style="font-weight:800;color:#3b6cf7;font-size:14px;">'+(h.sessionNum?h.sessionNum+'차시':'')+'</span></div>'
     +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(h.hwName)+'</div>'
     +(h.feedback?'<div style="font-size:12px;color:#94a3b8;margin-top:4px;white-space:pre-wrap;">'+escHtml(h.feedback)+'</div>':'')
     +photoLinks+lastRem
