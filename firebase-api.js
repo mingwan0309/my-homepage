@@ -944,33 +944,34 @@ api.submitExamAnswers = function(db, p){
     return db.collection('exam_submissions').where('examId','==',eid).where('studentId','==',sid).get().then(function(qs){
       if (!qs.empty) return { success:false, msg:'이미 제출했어요.' };
       var leaveLog = []; try { leaveLog = (typeof p.leaveLog==='string') ? JSON.parse(p.leaveLog) : (p.leaveLog||[]); } catch(e) { leaveLog = []; }
-      return db.collection('exam_submissions').doc(docId).set({
-        id:docId, examId:eid, sessionId:String(p.sessionId||ex.data().sessionId||''),
-        studentId:sid, studentName:p.studentName||'', answers:answers,
-        leaveCount:Number(p.leaveCount||0), leaveLog:leaveLog,
-        graded:false, submittedAt:nowStr(), submittedAtMs:Date.now()
-      }).then(function(){
-        // 제출 즉시 학생에게 "몇 번을 틀렸는지"만 보여주기 위한 자기 채점(정답 자체는 화면에 안 보여줌).
-        // 반마다 시험이 달라서 이 정도 노출은 감수하기로 함(사용자 확인) — 공식 성적(scores)은
-        // 그대로 기존처럼 교사 화면(실시간 구독/마감)에서 채점돼 별도로 기록됨, 여기선 표시만 함.
-        return db.collection('exam_keys').doc(eid).get().then(function(keyDoc){
-          var key = (keyDoc.exists && Array.isArray(keyDoc.data().answerKey)) ? keyDoc.data().answerKey : [];
-          var score = 0, total = 0, wrongQuestions = [];
-          key.forEach(function(r){
-            if (r.correct == null) return;
-            total += Number(r.points) || 0;
-            if (answers[r.q] === r.correct) score += Number(r.points) || 0;
-            else wrongQuestions.push(r.q);
-          });
-          wrongQuestions.sort(function(a,b){ return a-b; });
-          score = Math.round(score*10)/10; total = Math.round(total*10)/10;
-          // 새로고침 후에도 "제출 완료" 카드에 점수·틀린 문항을 계속 보여주기 위해 자기채점 결과를 제출 문서에 저장
-          return db.collection('exam_submissions').doc(docId).update({ selfScore:score, selfTotal:total, selfWrongQuestions:wrongQuestions }).catch(function(){})
-            .then(function(){ return { success:true, score:score, total:total, wrongQuestions:wrongQuestions }; });
-        }).catch(function(err){
-          console.error('[submitExamAnswers] 자기채점 실패(제출 자체는 성공):', err);
-          return { success:true };
-        }); // 자기채점 실패해도 제출 자체는 이미 성공한 것으로 처리
+      // 제출 즉시 학생에게 "몇 번을 틀렸는지"만 보여주기 위한 자기 채점(정답 자체는 화면에 안 보여줌).
+      // 반마다 시험이 달라서 이 정도 노출은 감수하기로 함(사용자 확인) — 공식 성적(scores)은
+      // 그대로 기존처럼 교사 화면(실시간 구독/마감)에서 채점돼 별도로 기록됨, 여기선 표시만 함.
+      // 채점 결과를 별도 update()로 나중에 저장하면 보안 규칙상 update가 막혀 있을 때 조용히 실패할 수 있어서
+      // (실제로 이 문제가 있었음), 최초 생성(create) 한 번에 selfScore까지 전부 같이 써서 그 문제를 피한다.
+      return db.collection('exam_keys').doc(eid).get().then(function(keyDoc){
+        var key = (keyDoc.exists && Array.isArray(keyDoc.data().answerKey)) ? keyDoc.data().answerKey : [];
+        var score = 0, total = 0, wrongQuestions = [];
+        key.forEach(function(r){
+          if (r.correct == null) return;
+          total += Number(r.points) || 0;
+          if (answers[r.q] === r.correct) score += Number(r.points) || 0;
+          else wrongQuestions.push(r.q);
+        });
+        wrongQuestions.sort(function(a,b){ return a-b; });
+        score = Math.round(score*10)/10; total = Math.round(total*10)/10;
+        return db.collection('exam_submissions').doc(docId).set({
+          id:docId, examId:eid, sessionId:String(p.sessionId||ex.data().sessionId||''),
+          studentId:sid, studentName:p.studentName||'', answers:answers,
+          leaveCount:Number(p.leaveCount||0), leaveLog:leaveLog,
+          selfScore:score, selfTotal:total, selfWrongQuestions:wrongQuestions,
+          graded:false, submittedAt:nowStr(), submittedAtMs:Date.now()
+        }).then(function(){
+          return { success:true, score:score, total:total, wrongQuestions:wrongQuestions };
+        });
+      }).catch(function(err){
+        console.error('[submitExamAnswers] 저장 실패:', err);
+        return { success:false, msg:(err&&err.message)||'제출에 실패했어요. 다시 시도해주세요.' };
       });
     });
   });
