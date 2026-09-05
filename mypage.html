@@ -782,7 +782,9 @@ function openLiveExam(idx){
   }
   document.getElementById('live-exam-questions').innerHTML=html;
   var btn=document.getElementById('live-exam-submit');
-  btn.disabled=false; btn.textContent='제출하기'; btn.style.background='#3b6cf7';
+  btn.disabled=false; btn.textContent='제출하기'; btn.style.background='#3b6cf7'; btn.style.display='';
+  var oldCloseBtn=document.getElementById('live-exam-result-close');
+  if(oldCloseBtn) oldCloseBtn.remove();
   document.getElementById('live-exam-modal').classList.add('show');
 }
 function closeLiveExam(){ document.getElementById('live-exam-modal').classList.remove('show'); }
@@ -811,8 +813,7 @@ async function submitLiveExam(){
     var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'submitExamAnswers',examId:liveExamCur.id,sessionId:liveExamCur.sessionId,studentId:session.id,studentName:session.name||'',answers:liveExamAnswers})});
     var d=await res.json();
     if(d&&d.success){
-      alert('제출 완료! 선생님이 확인하면 성적에 반영돼요.');
-      closeLiveExam();
+      renderLiveExamResult(d);
       loadLiveExams();
     } else {
       alert((d&&d.msg)||'제출하지 못했어요.');
@@ -821,6 +822,38 @@ async function submitLiveExam(){
   }catch(e){
     alert('제출 중 오류가 발생했어요. 다시 시도해주세요.');
     btn.disabled=false; btn.textContent='제출하기'; btn.style.background='#3b6cf7';
+  }
+}
+// 제출 즉시 학생에게 점수/틀린 문항 번호만 보여줌(정답 자체는 안 보여줌). 이후 수정 불가.
+function renderLiveExamResult(d){
+  var hasScore = typeof d.score === 'number';
+  var wrong = d.wrongQuestions || [];
+  var body;
+  if(!hasScore){
+    body = '<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:13.5px;">제출은 완료됐어요. 선생님이 확인하면 성적에 반영돼요.</div>';
+  } else if(!wrong.length){
+    body = '<div style="text-align:center;padding:10px 0;">'
+      + '<div style="font-size:32px;font-weight:900;color:#16a34a;margin-bottom:6px;">'+d.score+' / '+d.total+'</div>'
+      + '<div style="font-size:14px;font-weight:700;color:#16a34a;">🎉 전부 맞았어요!</div>'
+      + '</div>';
+  } else {
+    body = '<div style="text-align:center;padding:10px 0;">'
+      + '<div style="font-size:32px;font-weight:900;color:#1e293b;margin-bottom:6px;">'+d.score+' / '+d.total+'</div>'
+      + '<div style="font-size:13.5px;color:#dc2626;font-weight:700;margin-bottom:4px;">틀린 문항: '+wrong.join(', ')+'번</div>'
+      + '<div style="font-size:12px;color:#94a3b8;">정답은 따로 안내되지 않아요. 다시 풀어보고 궁금한 건 선생님께 질문해보세요!</div>'
+      + '</div>';
+  }
+  document.getElementById('live-exam-questions').innerHTML = body;
+  var btn=document.getElementById('live-exam-submit');
+  btn.style.display='none';
+  var closeBtn=document.getElementById('live-exam-result-close');
+  if(!closeBtn){
+    closeBtn=document.createElement('button');
+    closeBtn.id='live-exam-result-close';
+    closeBtn.textContent='닫기';
+    closeBtn.onclick=function(){ closeLiveExam(); btn.style.display=''; closeBtn.remove(); };
+    closeBtn.style.cssText='width:100%;margin-top:14px;padding:14px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;min-height:48px;';
+    btn.parentElement.appendChild(closeBtn);
   }
 }
 

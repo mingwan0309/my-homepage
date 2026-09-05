@@ -919,7 +919,23 @@ api.submitExamAnswers = function(db, p){
         id:docId, examId:eid, sessionId:String(p.sessionId||ex.data().sessionId||''),
         studentId:sid, studentName:p.studentName||'', answers:answers,
         graded:false, submittedAt:nowStr()
-      }).then(function(){ return { success:true }; });
+      }).then(function(){
+        // 제출 즉시 학생에게 "몇 번을 틀렸는지"만 보여주기 위한 자기 채점(정답 자체는 화면에 안 보여줌).
+        // 반마다 시험이 달라서 이 정도 노출은 감수하기로 함(사용자 확인) — 공식 성적(scores)은
+        // 그대로 기존처럼 교사 화면(실시간 구독/마감)에서 채점돼 별도로 기록됨, 여기선 표시만 함.
+        return db.collection('exam_keys').doc(eid).get().then(function(keyDoc){
+          var key = (keyDoc.exists && Array.isArray(keyDoc.data().answerKey)) ? keyDoc.data().answerKey : [];
+          var score = 0, total = 0, wrongQuestions = [];
+          key.forEach(function(r){
+            if (r.correct == null) return;
+            total += Number(r.points) || 0;
+            if (answers[r.q] === r.correct) score += Number(r.points) || 0;
+            else wrongQuestions.push(r.q);
+          });
+          wrongQuestions.sort(function(a,b){ return a-b; });
+          return { success:true, score:Math.round(score*10)/10, total:Math.round(total*10)/10, wrongQuestions:wrongQuestions };
+        }).catch(function(){ return { success:true }; }); // 자기채점 실패해도 제출 자체는 이미 성공한 것으로 처리
+      });
     });
   });
 };
