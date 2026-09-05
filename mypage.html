@@ -734,11 +734,29 @@ loadInfo();
   loadAssignmentCard();
   loadGameCard();
   loadLiveExams();
+  startLiveExamPolling();
   renderFaq();
 });
 
 // ── 실시간 응시 테스트 ──
 var liveExams=[], liveExamCur=null, liveExamAnswers={};
+// 마이페이지를 미리 열어두고 있는 학생들은 새로고침을 안 하면 선생님이 나중에 "응시 시작"을 눌러도
+// 카드가 절대 저절로 뜨지 않는 문제가 있었음(최초 1회만 불러오고 끝) — 주기적으로 다시 확인하도록 폴링 추가.
+var liveExamPollInt=null;
+function startLiveExamPolling(){
+  if(liveExamPollInt) clearInterval(liveExamPollInt);
+  liveExamPollInt=setInterval(function(){
+    var modal=document.getElementById('live-exam-modal');
+    if(modal && modal.classList.contains('show')) return; // 응시 중엔 목록을 새로 그리지 않음
+    loadLiveExams();
+  }, 15000);
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='visible'){
+      var modal=document.getElementById('live-exam-modal');
+      if(!modal || !modal.classList.contains('show')) loadLiveExams();
+    }
+  });
+}
 async function loadLiveExams(){
   var all=[];
   try{
