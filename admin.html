@@ -591,6 +591,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <label id="hw-mine-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;margin:-6px 0 12px;">
           <input type="checkbox" id="hw-mine" checked onchange="toggleHwMineOnly(this.checked)"> 내 담당 학생만 보기
         </label>
+        <input type="text" id="hw-name-search" placeholder="🔍 학생 이름으로 찾기" oninput="renderHwManageList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+        <style>#hw-name-search{font-size:16px!important;}@media(min-width:769px){#hw-name-search{font-size:14px!important;}}</style>
         <div id="hw-bulk-bar" style="display:none;position:sticky;top:0;z-index:5;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="font-size:13px;font-weight:800;color:#1d4ed8;"><span id="hw-bulk-count">0</span>명 선택됨</span>
           <button type="button" onclick="hwSelectAll()" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">전체선택</button>
@@ -2748,8 +2750,11 @@ function renderHwManageList(){
   var el=document.getElementById('hwmanage-list');
   var srcList=hwmanageList;
   if(astHasMyStudents()&&hwMineOnly) srcList=srcList.filter(function(h){ return cu.studentIds.indexOf(h.studentId)>-1; });
+  var searchEl=document.getElementById('hw-name-search');
+  var searchQ=searchEl?searchEl.value.trim():'';
+  if(searchQ) srcList=srcList.filter(function(h){ return (h.studentName||'').indexOf(searchQ)>-1; });
   if(!srcList.length){
-    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">'+(astHasMyStudents()&&hwMineOnly?'🎉 담당 학생 중 미이행/일부미이행/미제출 과제가 없어요.':'🎉 미이행/일부미이행/미제출 과제가 없어요.')+'</div>';
+    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">'+(searchQ?'🔍 \''+escHtml(searchQ)+'\' 이름과 일치하는 과제가 없어요.':(astHasMyStudents()&&hwMineOnly?'🎉 담당 학생 중 미이행/일부미이행/미제출 과제가 없어요.':'🎉 미이행/일부미이행/미제출 과제가 없어요.'))+'</div>';
     return;
   }
   // 반별로 묶기 (classId 기준 — 이름이 같은 반이 있어도 안 섞이게)
