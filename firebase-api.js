@@ -945,7 +945,10 @@ api.submitExamAnswers = function(db, p){
           // 새로고침 후에도 "제출 완료" 카드에 점수·틀린 문항을 계속 보여주기 위해 자기채점 결과를 제출 문서에 저장
           return db.collection('exam_submissions').doc(docId).update({ selfScore:score, selfTotal:total, selfWrongQuestions:wrongQuestions }).catch(function(){})
             .then(function(){ return { success:true, score:score, total:total, wrongQuestions:wrongQuestions }; });
-        }).catch(function(){ return { success:true }; }); // 자기채점 실패해도 제출 자체는 이미 성공한 것으로 처리
+        }).catch(function(err){
+          console.error('[submitExamAnswers] 자기채점 실패(제출 자체는 성공):', err);
+          return { success:true };
+        }); // 자기채점 실패해도 제출 자체는 이미 성공한 것으로 처리
       });
     });
   });
