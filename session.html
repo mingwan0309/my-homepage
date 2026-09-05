@@ -972,7 +972,8 @@ async function autoGradeSubmission(docId, s){
     var key=await fetchExamKey(s.examId);
     if(!key.some(function(r){return r.correct!=null;})) return;
     var g=gradeWithAnswerKey(s.answers||{}, key);
-    var pass=(ex.passCutoff!==''&&ex.passCutoff!=null)?(Number(g.score)>=Number(ex.passCutoff)?'submit':'nosub'):'';
+    // 커트라인이 있으면 그 기준으로, 없으면 "제출은 했다"는 뜻으로 일단 통과 처리(교사가 나중에 직접 바꿀 수 있음)
+    var pass=(ex.passCutoff!==''&&ex.passCutoff!=null)?(Number(g.score)>=Number(ex.passCutoff)?'submit':'nosub'):'submit';
     await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(s.examId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=').then(function(r){return r.json();});
     await fetch(SU+'?action=markSubmissionGraded&id='+encodeURIComponent(docId));
     await loadScores();
@@ -2670,7 +2671,21 @@ async function toggleExamOpenFromList(examId){
     currentExamId=examId;
     await gradeSubmissions(true);
     currentExamId=prev;
+    await markAbsenteesForExam(examId);
   }
+}
+// 마감 시점까지 아예 응시하지 않은(제출 기록도 점수도 없는) 학생은 자동으로 "미응시" 처리
+async function markAbsenteesForExam(examId){
+  try{
+    var noScore=students.filter(function(st){ return !((scoresMap[st.id]||{})[examId]); });
+    if(!noScore.length) return;
+    for(var i=0;i<noScore.length;i++){
+      var st=noScore[i];
+      await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(st.id)+'&examId='+encodeURIComponent(examId)+'&score=&pass=absent&feedback=').then(function(r){return r.json();});
+    }
+    await loadScores();
+    renderScores();
+  }catch(e){ console.warn('[미응시 자동표시] 실패:', e); }
 }
 async function toggleExamOpen(){
   var ex=exams.find(function(e){return e.id===currentExamId;});
@@ -2697,7 +2712,8 @@ async function gradeSubmissions(showAlert){
     for(var i=0;i<subs.length;i++){
       var s=subs[i];
       var g=gradeWithAnswerKey(s.answers||{}, key);
-      var pass=(ex.passCutoff!==''&&ex.passCutoff!=null)?(Number(g.score)>=Number(ex.passCutoff)?'submit':'nosub'):'';
+      // 커트라인이 있으면 그 기준으로, 없으면 "제출은 했다"는 뜻으로 일단 통과 처리(교사가 나중에 직접 바꿀 수 있음)
+    var pass=(ex.passCutoff!==''&&ex.passCutoff!=null)?(Number(g.score)>=Number(ex.passCutoff)?'submit':'nosub'):'submit';
       await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId||sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=').then(function(r){return r.json();});
       await fetch(SU+'?action=markSubmissionGraded&id='+encodeURIComponent(s.id));
     }
