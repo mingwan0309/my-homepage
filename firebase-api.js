@@ -750,9 +750,22 @@ function recomputeExamRanks(db, examId){
 }
 api.setScore = function(db, p){
   var key = String(p.sessionId) + '__' + String(p.studentId) + '__' + String(p.examId);
-  return db.collection('scores').doc(key).set({
-    id:key, sessionId:String(p.sessionId), studentId:String(p.studentId), examId:String(p.examId),
-    score:p.score||'', pass:p.pass||'', feedback:p.feedback||''
+  var ref = db.collection('scores').doc(key);
+  // 실시간 응시 중 이탈 감지 횟수(examLeaveCount)는 .set()이 통째로 덮어써서 날아가지 않도록,
+  // 값이 넘어온 경우만 반영하고 아니면 기존에 저장된 값을 그대로 이어서 씀
+  var newLeaveLog;
+  if (p.examLeaveLog!==undefined) {
+    try { newLeaveLog = (typeof p.examLeaveLog==='string') ? JSON.parse(p.examLeaveLog) : p.examLeaveLog; } catch(e) { newLeaveLog = undefined; }
+  }
+  return ref.get().then(function(doc){
+    var prevLeaveCount = doc.exists ? (doc.data().examLeaveCount||0) : 0;
+    var prevLeaveLog = doc.exists ? (doc.data().examLeaveLog||[]) : [];
+    return ref.set({
+      id:key, sessionId:String(p.sessionId), studentId:String(p.studentId), examId:String(p.examId),
+      score:p.score||'', pass:p.pass||'', feedback:p.feedback||'',
+      examLeaveCount: (p.examLeaveCount!==undefined) ? Number(p.examLeaveCount||0) : prevLeaveCount,
+      examLeaveLog: (newLeaveLog!==undefined) ? newLeaveLog : prevLeaveLog
+    });
   }).then(function(){
     recomputeExamRanks(db, p.examId);
     return { success:true };
@@ -764,7 +777,8 @@ api.getScores = function(db, p){
     return db.collection('scores').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
       var scores = docsToArr(snap).map(function(r){
         return { sessionId:String(r.sessionId), studentId:String(r.studentId), examId:String(r.examId), score:r.score||'', pass:r.pass||'', feedback:r.feedback||'',
-          rank:r.rank||null, grade:r.grade||null, cnt:r.cnt||null, avg:r.avg||null };
+          rank:r.rank||null, grade:r.grade||null, cnt:r.cnt||null, avg:r.avg||null,
+          examLeaveCount:Number(r.examLeaveCount||0), examLeaveLog:r.examLeaveLog||[] };
       });
       return { scores: scores };
     });
@@ -929,9 +943,11 @@ api.submitExamAnswers = function(db, p){
     // doc().get()으로 존재 확인하면 보안 규칙상 없는 문서라 권한거부로 막힐 수 있어서(getMyOpenExams와 동일한 이유), 쿼리로 우회
     return db.collection('exam_submissions').where('examId','==',eid).where('studentId','==',sid).get().then(function(qs){
       if (!qs.empty) return { success:false, msg:'이미 제출했어요.' };
+      var leaveLog = []; try { leaveLog = (typeof p.leaveLog==='string') ? JSON.parse(p.leaveLog) : (p.leaveLog||[]); } catch(e) { leaveLog = []; }
       return db.collection('exam_submissions').doc(docId).set({
         id:docId, examId:eid, sessionId:String(p.sessionId||ex.data().sessionId||''),
         studentId:sid, studentName:p.studentName||'', answers:answers,
+        leaveCount:Number(p.leaveCount||0), leaveLog:leaveLog,
         graded:false, submittedAt:nowStr(), submittedAtMs:Date.now()
       }).then(function(){
         // 제출 즉시 학생에게 "몇 번을 틀렸는지"만 보여주기 위한 자기 채점(정답 자체는 화면에 안 보여줌).
@@ -964,7 +980,8 @@ api.getExamSubmissions = function(db, p){
   return db.collection('exam_submissions').where('examId','==',String(p.examId)).get().then(function(snap){
     return { submissions: docsToArr(snap).map(function(r){
       return { id:r.id, examId:r.examId, sessionId:r.sessionId, studentId:r.studentId,
-        studentName:r.studentName||'', answers:r.answers||{}, graded:r.graded===true, submittedAt:r.submittedAt||'' };
+        studentName:r.studentName||'', answers:r.answers||{}, graded:r.graded===true, submittedAt:r.submittedAt||'',
+        leaveCount:Number(r.leaveCount||0), leaveLog:r.leaveLog||[] };
     }) };
   });
 };

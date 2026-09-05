@@ -403,6 +403,7 @@ tr:hover td{background:#fafbff;}
     <div class="score-panel" id="score-panel">
       <h3 id="panel-exam-name">시험명</h3>
       <div class="sub" id="panel-sub"></div>
+      <div id="panel-leave-warn" style="display:none;background:#fef2f2;color:#dc2626;font-size:12px;font-weight:700;padding:8px 10px;border-radius:8px;margin-bottom:10px;"></div>
       <div class="score-input-wrap">
         <label>점수 <span id="panel-max-score" style="font-weight:400;color:#94a3b8;font-size:12px;"></span></label>
         <input class="score-input" type="number" id="panel-score" placeholder="—" oninput="autoPassFromScore()" onchange="autoPassFromScore()">
@@ -973,7 +974,7 @@ async function autoGradeSubmission(docId, s){
     if(!key.some(function(r){return r.correct!=null;})) return;
     var g=gradeWithAnswerKey(s.answers||{}, key);
     var pass=(ex.passCutoff!==''&&ex.passCutoff!=null)?(Number(g.score)>=Number(ex.passCutoff)?'submit':'nosub'):'';
-    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(s.examId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=').then(function(r){return r.json();});
+    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(s.examId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=&examLeaveCount='+encodeURIComponent(s.leaveCount||0)+'&examLeaveLog='+encodeURIComponent(JSON.stringify(s.leaveLog||[]))).then(function(r){return r.json();});
     await fetch(SU+'?action=markSubmissionGraded&id='+encodeURIComponent(docId));
     await loadScores();
     renderScores();
@@ -1295,7 +1296,7 @@ async function loadScores(){
   scoresMap={};
   (sr.scores||[]).forEach(function(s){
     if(!scoresMap[s.studentId])scoresMap[s.studentId]={};
-    scoresMap[s.studentId][s.examId]={score:s.score,pass:s.pass,feedback:s.feedback||''};
+    scoresMap[s.studentId][s.examId]={score:s.score,pass:s.pass,feedback:s.feedback||'',examLeaveCount:s.examLeaveCount||0,examLeaveLog:s.examLeaveLog||[]};
   });
   renderScores();
 }
@@ -2011,6 +2012,13 @@ function openPanel(studentId, examId){
   document.getElementById('panel-max-score').textContent=maxScore;
   document.getElementById('panel-score').placeholder=st2==='count'?'맞은 개수':'점수';
   var sc=(scoresMap[studentId]||{})[examId];
+  var leaveWarn=document.getElementById('panel-leave-warn');
+  if(sc&&sc.examLeaveCount>0){
+    leaveWarn.style.display='';
+    leaveWarn.textContent='🚪 실시간 응시 중 화면 이탈 '+sc.examLeaveCount+'회'+((sc.examLeaveLog&&sc.examLeaveLog.length)?' ('+sc.examLeaveLog.slice(-3).join(', ')+')':'');
+  } else {
+    leaveWarn.style.display='none';
+  }
   document.getElementById('panel-score').value=sc&&sc.score!==''?sc.score:'';
   panelPass=sc?sc.pass||'':'';
   document.getElementById('panel-feedback').value=sc?sc.feedback||'':'';
@@ -2712,7 +2720,7 @@ async function gradeSubmissions(showAlert){
       var s=subs[i];
       var g=gradeWithAnswerKey(s.answers||{}, key);
       var pass=(ex.passCutoff!==''&&ex.passCutoff!=null)?(Number(g.score)>=Number(ex.passCutoff)?'submit':'nosub'):'';
-      await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId||sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=').then(function(r){return r.json();});
+      await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId||sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=&examLeaveCount='+encodeURIComponent(s.leaveCount||0)+'&examLeaveLog='+encodeURIComponent(JSON.stringify(s.leaveLog||[]))).then(function(r){return r.json();});
       await fetch(SU+'?action=markSubmissionGraded&id='+encodeURIComponent(s.id));
     }
     await loadScores();

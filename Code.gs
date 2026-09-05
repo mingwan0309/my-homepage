@@ -566,66 +566,6 @@ function incDownload(params) {
   return json({ success: false });
 }
 
-// ── 솔라피 카카오 알림톡 발송 ──
-function sendAlimtalk(data) {
-  var SOLAPI_API_KEY    = 'NCSEJXE3QUXKS9BN';
-  var SOLAPI_API_SECRET = 'BSRANAXM4UFOYGSD1OX9VOTE5FORTCOL';
-  var FROM        = '01062519244';
-  var PF_ID       = 'KA01PF2607190425102129N0TXUNtwry';
-  var TEMPLATE_ID = 'KA01TP2607190503373353cDTp0aqGdv';
-
-  // 하루 발송 개수 상한 (혹시 모를 오남용/사고 시 피해를 제한하기 위한 안전장치)
-  var DAILY_LIMIT = 300;
-  var props = PropertiesService.getScriptProperties();
-  var todayKey = 'alimtalk_' + Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
-  var sentToday = Number(props.getProperty(todayKey) || 0);
-  var requestCount = (data.messages || []).length;
-  if (sentToday + requestCount > DAILY_LIMIT) {
-    return json({ success: false, msg: '하루 발송 한도(' + DAILY_LIMIT + '건)를 초과했습니다. 내일 다시 시도해주세요.' });
-  }
-
-  var messages = (data.messages || []).filter(function(m){ return m.phone; }).map(function(m){
-    return {
-      to:   String(m.phone).replace(/[^0-9]/g, ''),
-      from: FROM,
-      kakaoOptions: {
-        pfId:       PF_ID,
-        templateId: TEMPLATE_ID,
-        variables: {
-          '#{강의}':    String(m.className  || ''),
-          '#{차시}':    String(m.sessionNum || ''),
-          '#{이름}':    String(m.name       || ''),
-          '#{전달사항}': String(m.message    || '')
-        }
-      }
-    };
-  });
-
-  if (!messages.length) return json({ success: false, msg: '유효한 발송 대상이 없습니다.' });
-
-  var date  = new Date().toISOString();
-  var salt  = Utilities.getUuid();
-  var sigBytes = Utilities.computeHmacSha256Signature(date + salt, SOLAPI_API_SECRET);
-  var signature = sigBytes.map(function(b){ return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
-  var authHeader = 'HMAC-SHA256 apiKey=' + SOLAPI_API_KEY + ', date=' + date + ', salt=' + salt + ', signature=' + signature;
-
-  var response = UrlFetchApp.fetch('https://api.solapi.com/messages/v4/send-many/detail', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
-    payload: JSON.stringify({ messages: messages }),
-    muteHttpExceptions: true
-  });
-
-  var code = response.getResponseCode();
-  var result = {};
-  try { result = JSON.parse(response.getContentText()); } catch(e) {}
-  if (code === 200) {
-    props.setProperty(todayKey, String(sentToday + messages.length));
-    return json({ success: true, count: messages.length });
-  }
-  return json({ success: false, msg: result.errorMessage || result.message || ('HTTP ' + code) });
-}
-
 // ── 영상 라이브러리 ──
 function getVideoLibrary() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -655,4 +595,212 @@ function deleteVideoLibrary(params) {
     if (String(rows[i][0]) === String(params.id)) { sheet.deleteRow(i+1); return json({ success: true }); }
   }
   return json({ success: false });
+}
+
+// ── 솔라피 카카오 알림톡 발송 ──
+// doPost(웹사이트에서 호출)와 sendMcHourReminders(예약 실행, 아래)가 둘 다 이 핵심 로직을 쓰도록
+// sendAlimtalkMessages()로 분리해둠. doPost용 sendAlimtalk(data)는 이걸 감싸서 JSON 응답만 만들어줌.
+function sendAlimtalk(data) {
+  var result = sendAlimtalkMessages(data.messages || []);
+  return json(result);
+}
+function sendAlimtalkMessages(rawMessages) {
+  var SOLAPI_API_KEY    = 'NCSEJXE3QUXKS9BN';
+  var SOLAPI_API_SECRET = 'BSRANAXM4UFOYGSD1OX9VOTE5FORTCOL';
+  var FROM        = '01062519244';
+  var PF_ID       = 'KA01PF2607190425102129N0TXUNtwry';
+  var TEMPLATE_ID = 'KA01TP2607190503373353cDTp0aqGdv';
+
+  // 하루 발송 개수 상한 (혹시 모를 오남용/사고 시 피해를 제한하기 위한 안전장치)
+  var DAILY_LIMIT = 300;
+  var props = PropertiesService.getScriptProperties();
+  var todayKey = 'alimtalk_' + Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+  var sentToday = Number(props.getProperty(todayKey) || 0);
+  var requestCount = (rawMessages || []).length;
+  if (sentToday + requestCount > DAILY_LIMIT) {
+    return { success: false, msg: '하루 발송 한도(' + DAILY_LIMIT + '건)를 초과했습니다. 내일 다시 시도해주세요.' };
+  }
+
+  var messages = (rawMessages || []).filter(function(m){ return m.phone; }).map(function(m){
+    return {
+      to:   String(m.phone).replace(/[^0-9]/g, ''),
+      from: FROM,
+      kakaoOptions: {
+        pfId:       PF_ID,
+        templateId: TEMPLATE_ID,
+        variables: {
+          '#{강의}':    String(m.className  || ''),
+          '#{차시}':    String(m.sessionNum || ''),
+          '#{이름}':    String(m.name       || ''),
+          '#{전달사항}': String(m.message    || '')
+        }
+      }
+    };
+  });
+
+  if (!messages.length) return { success: false, msg: '유효한 발송 대상이 없습니다.' };
+
+  var date  = new Date().toISOString();
+  var salt  = Utilities.getUuid();
+  var sigBytes = Utilities.computeHmacSha256Signature(date + salt, SOLAPI_API_SECRET);
+  var signature = sigBytes.map(function(b){ return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
+  var authHeader = 'HMAC-SHA256 apiKey=' + SOLAPI_API_KEY + ', date=' + date + ', salt=' + salt + ', signature=' + signature;
+
+  var response = UrlFetchApp.fetch('https://api.solapi.com/messages/v4/send-many/detail', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+    payload: JSON.stringify({ messages: messages }),
+    muteHttpExceptions: true
+  });
+
+  var code = response.getResponseCode();
+  var result = {};
+  try { result = JSON.parse(response.getContentText()); } catch(e) {}
+  if (code === 200) {
+    props.setProperty(todayKey, String(sentToday + messages.length));
+    return { success: true, count: messages.length };
+  }
+  return { success: false, msg: result.errorMessage || result.message || ('HTTP ' + code) };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 의무클리닉 "오기 1시간 전" 자동 알림 (예약 실행 전용, 2026-09-04 추가)
+//
+// 웹사이트 화면을 아무도 안 켜놔도 자동으로 보내지도록, Apps Script의 "트리거"
+// (시계 아이콘)에서 5분마다 sendMcHourReminders 함수가 저절로 실행되게 등록해두는 방식.
+// Firestore를 Apps Script가 직접 읽고 써야 해서, 아래 firestore* 함수들로 REST API를 호출함
+// (Firebase JS SDK가 아니라 Google Cloud의 OAuth 토큰으로 직접 호출 — ScriptApp.getOAuthToken()).
+//
+// ⚠️ 이 기능이 작동하려면 반드시:
+//  1) 프로젝트 설정에서 "appsscript.json 매니페스트 파일을 편집기에서 표시" 체크
+//  2) appsscript.json의 oauthScopes에 Firestore 접근 권한(datastore) 추가
+//  3) 트리거(시계 아이콘) → 이 함수(sendMcHourReminders)를 몇 분마다 실행하도록 등록
+//  (챗봇이 채팅으로 설정 방법을 안내함 — 이 파일 저장만으로는 자동 실행 안 됨)
+// ══════════════════════════════════════════════════════════════════
+
+var FIRESTORE_PROJECT_ID = 'mkmath-54f5d';
+var KOR_DAY_NAMES = ['일','월','화','수','목','금','토'];
+
+function firestoreBaseUrl() {
+  return 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT_ID + '/databases/(default)/documents';
+}
+function firestoreValueToJs(v) {
+  if (!v) return null;
+  if (v.stringValue !== undefined) return v.stringValue;
+  if (v.integerValue !== undefined) return Number(v.integerValue);
+  if (v.doubleValue !== undefined) return Number(v.doubleValue);
+  if (v.booleanValue !== undefined) return v.booleanValue;
+  if (v.nullValue !== undefined) return null;
+  if (v.mapValue !== undefined) {
+    var m = {}; var f = v.mapValue.fields || {};
+    Object.keys(f).forEach(function(k){ m[k] = firestoreValueToJs(f[k]); });
+    return m;
+  }
+  if (v.arrayValue !== undefined) {
+    return (v.arrayValue.values || []).map(firestoreValueToJs);
+  }
+  return null;
+}
+function firestoreDocToObj(doc) {
+  var obj = { id: doc.name.split('/').pop() };
+  var fields = doc.fields || {};
+  Object.keys(fields).forEach(function(k){ obj[k] = firestoreValueToJs(fields[k]); });
+  return obj;
+}
+// 컬렉션 전체를 읽어옴 (이 프로젝트 컬렉션들은 크지 않아서 한 페이지로 충분)
+function firestoreListAll(collection) {
+  var token = ScriptApp.getOAuthToken();
+  var res = UrlFetchApp.fetch(firestoreBaseUrl() + '/' + collection + '?pageSize=1000', {
+    method: 'GET',
+    headers: { Authorization: 'Bearer ' + token },
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) {
+    Logger.log('[firestoreListAll] ' + collection + ' 조회 실패: ' + res.getContentText());
+    return [];
+  }
+  var data = JSON.parse(res.getContentText());
+  return (data.documents || []).map(firestoreDocToObj);
+}
+// 최상위(중첩 아닌) 문자열 필드 하나만 갱신 — 중첩 맵 필드는 REST 경로 이스케이프가 까다로워서
+// 일부러 단순한 최상위 필드만 씀(하루 1번 표시하는 용도라 날짜 문자열 하나면 충분)
+function firestorePatchStringField(collection, docId, fieldName, value) {
+  var token = ScriptApp.getOAuthToken();
+  var url = firestoreBaseUrl() + '/' + collection + '/' + docId + '?updateMask.fieldPaths=' + fieldName;
+  var body = { fields: {} };
+  body.fields[fieldName] = { stringValue: String(value) };
+  var res = UrlFetchApp.fetch(url, {
+    method: 'PATCH',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) {
+    Logger.log('[firestorePatchStringField] ' + collection + '/' + docId + ' 갱신 실패: ' + res.getContentText());
+  }
+}
+// "17:00", "17시" 처럼 자유롭게 입력된 시간 문자열에서 시:분(하루 중 몇 분째)을 최대한 느슨하게 뽑아냄
+function mcParseTimeToMinutes(t) {
+  var m = String(t || '').match(/(\d{1,2})\s*[:시]\s*(\d{0,2})/);
+  if (!m) return null;
+  var h = parseInt(m[1], 10);
+  var mi = m[2] ? parseInt(m[2], 10) : 0;
+  if (isNaN(h) || h < 0 || h > 23) return null;
+  return h * 60 + (isNaN(mi) ? 0 : mi);
+}
+// 서버(Apps Script)가 어느 시간대에서 돌든 흔들리지 않게, UTC 시각에 9시간을 더해 "한국 시각처럼 읽는" 방식
+function mcTodayInfoSeoul() {
+  var now = new Date();
+  var kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+  return {
+    dateStr: kst.getUTCFullYear() + '-' + pad(kst.getUTCMonth() + 1) + '-' + pad(kst.getUTCDate()),
+    dayName: KOR_DAY_NAMES[kst.getUTCDay()],
+    nowMins: kst.getUTCHours() * 60 + kst.getUTCMinutes()
+  };
+}
+
+// 트리거에 등록해서 5~10분마다 실행시키는 함수. 오늘 실제로 오는(시간대가 바뀐) 학생 중
+// 도착 50~60분 전인 학생에게 자동으로 알림톡을 보내고, 같은 날 중복 발송을 막기 위해 표시해둠.
+function sendMcHourReminders() {
+  try {
+    var today = mcTodayInfoSeoul();
+    var list = firestoreListAll('mandatory_clinic');
+    var todays = list.filter(function(m){
+      return m.type === 'temp' ? m.date === today.dateStr : m.day === today.dayName;
+    });
+    if (!todays.length) return;
+
+    var candidates = todays.filter(function(m){
+      if (m.lastHourReminderDate === today.dateStr) return false;
+      var mins = mcParseTimeToMinutes(m.time);
+      if (mins === null) return false;
+      var diff = mins - today.nowMins;
+      return diff <= 60 && diff >= 50;
+    });
+    if (!candidates.length) return;
+
+    var studentsById = {};
+    firestoreListAll('students').forEach(function(s){ studentsById[s.id] = s; });
+
+    candidates.forEach(function(m){
+      var student = studentsById[m.studentId];
+      if (!student) return;
+      var changeLabel = (m.targetDay && m.day) ? (m.targetDay + '요일→' + m.day + '요일로 변경된 ') : '';
+      var text = m.name + ' 학생, ' + changeLabel + '의무클리닉 1시간 전(' + m.time + ')입니다. 잊지 말고 와주세요!';
+      var msgs = [];
+      if (student.studentPhone) msgs.push({ phone: student.studentPhone, name: m.name, className: '의무클리닉', sessionNum: today.dateStr, message: text });
+      if (student.parentPhone)  msgs.push({ phone: student.parentPhone,  name: m.name, className: '의무클리닉', sessionNum: today.dateStr, message: text });
+      if (!msgs.length) return;
+
+      var result = sendAlimtalkMessages(msgs);
+      if (result.success) {
+        firestorePatchStringField('mandatory_clinic', m.id, 'lastHourReminderDate', today.dateStr);
+      } else {
+        Logger.log('[sendMcHourReminders] ' + m.name + ' 발송 실패: ' + result.msg);
+      }
+    });
+  } catch (err) {
+    Logger.log('[sendMcHourReminders] 오류: ' + err);
+  }
 }

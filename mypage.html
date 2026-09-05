@@ -783,6 +783,7 @@ function openLiveExam(idx){
   liveExamCur=liveExams[idx];
   if(!liveExamCur)return;
   liveExamAnswers={};
+  startLiveExamLeaveWatch();
   document.getElementById('live-exam-title').textContent=liveExamCur.name;
   var html='';
   for(var q=1;q<=liveExamCur.questionCount;q++){
@@ -836,6 +837,33 @@ function startLiveExamCountdown(){
 function closeLiveExam(){
   document.getElementById('live-exam-modal').classList.remove('show');
   if(liveExamTimerInt){ clearInterval(liveExamTimerInt); liveExamTimerInt=null; }
+  stopLiveExamLeaveWatch();
+}
+// 응시 중 다른 앱/창으로 나가거나 화면을 끄면(완전히 막을 수는 없지만) 감지해서 기록해둠 — 채점 시 참고용
+var liveExamLeaveCount=0, liveExamLeaveLog=[], liveExamLeftAt=0, liveExamWatching=false;
+function fmtHM(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function onLiveExamHidden(){
+  if(!liveExamWatching || document.visibilityState!=='hidden') return;
+  if(liveExamLeftAt) return; // 이미 나가있는 상태로 기록 중이면 중복 기록 방지
+  liveExamLeftAt=Date.now();
+  liveExamLeaveCount++;
+}
+function onLiveExamVisible(){
+  if(!liveExamWatching || document.visibilityState!=='visible' || !liveExamLeftAt) return;
+  var left=new Date(liveExamLeftAt), back=new Date();
+  liveExamLeaveLog.push(fmtHM(left)+'~'+fmtHM(back));
+  liveExamLeftAt=0;
+}
+function startLiveExamLeaveWatch(){
+  liveExamLeaveCount=0; liveExamLeaveLog=[]; liveExamLeftAt=0;
+  liveExamWatching=true;
+  document.addEventListener('visibilitychange', onLiveExamHidden);
+  document.addEventListener('visibilitychange', onLiveExamVisible);
+}
+function stopLiveExamLeaveWatch(){
+  liveExamWatching=false;
+  document.removeEventListener('visibilitychange', onLiveExamHidden);
+  document.removeEventListener('visibilitychange', onLiveExamVisible);
 }
 function pickLiveAnswer(q,c){
   liveExamAnswers[q]=c;
@@ -860,10 +888,12 @@ async function submitLiveExam(auto){
   }
   if(liveExamTimerInt){ clearInterval(liveExamTimerInt); liveExamTimerInt=null; }
   localStorage.removeItem('mkmath_examTimer_'+liveExamCur.id+'_'+session.id);
+  onLiveExamHidden(); // 제출 시점까지 나가있던 상태면 마지막 이탈도 기록에 반영
+  stopLiveExamLeaveWatch();
   var btn=document.getElementById('live-exam-submit');
   btn.disabled=true; btn.textContent='제출 중...'; btn.style.background='#94a3b8';
   try{
-    var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'submitExamAnswers',examId:liveExamCur.id,sessionId:liveExamCur.sessionId,studentId:session.id,studentName:session.name||'',answers:liveExamAnswers})});
+    var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'submitExamAnswers',examId:liveExamCur.id,sessionId:liveExamCur.sessionId,studentId:session.id,studentName:session.name||'',answers:liveExamAnswers,leaveCount:liveExamLeaveCount,leaveLog:JSON.stringify(liveExamLeaveLog)})});
     var d=await res.json();
     if(d&&d.success){
       renderLiveExamResult(d);
