@@ -805,8 +805,13 @@ api.getExams = function(db, p){
 };
 
 api.deleteExam = function(db, p){
-  return db.collection('exams').doc(String(p.id)).delete()
-    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+  var eid = String(p.id);
+  // 시험을 지우면 그 시험에 매달린 성적 기록도 같이 지워서, 학생 화면에 "(삭제된 시험)"처럼 고아 데이터가 안 남게 함
+  return db.collection('scores').where('examId','==',eid).get().then(function(snap){
+    return Promise.all(snap.docs.map(function(d){ return d.ref.delete().catch(function(){}); }));
+  }).then(function(){
+    return db.collection('exams').doc(eid).delete();
+  }).then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
 api.updateExam = function(db, p){
@@ -1457,11 +1462,11 @@ api.getMyExamAlerts = function(db, p){
       Object.keys(sesMap).forEach(function(k){ var cid=String(sesMap[k].classId||''); if(cid && classIds.indexOf(cid)<0) classIds.push(cid); });
       return Promise.all(classIds.map(function(id){ return db.collection('classes').doc(id).get(); })).then(function(classDocs){
         var clsMap={}; classDocs.forEach(function(d){ if(d.exists) clsMap[d.id]=d.data(); });
-        var items = rows.map(function(r){
+        var items = rows.filter(function(r){ return examMap[r.examId]; }).map(function(r){
           var ex=examMap[r.examId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
           return {
             id:r.id, sessionId:String(r.sessionId), examId:String(r.examId),
-            kind:r.pass, examName:ex.name||'(삭제된 시험)', feedback:r.feedback||'',
+            kind:r.pass, examName:ex.name||'', feedback:r.feedback||'',
             submissionUrls:hwUrlsToArray(r.examSubmissionUrl), submittedAt:r.examSubmittedAt||'',
             sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
             classId:String(ses.classId||''), className:cls.name||''
