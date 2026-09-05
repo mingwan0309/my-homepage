@@ -294,17 +294,14 @@ a{text-decoration:none;}
 <div id="page-main" style="display:none;">
   <div class="container">
 
-    <!-- 내 반 · 차시별 출결 (제일 위) -->
-    <div class="card">
-      <div class="card-title"><span>🗓️</span> 출결</div>
-      <div class="dash-sec-head" style="justify-content:space-between;">
-        <span class="dash-class" id="dash-class">내 반</span>
-        <a href="#" onclick="openScoreHistory();return false;" style="font-size:12.5px;font-weight:700;color:#3b6cf7;white-space:nowrap;">누적성적표 &gt;</a>
-      </div>
-      <div id="att-list"><div class="spinner">불러오는 중...</div></div>
+    <!-- 헤더 (제일 위) -->
+    <div class="dash-head">
+      <div class="dash-logo"><img src="logo.png" alt="로고"></div>
+      <div class="dash-hello">반가워요, <b id="ph-name">—</b>님!</div>
+      <div class="dash-sub" id="ph-sub">—</div>
     </div>
 
-    <!-- 실시간 응시 중인 테스트 (선생님이 열었을 때만 노출) -->
+    <!-- 실시간 응시 중인 테스트 (선생님이 열었을 때만 노출, 두 번째) -->
     <div class="card" id="live-exam-card" style="display:none;border:2px solid #3b6cf7;">
       <div class="card-title"><span>📱</span> 지금 응시할 수 있는 테스트</div>
       <div id="live-exam-list"></div>
@@ -314,11 +311,14 @@ a{text-decoration:none;}
       <div style="font-size:12px;color:#166534;margin-top:4px;">선생님이 확인하시면 성적에 반영돼요.</div>
     </div>
 
-    <!-- 헤더 -->
-    <div class="dash-head">
-      <div class="dash-logo"><img src="logo.png" alt="로고"></div>
-      <div class="dash-hello">반가워요, <b id="ph-name">—</b>님!</div>
-      <div class="dash-sub" id="ph-sub">—</div>
+    <!-- 내 반 · 차시별 출결 (세 번째) -->
+    <div class="card">
+      <div class="card-title"><span>🗓️</span> 출결</div>
+      <div class="dash-sec-head" style="justify-content:space-between;">
+        <span class="dash-class" id="dash-class">내 반</span>
+        <a href="#" onclick="openScoreHistory();return false;" style="font-size:12.5px;font-weight:700;color:#3b6cf7;white-space:nowrap;">누적성적표 &gt;</a>
+      </div>
+      <div id="att-list"><div class="spinner">불러오는 중...</div></div>
     </div>
 
     <!-- 설문조사 (응답 대상이고 아직 안 낸 설문이 있을 때만 상단에 노출) -->
