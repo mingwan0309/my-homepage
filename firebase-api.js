@@ -1011,8 +1011,13 @@ api.getHwItems = function(db, p){
   });
 };
 api.deleteHwItem = function(db, p){
-  return db.collection('homeworks').doc(String(p.id)).delete()
-    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+  var hid = String(p.id);
+  // 과제를 지우면 그 과제에 매달린 학생별 완료/제출 기록(hw_status)도 같이 지워서 고아 데이터가 안 남게 함(시험 삭제와 동일한 원칙)
+  return db.collection('hw_status').where('hwId','==',hid).get().then(function(snap){
+    return Promise.all(snap.docs.map(function(d){ return d.ref.delete().catch(function(){}); }));
+  }).then(function(){
+    return db.collection('homeworks').doc(hid).delete();
+  }).then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 api.updateHwItem = function(db, p){
   var data={};
