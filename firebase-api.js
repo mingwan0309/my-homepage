@@ -895,11 +895,18 @@ api.getMyOpenExams = function(db, p){
       // 문서 자체가 없어서(resource==null) 오히려 권한거부로 막힌다(교사 계정은 전권이라 안 걸렸던 것).
       // 그래서 존재 확인은 doc()이 아니라 studentId로 쿼리해서 실제로 있는 것만 받아오는 방식으로 우회한다.
       return db.collection('exam_submissions').where('studentId','==',sid).get().then(function(subSnap){
-        var submittedIds = {};
-        subSnap.forEach(function(d){ submittedIds[d.data().examId] = true; });
+        var subsByExamId = {};
+        subSnap.forEach(function(d){ subsByExamId[d.data().examId] = d.data(); });
         // 제출 여부와 상관없이 지금 열려있는 시험을 전부 내려줌(submitted 표시 포함) — 학생 화면에서
-        // "제출 완료"를 새로고침해도 계속 보여줄 수 있도록. 응시 화면에서는 !submitted인 것만 쓰면 됨.
-        open.forEach(function(e){ e.submitted = !!submittedIds[e.id]; });
+        // "제출 완료"를 새로고침해도 점수·틀린 문항까지 계속 보여줄 수 있도록 자기채점 결과도 같이 내려줌.
+        // 응시 화면에서는 !submitted인 것만 쓰면 됨.
+        open.forEach(function(e){
+          var sub = subsByExamId[e.id];
+          e.submitted = !!sub;
+          if (sub && typeof sub.selfScore === 'number') {
+            e.selfScore = sub.selfScore; e.selfTotal = sub.selfTotal; e.selfWrongQuestions = sub.selfWrongQuestions || [];
+          }
+        });
         return { exams: open };
       });
     });
@@ -934,7 +941,10 @@ api.submitExamAnswers = function(db, p){
             else wrongQuestions.push(r.q);
           });
           wrongQuestions.sort(function(a,b){ return a-b; });
-          return { success:true, score:Math.round(score*10)/10, total:Math.round(total*10)/10, wrongQuestions:wrongQuestions };
+          score = Math.round(score*10)/10; total = Math.round(total*10)/10;
+          // 새로고침 후에도 "제출 완료" 카드에 점수·틀린 문항을 계속 보여주기 위해 자기채점 결과를 제출 문서에 저장
+          return db.collection('exam_submissions').doc(docId).update({ selfScore:score, selfTotal:total, selfWrongQuestions:wrongQuestions }).catch(function(){})
+            .then(function(){ return { success:true, score:score, total:total, wrongQuestions:wrongQuestions }; });
         }).catch(function(){ return { success:true }; }); // 자기채점 실패해도 제출 자체는 이미 성공한 것으로 처리
       });
     });
