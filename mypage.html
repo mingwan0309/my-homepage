@@ -444,7 +444,7 @@ a{text-decoration:none;}
       <button type="button" id="sh-tab-exam" onclick="switchShTab('exam')" style="flex:1;min-height:44px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;color:#94a3b8;font-size:14px;font-weight:800;cursor:pointer;">📝 테스트</button>
     </div>
     <div id="sh-exam-type-row" style="display:none;gap:8px;margin-bottom:14px;">
-      <button type="button" id="sh-type-daily" onclick="switchShExamType('daily')" style="flex:1;min-height:40px;border-radius:9px;border:1.5px solid #3b6cf7;background:#eff4ff;color:#3b6cf7;font-size:13px;font-weight:700;cursor:pointer;">일일테스트</button>
+      <button type="button" id="sh-type-daily" onclick="switchShExamType('daily')" style="flex:1;min-height:40px;border-radius:9px;border:1.5px solid #3b6cf7;background:#eff4ff;color:#3b6cf7;font-size:13px;font-weight:700;cursor:pointer;">데일리테스트</button>
       <button type="button" id="sh-type-mock" onclick="switchShExamType('mock')" style="flex:1;min-height:40px;border-radius:9px;border:1.5px solid #e2e8f0;background:#fff;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer;">실전 모의고사</button>
     </div>
     <div id="sh-body"><div class="spinner">불러오는 중...</div></div>
@@ -602,7 +602,7 @@ function renderShHomework(){
 function renderShExam(){
   var body=document.getElementById('sh-body');
   var list=((shData&&shData.examsByType)||{})[shExamType]||[];
-  var typeLabel = shExamType==='mock' ? '실전 모의고사' : '일일테스트';
+  var typeLabel = shExamType==='mock' ? '실전 모의고사' : '데일리테스트';
   if(!list.length){ body.innerHTML='<div class="empty-msg">아직 '+typeLabel+' 기록이 없어요.</div>'; return; }
   // 요약(최근 점수 / 평균 대비 / 최고점)
   var nums=list.map(function(e){return Number(e.score);}).filter(function(n){return !isNaN(n);});
