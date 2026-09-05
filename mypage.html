@@ -746,7 +746,9 @@ async function loadLiveExams(){
     all=r.exams||[];
   }catch(e){ all=[]; }
   liveExams = all.filter(function(e){ return !e.submitted; });
-  var doneList = all.filter(function(e){ return e.submitted; });
+  // 제출 완료 카드는 하루 정도만 보여주고 그 뒤로는 자동으로 안 보이게 함(계속 남아있으면 지저분해서)
+  var oneDayAgo=Date.now()-24*60*60*1000;
+  var doneList = all.filter(function(e){ return e.submitted && (!e.submittedAtMs || e.submittedAtMs>=oneDayAgo); });
 
   var card=document.getElementById('live-exam-card');
   if(!liveExams.length){ card.style.display='none'; }

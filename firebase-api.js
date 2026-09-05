@@ -905,6 +905,7 @@ api.getMyOpenExams = function(db, p){
           e.submitted = !!sub;
           if (sub && typeof sub.selfScore === 'number') {
             e.selfScore = sub.selfScore; e.selfTotal = sub.selfTotal; e.selfWrongQuestions = sub.selfWrongQuestions || [];
+            e.submittedAtMs = sub.submittedAtMs || 0;
           }
         });
         return { exams: open };
@@ -926,7 +927,7 @@ api.submitExamAnswers = function(db, p){
       return db.collection('exam_submissions').doc(docId).set({
         id:docId, examId:eid, sessionId:String(p.sessionId||ex.data().sessionId||''),
         studentId:sid, studentName:p.studentName||'', answers:answers,
-        graded:false, submittedAt:nowStr()
+        graded:false, submittedAt:nowStr(), submittedAtMs:Date.now()
       }).then(function(){
         // 제출 즉시 학생에게 "몇 번을 틀렸는지"만 보여주기 위한 자기 채점(정답 자체는 화면에 안 보여줌).
         // 반마다 시험이 달라서 이 정도 노출은 감수하기로 함(사용자 확인) — 공식 성적(scores)은
