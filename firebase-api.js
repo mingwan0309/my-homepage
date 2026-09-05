@@ -790,7 +790,7 @@ api.addExam = function(db, p){
   return db.collection('exams').doc(id).set({
     id:id, sessionId:String(p.sessionId), name:p.name||'시험',
     range:p.range||'', totalQuestions:p.totalQuestions||'', scoreType:p.scoreType||'score', passCutoff:p.passCutoff||'',
-    examType:p.examType||'daily',
+    examType:p.examType||'daily', timeLimitMin:p.timeLimitMin||'',
     createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };
@@ -799,7 +799,7 @@ api.getExams = function(db, p){
   return db.collection('exams').where('sessionId','==',String(p.sessionId)).get().then(function(snap){
     var exams = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; })
       // answerKey는 여기서 안 내려줌 — 학생도 읽을 수 있는 API라 정답이 새면 안 됨 (교사는 getExamKey로 따로 조회)
-      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', totalQuestions:r.totalQuestions||'', scoreType:r.scoreType||'score', passCutoff:r.passCutoff||'', examType:r.examType||'daily', grade1:r.grade1||'', grade2:r.grade2||'', grade3:r.grade3||'', grade4:r.grade4||'', hasAnswerKey:(Array.isArray(r.answerKey)&&r.answerKey.length>0)||Number(r.questionCount||0)>0, questionCount:Number(r.questionCount||0), submitOpen:r.submitOpen===true, createdAt:r.createdAt||'' }; });
+      .map(function(r){ return { id:String(r.id), sessionId:String(r.sessionId), name:r.name||'', range:r.range||'', totalQuestions:r.totalQuestions||'', scoreType:r.scoreType||'score', passCutoff:r.passCutoff||'', examType:r.examType||'daily', timeLimitMin:r.timeLimitMin||'', grade1:r.grade1||'', grade2:r.grade2||'', grade3:r.grade3||'', grade4:r.grade4||'', hasAnswerKey:(Array.isArray(r.answerKey)&&r.answerKey.length>0)||Number(r.questionCount||0)>0, questionCount:Number(r.questionCount||0), submitOpen:r.submitOpen===true, createdAt:r.createdAt||'' }; });
     return { exams: exams };
   });
 };
@@ -817,6 +817,7 @@ api.updateExam = function(db, p){
   if(p.scoreType!==undefined) data.scoreType=p.scoreType;
   if(p.passCutoff!==undefined) data.passCutoff=p.passCutoff;
   if(p.examType!==undefined) data.examType=p.examType;
+  if(p.timeLimitMin!==undefined) data.timeLimitMin=p.timeLimitMin;
   return db.collection('exams').doc(String(p.id)).update(data)
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
@@ -884,7 +885,7 @@ api.getMyOpenExams = function(db, p){
           .map(function(e){
             return { id:String(e.id), name:e.name||'시험', sessionId:String(s.id),
               sessLabel:s.label||(s.sessionNum?s.sessionNum+'차시':''), date:s.date||'',
-              questionCount:Number(e.questionCount||0) };
+              questionCount:Number(e.questionCount||0), timeLimitMin:Number(e.timeLimitMin||0) };
           });
       });
     })).then(function(lists){

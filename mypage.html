@@ -455,7 +455,10 @@ a{text-decoration:none;}
 <div id="live-exam-modal" class="pw-modal-bg" onclick="if(event.target===this)closeLiveExam()">
   <div style="background:#fff;border-radius:16px;padding:20px 18px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <div style="font-weight:800;font-size:16px;" id="live-exam-title">테스트</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="font-weight:800;font-size:16px;" id="live-exam-title">테스트</div>
+        <div id="live-exam-countdown" style="display:none;font-size:14px;font-weight:900;color:#dc2626;background:#fef2f2;padding:3px 10px;border-radius:20px;"></div>
+      </div>
       <button onclick="closeLiveExam()" style="background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer;">✕</button>
     </div>
     <div style="font-size:12.5px;color:#94a3b8;margin-bottom:14px;">답을 고르고 맨 아래 <b>제출하기</b>를 누르세요. 한 번 제출하면 수정할 수 없어요.</div>
@@ -786,8 +789,43 @@ function openLiveExam(idx){
   var oldCloseBtn=document.getElementById('live-exam-result-close');
   if(oldCloseBtn) oldCloseBtn.remove();
   document.getElementById('live-exam-modal').classList.add('show');
+  startLiveExamCountdown();
 }
-function closeLiveExam(){ document.getElementById('live-exam-modal').classList.remove('show'); }
+// 제한시간이 있는 시험이면 카운트다운 표시 + 시간이 다 되면 자동 제출.
+// 새로고침해도 시간이 리셋되지 않도록, 처음 연 시각을 localStorage에 남겨서 그 시각 기준으로 계산.
+var liveExamTimerInt=null;
+function startLiveExamCountdown(){
+  if(liveExamTimerInt){ clearInterval(liveExamTimerInt); liveExamTimerInt=null; }
+  var box=document.getElementById('live-exam-countdown');
+  var mins=Number(liveExamCur.timeLimitMin||0);
+  if(!mins){ box.style.display='none'; return; }
+  var storeKey='mkmath_examTimer_'+liveExamCur.id+'_'+session.id;
+  var deadline=Number(localStorage.getItem(storeKey)||0);
+  var now=Date.now();
+  if(!deadline || deadline<=now){
+    deadline=now+mins*60*1000;
+    localStorage.setItem(storeKey, String(deadline));
+  }
+  box.style.display='';
+  function tick(){
+    var left=Math.max(0, deadline-Date.now());
+    var s=Math.ceil(left/1000);
+    var mm=Math.floor(s/60), ss=s%60;
+    box.textContent='⏱ '+mm+':'+(ss<10?'0':'')+ss;
+    if(left<=0){
+      clearInterval(liveExamTimerInt); liveExamTimerInt=null;
+      box.textContent='⏱ 시간 종료';
+      localStorage.removeItem(storeKey);
+      submitLiveExam(true); // 자동 제출(확인창 없이)
+    }
+  }
+  tick();
+  liveExamTimerInt=setInterval(tick, 1000);
+}
+function closeLiveExam(){
+  document.getElementById('live-exam-modal').classList.remove('show');
+  if(liveExamTimerInt){ clearInterval(liveExamTimerInt); liveExamTimerInt=null; }
+}
 function pickLiveAnswer(q,c){
   liveExamAnswers[q]=c;
   for(var i=1;i<=5;i++){
@@ -799,14 +837,18 @@ function pickLiveAnswer(q,c){
     b.style.color=on?'#fff':'#64748b';
   }
 }
-async function submitLiveExam(){
+async function submitLiveExam(auto){
   if(!liveExamCur)return;
   var answered=Object.keys(liveExamAnswers).length;
-  if(answered<liveExamCur.questionCount){
-    if(!confirm((liveExamCur.questionCount-answered)+'문항이 비어 있어요. 그래도 제출할까요?\n(제출하면 수정할 수 없어요)'))return;
-  } else {
-    if(!confirm('제출할까요? 제출하면 수정할 수 없어요.'))return;
+  if(!auto){
+    if(answered<liveExamCur.questionCount){
+      if(!confirm((liveExamCur.questionCount-answered)+'문항이 비어 있어요. 그래도 제출할까요?\n(제출하면 수정할 수 없어요)'))return;
+    } else {
+      if(!confirm('제출할까요? 제출하면 수정할 수 없어요.'))return;
+    }
   }
+  if(liveExamTimerInt){ clearInterval(liveExamTimerInt); liveExamTimerInt=null; }
+  localStorage.removeItem('mkmath_examTimer_'+liveExamCur.id+'_'+session.id);
   var btn=document.getElementById('live-exam-submit');
   btn.disabled=true; btn.textContent='제출 중...'; btn.style.background='#94a3b8';
   try{

@@ -494,6 +494,10 @@ tr:hover td{background:#fafbff;}
           </select>
         </div>
         <div>
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">학생 실시간 응시 제한시간 <span style="font-weight:400;color:#94a3b8;">(분, 선택 — 비우면 제한 없음)</span></label>
+          <input id="exam-detail-timelimit" type="number" min="0" placeholder="예: 20" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
+        </div>
+        <div>
           <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">성적 입력 방식</label>
           <div style="display:flex;gap:8px;">
             <button id="score-type-score" onclick="setScoreType('score')" style="flex:1;padding:10px;border:2px solid #3b6cf7;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;background:#eff4ff;color:#3b6cf7;">점수 (예: 87점)</button>
@@ -857,6 +861,10 @@ tr:hover td{background:#fafbff;}
           <option value="daily">일일테스트</option>
           <option value="mock">실전 모의고사</option>
         </select>
+      </div>
+      <div class="fg">
+        <label>학생 실시간 응시 제한시간 <span style="font-weight:400;color:#94a3b8;">(분, 선택 — 비우면 제한 없음)</span></label>
+        <input type="number" id="exam-timelimit-input" min="0" placeholder="예: 20">
       </div>
       <div class="fg" id="exam-copy-status" style="font-size:12px;color:#3b6cf7;font-weight:700;display:none;"></div>
       <div class="modal-btns">
@@ -2235,6 +2243,7 @@ var allClassExams=[];
 async function openAddExam(){
   document.getElementById('exam-name-input').value='';
   document.getElementById('exam-type-input').value='daily';
+  document.getElementById('exam-timelimit-input').value='';
   examCopySource=null;
   document.getElementById('exam-copy-status').style.display='none';
   document.getElementById('add-exam-modal').classList.add('show');
@@ -2281,6 +2290,7 @@ function copyExamSetting(e){
   examCopySource=e;
   document.getElementById('exam-name-input').value=e.name;
   document.getElementById('exam-type-input').value=e.examType||'daily';
+  document.getElementById('exam-timelimit-input').value=e.timeLimitMin||'';
   var st=document.getElementById('exam-copy-status');
   st.style.display='';
   st.textContent='"'+e.name+'" 시험의 설정(입력방식/총문항수/커트라인)을 그대로 가져와요.';
@@ -2300,7 +2310,8 @@ async function saveExam(){
   var name=document.getElementById('exam-name-input').value.trim();
   if(!name){alert('시험 이름을 입력해주세요');return;}
   var examType=document.getElementById('exam-type-input').value||'daily';
-  var url=SU+'?action=addExam&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(name)+'&examType='+encodeURIComponent(examType);
+  var timeLimitMin=document.getElementById('exam-timelimit-input').value.trim();
+  var url=SU+'?action=addExam&sessionId='+encodeURIComponent(sessionId)+'&name='+encodeURIComponent(name)+'&examType='+encodeURIComponent(examType)+'&timeLimitMin='+encodeURIComponent(timeLimitMin);
   if(examCopySource){
     url+='&scoreType='+encodeURIComponent(examCopySource.scoreType||'score')
       +'&totalQuestions='+encodeURIComponent(examCopySource.totalQuestions||'')
@@ -2554,6 +2565,7 @@ function openExamDetail(examId){
   document.getElementById('exam-detail-total').value=ex.totalQuestions||'';
   document.getElementById('exam-detail-cutoff').value=ex.passCutoff||'';
   document.getElementById('exam-detail-type').value=ex.examType||'daily';
+  document.getElementById('exam-detail-timelimit').value=ex.timeLimitMin||'';
   renderExamOpenState(ex);
   gradeSubmissions(false); // 학생이 폰으로 제출해둔 답안이 있으면 조용히 채점해서 성적에 넣어줌
   setScoreType(ex.scoreType||'score');
@@ -2595,11 +2607,12 @@ async function saveExamDetail(){
   var total=document.getElementById('exam-detail-total').value.trim();
   var cutoff=document.getElementById('exam-detail-cutoff').value.trim();
   var examType=document.getElementById('exam-detail-type').value||'daily';
+  var timeLimitMin=document.getElementById('exam-detail-timelimit').value.trim();
   if(!name){alert('시험 이름을 입력해주세요');return;}
-  var r=await fetch(SU+'?action=updateExam&id='+encodeURIComponent(currentExamId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&totalQuestions='+encodeURIComponent(total)+'&scoreType='+encodeURIComponent(currentScoreType)+'&passCutoff='+encodeURIComponent(cutoff)+'&examType='+encodeURIComponent(examType)).then(function(r){return r.json();});
+  var r=await fetch(SU+'?action=updateExam&id='+encodeURIComponent(currentExamId)+'&name='+encodeURIComponent(name)+'&range='+encodeURIComponent(range)+'&totalQuestions='+encodeURIComponent(total)+'&scoreType='+encodeURIComponent(currentScoreType)+'&passCutoff='+encodeURIComponent(cutoff)+'&examType='+encodeURIComponent(examType)+'&timeLimitMin='+encodeURIComponent(timeLimitMin)).then(function(r){return r.json();});
   if(r.success){
     var ex=exams.find(function(e){return e.id===currentExamId;});
-    if(ex){ex.name=name;ex.range=range;ex.totalQuestions=total;ex.scoreType=currentScoreType;ex.passCutoff=cutoff;ex.examType=examType;}
+    if(ex){ex.name=name;ex.range=range;ex.totalQuestions=total;ex.scoreType=currentScoreType;ex.passCutoff=cutoff;ex.examType=examType;ex.timeLimitMin=timeLimitMin;}
     document.getElementById('exam-detail-name').textContent=name;
     renderExamList();
     renderScores();
