@@ -797,10 +797,15 @@ async function loadLiveExams(){
     }).join('');
   }
 }
+function liveAnsStoreKey(){ return 'mkmath_examAns_'+liveExamCur.id+'_'+session.id; }
+function saveLiveAnswers(){
+  try{ localStorage.setItem(liveAnsStoreKey(), JSON.stringify(liveExamAnswers)); }catch(e){}
+}
 function openLiveExam(idx){
   liveExamCur=liveExams[idx];
   if(!liveExamCur)return;
-  liveExamAnswers={};
+  // 실수로 바깥을 눌러 창을 닫아도 고른 답이 사라지지 않도록, 골랐던 답을 이어서 불러옴(제출 전까지 유지)
+  try{ liveExamAnswers=JSON.parse(localStorage.getItem(liveAnsStoreKey())||'{}')||{}; }catch(e){ liveExamAnswers={}; }
   startLiveExamLeaveWatch();
   document.getElementById('live-exam-title').textContent=liveExamCur.name;
   var html='';
@@ -814,6 +819,7 @@ function openLiveExam(idx){
     html+='</div></div>';
   }
   document.getElementById('live-exam-questions').innerHTML=html;
+  Object.keys(liveExamAnswers).forEach(function(q){ pickLiveAnswer(Number(q), liveExamAnswers[q]); });
   var btn=document.getElementById('live-exam-submit');
   btn.disabled=false; btn.textContent='제출하기'; btn.style.background='#3b6cf7'; btn.style.display='';
   var oldCloseBtn=document.getElementById('live-exam-result-close');
@@ -885,6 +891,7 @@ function stopLiveExamLeaveWatch(){
 }
 function pickLiveAnswer(q,c){
   liveExamAnswers[q]=c;
+  saveLiveAnswers();
   for(var i=1;i<=5;i++){
     var b=document.getElementById('lq-'+q+'-'+i);
     if(!b)continue;
@@ -914,6 +921,7 @@ async function submitLiveExam(auto){
     var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'submitExamAnswers',examId:liveExamCur.id,sessionId:liveExamCur.sessionId,studentId:session.id,studentName:session.name||'',answers:liveExamAnswers,leaveCount:liveExamLeaveCount,leaveLog:JSON.stringify(liveExamLeaveLog)})});
     var d=await res.json();
     if(d&&d.success){
+      localStorage.removeItem(liveAnsStoreKey());
       renderLiveExamResult(d);
       loadLiveExams();
     } else {
