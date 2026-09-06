@@ -945,23 +945,49 @@ api.getMyOpenExams = function(db, p){
       return db.collection('exam_submissions').where('studentId','==',sid).get().then(function(subSnap){
         var subsByExamId = {};
         subSnap.forEach(function(d){ subsByExamId[d.data().examId] = d.data(); });
-        var oneDayAgoMs = Date.now() - 24*60*60*1000;
-        var result = all.filter(function(e){
+        // 자기채점이 아직 안 된(selfScore가 없는) 제출은, 제출 당시 exam_keys 읽기가 막혀있었던 옛날 기록일 수 있으므로
+        // 지금 다시 한 번 계산을 시도한다(지금은 본인이 제출한 시험이라 exam_keys를 읽을 수 있음, hasSubmittedExam 규칙).
+        var needsSelfScore = all.filter(function(e){
           var sub = subsByExamId[e.id];
-          if (sub) {
-            e.submitted = true;
-            if (typeof sub.selfScore === 'number') {
-              e.selfScore = sub.selfScore; e.selfTotal = sub.selfTotal; e.selfWrongQuestions = sub.selfWrongQuestions || [];
-            }
-            e.submittedAtMs = sub.submittedAtMs || 0;
-            // 제출한 시험은 마감(submitOpen:false) 여부와 상관없이 제출 후 24시간까지는 결과 카드를 보여줌
-            return e.submitOpen || !e.submittedAtMs || e.submittedAtMs >= oneDayAgoMs;
-          }
-          e.submitted = false;
-          // 제출 안 한 시험은 지금 열려있을 때만 "응시하기" 대상으로 의미가 있음
-          return e.submitOpen;
+          return sub && typeof sub.selfScore !== 'number';
         });
-        return { exams: result };
+        return Promise.all(needsSelfScore.map(function(e){
+          var sub = subsByExamId[e.id];
+          return db.collection('exam_keys').doc(e.id).get().then(function(keyDoc){
+            var key = (keyDoc.exists && Array.isArray(keyDoc.data().answerKey)) ? keyDoc.data().answerKey : [];
+            if (!key.length) return;
+            var answers = sub.answers || {};
+            var score = 0, total = 0, wrongQuestions = [];
+            key.forEach(function(r){
+              if (r.correct == null) return;
+              total += Number(r.points) || 0;
+              if (answerMatches(answers[r.q], r.correct, r.type)) score += Number(r.points) || 0;
+              else wrongQuestions.push(r.q);
+            });
+            wrongQuestions.sort(function(a,b){ return a-b; });
+            score = Math.round(score*10)/10; total = Math.round(total*10)/10;
+            sub.selfScore = score; sub.selfTotal = total; sub.selfWrongQuestions = wrongQuestions;
+            return db.collection('exam_submissions').doc(e.id+'__'+sid).update({ selfScore:score, selfTotal:total, selfWrongQuestions:wrongQuestions }).catch(function(){});
+          }).catch(function(){});
+        })).then(function(){
+          var oneDayAgoMs = Date.now() - 24*60*60*1000;
+          var result = all.filter(function(e){
+            var sub = subsByExamId[e.id];
+            if (sub) {
+              e.submitted = true;
+              if (typeof sub.selfScore === 'number') {
+                e.selfScore = sub.selfScore; e.selfTotal = sub.selfTotal; e.selfWrongQuestions = sub.selfWrongQuestions || [];
+              }
+              e.submittedAtMs = sub.submittedAtMs || 0;
+              // 제출한 시험은 마감(submitOpen:false) 여부와 상관없이 제출 후 24시간까지는 결과 카드를 보여줌
+              return e.submitOpen || !e.submittedAtMs || e.submittedAtMs >= oneDayAgoMs;
+            }
+            e.submitted = false;
+            // 제출 안 한 시험은 지금 열려있을 때만 "응시하기" 대상으로 의미가 있음
+            return e.submitOpen;
+          });
+          return { exams: result };
+        });
       });
     });
   });
