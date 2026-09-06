@@ -1899,7 +1899,7 @@ api.getTodayClinicBookings = function(db){
         var s = stuMap[r.studentId]||{};
         return { id:r.id, clinicId:r.clinicId, clinicName:r.clinicName||'', studentId:r.studentId, name:r.studentName||s.name||r.studentId,
           date:r.date, time:r.time, status:r.status||'', studentPhone:r.studentId, parentPhone:s.parentPhone||'',
-          alimtalkLogs:r.alimtalkLogs||[], lastHourReminderDate:r.lastHourReminderDate||'' };
+          alimtalkLogs:r.alimtalkLogs||[], lastHourReminderDate:r.lastHourReminderDate||'', attend:r.attend||'' };
       }).sort(function(a,b){ return (a.time||'')<(b.time||'')?-1:1; });
       return { list: list };
     });
@@ -1918,6 +1918,11 @@ api.logClinicAlimtalk = function(db, p){
       return { success:true };
     });
   }, function(){ return { success:false }; });
+};
+// 클리닉 출석/결석 체크 (의무클리닉과 동일한 패턴 — 예약 취소 여부(status)와는 별개 필드)
+api.setClinicAttendance = function(db, p){
+  return db.collection('clinic_bookings').doc(String(p.id)).update({ attend: p.attend||'' })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 api.markClinicHourReminderSent = function(db, p){
   return db.collection('clinic_bookings').doc(String(p.id)).update({ lastHourReminderDate: String(p.date) })

@@ -2672,12 +2672,17 @@ function renderCbTodayList(){
   el.innerHTML=cbTodayList.map(function(b){
     var lastLog=(b.alimtalkLogs&&b.alimtalkLogs.length)?b.alimtalkLogs[b.alimtalkLogs.length-1]:null;
     var lastLogHtml=lastLog?('<div style="font-size:11px;color:#94a3b8;margin-top:2px;">🔔 마지막 알림톡: '+lastLog.type+' · '+lastLog.at+(lastLog.by?' · '+lastLog.by:'')+'</div>'):'';
+    var nameEsc=escHtml(b.name).replace(/'/g,"\\'");
     return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;">'
       +'<div style="min-width:160px;"><span style="font-weight:700;font-size:14px;">'+escHtml(b.name)+'</span>'
       +'<span style="margin-left:8px;font-size:12px;color:#64748b;">'+escHtml(b.time)+'</span>'
       +'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#7c3aed;background:#f5f3ff;padding:2px 7px;border-radius:20px;">'+escHtml(b.clinicName)+'</span>'
       +lastLogHtml+'</div>'
-      +'<button onclick="cbSendReminder(\''+b.id+'\',\''+b.studentId+'\',\''+escHtml(b.name).replace(/'/g,"\\'")+'\')" style="margin-left:auto;padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #fdba74;background:#fff7ed;color:#c2410c;font-size:13px;font-weight:700;cursor:pointer;">🔔 재촉</button>'
+      +'<div style="display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;">'
+      +'<button onclick="markCbAttendance(\''+b.id+'\',\''+nameEsc+'\',\'출석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(b.attend==='출석'?'#16a34a':'#e2e8f0')+';background:'+(b.attend==='출석'?'#16a34a':'#fff')+';color:'+(b.attend==='출석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">출석</button>'
+      +'<button onclick="markCbAttendance(\''+b.id+'\',\''+nameEsc+'\',\'결석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(b.attend==='결석'?'#dc2626':'#e2e8f0')+';background:'+(b.attend==='결석'?'#dc2626':'#fff')+';color:'+(b.attend==='결석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">결석</button>'
+      +'<button onclick="cbSendReminder(\''+b.id+'\',\''+b.studentId+'\',\''+nameEsc+'\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #fdba74;background:#fff7ed;color:#c2410c;font-size:13px;font-weight:700;cursor:pointer;">🔔 재촉</button>'
+      +'</div>'
       +'</div>';
   }).join('');
 }
@@ -2688,6 +2693,24 @@ function cbPhoneMsgs(studentPhone, parentPhone, name, message){
   return msgs;
 }
 function localDateStrAdmin(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+async function markCbAttendance(id, name, attend){
+  await fetch(SU+'?action=setClinicAttendance&id='+encodeURIComponent(id)+'&attend='+encodeURIComponent(attend));
+  var b=cbTodayList.find(function(x){return x.id===id;});
+  if(b && confirm(name+' 학생·학부모께 '+attend+' 알림톡을 바로 보낼까요?')){
+    var text=name+' 학생이 오늘 클리닉('+b.clinicName+')에 '+(attend==='결석'?'오지 않았습니다. 확인 부탁드립니다.':'출석했습니다.');
+    var msgs=cbPhoneMsgs(b.studentPhone,b.parentPhone,name,text);
+    if(msgs.length){
+      try{
+        var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+        if(r.success) await fetch(SU,{method:'POST',body:JSON.stringify({action:'logClinicAlimtalk',id:id,type:attend,studentName:name,by:(cu&&(cu.name||cu.id))||'',byRole:(cu&&cu.role)||''})});
+        else alert('발송 실패: '+(r.msg||''));
+      }catch(e){ alert('발송 중 오류: '+e.message); }
+    } else {
+      alert('⚠️ 등록된 전화번호가 없어서 알림톡을 보낼 수 없어요.');
+    }
+  }
+  loadClinicBookingsToday();
+}
 async function cbSendReminder(id, studentId, name){
   var b=cbTodayList.find(function(x){return x.id===id;});
   if(!b) return;
