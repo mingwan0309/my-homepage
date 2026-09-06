@@ -803,4 +803,55 @@ function sendMcHourReminders() {
   } catch (err) {
     Logger.log('[sendMcHourReminders] 오류: ' + err);
   }
+
+  // 클리닉(추가클리닉 등) "오기 1시간 전" 자동 알림도 같은 트리거(5분마다)에 얹어서 같이 실행 —
+  // 별도 트리거를 새로 등록할 필요 없이 여기 이 함수 안에서 이어서 돈다.
+  try {
+    sendClinicHourReminders();
+  } catch (err) {
+    Logger.log('[sendClinicHourReminders 호출] 오류: ' + err);
+  }
+}
+
+// 클리닉(추가클리닉 등, clinic_bookings) "오기 1시간 전" 자동 알림 — 의무클리닉과 동일한 패턴.
+// sendMcHourReminders() 안에서 같이 호출되므로 별도 트리거 등록이 필요 없음.
+function sendClinicHourReminders() {
+  try {
+    var today = mcTodayInfoSeoul();
+    var all = firestoreListAll('clinic_bookings');
+    var todays = all.filter(function(b){
+      return b.date === today.dateStr && b.status !== '취소' && b.status !== 'cancelled';
+    });
+    if (!todays.length) return;
+
+    var candidates = todays.filter(function(b){
+      if (b.lastHourReminderDate === today.dateStr) return false;
+      var mins = mcParseTimeToMinutes(b.time);
+      if (mins === null) return false;
+      var diff = mins - today.nowMins;
+      return diff <= 60 && diff >= 50;
+    });
+    if (!candidates.length) return;
+
+    var studentsById = {};
+    firestoreListAll('students').forEach(function(s){ studentsById[s.id] = s; });
+
+    candidates.forEach(function(b){
+      var student = studentsById[b.studentId];
+      var name = b.studentName || (student && student.name) || b.studentId;
+      var text = name + ' 학생, 클리닉(' + (b.clinicName || '') + ') 1시간 전(' + b.time + ')입니다. 잊지 말고 와주세요!';
+      var msgs = [];
+      msgs.push({ phone: b.studentId, name: name, className: '클리닉', sessionNum: today.dateStr, message: text });
+      if (student && student.parentPhone) msgs.push({ phone: student.parentPhone, name: name, className: '클리닉', sessionNum: today.dateStr, message: text });
+
+      var result = sendAlimtalkMessages(msgs);
+      if (result.success) {
+        firestorePatchStringField('clinic_bookings', b.id, 'lastHourReminderDate', today.dateStr);
+      } else {
+        Logger.log('[sendClinicHourReminders] ' + name + ' 발송 실패: ' + result.msg);
+      }
+    });
+  } catch (err) {
+    Logger.log('[sendClinicHourReminders] 오류: ' + err);
+  }
 }

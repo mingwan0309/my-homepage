@@ -521,6 +521,11 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div class="page-title">클리닉 관리</div>
         <button class="btn-primary" onclick="openClinicModal(null)">+ 새 클리닉 추가</button>
       </div>
+      <div class="card">
+        <div class="card-title">오늘 예약된 클리닉 학생</div>
+        <p style="font-size:12px;color:#94a3b8;margin:-6px 0 12px;">오늘 날짜로 신청된 클리닉 예약을 시간순으로 보여줘요. 시간 1시간 전에는 자동으로 알림톡이 가고, 필요하면 직접 재촉도 보낼 수 있어요.</p>
+        <div id="cb-today-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
+      </div>
       <div id="clinic-list-area"><div style="text-align:center;padding:40px;color:#94a3b8;">불러오는 중...</div></div>
     </div>
 
@@ -1184,6 +1189,7 @@ window.addEventListener('DOMContentLoaded',function(){
     refreshHwNavBadge();
     initActiveAstWidget();
     startMcHourReminderTimer();
+    startClinicHourReminderTimer();
   }
 });
 
@@ -1211,7 +1217,7 @@ function showPage(page,el){
   if(page==='students') loadStu();
   if(page==='reviewmanage') loadRv();
   if(page==='notice') loadNotices();
-  if(page==='clinic') loadClinics();
+  if(page==='clinic'){ loadClinics(); loadClinicBookingsToday(); }
   if(page==='mclinic') loadMclinic();
   if(page==='hwmanage'){ switchHwTestTab('hw'); loadHwManage(); }
   if(page==='activitylog') loadActivityLog();
@@ -1257,7 +1263,7 @@ function setupAssistantSession(sessObj, isPreview){
   astIsPreviewMode=!!isPreview;
   document.getElementById('dashboard').style.display='flex';
   document.getElementById('sb-user').textContent=sessObj.name||sessObj.id;
-  if(!isPreview) startMcHourReminderTimer();
+  if(!isPreview){ startMcHourReminderTimer(); startClinicHourReminderTimer(); }
   var mcAllowedPages=['classes','students','mclinic','hwmanage','qna','pwchange','assistants','astguide','astcheck'];
   document.querySelectorAll('.sidebar-nav .nav-item, .mob-drawer-panel .nav-item').forEach(function(n){
     if(n.classList.contains('nav-group-head')){
@@ -2646,6 +2652,96 @@ async function mcSendGoHome(id, studentId, name){
   if(!confirm(name+' 학생·학부모께 귀가 알림톡을 보낼까요?\n(카카오 알림톡 발송 - 비용이 발생합니다)'))return;
   await mcSendAlimtalk(mcStudentPhoneMsgs(studentId,name,today.dateStr,name+' 학생이 의무클리닉을 마치고 귀가했습니다.'), name, id, '귀가');
   loadMclinic();
+}
+
+// ── 클리닉(추가클리닉 등) 오늘 예약 목록 + 재촉 + 1시간 전 자동 알림 (의무클리닉과 동일한 패턴) ──
+var cbTodayList=[];
+async function loadClinicBookingsToday(){
+  var el=document.getElementById('cb-today-list');
+  if(!el) return;
+  try{
+    var r=await fetch(SU+'?action=getTodayClinicBookings').then(function(r){return r.json();});
+    cbTodayList=r.list||[];
+    renderCbTodayList();
+  }catch(e){ el.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>'; }
+}
+function renderCbTodayList(){
+  var el=document.getElementById('cb-today-list');
+  if(!el) return;
+  if(!cbTodayList.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">오늘 예약된 클리닉이 없습니다.</div>'; return; }
+  el.innerHTML=cbTodayList.map(function(b){
+    var lastLog=(b.alimtalkLogs&&b.alimtalkLogs.length)?b.alimtalkLogs[b.alimtalkLogs.length-1]:null;
+    var lastLogHtml=lastLog?('<div style="font-size:11px;color:#94a3b8;margin-top:2px;">🔔 마지막 알림톡: '+lastLog.type+' · '+lastLog.at+(lastLog.by?' · '+lastLog.by:'')+'</div>'):'';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;">'
+      +'<div style="min-width:160px;"><span style="font-weight:700;font-size:14px;">'+escHtml(b.name)+'</span>'
+      +'<span style="margin-left:8px;font-size:12px;color:#64748b;">'+escHtml(b.time)+'</span>'
+      +'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#7c3aed;background:#f5f3ff;padding:2px 7px;border-radius:20px;">'+escHtml(b.clinicName)+'</span>'
+      +lastLogHtml+'</div>'
+      +'<button onclick="cbSendReminder(\''+b.id+'\',\''+b.studentId+'\',\''+escHtml(b.name).replace(/'/g,"\\'")+'\')" style="margin-left:auto;padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #fdba74;background:#fff7ed;color:#c2410c;font-size:13px;font-weight:700;cursor:pointer;">🔔 재촉</button>'
+      +'</div>';
+  }).join('');
+}
+function cbPhoneMsgs(studentPhone, parentPhone, name, message){
+  var msgs=[];
+  if(studentPhone) msgs.push({phone:studentPhone, name:name, className:'클리닉', sessionNum:localDateStrAdmin(), message:message});
+  if(parentPhone) msgs.push({phone:parentPhone, name:name, className:'클리닉', sessionNum:localDateStrAdmin(), message:message});
+  return msgs;
+}
+function localDateStrAdmin(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+async function cbSendReminder(id, studentId, name){
+  var b=cbTodayList.find(function(x){return x.id===id;});
+  if(!b) return;
+  var text=name+' 학생, 오늘 '+b.time+' 클리닉('+b.clinicName+') 시간입니다. 잊지 말고 와주세요!';
+  if(!confirm(name+' 학생에게 아래 알림톡을 보낼까요?\n(카카오 알림톡 발송 - 비용이 발생합니다)\n\n"'+text+'"'))return;
+  var msgs=cbPhoneMsgs(b.studentPhone,'',name,text); // 재촉은 학생 본인에게만
+  if(!msgs.length){ alert('⚠️ 등록된 전화번호가 없어서 보낼 수 없어요.'); return; }
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+    if(r.success){
+      alert('알림톡 발송 완료!');
+      await fetch(SU,{method:'POST',body:JSON.stringify({action:'logClinicAlimtalk',id:id,type:'재촉',studentName:name,by:(cu&&(cu.name||cu.id))||'',byRole:(cu&&cu.role)||''})});
+    } else { alert('발송 실패: '+(r.msg||'')); }
+  }catch(e){ alert('발송 중 오류: '+e.message); }
+  loadClinicBookingsToday();
+}
+// 브라우저 화면이 켜져있는 동안의 안전장치(의무클리닉과 동일 패턴) — 실제 자동 발송의 핵심은
+// Code.gs의 sendClinicHourReminders() 예약 트리거 쪽이며, 이건 그 사이 화면이 열려 있으면 한 번 더 확인해주는 보조 역할.
+var cbHourReminderTimer=null;
+function startClinicHourReminderTimer(){
+  if(cbHourReminderTimer) return;
+  checkClinicHourReminders();
+  cbHourReminderTimer=setInterval(checkClinicHourReminders, 60*1000);
+}
+async function checkClinicHourReminders(){
+  try{
+    var r=await fetch(SU+'?action=getTodayClinicBookings').then(function(r){return r.json();});
+    var list=r.list||[];
+    var today=localDateStrAdmin();
+    var candidates=list.filter(function(b){
+      if(b.lastHourReminderDate===today) return false;
+      var mins=mcParseTimeToMinutes(b.time);
+      if(mins===null) return false;
+      var now=new Date();
+      var nowMins=now.getHours()*60+now.getMinutes();
+      var diff=mins-nowMins;
+      return diff<=60 && diff>=50;
+    });
+    if(!candidates.length) return;
+    for(var i=0;i<candidates.length;i++){
+      var b=candidates[i];
+      var text=b.name+' 학생, 클리닉('+b.clinicName+') 1시간 전('+b.time+')입니다. 잊지 말고 와주세요!';
+      var msgs=cbPhoneMsgs(b.studentPhone,b.parentPhone,b.name,text);
+      if(!msgs.length) continue;
+      try{
+        var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+        if(res.success){
+          await fetch(SU+'?action=markClinicHourReminderSent&id='+encodeURIComponent(b.id)+'&date='+encodeURIComponent(today));
+          await fetch(SU,{method:'POST',body:JSON.stringify({action:'logClinicAlimtalk',id:b.id,type:'1시간전 자동알림',studentName:b.name,by:(cu&&(cu.name||cu.id))||'',byRole:(cu&&cu.role)||''})});
+        }
+      }catch(e){ console.warn('[클리닉 1시간전 알림] 발송 실패:', e); }
+    }
+    if(document.getElementById('page-clinic') && document.getElementById('page-clinic').classList.contains('active')) loadClinicBookingsToday();
+  }catch(e){ console.warn('[클리닉 1시간전 알림] 확인 실패:', e); }
 }
 
 // ── 숙제관리 반별 드롭다운 열고 닫기 ──

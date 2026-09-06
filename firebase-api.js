@@ -1887,6 +1887,43 @@ api.cancelBooking = function(db, p){
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
+// 관리 화면(클리닉 관리)에서 "오늘 예약된 학생" 목록으로 보여주기 위함 — 의무클리닉 목록과 같은 패턴
+api.getTodayClinicBookings = function(db){
+  var today = localDateStr();
+  return db.collection('clinic_bookings').where('date','==',today).get().then(function(snap){
+    var rows = docsToArr(snap).filter(function(r){ return r.status!=='취소' && r.status!=='cancelled'; });
+    if (!rows.length) return { list: [] };
+    return db.collection('students').get().then(function(sSnap){
+      var stuMap={}; sSnap.forEach(function(d){ stuMap[d.id]=d.data(); });
+      var list = rows.map(function(r){
+        var s = stuMap[r.studentId]||{};
+        return { id:r.id, clinicId:r.clinicId, clinicName:r.clinicName||'', studentId:r.studentId, name:r.studentName||s.name||r.studentId,
+          date:r.date, time:r.time, status:r.status||'', studentPhone:r.studentId, parentPhone:s.parentPhone||'',
+          alimtalkLogs:r.alimtalkLogs||[], lastHourReminderDate:r.lastHourReminderDate||'' };
+      }).sort(function(a,b){ return (a.time||'')<(b.time||'')?-1:1; });
+      return { list: list };
+    });
+  });
+};
+// 클리닉 알림톡(재촉 등) 발송 기록 — "마지막 알림톡: ..."으로 바로 보여주기 위함(의무클리닉과 동일 패턴)
+api.logClinicAlimtalk = function(db, p){
+  var ref = db.collection('clinic_bookings').doc(String(p.id));
+  var entry = { type:p.type||'', at:nowStr(), by:p.by||'' };
+  var roleLabel = p.byRole==='assistant' ? '조교' : '선생님';
+  return ref.get().then(function(doc){
+    var logs = (doc.exists && doc.data().alimtalkLogs) || [];
+    logs = logs.concat([entry]).slice(-30);
+    return ref.set({ alimtalkLogs:logs }, {merge:true}).then(function(){
+      logActivity(db, p.by||'', p.by||'', p.byRole||'teacher', (p.by||roleLabel)+'('+roleLabel+')님이 '+(p.studentName||'')+' 학생에게 클리닉 '+(p.type||'')+' 알림톡을 보냈습니다.', 'CLINIC_ALIMTALK_SENT');
+      return { success:true };
+    });
+  }, function(){ return { success:false }; });
+};
+api.markClinicHourReminderSent = function(db, p){
+  return db.collection('clinic_bookings').doc(String(p.id)).update({ lastHourReminderDate: String(p.date) })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
 api.bookClinic = function(db, p){
   return Promise.all([
     db.collection('clinics').doc(String(p.clinicId)).get(),
