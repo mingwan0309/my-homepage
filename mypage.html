@@ -808,18 +808,32 @@ function openLiveExam(idx){
   try{ liveExamAnswers=JSON.parse(localStorage.getItem(liveAnsStoreKey())||'{}')||{}; }catch(e){ liveExamAnswers={}; }
   startLiveExamLeaveWatch();
   document.getElementById('live-exam-title').textContent=liveExamCur.name;
+  var qTypes=liveExamCur.questionTypes||[];
   var html='';
   for(var q=1;q<=liveExamCur.questionCount;q++){
+    var isShort=qTypes[q-1]==='short';
     html+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9;">'
-      +'<span style="width:28px;font-size:13.5px;font-weight:800;color:#475569;flex-shrink:0;">'+q+'</span>'
-      +'<div style="display:flex;gap:6px;flex:1;">';
-    for(var c=1;c<=5;c++){
-      html+='<button type="button" id="lq-'+q+'-'+c+'" onclick="pickLiveAnswer('+q+','+c+')" style="flex:1;min-height:44px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;">'+'①②③④⑤'.charAt(c-1)+'</button>';
+      +'<span style="width:28px;font-size:13.5px;font-weight:800;color:#475569;flex-shrink:0;">'+q+'</span>';
+    if(isShort){
+      html+='<input type="text" inputmode="decimal" placeholder="답 입력(숫자)" id="lq-short-'+q+'" oninput="pickLiveShortAnswer('+q+',this.value)" style="flex:1;min-height:44px;padding:0 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:15px;">';
+    } else {
+      html+='<div style="display:flex;gap:6px;flex:1;">';
+      for(var c=1;c<=5;c++){
+        html+='<button type="button" id="lq-'+q+'-'+c+'" onclick="pickLiveAnswer('+q+','+c+')" style="flex:1;min-height:44px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;">'+'①②③④⑤'.charAt(c-1)+'</button>';
+      }
+      html+='</div>';
     }
-    html+='</div></div>';
+    html+='</div>';
   }
   document.getElementById('live-exam-questions').innerHTML=html;
-  Object.keys(liveExamAnswers).forEach(function(q){ pickLiveAnswer(Number(q), liveExamAnswers[q]); });
+  Object.keys(liveExamAnswers).forEach(function(q){
+    if(qTypes[Number(q)-1]==='short'){
+      var input=document.getElementById('lq-short-'+q);
+      if(input) input.value=liveExamAnswers[q];
+    } else {
+      pickLiveAnswer(Number(q), liveExamAnswers[q]);
+    }
+  });
   var btn=document.getElementById('live-exam-submit');
   btn.disabled=false; btn.textContent='제출하기'; btn.style.background='#3b6cf7'; btn.style.display='';
   var oldCloseBtn=document.getElementById('live-exam-result-close');
@@ -895,6 +909,12 @@ function stopLiveExamLeaveWatch(){
   liveExamWatching=false;
   document.removeEventListener('visibilitychange', onLiveExamHidden);
   document.removeEventListener('visibilitychange', onLiveExamVisible);
+}
+function pickLiveShortAnswer(q,val){
+  var v=String(val||'').trim();
+  if(v==='') delete liveExamAnswers[q];
+  else liveExamAnswers[q]=v;
+  saveLiveAnswers();
 }
 function pickLiveAnswer(q,c){
   liveExamAnswers[q]=c;

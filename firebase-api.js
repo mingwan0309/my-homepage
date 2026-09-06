@@ -849,8 +849,9 @@ api.setExamAnswerKey = function(db, p){
   return db.collection('exam_keys').doc(String(p.examId)).set({ examId:String(p.examId), answerKey:key, updatedAt:nowStr() })
     .then(function(){
       // 예전에 exams 문서 안에 저장돼 있던 정답은 학생도 읽을 수 있으므로 같이 지움.
+      // 문항 타입(객관식/주관식)은 정답이 아니라서 학생 화면(입력창 모양 결정용)에 그대로 내려줘도 안전함.
       // 이 단계가 실패해도 정답 저장 자체는 이미 끝났으므로 실패로 처리하지 않음.
-      return db.collection('exams').doc(String(p.examId)).update({ answerKey: null, questionCount: key.length })
+      return db.collection('exams').doc(String(p.examId)).update({ answerKey: null, questionCount: key.length, questionTypes: key.map(function(r){ return r.type||'mc'; }) })
         .catch(function(e){ console.warn('[setExamAnswerKey] exams 정리 실패(무시):', e); });
     })
     .then(function(){ return { success:true }; }, function(e){
@@ -869,6 +870,18 @@ api.getExamKey = function(db, p){
     });
   });
 };
+
+// 객관식은 그대로 값 비교, 주관식(숫자 기입형)은 "5"와 "05"/"5.0"/" 5 " 처럼 같은 숫자를
+// 다르게 써도 정답 처리되도록 숫자로 변환해서 비교(둘 다 숫자로 못 바꾸면 문자열 비교로 대체)
+function answerMatches(given, correct, type){
+  if (type === 'short') {
+    var a = String(given==null?'':given).trim(), b = String(correct==null?'':correct).trim();
+    var na = Number(a), nb = Number(b);
+    if (a !== '' && b !== '' && !isNaN(na) && !isNaN(nb)) return na === nb;
+    return a === b;
+  }
+  return given === correct;
+}
 
 /* === 학생 실시간 응시 (수업 중에만 열림) === */
 // 교사가 "응시 시작/마감"을 눌러 여닫음
@@ -904,7 +917,8 @@ api.getMyOpenExams = function(db, p){
           .map(function(e){
             return { id:String(e.id), name:e.name||'시험', sessionId:String(s.id),
               sessLabel:s.label||(s.sessionNum?s.sessionNum+'차시':''), date:s.date||'',
-              questionCount:Number(e.questionCount||0), timeLimitMin:Number(e.timeLimitMin||0) };
+              questionCount:Number(e.questionCount||0), timeLimitMin:Number(e.timeLimitMin||0),
+              questionTypes: Array.isArray(e.questionTypes) ? e.questionTypes : [] };
           });
       });
     })).then(function(lists){
@@ -960,7 +974,7 @@ api.submitExamAnswers = function(db, p){
           key.forEach(function(r){
             if (r.correct == null) return;
             total += Number(r.points) || 0;
-            if (answers[r.q] === r.correct) score += Number(r.points) || 0;
+            if (answerMatches(answers[r.q], r.correct, r.type)) score += Number(r.points) || 0;
             else wrongQuestions.push(r.q);
           });
           wrongQuestions.sort(function(a,b){ return a-b; });
