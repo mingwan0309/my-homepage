@@ -2765,9 +2765,15 @@ async function fetchExamKey(examId){
   }catch(e){ return []; }
 }
 var akIsCount=false; // 개수형 시험이면 배점 없이 1문제=1개로 채점
+var akRowsExamId=null; // 마지막으로 답안을 채워넣은 시험 id — 다른 시험으로 넘어가면 이전 시험 값이 새 시험에 섞여 들어가지 않도록 리셋 기준으로 씀
 async function openAnswerKeyModal(){
   var ex=exams.find(function(e){return e.id===currentExamId;});
   if(!ex)return;
+  // 시험이 바뀌었으면(=새로 만든 시험이거나 다른 시험) 직전에 입력하던 값을 완전히 비움 —
+  // 안 그러면 buildAkRows가 "저장된 값이 없는 문항"을 이전 시험의 값으로 채워서(prev fallback)
+  // 새 시험인데 예전 답이 그대로 남아있는 것처럼 보이는 버그가 있었음(2026-09-06 신고).
+  if(akRowsExamId!==currentExamId){ akRows=[]; }
+  akRowsExamId=currentExamId;
   var saved=await fetchExamKey(currentExamId);
   // 저장을 안 누른 상태에서 열 수도 있으므로, 화면에 입력돼 있는 값을 우선으로 읽는다
   akIsCount=(currentScoreType==='count');
