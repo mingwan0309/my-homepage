@@ -1378,7 +1378,7 @@ function renderMyExamAlerts(){
       : '';
     var uploadBtn = urls.length<EXAM_MAX_PHOTOS
       ? '<button class="hw-upload-btn" id="exam-upload-btn-'+t.id+'" onclick="triggerExamUpload(\''+t.id+'\')">📷 '+(urls.length?'사진 추가 올리기':'고쳐서 사진 찍어 제출하기')+'</button>'
-      : '<div class="hw-photo-count" style="margin-top:6px;">최대 '+EXAM_MAX_PHOTOS+'장까지 올렸어요. 더 올리려면 먼저 하나를 지워주세요.</div>';
+      : '<div class="hw-photo-count" style="margin-top:6px;">최대 '+EXAM_MAX_PHOTOS+'장까지 올렸어요. '+(EXAM_MAX_PHOTOS+1)+'장 이상 제출해야 하면, 남은 사진은 여기 말고 민관T 개인 카톡으로 보내주세요.</div>';
     return '<div class="hw-item">'
       +'<div class="hw-item-top"><span class="hw-item-name">'+escHtml(t.examName)+'</span>'
       +'<span class="hw-status-badge '+badgeCls+'">'+EXAM_KIND_LABEL[t.kind]+'</span></div>'
@@ -1392,7 +1392,7 @@ function triggerExamUpload(id){
   var item=myExamItems.find(function(t){return t.id===id;});
   if(!item) return;
   var remain=EXAM_MAX_PHOTOS-(item.submissionUrls||[]).length;
-  if(remain<=0){ alert('사진은 최대 '+EXAM_MAX_PHOTOS+'장까지만 올릴 수 있어요.'); return; }
+  if(remain<=0){ alert('사진은 최대 '+EXAM_MAX_PHOTOS+'장까지만 올릴 수 있어요. '+(EXAM_MAX_PHOTOS+1)+'장 이상은 민관T 개인 카톡으로 보내주세요.'); return; }
   examUploadTargetId=id;
   var input=document.getElementById('exam-file-input');
   input.value='';
