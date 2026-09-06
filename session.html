@@ -2682,9 +2682,20 @@ async function toggleExamOpenFromList(examId){
   }
 }
 // 마감 시점까지 아예 응시하지 않은(제출 기록도 점수도 없는) 학생은 자동으로 "미응시" 처리
+// 주의: 채점(gradeSubmissions) 직후 아주 짧은 순간에 학생 제출이 막 도착하는 경우가 있어서(마감 버튼을 누르는
+// 순간과 학생 제출이 거의 동시일 때), scoresMap만 보고 판단하면 실제로 제출한 학생이 "미응시"로 잘못 찍힐 수 있다.
+// 그래서 ①한 번 더 채점을 시도해서 방금 도착한 제출까지 반영하고, ②그래도 채점 대상에 없는 학생만 진짜 미응시로
+// 확정하되, exam_submissions에 제출 기록 자체가 있는 학생은(아직 채점 전이라도) 절대 미응시 처리하지 않는다.
 async function markAbsenteesForExam(examId){
   try{
-    var noScore=students.filter(function(st){ return !((scoresMap[st.id]||{})[examId]); });
+    var prevExamId=currentExamId;
+    currentExamId=examId;
+    await gradeSubmissions(false);
+    currentExamId=prevExamId;
+    var sr=await fetch(SU+'?action=getExamSubmissions&examId='+encodeURIComponent(examId)).then(function(r){return r.json();});
+    var submittedIds={};
+    (sr.submissions||[]).forEach(function(s){ submittedIds[s.studentId]=true; });
+    var noScore=students.filter(function(st){ return !((scoresMap[st.id]||{})[examId]) && !submittedIds[st.id]; });
     if(!noScore.length) return;
     for(var i=0;i<noScore.length;i++){
       var st=noScore[i];
@@ -2703,7 +2714,7 @@ async function toggleExamOpen(){
   if(r.success){
     ex.submitOpen=next;
     renderExamOpenState(ex);
-    if(!next) gradeSubmissions(true); // 마감할 때 남은 제출분 채점
+    if(!next){ await gradeSubmissions(true); await markAbsenteesForExam(currentExamId); } // 마감할 때 남은 제출분 채점 + 미응시 처리(상세 화면에서 마감해도 목록에서 마감한 것과 동일하게 처리)
   } else { alert((r&&r.msg)||'처리 실패했어요.'); }
 }
 // 학생이 제출한 답안을 정답과 대조해 채점하고 성적에 저장 (정답은 교사 화면에서만 다뤄짐)
