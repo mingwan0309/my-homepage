@@ -1832,17 +1832,21 @@ function renderSdTabBody(){
     }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">질문 이력이 없어요.</div>';
   } else if(sdCurrentTab==='score'){
     var sc=sdHistory.scores;
-    body.innerHTML = sc.length ? sc.map(function(s){
-      return '<div class="sd-hist-row"><span class="sd-hist-title">'+escHtml(s.examName)+'</span> — '+(s.pass==='submit'?'통과':s.pass==='nosub'?'미통과':'-')+(s.score!==''?' ('+s.score+'점)':'')
+    var scBad=sc.filter(function(s){ return s.pass==='nosub'||s.pass==='absent'; }).length;
+    var scSummary=scBad>0?('<div style="background:#fef2f2;color:#dc2626;font-size:12.5px;font-weight:700;padding:8px 12px;border-radius:8px;margin-bottom:10px;">⚠️ 미통과·미응시 누적 '+scBad+'건</div>'):'';
+    body.innerHTML = scSummary + (sc.length ? sc.map(function(s){
+      return '<div class="sd-hist-row"><span class="sd-hist-title">'+escHtml(s.examName)+'</span> — '+(s.pass==='submit'?'통과':s.pass==='nosub'?'미통과':s.pass==='absent'?'미응시':'-')+(s.score!==''?' ('+s.score+'점)':'')
         +'<div class="sd-hist-sub">'+escHtml(s.className||'')+(s.sessionNum?' · '+s.sessionNum+'차시':'')+(s.feedback?' · '+escHtml(s.feedback):'')+'</div></div>';
-    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">성적 이력이 없어요.</div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">성적 이력이 없어요.</div>');
   } else if(sdCurrentTab==='hw'){
     var hw=sdHistory.homework;
     var HW_LABEL={complete:'완료',partial:'일부미이행',incomplete:'미이행',notsub:'미제출',na:'해당없음'};
-    body.innerHTML = hw.length ? hw.map(function(h){
+    var hwBad=hw.filter(function(h){ return h.pass==='incomplete'||h.pass==='partial'||h.pass==='notsub'; }).length;
+    var hwSummary=hwBad>0?('<div style="background:#fef2f2;color:#dc2626;font-size:12.5px;font-weight:700;padding:8px 12px;border-radius:8px;margin-bottom:10px;">⚠️ 미이행·일부미이행·미제출 누적 '+hwBad+'건</div>'):'';
+    body.innerHTML = hwSummary + (hw.length ? hw.map(function(h){
       return '<div class="sd-hist-row"><span class="sd-hist-title">'+escHtml(h.hwName)+'</span> — '+(HW_LABEL[h.pass]||h.pass||'-')
         +'<div class="sd-hist-sub">'+escHtml(h.className||'')+(h.sessLabel?' · '+escHtml(h.sessLabel):'')+(h.feedback?' · '+escHtml(h.feedback):'')+'</div></div>';
-    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">과제 이력이 없어요.</div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">과제 이력이 없어요.</div>');
   }
 }
 function openStuPreview(){
