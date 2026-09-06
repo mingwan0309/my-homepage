@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=20"></script>
+<script src="firebase-api.js?v=21"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -257,6 +257,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('survey',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('chat',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🗨️</span> 1:1 문의 <span id="chat-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
+      <div class="nav-item" onclick="showPage('wordgame',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🎮</span> 미니게임(단어) 문제관리</div>
       <div class="nav-group">
         <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">🎬</span> 영상 <span class="nav-group-arrow">▾</span></div>
         <div class="nav-group-body">
@@ -316,6 +317,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-item" onclick="showPage('survey',this)"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('chat',this)"><span class="ni">🗨️</span> 1:1 문의 <span id="chat-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
+      <div class="nav-item" onclick="showPage('wordgame',this)"><span class="ni">🎮</span> 미니게임(단어) 문제관리</div>
       <div class="nav-group">
         <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">🎬</span> 영상 <span class="nav-group-arrow">▾</span></div>
         <div class="nav-group-body">
@@ -676,6 +678,25 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- 미니게임(단어 빨리치기) 문제관리 -->
+    <div id="page-wordgame" class="page">
+      <div class="page-header"><div class="page-title">미니게임 — 단어 빨리치기 문제관리</div></div>
+      <div class="card">
+        <div class="card-title">문장 추가</div>
+        <p style="font-size:12.5px;color:#94a3b8;margin:-6px 0 12px;">정답이 될 단어를 <b>**두 개의 별표**</b>로 감싸서 입력하세요. 예) 나는 학교에 <b>**간다**</b>.</p>
+        <div class="fg"><label>문장</label>
+          <textarea id="wg-template" rows="2" oninput="updateWgPreview()" placeholder="예) 이차방정식의 근의 공식은 x = **(-b±√(b²-4ac))/2a** 이다." style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+        <div id="wg-preview" style="margin-top:8px;font-size:13px;color:#3b6cf7;min-height:18px;"></div>
+        <button class="btn-primary" style="margin-top:10px;" onclick="addWordSentence()">+ 문제 등록</button>
+        <div id="wg-msg" style="margin-top:8px;font-size:13px;"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">등록된 문제 목록 (<span id="wg-count">0</span>개)</div>
+        <div id="wg-list" style="margin-top:8px;"></div>
       </div>
     </div>
 
@@ -1194,6 +1215,7 @@ function showPage(page,el){
     }
   }
   if(page==='survey') loadSurveys();
+  if(page==='wordgame') loadWordSentenceList();
   location.hash = page;
 }
 
@@ -3305,6 +3327,61 @@ async function svRenderResults(){
         }).join('')
       + '</tbody></table></div>';
   }catch(e){ body.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>'; }
+}
+
+// ── 미니게임(단어 빨리치기) 문제관리 ──
+var wgSentences=[];
+function updateWgPreview(){
+  var t=document.getElementById('wg-template').value;
+  var m=String(t||'').match(/\*\*([^*]+)\*\*/);
+  var el=document.getElementById('wg-preview');
+  if(!t.trim()){ el.textContent=''; return; }
+  if(!m){ el.textContent='⚠ **정답** 형식으로 정답을 감싸주세요.'; el.style.color='#dc2626'; return; }
+  el.style.color='#3b6cf7';
+  el.textContent='미리보기 → '+t.replace(m[0],'_____')+'  (정답: '+m[1].trim()+')';
+}
+async function addWordSentence(){
+  var t=document.getElementById('wg-template').value.trim();
+  var msg=document.getElementById('wg-msg');
+  if(!t){ msg.style.color='#dc2626'; msg.textContent='문장을 입력해주세요.'; return; }
+  var r=await fetch(SU+'?action=addWordSentence&template='+encodeURIComponent(t)).then(function(r){return r.json();});
+  if(r.success){
+    document.getElementById('wg-template').value='';
+    updateWgPreview();
+    msg.style.color='#16a34a'; msg.textContent='등록됐어요!';
+    loadWordSentenceList();
+  } else {
+    msg.style.color='#dc2626'; msg.textContent=r.msg||'등록 실패했어요.';
+  }
+}
+async function loadWordSentenceList(){
+  var el=document.getElementById('wg-list');
+  el.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  try{
+    var r=await fetch(SU+'?action=getWordSentences').then(function(r){return r.json();});
+    wgSentences=r.sentences||[];
+    renderWordSentenceList();
+  }catch(e){
+    el.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
+  }
+}
+function renderWordSentenceList(){
+  document.getElementById('wg-count').textContent=wgSentences.length;
+  var el=document.getElementById('wg-list');
+  if(!wgSentences.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:16px 0;text-align:center;">아직 등록된 문제가 없어요.</div>'; return; }
+  el.innerHTML=wgSentences.map(function(s){
+    var m=String(s.template||'').match(/\*\*([^*]+)\*\*/);
+    var display=m ? escHtml(s.template).replace(escHtml(m[0]), '<b style="color:#3b6cf7;">[ '+escHtml(m[1].trim())+' ]</b>') : escHtml(s.template);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9;">'
+      +'<div style="font-size:13.5px;color:#334155;flex:1;">'+display+'</div>'
+      +'<button type="button" onclick="deleteWordSentence(\''+s.id+'\')" style="background:none;border:none;color:#dc2626;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;">삭제</button>'
+      +'</div>';
+  }).join('');
+}
+async function deleteWordSentence(id){
+  if(!confirm('이 문제를 삭제할까요?'))return;
+  await fetch(SU+'?action=deleteWordSentence&id='+encodeURIComponent(id)).then(function(r){return r.json();});
+  loadWordSentenceList();
 }
 
 // ── 영상 라이브러리 ──
