@@ -1071,13 +1071,12 @@ api.getHwItems = function(db, p){
   });
 };
 api.deleteHwItem = function(db, p){
-  var hid = String(p.id);
-  // 과제를 지우면 그 과제에 매달린 학생별 완료/제출 기록(hw_status)도 같이 지워서 고아 데이터가 안 남게 함(시험 삭제와 동일한 원칙)
-  return db.collection('hw_status').where('hwId','==',hid).get().then(function(snap){
-    return Promise.all(snap.docs.map(function(d){ return d.ref.delete().catch(function(){}); }));
-  }).then(function(){
-    return db.collection('homeworks').doc(hid).delete();
-  }).then(function(){ return { success:true }; }, function(){ return { success:false }; });
+  // 학생별 완료/제출 기록(hw_status)은 지우지 않고 그대로 둔다 — 지웠더니 학생 상세 패널의
+  // "과제 이력"과 신호판(과제 미제출 신호)에서 과거 기록까지 통째로 사라지는 문제가 있었음
+  // (2026-09-06). "미이행 목록"처럼 지금 처리해야 할 화면에서만 hwMap 조회로 걸러내고,
+  // 이력/신호판처럼 지난 기록을 보여줘야 하는 화면에서는 그대로 다 보여준다(과목명은 "(삭제된 과제)").
+  return db.collection('homeworks').doc(String(p.id)).delete()
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 api.updateHwItem = function(db, p){
   var data={};
@@ -2311,9 +2310,11 @@ api.getStudentFullHistory = function(db, p){
           var exam=examMap[r.examId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
           return { examName:exam.name||'(삭제된 시험)', className:cls.name||'', sessionNum:ses.sessionNum||0, sessLabel:ses.label||'', score:r.score||'', pass:r.pass||'', feedback:r.feedback||'' };
         }).sort(function(a,b){ return (Number(a.sessionNum)||0)<(Number(b.sessionNum)||0)?1:-1; });
-        var homework = hwRows.filter(function(r){ return hwMap[r.hwId]; }).map(function(r){
+        // 이력 화면이라 삭제된 과제라도 걸러내지 않고 그대로 보여줌(이름만 "(삭제된 과제)") — 지금 처리할 것만
+        // 보여주는 숙제관리 목록(getIncompleteHomeworks)과는 성격이 달라 필터링하지 않는다.
+        var homework = hwRows.map(function(r){
           var hw=hwMap[r.hwId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
-          return { hwName:hw.name||'', className:cls.name||'', sessionNum:ses.sessionNum||0, sessLabel:ses.label||(ses.sessionNum?ses.sessionNum+'차시':''), pass:r.pass||'', feedback:r.feedback||'' };
+          return { hwName:hw.name||'(삭제된 과제)', className:cls.name||'', sessionNum:ses.sessionNum||0, sessLabel:ses.label||(ses.sessionNum?ses.sessionNum+'차시':''), pass:r.pass||'', feedback:r.feedback||'' };
         }).sort(function(a,b){ return (Number(a.sessionNum)||0)<(Number(b.sessionNum)||0)?1:-1; });
         return { attendance:attendance, clinicHistory:clinicHistory, qna:qna, scores:scores, homework:homework };
       });
