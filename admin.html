@@ -2682,6 +2682,7 @@ function renderCbTodayList(){
       +'<button onclick="markCbAttendance(\''+b.id+'\',\''+nameEsc+'\',\'출석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(b.attend==='출석'?'#16a34a':'#e2e8f0')+';background:'+(b.attend==='출석'?'#16a34a':'#fff')+';color:'+(b.attend==='출석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">출석</button>'
       +'<button onclick="markCbAttendance(\''+b.id+'\',\''+nameEsc+'\',\'결석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(b.attend==='결석'?'#dc2626':'#e2e8f0')+';background:'+(b.attend==='결석'?'#dc2626':'#fff')+';color:'+(b.attend==='결석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">결석</button>'
       +'<button onclick="cbSendReminder(\''+b.id+'\',\''+b.studentId+'\',\''+nameEsc+'\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #fdba74;background:#fff7ed;color:#c2410c;font-size:13px;font-weight:700;cursor:pointer;">🔔 재촉</button>'
+      +(b.attend==='출석'?'<button onclick="cbSendGoHome(\''+b.id+'\',\''+nameEsc+'\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;font-size:13px;font-weight:700;cursor:pointer;">🚪 귀가</button>':'')
       +'</div>'
       +'</div>';
   }).join('');
@@ -2709,6 +2710,22 @@ async function markCbAttendance(id, name, attend){
       alert('⚠️ 등록된 전화번호가 없어서 알림톡을 보낼 수 없어요.');
     }
   }
+  loadClinicBookingsToday();
+}
+async function cbSendGoHome(id, name){
+  var b=cbTodayList.find(function(x){return x.id===id;});
+  if(!b) return;
+  if(!confirm(name+' 학생·학부모께 귀가 알림톡을 보낼까요?\n(카카오 알림톡 발송 - 비용이 발생합니다)'))return;
+  var text=name+' 학생이 클리닉('+b.clinicName+')을 마치고 귀가했습니다.';
+  var msgs=cbPhoneMsgs(b.studentPhone,b.parentPhone,name,text);
+  if(!msgs.length){ alert('⚠️ 등록된 전화번호가 없어서 알림톡을 보낼 수 없어요.'); return; }
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+    if(r.success){
+      alert('알림톡 발송 완료!');
+      await fetch(SU,{method:'POST',body:JSON.stringify({action:'logClinicAlimtalk',id:id,type:'귀가',studentName:name,by:(cu&&(cu.name||cu.id))||'',byRole:(cu&&cu.role)||''})});
+    } else { alert('발송 실패: '+(r.msg||'')); }
+  }catch(e){ alert('발송 중 오류: '+e.message); }
   loadClinicBookingsToday();
 }
 async function cbSendReminder(id, studentId, name){
