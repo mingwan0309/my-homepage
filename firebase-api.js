@@ -871,14 +871,25 @@ api.getExamKey = function(db, p){
   });
 };
 
-// 객관식은 그대로 값 비교, 주관식(숫자 기입형)은 "5"와 "05"/"5.0"/" 5 " 처럼 같은 숫자를
-// 다르게 써도 정답 처리되도록 숫자로 변환해서 비교(둘 다 숫자로 못 바꾸면 문자열 비교로 대체)
+// "3/4" 같은 간단한 분수 표기를 숫자로 변환(그 외 형태는 변환 실패로 처리 → 문자열 비교로 대체)
+function parseMathValue(s){
+  s = String(s==null?'':s).trim();
+  if (s === '') return NaN;
+  var m = s.match(/^(-)?\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  if (m) {
+    var den = parseFloat(m[3]);
+    if (den) return (m[1]?-1:1) * parseFloat(m[2]) / den;
+  }
+  var n = Number(s);
+  return isNaN(n) ? NaN : n;
+}
+// 객관식은 그대로 값 비교, 주관식(숫자 기입형)은 "5"/"05"/"5.0"/"3/4"(=0.75)처럼 표기가
+// 달라도 같은 값이면 정답 처리되도록 숫자로 변환해서 비교(둘 다 숫자로 못 바꾸면 문자열 비교로 대체 — 예: √2)
 function answerMatches(given, correct, type){
   if (type === 'short') {
-    var a = String(given==null?'':given).trim(), b = String(correct==null?'':correct).trim();
-    var na = Number(a), nb = Number(b);
-    if (a !== '' && b !== '' && !isNaN(na) && !isNaN(nb)) return na === nb;
-    return a === b;
+    var na = parseMathValue(given), nb = parseMathValue(correct);
+    if (!isNaN(na) && !isNaN(nb)) return Math.abs(na-nb) < 1e-9;
+    return String(given==null?'':given).trim() === String(correct==null?'':correct).trim();
   }
   return given === correct;
 }
