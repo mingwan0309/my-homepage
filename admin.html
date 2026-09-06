@@ -2682,7 +2682,7 @@ function renderCbTodayList(){
       +'<button onclick="markCbAttendance(\''+b.id+'\',\''+nameEsc+'\',\'출석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(b.attend==='출석'?'#16a34a':'#e2e8f0')+';background:'+(b.attend==='출석'?'#16a34a':'#fff')+';color:'+(b.attend==='출석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">출석</button>'
       +'<button onclick="markCbAttendance(\''+b.id+'\',\''+nameEsc+'\',\'결석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(b.attend==='결석'?'#dc2626':'#e2e8f0')+';background:'+(b.attend==='결석'?'#dc2626':'#fff')+';color:'+(b.attend==='결석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">결석</button>'
       +'<button onclick="cbSendReminder(\''+b.id+'\',\''+b.studentId+'\',\''+nameEsc+'\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #fdba74;background:#fff7ed;color:#c2410c;font-size:13px;font-weight:700;cursor:pointer;">🔔 재촉</button>'
-      +(b.attend==='출석'?'<button onclick="cbSendGoHome(\''+b.id+'\',\''+nameEsc+'\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;font-size:13px;font-weight:700;cursor:pointer;">🚪 귀가</button>':'')
+      +(b.attend==='출석'?('<button onclick="cbSendGoHome(\''+b.id+'\',\''+nameEsc+'\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #1d4ed8;background:'+((lastLog&&lastLog.type==='귀가')?'#1d4ed8':'#eff6ff')+';color:'+((lastLog&&lastLog.type==='귀가')?'#fff':'#1d4ed8')+';font-size:13px;font-weight:700;cursor:pointer;">🚪 귀가'+((lastLog&&lastLog.type==='귀가')?' 완료':'')+'</button>'):'')
       +'</div>'
       +'</div>';
   }).join('');
