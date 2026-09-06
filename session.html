@@ -513,8 +513,8 @@ tr:hover td{background:#fafbff;}
           </div>
         </div>
         <div>
-          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">통과 커트라인 <span style="font-weight:400;color:#94a3b8;">(선택, 입력 시 점수에 따라 자동으로 통과/미통과 판정)</span></label>
-          <input id="exam-detail-cutoff" type="number" min="0" placeholder="예: 80" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">통과 커트라인 <span style="font-weight:400;color:#94a3b8;">(비워두면 총 문항/점수의 60%가 자동 적용돼요)</span></label>
+          <input id="exam-detail-cutoff" type="number" min="0" placeholder="비워두면 60% 자동 적용" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
         <button onclick="openAnswerKeyModal()" style="margin-top:4px;padding:12px;background:#fff7ed;color:#c2410c;border:1.5px solid #fdba74;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📝 답안 등록 (자동채점용)</button>
         <button onclick="saveExamDetail()" style="padding:12px;background:#3b6cf7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
@@ -973,7 +973,8 @@ async function autoGradeSubmission(docId, s){
     var key=await fetchExamKey(s.examId);
     if(!key.some(function(r){return r.correct!=null;})) return;
     var g=gradeWithAnswerKey(s.answers||{}, key);
-    var pass=(ex.passCutoff!==''&&ex.passCutoff!=null)?(Number(g.score)>=Number(ex.passCutoff)?'submit':'nosub'):'';
+    var cutoff0=getEffectiveCutoff(ex);
+    var pass=(cutoff0!=null)?(Number(g.score)>=cutoff0?'submit':'nosub'):'';
     await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(s.examId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=&examLeaveCount='+encodeURIComponent(s.leaveCount||0)+'&examLeaveLog='+encodeURIComponent(JSON.stringify(s.leaveLog||[]))).then(function(r){return r.json();});
     await fetch(SU+'?action=markSubmissionGraded&id='+encodeURIComponent(docId));
     await loadScores();
@@ -1329,8 +1330,9 @@ function renderScores(){
       }
       if(sc&&sc.score!==''){
         var pass=sc.pass;
-        if(ex.passCutoff!==undefined && ex.passCutoff!=='' && ex.passCutoff!==null && pass!=='absent'){
-          pass=Number(sc.score)>=Number(ex.passCutoff)?'submit':'nosub';
+        var cutoff1=getEffectiveCutoff(ex);
+        if(cutoff1!=null && pass!=='absent'){
+          pass=Number(sc.score)>=cutoff1?'submit':'nosub';
         }
         var passIcon=pass==='submit'?'<span style="color:#16a34a;font-size:10px;"> 통과</span>':pass==='nosub'?'<span style="color:#dc2626;font-size:10px;"> 미통과</span>':pass==='absent'?'<span style="color:#64748b;font-size:10px;"> 미응시</span>':'';
         var scoreUnit=(ex.scoreType||'score')==='count'?'개':'점';
@@ -1867,8 +1869,9 @@ function computeMsgTokens(studentId){
       var scoreUnit=(ex.scoreType||'score')==='count'?'개':'점';
       scoreDisp=ex.totalQuestions&&ex.scoreType==='count'?sc.score+'/'+ex.totalQuestions+'개':sc.score+scoreUnit;
       var pass=sc.pass;
-      if(ex.passCutoff!==undefined&&ex.passCutoff!==''&&ex.passCutoff!==null){
-        pass=Number(sc.score)>=Number(ex.passCutoff)?'submit':'nosub';
+      var cutoff2=getEffectiveCutoff(ex);
+      if(cutoff2!=null){
+        pass=Number(sc.score)>=cutoff2?'submit':'nosub';
       }
       passDisp=pass==='submit'?'통과':pass==='nosub'?'미통과':'—';
       feedback=sc.feedback||'—';
@@ -2022,8 +2025,9 @@ function openPanel(studentId, examId){
   document.getElementById('panel-score').value=sc&&sc.score!==''?sc.score:'';
   panelPass=sc?sc.pass||'':'';
   document.getElementById('panel-feedback').value=sc?sc.feedback||'':'';
-  if(sc&&sc.score!==''&&exam.passCutoff!==undefined&&exam.passCutoff!==''&&exam.passCutoff!==null){
-    panelPass=Number(sc.score)>=Number(exam.passCutoff)?'submit':'nosub';
+  var cutoff3=getEffectiveCutoff(exam);
+  if(sc&&sc.score!==''&&cutoff3!=null){
+    panelPass=Number(sc.score)>=cutoff3?'submit':'nosub';
     document.getElementById('panel-feedback').value=EXAM_STATUS_TEMPLATE[panelPass]||'';
   }
   updatePassBtns();
@@ -2163,10 +2167,11 @@ function togglePass(p){
 }
 function autoPassFromScore(){
   var exam=exams.find(function(e){return e.id===panelExamId;});
-  if(!exam||!exam.passCutoff)return;
+  var cutoff4=getEffectiveCutoff(exam);
+  if(!exam||cutoff4==null)return;
   var v=document.getElementById('panel-score').value;
   if(v===''){return;}
-  panelPass=Number(v)>=Number(exam.passCutoff)?'submit':'nosub';
+  panelPass=Number(v)>=cutoff4?'submit':'nosub';
   updatePassBtns();
   var fb=document.getElementById('panel-feedback');
   fb.value=EXAM_STATUS_TEMPLATE[panelPass]||'';
@@ -2604,9 +2609,10 @@ function updateCutoffHint(){
   if(!cutoffEl) return;
   if(currentScoreType==='count'){
     var total=Number(document.getElementById('exam-detail-total').value)||0;
-    cutoffEl.placeholder = total ? '예: '+Math.round(total*0.6)+' (총 '+total+'개의 60%)' : '예: 6';
+    cutoffEl.placeholder = total ? '비워두면 '+Math.round(total*0.6*10)/10+'개(총 '+total+'개의 60%) 자동 적용' : '비워두면 60% 자동 적용';
   } else {
-    cutoffEl.placeholder='예: 80';
+    var total2=Number(document.getElementById('exam-detail-total').value)||0;
+    cutoffEl.placeholder = total2 ? '비워두면 '+Math.round(total2*0.6*10)/10+'점(총 '+total2+'점의 60%) 자동 적용' : '비워두면 60% 자동 적용';
   }
 }
 async function saveExamDetail(){
@@ -2730,7 +2736,8 @@ async function gradeSubmissions(showAlert){
     for(var i=0;i<subs.length;i++){
       var s=subs[i];
       var g=gradeWithAnswerKey(s.answers||{}, key);
-      var pass=(ex.passCutoff!==''&&ex.passCutoff!=null)?(Number(g.score)>=Number(ex.passCutoff)?'submit':'nosub'):'';
+      var cutoff5=getEffectiveCutoff(ex);
+      var pass=(cutoff5!=null)?(Number(g.score)>=cutoff5?'submit':'nosub'):'';
       await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId||sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=&examLeaveCount='+encodeURIComponent(s.leaveCount||0)+'&examLeaveLog='+encodeURIComponent(JSON.stringify(s.leaveLog||[]))).then(function(r){return r.json();});
       await fetch(SU+'?action=markSubmissionGraded&id='+encodeURIComponent(s.id));
     }
@@ -3025,6 +3032,13 @@ function allSessionStudentsForOmr(){
   return students||[];
 }
 
+// 통과 커트라인을 직접 입력 안 해도 되도록, 비어있으면 총 문항 수(또는 총점)의 60%를 자동으로 커트라인으로 씀
+function getEffectiveCutoff(ex){
+  if(!ex) return null;
+  if(ex.passCutoff!==undefined && ex.passCutoff!=='' && ex.passCutoff!=null) return Number(ex.passCutoff);
+  var total=Number(ex.totalQuestions)||0;
+  return total ? Math.round(total*0.6*10)/10 : null;
+}
 // 객관식은 값 그대로 비교, 주관식(숫자 기입형)은 "5"/"05"/"5.0"처럼 표기가 달라도 같은 숫자면 정답 처리
 function akAnswerMatches(given, correct, type){
   if(type==='short'){
@@ -3131,8 +3145,9 @@ async function saveOmrResults(){
   for(var i=0;i<toSave.length;i++){
     var r=toSave[i];
     var pass='';
-    if(ex.passCutoff!==undefined && ex.passCutoff!=='' && ex.passCutoff!==null){
-      pass = r.score>=Number(ex.passCutoff) ? 'submit' : 'nosub';
+    var cutoff6=getEffectiveCutoff(ex);
+    if(cutoff6!=null){
+      pass = r.score>=cutoff6 ? 'submit' : 'nosub';
     }
     await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(r.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(r.score)+'&pass='+encodeURIComponent(pass));
   }
