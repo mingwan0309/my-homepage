@@ -838,9 +838,16 @@ function startLiveExamCountdown(){
   var storeKey='mkmath_examTimer_'+liveExamCur.id+'_'+session.id;
   var deadline=Number(localStorage.getItem(storeKey)||0);
   var now=Date.now();
-  if(!deadline || deadline<=now){
+  if(!deadline){
     deadline=now+mins*60*1000;
     localStorage.setItem(storeKey, String(deadline));
+  } else if(deadline<=now){
+    // 화면이 꺼져있거나 탭이 정리되는 동안 이미 제한시간이 다 지난 경우 — 시간을 다시 새로 주지 않고 바로 자동 제출
+    box.style.display='';
+    box.textContent='⏱ 시간 종료';
+    localStorage.removeItem(storeKey);
+    submitLiveExam(true);
+    return;
   }
   box.style.display='';
   function tick(){
