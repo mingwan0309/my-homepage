@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>미니게임 — 김민관 수학</title>
-<script src="firebase-api.js?v=21"></script>
+<script src="firebase-api.js?v=22"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;}
@@ -304,6 +304,9 @@ async function loadWordSentenceBank(){
   try{
     var r=await fetch(SU+'?action=getWordSentences').then(function(r){return r.json();});
     wordSentenceBank=(r.sentences||[]).map(function(s){
+      if(s.type==='image'){
+        return (s.imageUrl && s.answer) ? { id:s.id, imageUrl:s.imageUrl, answer:s.answer } : null;
+      }
       var p=parseWordTemplate(s.template);
       return p ? { id:s.id, display:p.display, answer:p.answer } : null;
     }).filter(Boolean);
@@ -343,7 +346,12 @@ function pickRandomWordSentence(){
 }
 function nextWordSentence(){
   wordGameCur=pickRandomWordSentence();
-  document.getElementById('word-sentence').textContent=wordGameCur?wordGameCur.display:'';
+  var box=document.getElementById('word-sentence');
+  if(wordGameCur && wordGameCur.imageUrl){
+    box.innerHTML='<img src="'+wordGameCur.imageUrl+'" style="max-width:100%;max-height:220px;border-radius:10px;">';
+  } else {
+    box.textContent=wordGameCur?wordGameCur.display:'';
+  }
   var input=document.getElementById('word-input');
   input.value='';
   document.getElementById('word-feedback').textContent='';

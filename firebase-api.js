@@ -1415,19 +1415,33 @@ api.submitGameScore = function(db, p){
   });
 };
 
-/* === 단어 빨리치기 미니게임 — 문제(문장) 관리 === */
-// template 예: "나는 학교에 **간다**." → 학생 화면엔 "간다" 부분이 빈칸으로 뜨고 정답은 "간다"
+/* === 단어 빨리치기 미니게임 — 문제(문장/사진) 관리 === */
+// type='text': template 예: "나는 학교에 **간다**." → 학생 화면엔 "간다" 부분이 빈칸으로 뜨고 정답은 "간다"
+// type='image': 문제를 사진(캡처본)으로 올리고 정답은 answer에 별도로 입력
 api.addWordSentence = function(db, p){
-  var template = String(p.template||'').trim();
-  if (!/\*\*[^*]+\*\*/.test(template)) return Promise.resolve({ success:false, msg:'문장에 **정답** 형식으로 정답을 표시해주세요.' });
+  var type = p.type==='image' ? 'image' : 'text';
   var id = genId('ws');
-  return db.collection('word_sentences').doc(id).set({ id:id, template:template, createdAt:nowStr() })
+  var doc = { id:id, type:type, createdAt:nowStr() };
+  if (type==='image') {
+    var imageUrl = String(p.imageUrl||'').trim(), answer = String(p.answer||'').trim();
+    if (!imageUrl || !answer) return Promise.resolve({ success:false, msg:'사진과 정답을 모두 입력해주세요.' });
+    doc.imageUrl = imageUrl; doc.answer = answer;
+  } else {
+    var template = String(p.template||'').trim();
+    if (!/\*\*[^*]+\*\*/.test(template)) return Promise.resolve({ success:false, msg:'문장에 **정답** 형식으로 정답을 표시해주세요.' });
+    doc.template = template;
+  }
+  return db.collection('word_sentences').doc(id).set(doc)
     .then(function(){ return { success:true, id:id }; }, function(e){ return { success:false, msg:(e&&e.message)||String(e) }; });
 };
 api.getWordSentences = function(db){
   return db.collection('word_sentences').get().then(function(snap){
     var items = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? 1 : -1; });
-    return { sentences: items.map(function(r){ return { id:r.id, template:r.template||'' }; }) };
+    return { sentences: items.map(function(r){
+      return r.type==='image'
+        ? { id:r.id, type:'image', imageUrl:r.imageUrl||'', answer:r.answer||'' }
+        : { id:r.id, type:'text', template:r.template||'' };
+    }) };
   });
 };
 api.deleteWordSentence = function(db, p){

@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=21"></script>
+<script src="firebase-api.js?v=22"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -685,13 +685,29 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <div id="page-wordgame" class="page">
       <div class="page-header"><div class="page-title">미니게임 — 단어 빨리치기 문제관리</div></div>
       <div class="card">
-        <div class="card-title">문장 추가</div>
-        <p style="font-size:12.5px;color:#94a3b8;margin:-6px 0 12px;">정답이 될 단어를 <b>**두 개의 별표**</b>로 감싸서 입력하세요. 예) 나는 학교에 <b>**간다**</b>.</p>
-        <div class="fg"><label>문장</label>
-          <textarea id="wg-template" rows="2" oninput="updateWgPreview()" placeholder="예) 이차방정식의 근의 공식은 x = **(-b±√(b²-4ac))/2a** 이다." style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;resize:vertical;"></textarea>
+        <div class="card-title">문제 추가</div>
+        <div style="display:flex;border:1.5px solid #e2e8f0;border-radius:9px;overflow:hidden;width:fit-content;margin-bottom:12px;">
+          <button type="button" id="wg-type-text-btn" onclick="setWgType('text')" style="padding:8px 16px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:#1e293b;color:#fff;">✏️ 텍스트 문장</button>
+          <button type="button" id="wg-type-image-btn" onclick="setWgType('image')" style="padding:8px 16px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#64748b;">📷 사진 문제</button>
         </div>
-        <div id="wg-preview" style="margin-top:8px;font-size:13px;color:#3b6cf7;min-height:18px;"></div>
-        <button class="btn-primary" style="margin-top:10px;" onclick="addWordSentence()">+ 문제 등록</button>
+        <div id="wg-mode-text">
+          <p style="font-size:12.5px;color:#94a3b8;margin:-2px 0 12px;">정답이 될 단어를 <b>**두 개의 별표**</b>로 감싸서 입력하세요. 예) 나는 학교에 <b>**간다**</b>.</p>
+          <div class="fg"><label>문장</label>
+            <textarea id="wg-template" rows="2" oninput="updateWgPreview()" placeholder="예) 이차방정식의 근의 공식은 x = **(-b±√(b²-4ac))/2a** 이다." style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;resize:vertical;"></textarea>
+          </div>
+          <div id="wg-preview" style="margin-top:8px;font-size:13px;color:#3b6cf7;min-height:18px;"></div>
+        </div>
+        <div id="wg-mode-image" style="display:none;">
+          <p style="font-size:12.5px;color:#94a3b8;margin:-2px 0 12px;">문제 사진을 캡처본 그대로 올리고, 빈칸에 들어갈 정답만 따로 입력하세요.</p>
+          <div class="fg"><label>문제 사진</label>
+            <input type="file" id="wg-image-file" accept="image/*" onchange="onWgImageSelected(event)" style="width:100%;padding:8px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;font-family:inherit;">
+          </div>
+          <div id="wg-image-preview" style="margin-top:8px;"></div>
+          <div class="fg" style="margin-top:10px;"><label>정답</label>
+            <input type="text" id="wg-image-answer" placeholder="예) 간다" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;">
+          </div>
+        </div>
+        <button class="btn-primary" style="margin-top:14px;" onclick="addWordSentence()">+ 문제 등록</button>
         <div id="wg-msg" style="margin-top:8px;font-size:13px;"></div>
       </div>
       <div class="card">
@@ -3330,7 +3346,17 @@ async function svRenderResults(){
 }
 
 // ── 미니게임(단어 빨리치기) 문제관리 ──
-var wgSentences=[];
+var wgSentences=[], wgType='text', wgImageUrl='';
+function setWgType(type){
+  wgType=type;
+  var textOn=type==='text';
+  document.getElementById('wg-type-text-btn').style.background=textOn?'#1e293b':'#fff';
+  document.getElementById('wg-type-text-btn').style.color=textOn?'#fff':'#64748b';
+  document.getElementById('wg-type-image-btn').style.background=textOn?'#fff':'#1e293b';
+  document.getElementById('wg-type-image-btn').style.color=textOn?'#64748b':'#fff';
+  document.getElementById('wg-mode-text').style.display=textOn?'':'none';
+  document.getElementById('wg-mode-image').style.display=textOn?'none':'';
+}
 function updateWgPreview(){
   var t=document.getElementById('wg-template').value;
   var m=String(t||'').match(/\*\*([^*]+)\*\*/);
@@ -3340,14 +3366,56 @@ function updateWgPreview(){
   el.style.color='#3b6cf7';
   el.textContent='미리보기 → '+t.replace(m[0],'_____')+'  (정답: '+m[1].trim()+')';
 }
+function wgFileToBase64(file){
+  return new Promise(function(resolve,reject){
+    var reader=new FileReader();
+    reader.onload=function(e){resolve(e.target.result.split(',')[1]);};
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function onWgImageSelected(e){
+  var file=e.target.files[0]; if(!file) return;
+  var prev=document.getElementById('wg-image-preview');
+  if(file.size>8*1024*1024){ alert('사진이 너무 커요(8MB 이하로 올려주세요).'); e.target.value=''; return; }
+  prev.innerHTML='<span style="color:#94a3b8;font-size:12.5px;">업로드 중...</span>';
+  try{
+    var base64=await wgFileToBase64(file);
+    var up=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'uploadFile',fileName:'wordgame_'+Date.now(),mimeType:file.type||'image/jpeg',fileData:base64})
+    }).then(function(r){return r.json();});
+    if(up.success){
+      wgImageUrl=up.url;
+      prev.innerHTML='<img src="'+up.url+'" style="max-width:220px;border-radius:8px;border:1.5px solid #e2e8f0;">';
+    } else {
+      prev.innerHTML=''; alert('업로드 실패: '+(up.error||''));
+    }
+  }catch(err){ prev.innerHTML=''; alert('업로드 중 오류가 발생했어요.'); }
+}
 async function addWordSentence(){
-  var t=document.getElementById('wg-template').value.trim();
   var msg=document.getElementById('wg-msg');
-  if(!t){ msg.style.color='#dc2626'; msg.textContent='문장을 입력해주세요.'; return; }
-  var r=await fetch(SU+'?action=addWordSentence&template='+encodeURIComponent(t)).then(function(r){return r.json();});
+  var qs;
+  if(wgType==='image'){
+    var answer=document.getElementById('wg-image-answer').value.trim();
+    if(!wgImageUrl){ msg.style.color='#dc2626'; msg.textContent='사진을 먼저 올려주세요.'; return; }
+    if(!answer){ msg.style.color='#dc2626'; msg.textContent='정답을 입력해주세요.'; return; }
+    qs='action=addWordSentence&type=image&imageUrl='+encodeURIComponent(wgImageUrl)+'&answer='+encodeURIComponent(answer);
+  } else {
+    var t=document.getElementById('wg-template').value.trim();
+    if(!t){ msg.style.color='#dc2626'; msg.textContent='문장을 입력해주세요.'; return; }
+    qs='action=addWordSentence&type=text&template='+encodeURIComponent(t);
+  }
+  var r=await fetch(SU+'?'+qs).then(function(r){return r.json();});
   if(r.success){
-    document.getElementById('wg-template').value='';
-    updateWgPreview();
+    if(wgType==='image'){
+      document.getElementById('wg-image-answer').value='';
+      document.getElementById('wg-image-file').value='';
+      document.getElementById('wg-image-preview').innerHTML='';
+      wgImageUrl='';
+    } else {
+      document.getElementById('wg-template').value='';
+      updateWgPreview();
+    }
     msg.style.color='#16a34a'; msg.textContent='등록됐어요!';
     loadWordSentenceList();
   } else {
@@ -3370,8 +3438,13 @@ function renderWordSentenceList(){
   var el=document.getElementById('wg-list');
   if(!wgSentences.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:16px 0;text-align:center;">아직 등록된 문제가 없어요.</div>'; return; }
   el.innerHTML=wgSentences.map(function(s){
-    var m=String(s.template||'').match(/\*\*([^*]+)\*\*/);
-    var display=m ? escHtml(s.template).replace(escHtml(m[0]), '<b style="color:#3b6cf7;">[ '+escHtml(m[1].trim())+' ]</b>') : escHtml(s.template);
+    var display;
+    if(s.type==='image'){
+      display='<img src="'+escHtml(s.imageUrl)+'" style="max-width:70px;max-height:50px;border-radius:6px;vertical-align:middle;margin-right:8px;border:1px solid #e2e8f0;">📷 사진 문제 · 정답: <b style="color:#3b6cf7;">'+escHtml(s.answer)+'</b>';
+    } else {
+      var m=String(s.template||'').match(/\*\*([^*]+)\*\*/);
+      display=m ? escHtml(s.template).replace(escHtml(m[0]), '<b style="color:#3b6cf7;">[ '+escHtml(m[1].trim())+' ]</b>') : escHtml(s.template);
+    }
     return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9;">'
       +'<div style="font-size:13.5px;color:#334155;flex:1;">'+display+'</div>'
       +'<button type="button" onclick="deleteWordSentence(\''+s.id+'\')" style="background:none;border:none;color:#dc2626;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;">삭제</button>'
