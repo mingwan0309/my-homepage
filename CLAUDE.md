@@ -33,7 +33,7 @@
 | clinic.html | 클리닉 신청 |
 | qna.html | 질의응답 |
 | textbook.html | 부교재 해설 강의 (학년→과목→교재 3단계 영상 라이브러리) |
-| firebase-api.js | **핵심 백엔드 파일.** 기존 Apps Script(`script.google.com`) 요청을 가로채서 Firestore로 처리하는 fetch 오버라이드. 모든 HTML에 `<script src="firebase-api.js"></script>`로 포함됨. 파일 업로드(`uploadFile`)만 진짜 Apps Script로 통과시킴. |
+| firebase-api.js | **핵심 백엔드 파일.** 기존 Apps Script(`script.google.com`) 요청을 가로채서 Firestore로 처리하는 fetch 오버라이드. 모든 HTML에 `<script src="firebase-api.js?v=N"></script>`로 포함됨(캐시 무효화용 버전 쿼리). 파일 업로드(`uploadFile`)만 진짜 Apps Script로 통과시킴. **firebase-api.js를 수정할 때마다 이 `?v=N` 숫자를 반드시 올릴 것(모든 HTML 파일에서 한꺼번에)** — 안 올리면 폰 브라우저가 예전 버전을 계속 캐시해서 써서, 서버 로직은 고쳤는데도 실제 화면에서는 안 고쳐진 것처럼 보이는 문제가 생김(2026-09-06에 이걸로 한참 헤맴 — 여러 번 고쳤다고 배포했는데 학생 화면에 전혀 반영이 안 됐던 원인이 이거였음). |
 | Code.gs | Apps Script 사본. **파일 업로드(Google Drive 저장)에만 사용.** 다른 기능은 여기 없음 — firebase-api.js를 봐야 함. |
 
 ## 백엔드 구조 (Firestore 컬렉션)
