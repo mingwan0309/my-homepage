@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=19"></script>
+<script src="firebase-api.js?v=20"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -3061,13 +3061,31 @@ function renderTestManageList(){
   order.sort(function(a,b){ return a.localeCompare(b,'ko'); });
   el.innerHTML=order.map(function(cls){
     var items=groups[cls];
-    var cardsHtml=items.map(renderTestCard).join('');
+    // 반 안에서 다시 차시별로 묶어서 보여줌 — 어느 차시 시험인지 한눈에 안 보인다는 요청으로 추가(2026-09-06)
+    var sessGroups={}, sessOrder=[];
+    items.forEach(function(t){
+      var key=t.sessionId||'';
+      if(!sessGroups[key]){ sessGroups[key]=[]; sessOrder.push(key); }
+      sessGroups[key].push(t);
+    });
+    sessOrder.sort(function(a,b){
+      var na=Number(sessGroups[a][0].sessionNum)||0, nb=Number(sessGroups[b][0].sessionNum)||0;
+      return na-nb;
+    });
+    var sessHtml=sessOrder.map(function(key){
+      var sItems=sessGroups[key];
+      var label=sItems[0].sessLabel || '차시 미상';
+      return '<div style="margin-bottom:10px;">'
+        + '<div style="font-size:12.5px;font-weight:800;color:#3b6cf7;margin:6px 0 6px 2px;">📅 '+escHtml(label)+'</div>'
+        + sItems.map(renderTestCard).join('')
+        + '</div>';
+    }).join('');
     return '<div style="margin-bottom:14px;">'
       + '<button type="button" class="vid-drop-head open" data-cls="'+escHtml(cls)+'" onclick="toggleHwClassDrop(this)">'
       +   '<span>🏫 '+escHtml(cls)+' <span class="cnt">'+items.length+'</span></span>'
       +   '<span class="vid-drop-arrow">▾</span>'
       + '</button>'
-      + '<div class="vid-drop-body" style="display:block;margin-top:8px;">'+cardsHtml+'</div>'
+      + '<div class="vid-drop-body" style="display:block;margin-top:8px;">'+sessHtml+'</div>'
       + '</div>';
   }).join('');
 }

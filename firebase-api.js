@@ -1492,6 +1492,7 @@ api.getExamAlerts = function(db){
             lastReminderAt:r.retestReminderAt||'', lastReminderBy:r.retestReminderBy||'',
             submissionUrls:hwUrlsToArray(r.examSubmissionUrl), submittedAt:r.examSubmittedAt||'',
             examName:ex.name||'(삭제된 시험)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
+            sessLabel: ses.label || (ses.sessionNum?ses.sessionNum+'차시':''),
             classId:String(ses.classId||''), className:cls.name||'',
             studentName:stu.name||r.studentId, studentPhone:r.studentId, parentPhone:stu.parentPhone||''
           };
