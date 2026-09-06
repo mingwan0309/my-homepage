@@ -2270,20 +2270,26 @@ api.getStudentFullHistory = function(db, p){
     db.collection('clinic_bookings').where('studentId','==',sid).get(),
     db.collection('mandatory_clinic').where('studentId','==',sid).get(),
     db.collection('qna').where('studentId','==',sid).get(),
-    db.collection('scores').where('studentId','==',sid).get()
+    db.collection('scores').where('studentId','==',sid).get(),
+    db.collection('hw_status').where('studentId','==',sid).get()
   ]).then(function(res){
-    var attRows=docsToArr(res[0]), cbRows=docsToArr(res[1]), mcRows=docsToArr(res[2]), qnaRows=docsToArr(res[3]), scoreRows=docsToArr(res[4]);
+    var attRows=docsToArr(res[0]), cbRows=docsToArr(res[1]), mcRows=docsToArr(res[2]), qnaRows=docsToArr(res[3]), scoreRows=docsToArr(res[4]), hwRows=docsToArr(res[5]);
     var sessionIds=[];
     attRows.forEach(function(r){ if(r.sessionId && sessionIds.indexOf(r.sessionId)<0) sessionIds.push(r.sessionId); });
     scoreRows.forEach(function(r){ if(r.sessionId && sessionIds.indexOf(r.sessionId)<0) sessionIds.push(r.sessionId); });
+    hwRows.forEach(function(r){ if(r.sessionId && sessionIds.indexOf(r.sessionId)<0) sessionIds.push(r.sessionId); });
     var examIds=[];
     scoreRows.forEach(function(r){ if(r.examId && examIds.indexOf(r.examId)<0) examIds.push(r.examId); });
+    var hwIds=[];
+    hwRows.forEach(function(r){ if(r.hwId && hwIds.indexOf(r.hwId)<0) hwIds.push(r.hwId); });
     return Promise.all([
       Promise.all(sessionIds.map(function(id){ return db.collection('sessions').doc(id).get(); })),
-      Promise.all(examIds.map(function(id){ return db.collection('exams').doc(id).get(); }))
+      Promise.all(examIds.map(function(id){ return db.collection('exams').doc(id).get(); })),
+      Promise.all(hwIds.map(function(id){ return db.collection('homeworks').doc(id).get(); }))
     ]).then(function(res2){
       var sesMap={}; res2[0].forEach(function(d){ if(d.exists) sesMap[d.id]=d.data(); });
       var examMap={}; res2[1].forEach(function(d){ if(d.exists) examMap[d.id]=d.data(); });
+      var hwMap={}; res2[2].forEach(function(d){ if(d.exists) hwMap[d.id]=d.data(); });
       var classIds=[];
       Object.keys(sesMap).forEach(function(k){ var cid=String(sesMap[k].classId||''); if(cid && classIds.indexOf(cid)<0) classIds.push(cid); });
       return Promise.all(classIds.map(function(id){ return db.collection('classes').doc(id).get(); })).then(function(classDocs){
@@ -2305,7 +2311,11 @@ api.getStudentFullHistory = function(db, p){
           var exam=examMap[r.examId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
           return { examName:exam.name||'(삭제된 시험)', className:cls.name||'', sessionNum:ses.sessionNum||0, sessLabel:ses.label||'', score:r.score||'', pass:r.pass||'', feedback:r.feedback||'' };
         }).sort(function(a,b){ return (Number(a.sessionNum)||0)<(Number(b.sessionNum)||0)?1:-1; });
-        return { attendance:attendance, clinicHistory:clinicHistory, qna:qna, scores:scores };
+        var homework = hwRows.filter(function(r){ return hwMap[r.hwId]; }).map(function(r){
+          var hw=hwMap[r.hwId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{};
+          return { hwName:hw.name||'', className:cls.name||'', sessionNum:ses.sessionNum||0, sessLabel:ses.label||(ses.sessionNum?ses.sessionNum+'차시':''), pass:r.pass||'', feedback:r.feedback||'' };
+        }).sort(function(a,b){ return (Number(a.sessionNum)||0)<(Number(b.sessionNum)||0)?1:-1; });
+        return { attendance:attendance, clinicHistory:clinicHistory, qna:qna, scores:scores, homework:homework };
       });
     });
   });

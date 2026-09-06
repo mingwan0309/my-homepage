@@ -1141,6 +1141,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <div class="sd-tab" onclick="switchSdTab('clinic',this)">클리닉·상담 이력</div>
     <div class="sd-tab" onclick="switchSdTab('qna',this)">질문 이력</div>
     <div class="sd-tab" onclick="switchSdTab('score',this)">성적 이력</div>
+    <div class="sd-tab" onclick="switchSdTab('hw',this)">과제 이력</div>
   </div>
   <div class="sd-tab-body" id="sd-tab-body"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
 </div>
@@ -1794,8 +1795,8 @@ async function openStuDetail(id){
   document.getElementById('sd-panel-backdrop').classList.add('open');
   try{
     var r=await fetch(SU+'?action=getStudentFullHistory&studentId='+encodeURIComponent(id)).then(function(r){return r.json();});
-    sdHistory={ attendance:r.attendance||[], clinicHistory:r.clinicHistory||[], qna:r.qna||[], scores:r.scores||[] };
-  }catch(e){ sdHistory={ attendance:[], clinicHistory:[], qna:[], scores:[] }; }
+    sdHistory={ attendance:r.attendance||[], clinicHistory:r.clinicHistory||[], qna:r.qna||[], scores:r.scores||[], homework:r.homework||[] };
+  }catch(e){ sdHistory={ attendance:[], clinicHistory:[], qna:[], scores:[], homework:[] }; }
   renderSdTabBody();
 }
 function closeStuDetail(){
@@ -1835,6 +1836,13 @@ function renderSdTabBody(){
       return '<div class="sd-hist-row"><span class="sd-hist-title">'+escHtml(s.examName)+'</span> — '+(s.pass==='submit'?'통과':s.pass==='nosub'?'미통과':'-')+(s.score!==''?' ('+s.score+'점)':'')
         +'<div class="sd-hist-sub">'+escHtml(s.className||'')+(s.sessionNum?' · '+s.sessionNum+'차시':'')+(s.feedback?' · '+escHtml(s.feedback):'')+'</div></div>';
     }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">성적 이력이 없어요.</div>';
+  } else if(sdCurrentTab==='hw'){
+    var hw=sdHistory.homework;
+    var HW_LABEL={complete:'완료',partial:'일부미이행',incomplete:'미이행',notsub:'미제출',na:'해당없음'};
+    body.innerHTML = hw.length ? hw.map(function(h){
+      return '<div class="sd-hist-row"><span class="sd-hist-title">'+escHtml(h.hwName)+'</span> — '+(HW_LABEL[h.pass]||h.pass||'-')
+        +'<div class="sd-hist-sub">'+escHtml(h.className||'')+(h.sessLabel?' · '+escHtml(h.sessLabel):'')+(h.feedback?' · '+escHtml(h.feedback):'')+'</div></div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">과제 이력이 없어요.</div>';
   }
 }
 function openStuPreview(){
