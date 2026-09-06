@@ -396,6 +396,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           <div style="font-size:12px;color:#1d4ed8;font-weight:700;">관찰</div>
         </div>
       </div>
+      <input type="text" id="sig-name-search" placeholder="🔍 학생 이름으로 찾기" oninput="renderSignalBoard()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:16px;margin-bottom:12px;font-family:inherit;">
+      <style>@media(min-width:769px){#sig-name-search{font-size:14px!important;}}</style>
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;margin-bottom:12px;">
         <input type="checkbox" id="sig-show-dismissed" onchange="renderSignalBoard()"> 해제된 학생도 보기
       </label>
@@ -1428,10 +1430,13 @@ function renderSignalBoard(){
   document.getElementById('sig-count-danger').textContent=list.filter(function(s){return s.level==='danger'&&!s.dismissed;}).length;
   document.getElementById('sig-count-warn').textContent=list.filter(function(s){return s.level==='warn'&&!s.dismissed;}).length;
   document.getElementById('sig-count-watch').textContent=list.filter(function(s){return s.level==='watch'&&!s.dismissed;}).length;
+  var searchEl=document.getElementById('sig-name-search');
+  var searchQ=searchEl?searchEl.value.trim():'';
+  if(searchQ) list=list.filter(function(s){ return (s.name||'').indexOf(searchQ)>-1; });
   var order={danger:0,warn:1,watch:2};
   list.sort(function(a,b){ return (order[a.level]-order[b.level]) || (b.consecutiveAbsent-a.consecutiveAbsent) || (b.hwMissing-a.hwMissing); });
   var el=document.getElementById('signal-list');
-  if(!list.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">지금은 관리가 필요한 학생이 없어요 👍</div>'; return; }
+  if(!list.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">'+(searchQ?'🔍 \''+escHtml(searchQ)+'\' 이름과 일치하는 학생이 없어요.':'지금은 관리가 필요한 학생이 없어요 👍')+'</div>'; return; }
   var LEVEL_INFO={ danger:{label:'위험',color:'#dc2626',bg:'#fef2f2',border:'#fecaca'}, warn:{label:'주의',color:'#ca8a04',bg:'#fffbeb',border:'#fde68a'}, watch:{label:'관찰',color:'#2563eb',bg:'#eff6ff',border:'#bfdbfe'} };
   el.innerHTML=list.map(function(s){
     var li=LEVEL_INFO[s.level];
