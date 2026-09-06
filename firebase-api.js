@@ -924,35 +924,44 @@ api.getMyOpenExams = function(db, p){
     if (!sessions.length) return { exams: [] };
     return Promise.all(sessions.map(function(s){
       return db.collection('exams').where('sessionId','==',String(s.id)).get().then(function(exSnap){
-        return docsToArr(exSnap).filter(function(e){ return e.submitOpen===true; })
+        // 예전엔 여기서 submitOpen===true인 것만 남겼는데, 그러면 선생님이 "응시 마감"을 누르는 순간
+        // 시험이 이 목록에서 아예 사라져서 "하루 동안 결과 카드 유지"가 무의미해졌음(마감 즉시 결과도 같이 사라짐).
+        // 그래서 일단 문항이 있는 시험은 전부 가져오고, 열려있는지/제출했는지는 아래에서 따로 판단한다.
+        return docsToArr(exSnap).filter(function(e){ return Number(e.questionCount||0)>0; })
           .map(function(e){
             return { id:String(e.id), name:e.name||'시험', sessionId:String(s.id),
               sessLabel:s.label||(s.sessionNum?s.sessionNum+'차시':''), date:s.date||'',
               questionCount:Number(e.questionCount||0), timeLimitMin:Number(e.timeLimitMin||0),
-              questionTypes: Array.isArray(e.questionTypes) ? e.questionTypes : [] };
+              questionTypes: Array.isArray(e.questionTypes) ? e.questionTypes : [],
+              submitOpen: e.submitOpen===true };
           });
       });
     })).then(function(lists){
-      var open = [].concat.apply([], lists).filter(function(e){ return e.questionCount>0; });
-      if (!open.length) return { exams: [] };
+      var all = [].concat.apply([], lists);
+      if (!all.length) return { exams: [] };
       // 아직 없는 문서를 studentId로 하나씩 get()하면, 보안 규칙이 "그 문서의 studentId가 나인지" 확인하려다
       // 문서 자체가 없어서(resource==null) 오히려 권한거부로 막힌다(교사 계정은 전권이라 안 걸렸던 것).
       // 그래서 존재 확인은 doc()이 아니라 studentId로 쿼리해서 실제로 있는 것만 받아오는 방식으로 우회한다.
       return db.collection('exam_submissions').where('studentId','==',sid).get().then(function(subSnap){
         var subsByExamId = {};
         subSnap.forEach(function(d){ subsByExamId[d.data().examId] = d.data(); });
-        // 제출 여부와 상관없이 지금 열려있는 시험을 전부 내려줌(submitted 표시 포함) — 학생 화면에서
-        // "제출 완료"를 새로고침해도 점수·틀린 문항까지 계속 보여줄 수 있도록 자기채점 결과도 같이 내려줌.
-        // 응시 화면에서는 !submitted인 것만 쓰면 됨.
-        open.forEach(function(e){
+        var oneDayAgoMs = Date.now() - 24*60*60*1000;
+        var result = all.filter(function(e){
           var sub = subsByExamId[e.id];
-          e.submitted = !!sub;
-          if (sub && typeof sub.selfScore === 'number') {
-            e.selfScore = sub.selfScore; e.selfTotal = sub.selfTotal; e.selfWrongQuestions = sub.selfWrongQuestions || [];
+          if (sub) {
+            e.submitted = true;
+            if (typeof sub.selfScore === 'number') {
+              e.selfScore = sub.selfScore; e.selfTotal = sub.selfTotal; e.selfWrongQuestions = sub.selfWrongQuestions || [];
+            }
             e.submittedAtMs = sub.submittedAtMs || 0;
+            // 제출한 시험은 마감(submitOpen:false) 여부와 상관없이 제출 후 24시간까지는 결과 카드를 보여줌
+            return e.submitOpen || !e.submittedAtMs || e.submittedAtMs >= oneDayAgoMs;
           }
+          e.submitted = false;
+          // 제출 안 한 시험은 지금 열려있을 때만 "응시하기" 대상으로 의미가 있음
+          return e.submitOpen;
         });
-        return { exams: open };
+        return { exams: result };
       });
     });
   });
