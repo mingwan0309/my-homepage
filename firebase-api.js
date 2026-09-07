@@ -394,6 +394,7 @@ api.submitQuestion = function(db, p){
     studentName:p.studentName||'', date:nowStr(), status:'open', secret:String(p.secret||'false')
   }).then(function(){
     logActivity(db, p.studentId, p.studentName, 'student', (p.studentName||p.studentId)+'(학생)님이 질문을 작성했습니다. ('+(p.title||'')+')', 'QNA_SUBMIT');
+    notifyTeacherNewQuestion(p.studentName||p.studentId, p.title||'');
     return { success:true, id:id };
   });
 };
@@ -2472,6 +2473,21 @@ function notifyTeacherAssistantEvent(type, assistantName){
   }catch(e){}
 }
 window.mkNotifyAssistantEvent = notifyTeacherAssistantEvent;
+// 학생이 질의응답에 새 질문을 올리면 선생님 폰으로 카카오 알림톡 발송 (2026-09-08 추가, 실제 발송 비용 발생)
+function notifyTeacherNewQuestion(studentName, title){
+  try{
+    var now = new Date();
+    function p(n){ return (n<10?'0':'')+n; }
+    var dateStr = now.getFullYear()+'-'+p(now.getMonth()+1)+'-'+p(now.getDate());
+    var timeStr = p(now.getHours())+':'+p(now.getMinutes());
+    var body = {
+      action:'sendAlimtalk',
+      appToken: APP_SHARED_TOKEN,
+      messages:[{ phone:TEACHER_NOTIFY_PHONE, name:studentName||'', className:'질의응답 새 질문', sessionNum:dateStr+' '+timeStr, message:(studentName||'')+'님이 질문을 남겼습니다. ('+(title||'')+')' }]
+    };
+    return (typeof _origFetch==='function'?_origFetch:window.fetch)(TEACHER_APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify(body) }).catch(function(){});
+  }catch(e){}
+}
 // 조교 로그인/로그아웃 시 자동 출퇴근 체크(각 페이지의 로그인/로그아웃 처리에서 호출)
 window.mkClockIn = function(session){
   return _dbReady.then(function(db){ return api.clockIn(db, { id:session.id, name:session.name }); })

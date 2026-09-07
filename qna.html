@@ -8,7 +8,7 @@
 <style>html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;}</style>
 <script>['gesturestart','gesturechange','gestureend'].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();},{passive:false});});</script>
 <title>질의응답 | 김민관 수학</title>
-<script src="firebase-api.js?v=23"></script>
+<script src="firebase-api.js?v=24"></script>
 <script src="chat-widget.js" defer></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -439,7 +439,7 @@ async function loadDetail(id) {
       ? '<span class="badge-answered">답변 완료</span>'
       : '<span class="badge-pending">답변 대기</span>';
     document.getElementById('detail-title').textContent = currentQuestion.title;
-    document.getElementById('detail-author').innerHTML = '<span>' + esc(currentQuestion.studentName) + '(학생)</span> - ' + currentQuestion.createdAt;
+    document.getElementById('detail-author').innerHTML = '<span>' + esc(currentQuestion.studentName) + '(학생)</span> - ' + (currentQuestion.date || '');
     document.getElementById('detail-content').innerHTML = currentQuestion.content || '';
 
     // delete / edit button (본인 or 선생님만)
@@ -474,7 +474,7 @@ async function loadDetail(id) {
         const isCur = oq.id === id;
         return '<div class="sidebar-q-item" onclick="showDetail(\'' + oq.id + '\')">'
           + '<span class="sq-title' + (isCur ? ' current' : '') + '">' + esc(oq.title) + '</span>'
-          + '<span class="sq-time">' + relTime(oq.createdAt) + '</span>'
+          + '<span class="sq-time">' + relTime(oq.date) + '</span>'
           + '</div>';
       }).join('');
       document.getElementById('sb-total').textContent = (data.studentTotal || others.length) + '개의 질문 기록';
@@ -691,7 +691,11 @@ async function insertImages(files, editorId) {
       }).then(function(r){ return r.json(); });
       const span = document.getElementById(marker);
       if (up.success && span) {
-        span.outerHTML = '<img src="' + up.url + '" style="max-width:100%;">';
+        // uploadFile이 돌려주는 주소는 구글 드라이브 "보기" 페이지라서 <img>에 그대로 쓰면 안 뜬다.
+        // 실제 이미지로 보이게 하려면 파일 id만 뽑아서 thumbnail 주소로 바꿔줘야 한다(다른 화면들과 동일한 방식).
+        const m = up.url.match(/\/d\/([^\/]+)/) || up.url.match(/[?&]id=([^&]+)/);
+        const imgSrc = m ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1600') : up.url;
+        span.outerHTML = '<img src="' + imgSrc + '" style="max-width:100%;">';
       } else if (span) {
         span.outerHTML = '[이미지 업로드 실패]';
       }
