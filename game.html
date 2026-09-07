@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>미니게임 — 김민관 수학</title>
-<script src="firebase-api.js?v=25"></script>
+<script src="firebase-api.js?v=26"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;}
@@ -89,6 +89,11 @@ a{text-decoration:none;}
     <div class="lb-card">
       <div class="lb-title">🏆 이번 주 순위 (총점)</div>
       <div id="lb-list"><div class="lb-empty">불러오는 중...</div></div>
+    </div>
+
+    <div class="lb-card">
+      <div class="lb-title">💩 똥피하기 주간 누적 순위</div>
+      <div id="lb-default-list"><div class="lb-empty">불러오는 중...</div></div>
     </div>
 
     <div class="card" id="game-select-card" style="background:#1e293b;border-radius:14px;padding:14px 16px;margin-bottom:14px;">
@@ -199,9 +204,11 @@ async function loadStatus(){
     var r=await fetch(SU+'?action=getGameStatus&studentId='+encodeURIComponent(session.id)).then(function(r){return r.json();});
     gameStatusCache=r;
     renderLeaderboard(r.leaderboard||[]);
+    renderDefaultWeekly(r.defaultWeekly||[]);
     renderStatus(r);
   }catch(e){
     document.getElementById('lb-list').innerHTML='<div class="lb-empty">불러오기 실패</div>';
+    document.getElementById('lb-default-list').innerHTML='<div class="lb-empty">불러오기 실패</div>';
     document.getElementById('game-select-list').innerHTML='<div class="lb-empty">불러오기 실패. 새로고침 해주세요.</div>';
   }
 }
@@ -216,6 +223,20 @@ function renderLeaderboard(list){
       +'<span class="lb-rank'+(rank===1?' gold':'')+'">'+(rank===1?'👑':rank)+'</span>'
       +'<span class="lb-name" style="'+(isMe?'color:#4ade80;':'')+'">'+escHtml(l.studentName)+(isMe?' (나)':'')+'</span>'
       +'<span class="lb-score">'+l.score+'점</span>'
+      +'</div>';
+  }).join('');
+}
+// 똥피하기 전용 순위표 — 이번 주에 낸 모든 점수를 다 더한 "누적점수"로 순위를 매김(다른 게임이랑 합산 안 됨, 최고점도 같이 보여줌)
+function renderDefaultWeekly(list){
+  var el=document.getElementById('lb-default-list');
+  if(!list.length){ el.innerHTML='<div class="lb-empty">아직 이번 주 기록이 없어요. 첫 도전자가 되어보세요!</div>'; return; }
+  el.innerHTML=list.map(function(l,i){
+    var rank=i+1;
+    var isMe=l.studentId===session.id;
+    return '<div class="lb-row">'
+      +'<span class="lb-rank'+(rank===1?' gold':'')+'">'+(rank===1?'👑':rank)+'</span>'
+      +'<span class="lb-name" style="'+(isMe?'color:#4ade80;':'')+'">'+escHtml(l.studentName)+(isMe?' (나)':'')+'</span>'
+      +'<span class="lb-score">누적 '+l.total+'점<span style="color:#64748b;font-weight:600;font-size:11px;"> · 최고 '+l.best+'점</span></span>'
       +'</div>';
   }).join('');
 }

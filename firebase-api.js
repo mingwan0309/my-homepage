@@ -1374,8 +1374,10 @@ api.getGameStatus = function(db, p){
       };
     });
     return db.collection('game_scores').where('weekKey','==',wk).get().then(function(wsnap){
-      // 순위는 '이번 주 최고점 1개'가 아니라, 이번 주에 있었던 게임 종류별로 각자 최고점을 구해서 다 더한 총점 기준.
+      // 종합 순위표: '이번 주 최고점 1개'가 아니라, 이번 주에 있었던 게임 종류별로 각자 최고점을 구해서 다 더한 총점 기준.
       var bestByStudentGame = {}; // studentId -> { gameKey -> {score, name} }
+      // 똥피하기 전용 순위표: 이번 주 그 게임만 플레이한 점수를 전부 더한 누적점수 기준(따로 관리, 2026-09-08 추가)
+      var defaultAgg = {}; // studentId -> { total, best, name }
       wsnap.forEach(function(d){
         var r = d.data();
         var gk = r.gameKey || 'default';
@@ -1383,6 +1385,11 @@ api.getGameStatus = function(db, p){
         var cur = bestByStudentGame[r.studentId][gk];
         if (!cur || (r.score||0) > cur.score) {
           bestByStudentGame[r.studentId][gk] = { score:r.score||0, studentName:r.studentName||'' };
+        }
+        if (gk === 'default') {
+          if (!defaultAgg[r.studentId]) defaultAgg[r.studentId] = { total:0, best:0, studentName:r.studentName||'' };
+          defaultAgg[r.studentId].total += (r.score||0);
+          defaultAgg[r.studentId].best = Math.max(defaultAgg[r.studentId].best, r.score||0);
         }
       });
       var totals = Object.keys(bestByStudentGame).map(function(stuId){
@@ -1392,9 +1399,13 @@ api.getGameStatus = function(db, p){
         return { studentId: stuId, studentName: name, score: total };
       });
       var list = totals.sort(function(a,b){ return b.score-a.score; }).slice(0,10);
+      var defaultList = Object.keys(defaultAgg).map(function(stuId){
+        var a = defaultAgg[stuId];
+        return { studentId: stuId, studentName: a.studentName, total: a.total, best: a.best };
+      }).sort(function(a,b){ return b.total-a.total; }).slice(0,10);
       return {
         maxAttempts: (maxAttempts===Infinity ? -1 : maxAttempts),
-        perGame: perGame, leaderboard: list, weekKey: wk
+        perGame: perGame, leaderboard: list, defaultWeekly: defaultList, weekKey: wk
       };
     });
   });
