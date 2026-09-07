@@ -215,7 +215,7 @@
 - `activity_logs` 컬렉션(id, actorId, actorName, actorRole, message, code, createdAt). firebase-api.js의 `logActivity(db, actorId, actorName, actorRole, message, code)` 헬퍼가 각 API 함수(`api.login`, `api.submitHwProof`, `api.bookClinic`, `api.submitQuestion`, `api.submitSurveyResponse`) 안에서 성공 시점에 호출됨 — 새로운 핵심 활동을 추가로 기록하고 싶으면 이 패턴을 그대로 재사용.
 - `api.getActivityLogs(db)`가 최신순 최대 300건 반환. Firestore 규칙: `activity_logs`는 **읽기는 교사만, 쓰기(생성)는 로그인한 사람이면 누구나** — 학생/조교가 자기 활동을 기록해야 하므로 create는 열어두되, 남이 쓴 로그를 못 보게 read는 교사로 제한.
 
-## 미니게임 (2026-08-27 추가, 2026-09-06 게임 선택 방식으로 개편 + 단어게임 추가)
+## 미니게임 (2026-08-27 추가, 2026-09-06 게임 선택 방식으로 개편 + 단어게임/문장게임 추가)
 학생 참여 유도용으로 만든 간단한 캐주얼 게임들. `game.html`(학생 전용, 신규 페이지), mypage.html 상단에 "🎮 미니게임" 카드로 진입.
 - **게임을 학생이 직접 골라서 하는 방식** (초기엔 자동 로테이션이었으나 개편). `GAME_ROTATION` 배열(현재 `['default','wordtype']`)에 등록된 게임들이 "🎮 게임 선택" 목록에 카드로 뜸(`renderStatus`) — 각 게임의 아이콘/이름/오늘 남은 도전 횟수/오늘 최고점을 같이 보여줌. `GAME_META`에 게임별 제목·아이콘·시작 전 안내문구(`introRows`)를 정의. 새 게임을 추가하려면 ①`GAME_ROTATION`에 키 추가 ②`GAME_META`에 안내문구 추가 ③`startGame()`에서 그 키일 때 실행할 시작 함수로 분기.
   - `numbercatch`(숫자 잡기)는 만들었다가 2026-09-06에 로테이션에서만 잠시 뺌(코드는 `GAME_META`에 그대로 남아있어 배열에 다시 추가만 하면 복구됨).
@@ -228,7 +228,8 @@
   - `type:'image'` — 문제를 캡처본 사진 그대로 올리고(`imageUrl`, 다른 사진 업로드 기능과 동일하게 base64→Code.gs `uploadFile`→구글 드라이브 저장), 정답만 별도 텍스트칸(`answer`)에 입력. 사진에서 정답을 자동으로 읽어내는 기능은 없음(교사가 직접 타이핑) — 문장을 일일이 타이핑하기 귀찮을 때, 이미 가지고 있는 문제집/프린트물 캡처본을 그대로 쓸 수 있게 하기 위함.
   - 학생 화면은 제한시간 60초(`WORD_GAME_SECONDS`) 동안 문제은행(텍스트+사진 문제 전부 섞여서)에서 무작위로 문제를 계속 뽑아 빈칸에 정답을 입력(Enter로 제출) — 맞히면 10점씩 누적. 캔버스 게임과 달리 UI가 완전히 달라서(문장 또는 이미지 + 입력창) `#game-wrap` 안에서 캔버스(`#game-canvas`)와 단어게임 영역(`#word-game-area`)을 `activeGameKey`에 따라 서로 보였다 숨겼다 하는 방식으로 구현(`startGame()`이 `wordtype`이면 `startWordGame()`으로 분기).
   - 정답 채점은 **대소문자만 구분 없이 완전히 똑같아야** 정답(공백 trim 후 비교) — 실시간 응시 시험처럼 숫자 표기 관용/분수 변환 같은 건 없음(단어 맞히기라 불필요). 문제은행이 비어있으면(아직 하나도 등록 안 했으면) 안내 후 시작 자체가 취소됨.
-- Firestore 규칙: `game_scores`는 로그인하면 읽기 가능(순위표용), 생성은 본인(`studentId==loginId()`) 것만 가능, update/delete는 막아둠(점수 조작 방지 — 하루 제한과 별개로 한번 기록되면 그 점수는 고정). `word_sentences`는 로그인하면 읽기 가능(학생이 게임할 때 문제은행을 읽어야 함), 쓰기(등록/삭제)는 교사만.
+- **게임 ③ 문장 빨리 쓰기 (`typing`, 2026-09-08 추가)**: 화면에 나온 문장을 그대로 똑같이 타이핑해서 맞히는 게임. `word_sentences`(단어게임)와는 완전히 별도인 `typing_sentences` 컬렉션(단순히 `text` 필드만 있음, `**` 표시 없음)을 씀 — admin.html "✍️ 미니게임(문장) 문제관리" 탭에서 문장 자체를 그대로 입력해서 등록. 학생 화면(`#typing-game-area`)도 단어게임과 같은 구조(제한시간 60초, `TYPING_GAME_SECONDS`)로 만들었고 정답 판정은 **trim만 하고 완전히 문자 그대로 일치**해야 함(대소문자 무시하는 단어게임과 달리 이건 대소문자도 구분 — 문장 전체를 정확히 옮겨 적는 연습이 목적이라 의도적으로 더 엄격함). 맞히면 15점(단어게임의 10점보다 살짝 높음 — 타이핑 양이 더 많아서). `game.html`의 세 게임(default/wordtype/typing)은 `#game-wrap` 안에서 서로 다른 영역(`#game-canvas`/`#word-game-area`/`#typing-game-area`)을 `activeGameKey`에 따라 보였다 숨겼다 하는 동일한 방식으로 공존.
+- Firestore 규칙: `game_scores`는 로그인하면 읽기 가능(순위표용), 생성은 본인(`studentId==loginId()`) 것만 가능, update/delete는 막아둠(점수 조작 방지 — 하루 제한과 별개로 한번 기록되면 그 점수는 고정). `word_sentences`/`typing_sentences`는 로그인하면 읽기 가능(학생이 게임할 때 문제은행을 읽어야 함), 쓰기(등록/삭제)는 교사만.
 
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)

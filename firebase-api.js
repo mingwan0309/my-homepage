@@ -1448,6 +1448,26 @@ api.deleteWordSentence = function(db, p){
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
+/* === 문장 빨리 쓰기 미니게임 — 문제(문장) 관리 === */
+// 화면에 나온 문장을 그대로 똑같이 타이핑해서 맞히는 게임. '단어 빨리치기'와는 별도의 문제은행 사용.
+api.addTypingSentence = function(db, p){
+  var text = String(p.text||'').trim();
+  if (!text) return Promise.resolve({ success:false, msg:'문장을 입력해주세요.' });
+  var id = genId('ts');
+  return db.collection('typing_sentences').doc(id).set({ id:id, text:text, createdAt:nowStr() })
+    .then(function(){ return { success:true, id:id }; }, function(e){ return { success:false, msg:(e&&e.message)||String(e) }; });
+};
+api.getTypingSentences = function(db){
+  return db.collection('typing_sentences').get().then(function(snap){
+    var items = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? 1 : -1; });
+    return { sentences: items.map(function(r){ return { id:r.id, text:r.text||'' }; }) };
+  });
+};
+api.deleteTypingSentence = function(db, p){
+  return db.collection('typing_sentences').doc(String(p.id)).delete()
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
 api.getIncompleteHomeworks = function(db){
   return db.collection('hw_status').where('pass','in',['incomplete','partial','notsub']).get().then(function(snap){
     var rows = docsToArr(snap);

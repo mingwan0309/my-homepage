@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>미니게임 — 김민관 수학</title>
-<script src="firebase-api.js?v=22"></script>
+<script src="firebase-api.js?v=23"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;}
@@ -106,6 +106,11 @@ a{text-decoration:none;}
           <input id="word-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="빈칸에 들어갈 단어 입력 후 Enter" style="width:100%;box-sizing:border-box;margin-top:14px;padding:14px 16px;border-radius:12px;border:none;font-size:17px;text-align:center;">
           <div id="word-feedback" style="text-align:center;margin-top:10px;font-size:13.5px;font-weight:700;height:18px;"></div>
         </div>
+        <div id="typing-game-area" style="display:none;">
+          <div id="typing-sentence" style="background:#1e2a45;border-radius:14px;padding:24px 18px;text-align:center;font-size:17px;font-weight:700;line-height:1.6;min-height:90px;display:flex;align-items:center;justify-content:center;"></div>
+          <input id="typing-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="문장을 그대로 입력 후 Enter" style="width:100%;box-sizing:border-box;margin-top:14px;padding:14px 16px;border-radius:12px;border:none;font-size:16px;">
+          <div id="typing-feedback" style="text-align:center;margin-top:10px;font-size:13.5px;font-weight:700;height:18px;"></div>
+        </div>
       </div>
     </div>
 
@@ -137,7 +142,7 @@ var SU='https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33Pi
 
 // 게임 목록 — 학생이 직접 골라서 플레이. 게임마다 하루 2번(테스트 계정은 무제한)씩 따로 도전 가능.
 // 새 게임을 추가하려면 이 배열에 키를 늘리고, 아래 GAME_META에 안내문구/그리기 방식을 추가하면 됨.
-var GAME_ROTATION = ['default','wordtype']; // '숫자 잡기'(numbercatch)는 나중에 다시 다듬어서 추가할 예정 — 코드는 GAME_META에 그대로 남겨둠
+var GAME_ROTATION = ['default','wordtype','typing']; // '숫자 잡기'(numbercatch)는 나중에 다시 다듬어서 추가할 예정 — 코드는 GAME_META에 그대로 남겨둠
 
 // 게임별 설정 — 제목/안내문구/장애물·보너스를 어떻게 그릴지를 여기서 갈라서 처리
 var GAME_META = {
@@ -161,6 +166,13 @@ var GAME_META = {
     introRows: [
       ['📖','문장이 나와요','빈칸에 들어갈 단어를 맞혀보세요'],
       ['⌨️','빠르게 입력!','제한시간 60초 동안 최대한 많이 맞히면 고득점']
+    ]
+  },
+  typing: {
+    title: '문장 빨리 쓰기', icon: '✍️',
+    introRows: [
+      ['📖','문장이 나와요','화면의 문장을 그대로 똑같이 입력하세요'],
+      ['✍️','빠르고 정확하게!','띄어쓰기·문장부호까지 완전히 같아야 정답']
     ]
   }
 };
@@ -257,6 +269,8 @@ function renderIntroContent(){
   document.getElementById('intro-rows').innerHTML = rowsHtml;
   document.getElementById('intro-hint').textContent = activeGameKey==='wordtype'
     ? '빈칸에 들어갈 단어를 입력하고 Enter를 누르세요'
+    : activeGameKey==='typing'
+    ? '화면의 문장을 그대로 입력하고 Enter를 누르세요'
     : '화면을 좌우로 드래그하거나 ←/→ 키로 이동해요';
 }
 function showIntro(){
@@ -269,9 +283,11 @@ function closeIntroAndStart(){
 }
 function startGame(){
   if(activeGameKey==='wordtype'){ startWordGame(); return; }
+  if(activeGameKey==='typing'){ startTypingGame(); return; }
   document.getElementById('result-box').style.display='none';
   document.getElementById('game-wrap').style.display='block';
   document.getElementById('word-game-area').style.display='none';
+  document.getElementById('typing-game-area').style.display='none';
   document.getElementById('canvas-touch-hint').style.display='';
   canvas=document.getElementById('game-canvas');
   canvas.style.display='';
@@ -324,6 +340,7 @@ async function startWordGame(){
   document.getElementById('game-wrap').style.display='block';
   document.getElementById('canvas-touch-hint').style.display='none';
   document.getElementById('game-canvas').style.display='none';
+  document.getElementById('typing-game-area').style.display='none';
   document.getElementById('word-game-area').style.display='block';
   wordGameScore=0;
   document.getElementById('hud-score').textContent='0';
@@ -384,6 +401,86 @@ function wordGameTick(){
     clearInterval(wordGameTimerInt); wordGameTimerInt=null;
     document.getElementById('word-input').disabled=true;
     endGame(wordGameScore);
+  }
+}
+
+/* ===== 문장 빨리 쓰기 (제한시간 내 화면 문장 그대로 타이핑) ===== */
+var typingSentenceBank=[], typingGameScore=0, typingGameTimerInt=null, typingGameEndAt=0, typingGameCur=null;
+var TYPING_GAME_SECONDS=60;
+async function loadTypingSentenceBank(){
+  if(typingSentenceBank.length) return typingSentenceBank;
+  try{
+    var r=await fetch(SU+'?action=getTypingSentences').then(function(r){return r.json();});
+    typingSentenceBank=(r.sentences||[]).filter(function(s){ return s.text; });
+  }catch(e){ typingSentenceBank=[]; }
+  return typingSentenceBank;
+}
+async function startTypingGame(){
+  var bank=await loadTypingSentenceBank();
+  if(!bank.length){
+    alert('아직 등록된 문제가 없어요. 선생님께 말씀드려보세요!');
+    document.getElementById('intro-overlay').style.display='none';
+    return;
+  }
+  document.getElementById('result-box').style.display='none';
+  document.getElementById('game-wrap').style.display='block';
+  document.getElementById('canvas-touch-hint').style.display='none';
+  document.getElementById('game-canvas').style.display='none';
+  document.getElementById('word-game-area').style.display='none';
+  document.getElementById('typing-game-area').style.display='block';
+  typingGameScore=0;
+  document.getElementById('hud-score').textContent='0';
+  var input=document.getElementById('typing-input');
+  input.disabled=false;
+  typingGameEndAt=Date.now()+TYPING_GAME_SECONDS*1000;
+  bindTypingControls();
+  nextTypingSentence();
+  if(typingGameTimerInt) clearInterval(typingGameTimerInt);
+  typingGameTimerInt=setInterval(typingGameTick, 200);
+}
+function pickRandomTypingSentence(){
+  if(!typingSentenceBank.length) return null;
+  var i=Math.floor(Math.random()*typingSentenceBank.length);
+  if(typingSentenceBank.length>1 && typingGameCur && typingSentenceBank[i].id===typingGameCur.id){
+    i=(i+1)%typingSentenceBank.length;
+  }
+  return typingSentenceBank[i];
+}
+function nextTypingSentence(){
+  typingGameCur=pickRandomTypingSentence();
+  document.getElementById('typing-sentence').textContent=typingGameCur?typingGameCur.text:'';
+  var input=document.getElementById('typing-input');
+  input.value='';
+  document.getElementById('typing-feedback').textContent='';
+  input.focus();
+}
+function bindTypingControls(){
+  var input=document.getElementById('typing-input');
+  input.onkeydown=function(e){ if(e.key==='Enter') checkTypingAnswer(); };
+}
+function checkTypingAnswer(){
+  var input=document.getElementById('typing-input');
+  var val=input.value.trim();
+  if(!val || !typingGameCur) return;
+  var ok = val===typingGameCur.text.trim();
+  var fb=document.getElementById('typing-feedback');
+  if(ok){
+    typingGameScore+=15;
+    document.getElementById('hud-score').textContent=typingGameScore;
+    fb.style.color='#4ade80'; fb.textContent='✅ 정답!';
+  } else {
+    fb.style.color='#f87171'; fb.textContent='❌ 띄어쓰기·문장부호까지 똑같이 입력해보세요';
+  }
+  setTimeout(function(){ if(typingGameTimerInt) nextTypingSentence(); }, ok?300:1000);
+}
+function typingGameTick(){
+  var left=Math.max(0, typingGameEndAt-Date.now());
+  var s=Math.ceil(left/1000);
+  document.getElementById('hud-timer').textContent='⏱ '+s+'초';
+  if(left<=0){
+    clearInterval(typingGameTimerInt); typingGameTimerInt=null;
+    document.getElementById('typing-input').disabled=true;
+    endGame(typingGameScore);
   }
 }
 function fitCanvas(){
