@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>미니게임 — 김민관 수학</title>
-<script src="firebase-api.js?v=24"></script>
+<script src="firebase-api.js?v=25"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;}
@@ -101,11 +101,6 @@ a{text-decoration:none;}
         <div class="game-hud"><span>점수 <b id="hud-score">0</b></span><span id="hud-timer"></span></div>
         <canvas id="game-canvas" width="360" height="480"></canvas>
         <div class="touch-hint" id="canvas-touch-hint">화면을 좌우로 드래그하거나 ←/→ 키로 피하세요</div>
-        <div id="word-game-area" style="display:none;">
-          <div id="word-sentence" style="background:#1e2a45;border-radius:14px;padding:28px 18px;text-align:center;font-size:18px;font-weight:700;line-height:1.6;min-height:110px;display:flex;align-items:center;justify-content:center;"></div>
-          <input id="word-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="빈칸에 들어갈 단어 입력 후 Enter" style="width:100%;box-sizing:border-box;margin-top:14px;padding:14px 16px;border-radius:12px;border:none;font-size:17px;text-align:center;">
-          <div id="word-feedback" style="text-align:center;margin-top:10px;font-size:13.5px;font-weight:700;height:18px;"></div>
-        </div>
         <div id="typing-game-area" style="display:none;">
           <div id="typing-sentence" style="background:#1e2a45;border-radius:14px;padding:24px 18px;text-align:center;font-size:17px;font-weight:700;line-height:1.6;min-height:90px;display:flex;align-items:center;justify-content:center;"></div>
           <input id="typing-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="문장을 그대로 입력 후 Enter" style="width:100%;box-sizing:border-box;margin-top:14px;padding:14px 16px;border-radius:12px;border:none;font-size:16px;">
@@ -142,16 +137,15 @@ var SU='https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33Pi
 
 // 게임 목록 — 학생이 직접 골라서 플레이. 게임마다 하루 2번(테스트 계정은 무제한)씩 따로 도전 가능.
 // 새 게임을 추가하려면 이 배열에 키를 늘리고, 아래 GAME_META에 안내문구/그리기 방식을 추가하면 됨.
-var GAME_ROTATION = ['default','wordtype','typing']; // '숫자 잡기'(numbercatch)는 나중에 다시 다듬어서 추가할 예정 — 코드는 GAME_META에 그대로 남겨둠
+var GAME_ROTATION = ['default','typing']; // '숫자 잡기'(numbercatch)는 나중에 다시 다듬어서 추가할 예정 — 코드는 GAME_META에 그대로 남겨둠
 
 // 게임별 설정 — 제목/안내문구/장애물·보너스를 어떻게 그릴지를 여기서 갈라서 처리
 var GAME_META = {
   default: {
     title: '똥 피하기', icon: '💩',
     introRows: [
-      ['💩','피하세요!','부딪히면 바로 게임 종료'],
-      ['복','복습노트! 먹으면 5점','반짝이는 글씨를 잡아서 점수를 모으세요'],
-      ['워','워크북! 먹으면 7점','반짝이는 글씨를 잡아서 점수를 모으세요']
+      ['💩','피하세요!','부딪히면 바로 게임 종료']
+      // 보너스 글자 안내 행은 관리 페이지에서 설정한 목록으로 매번 다시 만들어서 붙임(renderIntroContent 참고)
     ]
   },
   numbercatch: {
@@ -159,13 +153,6 @@ var GAME_META = {
     introRows: [
       ['🔴','홀수는 피하세요!','부딪히면 바로 게임 종료'],
       ['🟢','짝수를 잡으세요!','숫자만큼 점수를 얻어요']
-    ]
-  },
-  wordtype: {
-    title: '단어 빨리치기', icon: '⌨️',
-    introRows: [
-      ['📖','문장이 나와요','빈칸에 들어갈 단어를 맞혀보세요'],
-      ['⌨️','빠르게 입력!','제한시간 60초 동안 최대한 많이 맞히면 고득점']
     ]
   },
   typing: {
@@ -195,7 +182,16 @@ document.addEventListener('DOMContentLoaded', async function(){
   }
   document.getElementById('page-main').style.display='block';
   await loadStatus();
+  loadBonusConfig();
 });
+// 똥피하기 보너스 글자 설정 — 관리 페이지에서 등록해둔 목록을 불러옴(비어있으면 기본값)
+var bonusConfig=[{char:'복',points:5},{char:'워',points:7}];
+async function loadBonusConfig(){
+  try{
+    var r=await fetch(SU+'?action=getGameSettings').then(function(r){return r.json();});
+    if(r.bonusItems && r.bonusItems.length) bonusConfig=r.bonusItems;
+  }catch(e){}
+}
 
 var gameStatusCache=null;
 async function loadStatus(){
@@ -262,14 +258,19 @@ var dragging=false;
 
 function renderIntroContent(){
   var meta = GAME_META[activeGameKey] || GAME_META.default;
-  var rowsHtml = meta.introRows.map(function(r){
+  var rows = meta.introRows.slice();
+  if(activeGameKey==='default' && bonusConfig.length){
+    // 보너스 글자는 관리 페이지 설정에 따라 매번 바뀔 수 있어서, 안내 문구도 그때그때 새로 만들어서 붙임
+    rows = rows.concat(bonusConfig.map(function(it){
+      return [it.char, '먹으면 '+it.points+'점', '반짝이는 글씨를 잡아서 점수를 모으세요'];
+    }));
+  }
+  var rowsHtml = rows.map(function(r){
     return '<div class="intro-row"><span class="intro-emoji">'+r[0]+'</span><div class="intro-text"><b>'+r[1]+'</b><br>'+r[2]+'</div></div>';
   }).join('');
   document.getElementById('intro-title').textContent = meta.title;
   document.getElementById('intro-rows').innerHTML = rowsHtml;
-  document.getElementById('intro-hint').textContent = activeGameKey==='wordtype'
-    ? '빈칸에 들어갈 단어를 입력하고 Enter를 누르세요'
-    : activeGameKey==='typing'
+  document.getElementById('intro-hint').textContent = activeGameKey==='typing'
     ? '화면의 문장을 그대로 입력하고 Enter를 누르세요'
     : '화면을 좌우로 드래그하거나 ←/→ 키로 이동해요';
 }
@@ -282,11 +283,9 @@ function closeIntroAndStart(){
   startGame();
 }
 function startGame(){
-  if(activeGameKey==='wordtype'){ startWordGame(); return; }
   if(activeGameKey==='typing'){ startTypingGame(); return; }
   document.getElementById('result-box').style.display='none';
   document.getElementById('game-wrap').style.display='block';
-  document.getElementById('word-game-area').style.display='none';
   document.getElementById('typing-game-area').style.display='none';
   document.getElementById('canvas-touch-hint').style.display='';
   canvas=document.getElementById('game-canvas');
@@ -305,103 +304,6 @@ function startGame(){
   running=true;
   bindControls();
   rafId=requestAnimationFrame(loop);
-}
-
-/* ===== 단어 빨리치기 (제한시간 내 빈칸 채우기) ===== */
-var wordSentenceBank=[], wordGameScore=0, wordGameTimerInt=null, wordGameEndAt=0, wordGameCur=null;
-var WORD_GAME_SECONDS=60;
-function parseWordTemplate(t){
-  var m=String(t||'').match(/\*\*([^*]+)\*\*/);
-  if(!m) return null;
-  return { display:t.replace(m[0],'  _____  '), answer:m[1].trim() };
-}
-async function loadWordSentenceBank(){
-  if(wordSentenceBank.length) return wordSentenceBank;
-  try{
-    var r=await fetch(SU+'?action=getWordSentences').then(function(r){return r.json();});
-    wordSentenceBank=(r.sentences||[]).map(function(s){
-      if(s.type==='image'){
-        return (s.imageUrl && s.answer) ? { id:s.id, imageUrl:s.imageUrl, answer:s.answer } : null;
-      }
-      var p=parseWordTemplate(s.template);
-      return p ? { id:s.id, display:p.display, answer:p.answer } : null;
-    }).filter(Boolean);
-  }catch(e){ wordSentenceBank=[]; }
-  return wordSentenceBank;
-}
-async function startWordGame(){
-  var bank=await loadWordSentenceBank();
-  if(!bank.length){
-    alert('아직 등록된 문제가 없어요. 선생님께 말씀드려보세요!');
-    document.getElementById('intro-overlay').style.display='none';
-    return;
-  }
-  document.getElementById('result-box').style.display='none';
-  document.getElementById('game-wrap').style.display='block';
-  document.getElementById('canvas-touch-hint').style.display='none';
-  document.getElementById('game-canvas').style.display='none';
-  document.getElementById('typing-game-area').style.display='none';
-  document.getElementById('word-game-area').style.display='block';
-  wordGameScore=0;
-  document.getElementById('hud-score').textContent='0';
-  var input=document.getElementById('word-input');
-  input.disabled=false; input.style.display='';
-  wordGameEndAt=Date.now()+WORD_GAME_SECONDS*1000;
-  bindWordControls();
-  nextWordSentence();
-  if(wordGameTimerInt) clearInterval(wordGameTimerInt);
-  wordGameTimerInt=setInterval(wordGameTick, 200);
-}
-function pickRandomWordSentence(){
-  if(!wordSentenceBank.length) return null;
-  var i=Math.floor(Math.random()*wordSentenceBank.length);
-  // 바로 직전 문장이 연달아 나오지 않도록 한 번 더 뽑기(문제가 2개 이상일 때만)
-  if(wordSentenceBank.length>1 && wordGameCur && wordSentenceBank[i].id===wordGameCur.id){
-    i=(i+1)%wordSentenceBank.length;
-  }
-  return wordSentenceBank[i];
-}
-function nextWordSentence(){
-  wordGameCur=pickRandomWordSentence();
-  var box=document.getElementById('word-sentence');
-  if(wordGameCur && wordGameCur.imageUrl){
-    box.innerHTML='<img src="'+wordGameCur.imageUrl+'" style="max-width:100%;max-height:220px;border-radius:10px;">';
-  } else {
-    box.textContent=wordGameCur?wordGameCur.display:'';
-  }
-  var input=document.getElementById('word-input');
-  input.value='';
-  document.getElementById('word-feedback').textContent='';
-  input.focus();
-}
-function bindWordControls(){
-  var input=document.getElementById('word-input');
-  input.onkeydown=function(e){ if(e.key==='Enter') checkWordAnswer(); };
-}
-function checkWordAnswer(){
-  var input=document.getElementById('word-input');
-  var val=input.value.trim();
-  if(!val || !wordGameCur) return;
-  var ok = val.toLowerCase()===wordGameCur.answer.toLowerCase();
-  var fb=document.getElementById('word-feedback');
-  if(ok){
-    wordGameScore+=10;
-    document.getElementById('hud-score').textContent=wordGameScore;
-    fb.style.color='#4ade80'; fb.textContent='✅ 정답!';
-  } else {
-    fb.style.color='#f87171'; fb.textContent='❌ 정답: '+wordGameCur.answer;
-  }
-  setTimeout(function(){ if(wordGameTimerInt) nextWordSentence(); }, ok?300:900);
-}
-function wordGameTick(){
-  var left=Math.max(0, wordGameEndAt-Date.now());
-  var s=Math.ceil(left/1000);
-  document.getElementById('hud-timer').textContent='⏱ '+s+'초';
-  if(left<=0){
-    clearInterval(wordGameTimerInt); wordGameTimerInt=null;
-    document.getElementById('word-input').disabled=true;
-    endGame(wordGameScore);
-  }
 }
 
 /* ===== 문장 빨리 쓰기 (제한시간 내 화면 문장 그대로 타이핑) ===== */
@@ -426,7 +328,6 @@ async function startTypingGame(){
   document.getElementById('game-wrap').style.display='block';
   document.getElementById('canvas-touch-hint').style.display='none';
   document.getElementById('game-canvas').style.display='none';
-  document.getElementById('word-game-area').style.display='none';
   document.getElementById('typing-game-area').style.display='block';
   typingGameScore=0;
   document.getElementById('hud-score').textContent='0';
@@ -531,8 +432,8 @@ function loop(now){
       var n=[2,4,6,8][Math.floor(Math.random()*4)];
       bonuses.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:15, value:n, num:n});
     } else {
-      var word = Math.random()<0.5 ? {ch:'복', v:5} : {ch:'워', v:7};
-      bonuses.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:15, value:word.v, word:word.ch});
+      var pick = bonusConfig[Math.floor(Math.random()*bonusConfig.length)];
+      bonuses.push({x:Math.random()*(canvas.width-28)+14, y:-20, r:15, value:pick.points, word:pick.char});
     }
   }
   bonuses.forEach(function(b){ b.y+=9; });
