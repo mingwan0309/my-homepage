@@ -440,7 +440,7 @@ async function loadDetail(id) {
       : '<span class="badge-pending">답변 대기</span>';
     document.getElementById('detail-title').textContent = currentQuestion.title;
     document.getElementById('detail-author').innerHTML = '<span>' + esc(currentQuestion.studentName) + '(학생)</span> - ' + (currentQuestion.date || '');
-    document.getElementById('detail-content').innerHTML = currentQuestion.content || '';
+    document.getElementById('detail-content').innerHTML = fixDriveImgSrc(currentQuestion.content || '');
 
     // delete / edit button (본인 or 선생님만)
     var isOwner = currentQuestion.studentId === (session.id || '');
@@ -521,7 +521,7 @@ function renderAnswer() {
     let html = '<div class="answer-box">'
       + '<div class="answer-header">답변</div>'
       + '<div class="answer-teacher">' + esc(currentAnswer.answeredBy || '김민관 선생님') + ' · ' + relTime(currentAnswer.createdAt) + '</div>'
-      + '<div class="answer-content">' + currentAnswer.content + '</div>';
+      + '<div class="answer-content">' + fixDriveImgSrc(currentAnswer.content || '') + '</div>';
     if (isTeacher) {
       html += '<div class="answer-btns">'
         + '<button class="btn-edit-ans" onclick="startEdit()">✏️ 수정</button>'
@@ -709,6 +709,16 @@ async function insertImages(files, editorId) {
 /* ========= HELPERS ========= */
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+// 예전 버그로 이미지 주소가 구글 드라이브 "보기 페이지"(.../view) 그대로 저장된 옛 질문/답변도
+// 화면에 보여줄 때 실제 이미지 주소(thumbnail)로 바꿔서 보이게 함(저장된 데이터 자체는 그대로 둠)
+function fixDriveImgSrc(html) {
+  if (!html) return html;
+  return html.replace(/<img([^>]*)src="([^"]*drive\.google\.com[^"]*)"/gi, function(full, attrs, src){
+    var m = src.match(/\/d\/([^\/]+)/) || src.match(/[?&]id=([^&]+)/);
+    if (!m) return full;
+    return '<img' + attrs + 'src="https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1600"';
+  });
 }
 
 function relTime(str) {
