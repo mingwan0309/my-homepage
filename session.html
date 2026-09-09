@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>차시 — 김민관 수학</title>
-<script src="firebase-api.js?v=26"></script>
+<script src="firebase-api.js?v=27"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
 <style>
@@ -2756,7 +2756,9 @@ async function gradeSubmissions(showAlert){
 }
 
 // ── 답안 등록 (OMR 자동채점용) ──
-var akRows=[]; // [{q, correct(1-5 또는 null=제외), points}]
+var akRows=[]; // [{q, correct(복수정답 배열 또는 null=제외), points}]
+// r.correct는 항상 "배열 또는 null"로 정규화해서 다룬다(예전 데이터는 단일값(숫자/문자열)일 수 있어 배열로 감싸줌 — 복수정답 지원, 2026-09-09)
+function akToArr(correct){ return Array.isArray(correct)?correct:(correct==null?[]:[correct]); }
 // 정답은 exams가 아니라 교사 전용 컬렉션에 있으므로 필요할 때 따로 불러온다
 async function fetchExamKey(examId){
   try{
@@ -2823,10 +2825,18 @@ function renderAnswerKeyRows(){
     var answerCell;
     if(isShort){
       // 분수(/)·마이너스·루트(√)가 필요할 수 있어서 기본 키보드 대신 계산기 버튼 키패드로만 입력하게 함
-      answerCell='<input type="text" readonly placeholder="탭해서 입력" value="'+(r.correct==null?'':escHtmlAk(r.correct))+'" onclick="openAkKeypad('+r.q+')" style="width:100px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;background:#fff;cursor:pointer;">';
+      // 복수정답 지원: 등록된 답을 칩으로 보여주고 "+ 답 추가"로 여러 개 등록 가능
+      var chips=akToArr(r.correct).map(function(v,i){
+        return '<span style="display:inline-flex;align-items:center;gap:4px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:14px;padding:4px 6px 4px 10px;font-size:12px;color:#3730a3;">'+escHtmlAk(v)
+          +'<button type="button" onclick="removeAkShortAnswer('+r.q+','+i+')" style="border:none;background:none;color:#6366f1;cursor:pointer;font-size:13px;line-height:1;padding:0 2px;">✕</button></span>';
+      }).join('');
+      answerCell='<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;">'+chips
+        +'<button type="button" onclick="openAkKeypad('+r.q+')" style="padding:5px 10px;border:1.5px dashed #c7d2fe;border-radius:14px;background:#fff;color:#4338ca;font-size:12px;cursor:pointer;white-space:nowrap;">+ 답 추가</button></div>';
     } else {
+      // 복수정답 지원: 여러 보기를 동시에 정답으로 선택 가능(다시 누르면 선택 해제)
+      var activeArr=akToArr(r.correct);
       answerCell='<div style="display:flex;gap:5px;">'+[1,2,3,4,5].map(function(o){
-        var active=r.correct===o;
+        var active=activeArr.indexOf(o)>=0;
         return '<button type="button" onclick="setAkCorrect('+r.q+','+o+')" style="width:30px;height:30px;border-radius:50%;border:1.5px solid '+(active?'#1e293b':'#e2e8f0')+';background:'+(active?'#1e293b':'#fff')+';color:'+(active?'#fff':'#334155')+';font-size:13px;font-weight:700;cursor:pointer;">'+o+'</button>';
       }).join('')+'</div>';
     }
@@ -2852,20 +2862,33 @@ function setAkType(q,type){
   r.correct = null;
   renderAnswerKeyRows();
 }
-function setAkShortAnswer(q,val){
+function addAkShortAnswer(q,val){
   var r=akRows.find(function(x){return x.q===q;});
-  if(r) r.correct = String(val||'').trim() || null;
+  if(!r) return;
+  val=String(val||'').trim();
+  if(!val) return;
+  var arr=akToArr(r.correct).slice();
+  if(arr.indexOf(val)<0) arr.push(val);
+  r.correct = arr.length ? arr : null;
   updateAkTotal();
 }
+function removeAkShortAnswer(q,idx){
+  var r=akRows.find(function(x){return x.q===q;});
+  if(!r) return;
+  var arr=akToArr(r.correct).slice();
+  arr.splice(idx,1);
+  r.correct = arr.length ? arr : null;
+  renderAnswerKeyRows();
+}
 // ── 주관식(숫자) 정답 입력용 계산기 키패드 — 분수(/)·마이너스·루트(√) 입력 지원 ──
+// 복수정답 지원: 키패드는 매번 "새 답 추가"용이라 항상 빈 값으로 시작(기존 답은 칩으로 이미 표시돼 있음)
 var akKeypadQ=null;
 var AK_KEYPAD_KEYS=['7','8','9','⌫','4','5','6','/','1','2','3','√','0','.','-','C'];
 function openAkKeypad(q){
   akKeypadQ=q;
-  var r=akRows.find(function(x){return x.q===q;});
   document.getElementById('ak-keypad-qlabel').textContent=q;
   var disp=document.getElementById('ak-keypad-display');
-  disp.textContent=(r&&r.correct!=null)?String(r.correct):' ';
+  disp.textContent=' ';
   var el=document.getElementById('ak-keypad-buttons');
   el.innerHTML=AK_KEYPAD_KEYS.map(function(k){
     return '<button type="button" onclick="akKeypadPress(\''+k+'\')" style="min-height:42px;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;font-size:15px;font-weight:700;color:#334155;cursor:pointer;">'+k+'</button>';
@@ -2886,7 +2909,7 @@ function akKeypadDone(){
   if(akKeypadQ==null) return;
   var disp=document.getElementById('ak-keypad-display');
   var v=disp.textContent===' '?'':disp.textContent.trim();
-  setAkShortAnswer(akKeypadQ, v);
+  if(v) addAkShortAnswer(akKeypadQ, v);
   closeAkKeypad();
   renderAnswerKeyRows();
 }
@@ -2894,9 +2917,15 @@ function closeAkKeypad(){
   document.getElementById('ak-keypad-panel').style.display='none';
   akKeypadQ=null;
 }
+// 복수정답 지원: opt를 다시 누르면 정답에서 빼고, 안 눌린 보기를 누르면 추가(여러 개 동시에 정답 가능). opt===null이면 완전히 비움("제외" 버튼)
 function setAkCorrect(q,opt){
   var r=akRows.find(function(x){return x.q===q;});
-  if(r) r.correct=opt;
+  if(!r) return;
+  if(opt===null){ r.correct=null; renderAnswerKeyRows(); return; }
+  var arr=akToArr(r.correct).slice();
+  var idx=arr.indexOf(opt);
+  if(idx>=0) arr.splice(idx,1); else arr.push(opt);
+  r.correct = arr.length ? arr : null;
   renderAnswerKeyRows();
 }
 function setAkPoints(q,val){
@@ -3109,13 +3138,16 @@ function akParseMathValue(s){
 }
 // 객관식은 값 그대로 비교, 주관식(숫자 기입형)은 "5"/"05"/"5.0"/"3/4"(=0.75)처럼 표기가
 // 달라도 같은 값이면 정답 처리(둘 다 숫자로 못 바꾸면 문자열 비교로 대체 — 예: √2)
+// 복수정답 지원: correct가 배열이면 그 중 하나라도 맞으면 정답 처리(예전 단일값 데이터도 배열로 감싸서 동일하게 처리)
 function akAnswerMatches(given, correct, type){
-  if(type==='short'){
-    var na=akParseMathValue(given), nb=akParseMathValue(correct);
-    if(!isNaN(na)&&!isNaN(nb)) return Math.abs(na-nb)<1e-9;
-    return String(given==null?'':given).trim()===String(correct==null?'':correct).trim();
-  }
-  return given===correct;
+  return akToArr(correct).some(function(c){
+    if(type==='short'){
+      var na=akParseMathValue(given), nb=akParseMathValue(c);
+      if(!isNaN(na)&&!isNaN(nb)) return Math.abs(na-nb)<1e-9;
+      return String(given==null?'':given).trim()===String(c==null?'':c).trim();
+    }
+    return given===c;
+  });
 }
 function gradeWithAnswerKey(answers, answerKey){
   var score=0, total=0;

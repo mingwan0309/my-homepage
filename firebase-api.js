@@ -886,13 +886,17 @@ function parseMathValue(s){
 }
 // 객관식은 그대로 값 비교, 주관식(숫자 기입형)은 "5"/"05"/"5.0"/"3/4"(=0.75)처럼 표기가
 // 달라도 같은 값이면 정답 처리되도록 숫자로 변환해서 비교(둘 다 숫자로 못 바꾸면 문자열 비교로 대체 — 예: √2)
+// 복수정답 지원: correct가 배열이면 그 중 하나라도 맞으면 정답 처리(예전 단일값 데이터도 배열로 감싸서 동일하게 처리)
 function answerMatches(given, correct, type){
-  if (type === 'short') {
-    var na = parseMathValue(given), nb = parseMathValue(correct);
-    if (!isNaN(na) && !isNaN(nb)) return Math.abs(na-nb) < 1e-9;
-    return String(given==null?'':given).trim() === String(correct==null?'':correct).trim();
-  }
-  return given === correct;
+  var arr = Array.isArray(correct) ? correct : (correct==null ? [] : [correct]);
+  return arr.some(function(c){
+    if (type === 'short') {
+      var na = parseMathValue(given), nb = parseMathValue(c);
+      if (!isNaN(na) && !isNaN(nb)) return Math.abs(na-nb) < 1e-9;
+      return String(given==null?'':given).trim() === String(c==null?'':c).trim();
+    }
+    return given === c;
+  });
 }
 
 /* === 학생 실시간 응시 (수업 중에만 열림) === */
