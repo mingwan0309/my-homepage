@@ -111,6 +111,12 @@ function init(){
   var noticeItems=[];
   window.mkOpenNoticeModal=openNoticeModal;
 
+  window.mkSetChatBubbleVisible=function(visible){
+    var b=document.getElementById('mk-chat-bubble');
+    var p=document.getElementById('mk-chat-panel');
+    if(b) b.style.display = visible ? '' : 'none';
+    if(p && !visible){ p.classList.remove('open'); panelOpen=false; }
+  };
   function togglePanel(){
     panelOpen=!panelOpen;
     document.getElementById('mk-chat-panel').classList.toggle('open', panelOpen);
