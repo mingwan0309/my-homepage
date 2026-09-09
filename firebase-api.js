@@ -2555,7 +2555,7 @@ window.fetch = function(url, opts){
           return fakeResponse(result);
         }).catch(function(err){
           console.error('[firebase-api] POST ' + postAction + ' 오류:', err);
-          return fakeResponse({ success:false, error:String(err) });
+          return fakeResponse({ success:false, msg:(err&&err.message)||String(err), error:String(err) });
         });
       }
       return _origFetch(url, opts);
@@ -2569,7 +2569,7 @@ window.fetch = function(url, opts){
         return fakeResponse(result);
       }).catch(function(err){
         console.error('[firebase-api] ' + action + ' 오류:', err);
-        return fakeResponse({ success:false, error:String(err) });
+        return fakeResponse({ success:false, msg:(err&&err.message)||String(err), error:String(err) });
       });
     }
     console.warn('[firebase-api] 미구현 액션: ' + action + ' → Apps Script로 전달');
