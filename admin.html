@@ -2646,6 +2646,7 @@ async function checkMcHourReminders(){
       var text=m.name+' 학생, '+changeLabel+'의무클리닉 1시간 전('+m.time+')입니다. 잊지 말고 와주세요!';
       if(student&&student.studentPhone) msgs.push({phone:student.studentPhone, name:m.name, className:'의무클리닉', sessionNum:today.dateStr, message:text});
       if(student&&student.parentPhone) msgs.push({phone:student.parentPhone, name:m.name, className:'의무클리닉', sessionNum:today.dateStr, message:text});
+      msgs.push({phone:'01062519244', name:m.name, className:'의무클리닉', sessionNum:today.dateStr, message:text});
       if(!msgs.length) continue;
       try{
         var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
@@ -2803,6 +2804,7 @@ async function checkClinicHourReminders(){
       var b=candidates[i];
       var text=b.name+' 학생, 클리닉('+b.clinicName+') 1시간 전('+b.time+')입니다. 잊지 말고 와주세요!';
       var msgs=cbPhoneMsgs(b.studentPhone,b.parentPhone,b.name,text);
+      msgs.push({phone:'01062519244', name:b.name, className:'클리닉', sessionNum:today, message:text});
       if(!msgs.length) continue;
       try{
         var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});

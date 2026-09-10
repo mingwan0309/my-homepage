@@ -680,6 +680,8 @@ function sendAlimtalkMessages(rawMessages) {
 
 var FIRESTORE_PROJECT_ID = 'mkmath-54f5d';
 var KOR_DAY_NAMES = ['일','월','화','수','목','금','토'];
+// 의무클리닉/클리닉 1시간 전 알림을 선생님 본인 번호로도 같이 보내기 위함 (2026-09-10 추가)
+var TEACHER_NOTIFY_PHONE = '01062519244';
 
 function firestoreBaseUrl() {
   return 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT_ID + '/databases/(default)/documents';
@@ -791,6 +793,7 @@ function sendMcHourReminders() {
       var msgs = [];
       if (student.studentPhone) msgs.push({ phone: student.studentPhone, name: m.name, className: '의무클리닉', sessionNum: today.dateStr, message: text });
       if (student.parentPhone)  msgs.push({ phone: student.parentPhone,  name: m.name, className: '의무클리닉', sessionNum: today.dateStr, message: text });
+      msgs.push({ phone: TEACHER_NOTIFY_PHONE, name: m.name, className: '의무클리닉', sessionNum: today.dateStr, message: text });
       if (!msgs.length) return;
 
       var result = sendAlimtalkMessages(msgs);
@@ -843,6 +846,7 @@ function sendClinicHourReminders() {
       var msgs = [];
       msgs.push({ phone: b.studentId, name: name, className: '클리닉', sessionNum: today.dateStr, message: text });
       if (student && student.parentPhone) msgs.push({ phone: student.parentPhone, name: name, className: '클리닉', sessionNum: today.dateStr, message: text });
+      msgs.push({ phone: TEACHER_NOTIFY_PHONE, name: name, className: '클리닉', sessionNum: today.dateStr, message: text });
 
       var result = sendAlimtalkMessages(msgs);
       if (result.success) {
