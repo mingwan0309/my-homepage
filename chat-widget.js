@@ -123,8 +123,12 @@ function init(){
     if(panelOpen) markRead();
   }
   function markRead(){
+    // .set(merge:true)는 문서가 없어도 새로 만들어버려서, 채팅을 한 번도 안 보낸 학생이
+    // 채팅 버블을 열기만 해도 이름 없는 빈 채팅방이 계속 생기는 문제가 있었음(선생님 화면에
+    // "(알 수 없음)"으로 쌓임). .update()는 문서가 없으면 실패하므로 실제로 대화가 시작된
+    // 방에서만 읽음 처리가 되도록 바꿈(없으면 조용히 무시).
     window.mkdbReady.then(function(db){
-      db.collection('chat_threads').doc(studentId).set({unreadForStudent:0},{merge:true}).catch(function(){});
+      db.collection('chat_threads').doc(studentId).update({unreadForStudent:0}).catch(function(){});
     });
   }
   function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

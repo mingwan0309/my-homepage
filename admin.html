@@ -3630,8 +3630,11 @@ function updateChatNavBadge(){
 }
 function renderChatThreads(){
   var box=document.getElementById('chat-thread-list');
-  if(!chatThreadsCache.length){box.innerHTML='<div style="padding:20px;color:#94a3b8;font-size:13px;text-align:center;">아직 온 문의가 없습니다.</div>';return;}
-  box.innerHTML=chatThreadsCache.map(function(t){
+  // 채팅 버블만 열어보고 메시지는 한 번도 안 보낸 학생은 빈 채팅방(이름도 메시지도 없음)으로
+  // 남을 수 있어서(예전 markRead 버그로 생긴 것 포함) 목록에서 걸러냄
+  var visible=chatThreadsCache.filter(function(t){ return t.studentName || t.lastMessage; });
+  if(!visible.length){box.innerHTML='<div style="padding:20px;color:#94a3b8;font-size:13px;text-align:center;">아직 온 문의가 없습니다.</div>';return;}
+  box.innerHTML=visible.map(function(t){
     var unread=t.unreadForTeacher||0;
     var displayName=t.studentName||t.studentId||'(알 수 없음)';
     var initial=displayName.slice(0,1);
