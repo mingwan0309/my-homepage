@@ -2198,6 +2198,30 @@ function parseDateTimeLocal(dateStr, timeStr){
   var dp = (dateStr||'').split('-'), tp = (timeStr||'0:0').split(':');
   return new Date(Number(dp[0]), Number(dp[1])-1, Number(dp[2]), Number(tp[0]), Number(tp[1]));
 }
+// 조교 급여를 10일마다 지급해서 달력 월 단위로는 매번 직접 더해야 하는 문제 — "마지막 입금완료 날짜 이후" 근무/비용 기록을
+// 월 구분 없이 전부 모아서 내려줌(월 단위 계산은 기존 getWorkLogs/getExpenseLogs 그대로 유지, 이건 별도 누적용)
+api.getAssistantPayrollData = function(db, p){
+  var aid = String(p.assistantId);
+  return Promise.all([
+    db.collection('work_logs').where('assistantId','==',aid).get(),
+    db.collection('expense_logs').where('assistantId','==',aid).get(),
+    db.collection('assistants').doc(aid).get()
+  ]).then(function(res){
+    var logs = docsToArr(res[0]).map(function(r){
+      return { id:r.id, date:r.date||'', clockIn:r.clockIn||'', clockOut:r.clockOut||'', workTypeId:r.workTypeId||'', breakMin:Number(r.breakMin||0) };
+    });
+    var exps = docsToArr(res[1]).map(function(r){
+      return { id:r.id, date:r.date||'', amount:Number(r.amount||0), description:r.description||'' };
+    });
+    var paidThroughDate = (res[2].exists && res[2].data().paidThroughDate) || '';
+    return { logs:logs, expenses:exps, paidThroughDate:paidThroughDate };
+  });
+};
+api.setAssistantPaidThrough = function(db, p){
+  return db.collection('assistants').doc(String(p.assistantId)).update({ paidThroughDate:String(p.date||'') })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
 api.getExpenseLogs = function(db, p){
   var q = db.collection('expense_logs').where('yearMonth','==',String(p.yearMonth||''));
   return q.get().then(function(snap){

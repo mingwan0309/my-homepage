@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=28"></script>
+<script src="firebase-api.js?v=29"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -4300,6 +4300,7 @@ function renderAstLogDetail(astId){
     +'<div style="font-size:12px;color:#64748b;margin-top:2px;">📅 출근일수: '+dates.size+'일 &nbsp;⏱ 총 근무시간: '+minToHM(totalMin)+' &nbsp;💰 총 급여: ₩'+net.toLocaleString()+'</div></div></div>'
     +'<button onclick="openWlogModal(\''+astId+'\')" class="btn-primary">+ 기록 생성</button>'
     +'</div>'
+    +'<div id="ast-cum-card" style="margin-bottom:16px;color:#94a3b8;font-size:12.5px;">누적 급여 불러오는 중...</div>'
     +(wtBadges?'<div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px;">근무 유형</div><div style="display:flex;gap:6px;flex-wrap:wrap;">'+wtBadges+'</div></div>':'')
     +'<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">'
     +'<thead><tr style="background:#f8fafc;">'
@@ -4319,6 +4320,52 @@ function renderAstLogDetail(astId){
     +'<tr><td colspan="7" style="text-align:right;padding:6px 10px;font-size:12px;color:#64748b;">세금 공제 (-3.3%)</td><td style="padding:6px 10px;font-size:12px;color:#dc2626;">-₩'+tax.toLocaleString()+'</td><td></td></tr>'
     +'<tr><td colspan="7" style="text-align:right;padding:10px;font-size:14px;font-weight:900;border-top:2px solid #e2e8f0;">공제 후 총액</td><td style="padding:10px;font-size:14px;font-weight:900;color:#1e293b;border-top:2px solid #e2e8f0;">₩'+net.toLocaleString()+'</td><td></td></tr>'
     +'</tfoot></table></div>';
+  loadAstCumulativePay(astId);
+}
+// ── 누적(미지급) 급여 — 10일마다 급여가 나가서 매달 기준으로는 계산이 번거롭다는 요청으로,
+// "마지막으로 입금완료 표시한 날짜 이후" 근무 기록만 월 구분 없이 전부 더해서 보여줌
+function todayStr(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+async function loadAstCumulativePay(astId){
+  var el=document.getElementById('ast-cum-card');
+  if(!el)return;
+  try{
+    var r=await fetch(SU+'?action=getAssistantPayrollData&assistantId='+encodeURIComponent(astId)).then(function(r){return r.json();});
+    if(document.getElementById('ast-cum-card')!==el)return; // 그 사이 다른 조교를 선택했으면 무시
+    var paidThrough=r.paidThroughDate||'';
+    var logs=(r.logs||[]).filter(function(l){ return l.clockOut && (!paidThrough || l.date>paidThrough); });
+    var exps=(r.expenses||[]).filter(function(e){ return !paidThrough || e.date>paidThrough; });
+    var gross=0;
+    logs.forEach(function(l){
+      var wt=wtList.find(function(w){return w.id===l.workTypeId;});
+      if(!wt)return;
+      var workMin=workMinutes(l.clockIn,l.clockOut,l.breakMin);
+      gross+=Math.round((workMin/60)*wt.hourlyRate);
+    });
+    exps.forEach(function(e){ gross+=e.amount; });
+    var tax=Math.round(gross*0.033);
+    var net=gross-tax;
+    el.innerHTML='<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px 16px;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">'
+      +'<div><div style="font-size:12px;color:#166534;font-weight:700;">💰 누적 미지급 급여'+(paidThrough?' (마지막 입금완료: '+paidThrough+' 이후)':' (입금완료 기록 없음, 전체 누적)')+'</div>'
+      +'<div style="font-size:22px;font-weight:900;color:#15803d;">₩'+net.toLocaleString()+'</div></div>'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+      +'<input type="date" id="ast-paid-date-'+astId+'" value="'+todayStr()+'" style="padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:13px;">'
+      +'<button onclick="markAstPaidThrough(\''+astId+'\')" style="background:#16a34a;color:#fff;border:none;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">이 날짜까지 입금완료</button>'
+      +'</div></div></div>';
+  }catch(e){
+    el.innerHTML='<div style="color:#dc2626;font-size:12.5px;">누적 급여 불러오기 실패</div>';
+  }
+}
+async function markAstPaidThrough(astId){
+  var input=document.getElementById('ast-paid-date-'+astId);
+  var date=input?input.value:todayStr();
+  if(!date){ alert('날짜를 선택해주세요.'); return; }
+  if(!confirm(date+'까지 근무 내역을 입금완료로 표시할까요?\n(이 날짜 이전 내역은 앞으로 누적 급여 계산에서 빠져요 — 실제 근무 기록이 지워지는 건 아니에요)'))return;
+  await fetch(SU+'?action=setAssistantPaidThrough&assistantId='+encodeURIComponent(astId)+'&date='+encodeURIComponent(date)).then(function(r){return r.json();});
+  loadAstCumulativePay(astId);
 }
 
 function wlogTab(tab,el){
