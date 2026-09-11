@@ -505,8 +505,14 @@ a{text-decoration:none;}
     <div style="position:absolute;bottom:0;left:0;width:100%;height:52px;background:linear-gradient(transparent,#000);pointer-events:none;"></div>
     <div style="position:absolute;bottom:0;left:0;width:170px;height:52px;background:#000;pointer-events:none;"></div>
     <div id="yt-click-shield" onclick="toggleYtPlay()" style="position:absolute;inset:0;cursor:pointer;"></div>
-    <div id="yt-seek-bar" onclick="seekYt(event)" style="position:absolute;bottom:8px;left:12px;right:12px;height:5px;background:rgba(255,255,255,0.3);border-radius:3px;cursor:pointer;z-index:5;">
-      <div id="yt-seek-fill" style="height:100%;width:0%;background:#ff3b3b;border-radius:3px;pointer-events:none;"></div>
+    <!-- 우리가 직접 만든 재생바 (구간 이동용) — 학생들이 "손으로 밀기 힘들다"고 해서(얇고 클릭만 되던 예전 버전),
+         실제로 손가락이 닿는 영역(#yt-seek-hit)을 훨씬 넓게 만들고 손잡이(동그라미)를 붙여서 드래그로 끌 수 있게 함(2026-09-11) -->
+    <div id="yt-seek-hit" onpointerdown="seekYtPointerDown(event)" onpointermove="seekYtPointerMove(event)" onpointerup="seekYtPointerUp(event)" onpointercancel="seekYtPointerUp(event)" style="position:absolute;bottom:2px;left:12px;right:12px;height:20px;z-index:5;cursor:pointer;touch-action:none;">
+      <div id="yt-seek-bar" style="position:absolute;bottom:7px;left:0;right:0;height:5px;background:rgba(255,255,255,0.3);border-radius:3px;">
+        <div id="yt-seek-fill" style="position:relative;height:100%;width:0%;background:#ff3b3b;border-radius:3px;pointer-events:none;">
+          <div style="position:absolute;right:-8px;top:50%;transform:translateY(-50%);width:16px;height:16px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 0 3px rgba(255,255,255,.35);"></div>
+        </div>
+      </div>
     </div>
     <button onclick="skipYt(-10,event)" style="position:absolute;bottom:18px;left:12px;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;height:28px;padding:0 8px;font-size:12px;font-weight:700;cursor:pointer;z-index:5;">⏪10</button>
     <button onclick="skipYt(10,event)" style="position:absolute;bottom:18px;left:66px;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;height:28px;padding:0 8px;font-size:12px;font-weight:700;cursor:pointer;z-index:5;">10⏩</button>
@@ -1914,16 +1920,33 @@ function toggleYtPlay(){
     if(state===1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
   }catch(e){}
 }
-function seekYt(e){
+var ytSeekDragging=false;
+function seekYtApply(clientX, commit){
   if(!ytPlayer||!ytReady) return;
-  e.stopPropagation();
   try{
     var bar=document.getElementById('yt-seek-bar');
     var rect=bar.getBoundingClientRect();
-    var frac=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width));
-    var dur=ytPlayer.getDuration();
-    if(dur>0){ ytPlayer.seekTo(dur*frac,true); document.getElementById('yt-seek-fill').style.width=(frac*100)+'%'; }
+    var frac=Math.min(1,Math.max(0,(clientX-rect.left)/rect.width));
+    document.getElementById('yt-seek-fill').style.width=(frac*100)+'%';
+    if(commit){ var dur=ytPlayer.getDuration(); if(dur>0) ytPlayer.seekTo(dur*frac,true); }
   }catch(e){}
+}
+function seekYtPointerDown(e){
+  e.stopPropagation();
+  ytSeekDragging=true;
+  try{ e.target.setPointerCapture(e.pointerId); }catch(err){}
+  seekYtApply(e.clientX, true);
+}
+function seekYtPointerMove(e){
+  if(!ytSeekDragging) return;
+  e.stopPropagation();
+  seekYtApply(e.clientX, false);
+}
+function seekYtPointerUp(e){
+  if(!ytSeekDragging) return;
+  e.stopPropagation();
+  ytSeekDragging=false;
+  seekYtApply(e.clientX, true);
 }
 function cycleYtSpeed(e){
   e.stopPropagation();
