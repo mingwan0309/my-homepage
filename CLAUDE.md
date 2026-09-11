@@ -177,6 +177,7 @@
   - ⛶ 커스텀 전체화면 버튼으로 wrapper div를 requestFullscreen
   - 이 구조는 class.html과 textbook.html에 동일하게 구현된 openVideo/closeYtModal/toggleYtFullscreen/toggleYtPlay/seekYt/cycleYtSpeed 함수. **다른 페이지에 영상 재생 추가 시 반드시 이 구조를 그대로 복사해서 재사용할 것** (부분적으로만 막으면 클릭 차단에 구멍이 생김 — 여러 번 시행착오 끝에 "전체를 덮는 방식"이 유일하게 확실한 해결책임이 확인됨).
   - 영상 카드에 뜨는 배지는 "YouTube"가 아니라 **"강의 영상"**이라고 표시 (브랜딩 노출 최소화).
+  - **전체화면 버튼이 안 눌리는 문제 수정 (2026-09-12).** ⛶ 버튼이 `wrap.requestFullscreen()`만 호출했는데, 아이폰 사파리(특히 카카오톡/인스타그램 인앱 브라우저)는 `<video>`가 아닌 일반 div에 대한 전체화면 API를 지원 안 하거나 호출이 조용히 실패하는 경우가 많아서 버튼이 반응 없는 것처럼 보였음. `toggleYtFullscreen()`을 정식 Fullscreen API 시도 → 실패(예외 또는 프라미스 거부)하면 **CSS로 화면 전체를 덮는 가짜 전체화면**(`.yt-fake-fullscreen` 클래스, `position:fixed;inset:0;width:100vw;height:100vh;z-index:99999`)으로 확실하게 대체하도록 수정 — 정식 API를 지원 안 하는 기기에서도 무조건 동작함. `closeYtModal()`에서도 이 클래스를 정리(remove)하도록 같이 수정. class.html/mypage.html/textbook.html 세 곳에 동일 구현(영상 재생 구조 자체가 이 세 파일에 중복 구현돼 있으므로).
   - **핀치줌 허용 (2026-09-08 추가).** 사이트 전체 `<meta viewport>`가 `user-scalable=no`라 원래 화면 확대가 전혀 안 됨(실수로 확대돼서 레이아웃 깨지는 걸 막기 위한 의도적 설정) — 근데 학생이 강의 영상 속 작은 글씨(문제 화면 등)를 확대해서 봐야 할 때가 있어서, 영상 재생 중에만 예외로 확대를 허용함. `openVideo()`에서 viewport meta를 확대 가능한 값으로 바꾸고, `closeYtModal()`에서 원래 값으로 되돌림(`setViewportZoomable()`, class.html/mypage.html/textbook.html 세 곳에 동일 구현).
 - 자료실 카테고리: PDF 자료 / 손필기 자료 / 영상 자료 (예전 "자습용 자료"·"암기자료"는 통합 삭제됨, 기존 데이터는 자동으로 "PDF 자료"로 매핑).
 - 자료/영상 확인 현황: 교사는 각 자료 옆 "확인 N/M" 버튼으로 학생별 확인 여부, 영상은 시청 진도(%)까지 볼 수 있음 (`material_views` 컬렉션).

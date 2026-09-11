@@ -248,6 +248,8 @@ tr:hover td{background:#fafbff;}
   .btn-add-mat,.btn-add-session{min-height:44px;padding:11px 16px;font-size:13.5px;}
   #stu-add-btns button{min-height:44px;padding:11px 14px;font-size:13px;}
 }
+/* 정식 전체화면 API가 안 먹는 기기(아이폰 인앱 브라우저 등)용 CSS 가짜 전체화면 */
+.yt-fake-fullscreen{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;border-radius:0!important;aspect-ratio:auto!important;z-index:99999!important;}
 </style>
 </head>
 <body>
@@ -1463,7 +1465,10 @@ function openVideo(url,id){
 function closeYtModal(){
   setViewportZoomable(false);
   if(window.mkSetChatBubbleVisible) window.mkSetChatBubbleVisible(true);
+  var ytWrap0=document.getElementById('yt-player-wrap');
+  if(ytWrap0) ytWrap0.classList.remove('yt-fake-fullscreen');
   if(document.fullscreenElement) document.exitFullscreen();
+  else if(document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
   if(ytProgressTimer){clearInterval(ytProgressTimer);ytProgressTimer=null;}
   if(ytPlayer&&ytWatchingMatId&&session.role==='student'){
     try{
@@ -1521,11 +1526,30 @@ function cycleYtSpeed(e){
   try{ ytPlayer.setPlaybackRate(rate); }catch(err){}
   document.getElementById('yt-speed-btn').textContent=rate.toFixed(1)+'x';
 }
+// 전체화면 버튼 — 아이폰 사파리(특히 카카오톡/인스타 인앱 브라우저)는 iframe을 감싼 div에
+// requestFullscreen()을 아예 지원 안 하거나 조용히 실패하는 경우가 많아서 버튼이 "안 눌리는" 것처럼 보였음(2026-09-12).
+// 정식 전체화면 API가 실패하면 CSS로 화면 전체를 덮는 가짜 전체화면으로 확실하게 대체함.
 function toggleYtFullscreen(e){
   if(e) e.stopPropagation();
   var wrap=document.getElementById('yt-player-wrap');
-  if(!document.fullscreenElement) wrap.requestFullscreen();
-  else document.exitFullscreen();
+  if(document.fullscreenElement || document.webkitFullscreenElement){
+    if(document.exitFullscreen) document.exitFullscreen();
+    else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+    return;
+  }
+  if(wrap.classList.contains('yt-fake-fullscreen')){
+    wrap.classList.remove('yt-fake-fullscreen');
+    return;
+  }
+  var req = wrap.requestFullscreen || wrap.webkitRequestFullscreen || wrap.webkitEnterFullscreen;
+  if(req){
+    try{
+      var p = req.call(wrap);
+      if(p && typeof p.catch==='function') p.catch(function(){ wrap.classList.add('yt-fake-fullscreen'); });
+    }catch(err){ wrap.classList.add('yt-fake-fullscreen'); }
+  } else {
+    wrap.classList.add('yt-fake-fullscreen');
+  }
 }
 function skipYt(sec,e){
   if(e) e.stopPropagation();
