@@ -270,9 +270,11 @@ tr:hover td{background:#fafbff;}
   th,td{padding:10px 10px;}
   .memo-input{width:150px;font-size:16px;padding:10px;}
   /* 메시지 발송 모달 — 폰에서는 3단을 세로로 쌓기 */
-  .msg-body-grid{grid-template-columns:1fr !important;overflow-y:auto !important;}
-  .msg-body-grid > div{border-left:none !important;border-right:none !important;border-bottom:1px solid #f1f5f9;height:auto !important;min-height:0 !important;padding:16px !important;}
-  #msg-target-list{max-height:none;}
+  #msg-modal .modal{max-height:94vh !important;overflow-y:auto !important;overflow-x:hidden !important;-webkit-overflow-scrolling:touch;}
+  #msg-modal .modal > div{flex-shrink:0 !important;}
+  .msg-body-grid{display:block !important;overflow:visible !important;flex:none !important;}
+  .msg-body-grid > div{border-left:none !important;border-right:none !important;border-bottom:8px solid #f1f5f9;height:auto !important;min-height:0 !important;max-height:none !important;overflow:visible !important;padding:16px !important;box-sizing:border-box;}
+  #msg-target-list{max-height:260px !important;overflow-y:auto !important;}
   #msg-template{rows:8;min-height:180px;font-size:16px;}
   .modal input,.modal select,.modal textarea{font-size:16px;}
   /* 발송 모달 푸터 버튼 세로 정렬 */
