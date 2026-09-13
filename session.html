@@ -2632,11 +2632,14 @@ function renderExamList(){
   body.innerHTML=exams.map(function(ex){
     var hasKey = ex.hasAnswerKey || Number(ex.questionCount||0)>0;
     // 응시 열기/닫기를 목록에서 바로 — 수업 중에 상세까지 들어가지 않아도 되게
-    var liveBtn = !hasKey
+    // 실전모의고사는 폰 응시가 아니라 OMR 스캔으로 채점하므로 이 버튼 자체가 필요 없음
+    var liveBtn = ex.examType==='mock'
+      ? ''
+      : (!hasKey
       ? '<span style="font-size:11px;color:#cbd5e1;white-space:nowrap;">답안 등록 필요</span>'
       : (ex.submitOpen
         ? '<button type="button" onclick="event.stopPropagation();toggleExamOpenFromList(\''+ex.id+'\')" style="background:#dc2626;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;min-height:38px;">■ 마감</button>'
-        : '<button type="button" onclick="event.stopPropagation();toggleExamOpenFromList(\''+ex.id+'\')" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;min-height:38px;">▶ 응시 시작</button>');
+        : '<button type="button" onclick="event.stopPropagation();toggleExamOpenFromList(\''+ex.id+'\')" style="background:#16a34a;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;min-height:38px;">▶ 응시 시작</button>'));
     var openBadge = ex.submitOpen ? '<span style="margin-left:6px;font-size:10px;font-weight:800;color:#16a34a;background:#dcfce7;padding:2px 7px;border-radius:20px;">🟢 응시 중</span>' : '';
     return '<div onclick="openExamDetail(\''+ex.id+'\')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border:1px solid '+(ex.submitOpen?'#86efac':'#e2e8f0')+';border-radius:10px;margin-bottom:10px;cursor:pointer;background:'+(ex.submitOpen?'#f0fdf4':'#fff')+';flex-wrap:wrap;">'
       +'<div style="flex:1;min-width:120px;">'
