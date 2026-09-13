@@ -646,6 +646,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       </div>
       <div id="hwtest-pane-test" style="display:none;">
         <p style="font-size:12px;color:#94a3b8;margin:-4px 0 14px;">시험 점수 입력 화면에서 '미통과'이거나, 조교/교사가 직접 '미응시'로 표시한 학생만 모아서 보여줘요. 재시험을 보고 '해결' 처리하면 이 목록에서 빠져요.</p>
+        <input type="text" id="test-name-search" placeholder="🔍 학생 이름으로 찾기" oninput="renderTestManageList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:16px;margin-bottom:12px;font-family:inherit;">
+        <style>@media(min-width:769px){#test-name-search{font-size:14px!important;}}</style>
         <div id="testmanage-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
     </div>
@@ -3286,8 +3288,11 @@ function renderTestManageList(){
   var el=document.getElementById('testmanage-list');
   var srcList=testmanageList;
   if(astHasMyStudents()) srcList=srcList.filter(function(t){ return cu.studentIds.indexOf(t.studentId)>-1; });
+  var searchEl=document.getElementById('test-name-search');
+  var searchQ=searchEl?searchEl.value.trim():'';
+  if(searchQ) srcList=srcList.filter(function(t){ return (t.studentName||'').indexOf(searchQ)>-1; });
   if(!srcList.length){
-    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">🎉 재시험이 필요한 학생이 없어요.</div>';
+    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">'+(searchQ?'🔍 \''+escHtml(searchQ)+'\' 이름과 일치하는 학생이 없어요.':'🎉 재시험이 필요한 학생이 없어요.')+'</div>';
     return;
   }
   var groups={}, order=[];
