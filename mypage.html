@@ -1363,7 +1363,7 @@ async function onHwFileSelected(e){
 // ── 재시험/보충 필요 시험 (미통과·미응시 + 사진 증빙 업로드, 숙제 증빙과 동일한 패턴) ──
 var EXAM_KIND_LABEL={nosub:'미통과',absent:'미응시'};
 var myExamItems=[], examUploadTargetId='';
-var EXAM_MAX_PHOTOS=6;
+var EXAM_MAX_PHOTOS=12;
 async function loadMyExamAlerts(){
   try{
     var r=await fetch(SU+'?action=getMyExamAlerts&studentId='+encodeURIComponent(session.id)).then(function(r){return r.json();});
