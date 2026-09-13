@@ -489,12 +489,12 @@ tr:hover td{background:#fafbff;}
         </div>
         <div>
           <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">시험 유형 <span style="font-weight:400;color:#94a3b8;">(학생 누적성적표에서 이 유형끼리 묶임)</span></label>
-          <select id="exam-detail-type" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
+          <select id="exam-detail-type" onchange="toggleExamTimelimitField('exam-detail-type','exam-detail-timelimit-wrap')" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
             <option value="daily">데일리테스트</option>
             <option value="mock">실전 모의고사</option>
           </select>
         </div>
-        <div>
+        <div id="exam-detail-timelimit-wrap">
           <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;">학생 실시간 응시 제한시간 <span style="font-weight:400;color:#94a3b8;">(분, 비우면 기본 20분)</span></label>
           <input id="exam-detail-timelimit" type="number" min="0" placeholder="비우면 20분" style="width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;">
         </div>
@@ -866,12 +866,12 @@ tr:hover td{background:#fafbff;}
       <div class="fg"><label>시험 이름</label><input type="text" id="exam-name-input" placeholder="예: 실전모의고사 1회"></div>
       <div class="fg">
         <label>시험 유형 <span style="font-weight:400;color:#94a3b8;">(학생 누적성적표에서 이 유형끼리 묶여서 그래프로 보여요)</span></label>
-        <select id="exam-type-input" style="width:100%;padding:11px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;box-sizing:border-box;">
+        <select id="exam-type-input" onchange="toggleExamTimelimitField('exam-type-input','exam-timelimit-wrap')" style="width:100%;padding:11px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;box-sizing:border-box;">
           <option value="daily">데일리테스트</option>
           <option value="mock">실전 모의고사</option>
         </select>
       </div>
-      <div class="fg">
+      <div class="fg" id="exam-timelimit-wrap">
         <label>학생 실시간 응시 제한시간 <span style="font-weight:400;color:#94a3b8;">(분, 비우면 기본 20분)</span></label>
         <input type="number" id="exam-timelimit-input" min="0" placeholder="비우면 20분">
       </div>
@@ -2261,10 +2261,17 @@ async function saveScore(){
 // 시험 추가
 var examCopySource=null; // 참고 목록에서 '복사' 누른 시험 설정(있으면 커트라인 등을 그대로 이어받음)
 var allClassExams=[];
+// 실전모의고사는 OMR 스캔으로 채점하고 핸드폰 실시간 응시는 안 쓰므로, 유형이 모의고사면 제한시간 입력칸을 숨김
+function toggleExamTimelimitField(selectId, wrapId){
+  var sel=document.getElementById(selectId), wrap=document.getElementById(wrapId);
+  if(!sel||!wrap) return;
+  wrap.style.display = (sel.value==='mock') ? 'none' : '';
+}
 async function openAddExam(){
   document.getElementById('exam-name-input').value='';
   document.getElementById('exam-type-input').value='daily';
   document.getElementById('exam-timelimit-input').value='';
+  toggleExamTimelimitField('exam-type-input','exam-timelimit-wrap');
   examCopySource=null;
   document.getElementById('exam-copy-status').style.display='none';
   document.getElementById('add-exam-modal').classList.add('show');
@@ -2312,12 +2319,13 @@ function copyExamSetting(e){
   document.getElementById('exam-name-input').value=e.name;
   document.getElementById('exam-type-input').value=e.examType||'daily';
   document.getElementById('exam-timelimit-input').value=e.timeLimitMin||'';
+  toggleExamTimelimitField('exam-type-input','exam-timelimit-wrap');
   var st=document.getElementById('exam-copy-status');
   st.style.display='';
   st.textContent='"'+e.name+'" 시험의 설정(입력방식/총문항수/커트라인)을 그대로 가져와요.';
 }
 function closeAddExam(){document.getElementById('add-exam-modal').classList.remove('show');}
-function setExamPreset(name){document.getElementById('exam-name-input').value=name;document.getElementById('exam-type-input').value='daily';examCopySource=null;document.getElementById('exam-copy-status').style.display='none';}
+function setExamPreset(name){document.getElementById('exam-name-input').value=name;document.getElementById('exam-type-input').value='daily';toggleExamTimelimitField('exam-type-input','exam-timelimit-wrap');examCopySource=null;document.getElementById('exam-copy-status').style.display='none';}
 function setExamPresetNum(prefix){
   var cur=document.getElementById('exam-name-input').value;
   var m=cur.match(/(\d+)/);
@@ -2325,6 +2333,7 @@ function setExamPresetNum(prefix){
   var next=cur.startsWith(prefix)?(n+1):1;
   document.getElementById('exam-name-input').value=prefix+' '+next+'회';
   document.getElementById('exam-type-input').value='mock';
+  toggleExamTimelimitField('exam-type-input','exam-timelimit-wrap');
   examCopySource=null;document.getElementById('exam-copy-status').style.display='none';
 }
 async function saveExam(){
@@ -2587,6 +2596,7 @@ function openExamDetail(examId){
   document.getElementById('exam-detail-cutoff').value=ex.passCutoff||'';
   document.getElementById('exam-detail-type').value=ex.examType||'daily';
   document.getElementById('exam-detail-timelimit').value=ex.timeLimitMin||'';
+  toggleExamTimelimitField('exam-detail-type','exam-detail-timelimit-wrap');
   renderExamOpenState(ex);
   gradeSubmissions(false); // 학생이 폰으로 제출해둔 답안이 있으면 조용히 채점해서 성적에 넣어줌
   setScoreType(ex.scoreType||'score');
