@@ -2565,16 +2565,22 @@ function renderMcList(){
     var isMovedAway = m.targetDay===today.dayName && (m.type==='temp' ? m.date!==today.dateStr : m.day!==today.dayName);
     var comesOnLabel = m.type==='temp' ? m.date : (m.day+'요일');
     return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;'+(isMovedAway?'opacity:0.75;':'')+'">'
-      +'<div style="min-width:160px;"><span style="font-weight:700;font-size:14px;">'+m.name+'</span>'
-      +'<span style="margin-left:8px;font-size:12px;color:#64748b;">🚶 '+comesOnLabel+' '+m.time+'에 옴</span>'
+      +'<div style="min-width:200px;">'
+      // 1줄: 이름 + 반 + (이번 주만/정규 변경)
+      +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+      +'<span style="font-weight:700;font-size:14px;">'+m.name+'</span>'
+      +(m.className?'<span style="font-size:10px;font-weight:700;color:#7c3aed;background:#f5f3ff;padding:2px 7px;border-radius:20px;">'+escHtml(m.className)+'</span>':'')
       +(m.type==='temp'
-        ?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#c2410c;background:#fff7ed;padding:2px 7px;border-radius:20px;">이번 주만</span>'
-        :'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#0891b2;background:#ecfeff;padding:2px 7px;border-radius:20px;">정규 변경</span>')
-      +(m.targetDay?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#3b6cf7;background:#eff6ff;padding:2px 7px;border-radius:20px;">📌 '+m.targetDay+'요일 결석분 보충</span>':'')
+        ?'<span style="font-size:10px;font-weight:700;color:#c2410c;background:#fff7ed;padding:2px 7px;border-radius:20px;">이번 주만</span>'
+        :'<span style="font-size:10px;font-weight:700;color:#0891b2;background:#ecfeff;padding:2px 7px;border-radius:20px;">정규 변경</span>')
+      +'</div>'
+      // 2줄: 실제로 오는 시간 → 그게 어느 요일 몫인지, 한 문장으로
+      +'<div style="font-size:12.5px;color:#334155;margin-top:3px;">🚶 <b>'+comesOnLabel+' '+m.time+'</b>에 옴'
+      +(m.targetDay?' <span style="color:#94a3b8;">→</span> 📌 <b>'+m.targetDay+'요일</b> 결석분 보충':'')
+      +'</div>'
       +(isMovedAway
-        ?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#94a3b8;background:#f1f5f9;padding:2px 7px;border-radius:20px;">↪ 오늘('+today.dayName+'요일)엔 안 옴, '+comesOnLabel+'에 옴</span>'
-        :'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#16a34a;background:#f0fdf4;padding:2px 7px;border-radius:20px;">✅ 오늘 옴</span>')
-      +(m.className?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#7c3aed;background:#f5f3ff;padding:2px 7px;border-radius:20px;">'+escHtml(m.className)+'</span>':'')
+        ?'<div style="margin-top:3px;font-size:11px;font-weight:700;color:#94a3b8;">↪ 오늘('+today.dayName+'요일)엔 안 옴 — 참고용 표시</div>'
+        :'')
       +(m.memo?'<div style="font-size:11px;color:#94a3b8;margin-top:2px;">'+m.memo+'</div>':'')
       +(isTeacher&&markedBy?'<div style="font-size:10px;color:#94a3b8;margin-top:2px;">✓ '+markedBy+'님이 체크함</div>':'')
       +lastLogHtml+'</div>'
