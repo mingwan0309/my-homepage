@@ -1165,7 +1165,7 @@ api.submitHwProof = function(db, p){
   var urls=[];
   try{ urls = JSON.parse(p.urls||'[]'); }catch(e){ urls=[]; }
   if (!Array.isArray(urls)) urls=[];
-  urls = urls.filter(function(u){ return u; }).slice(0,6);
+  urls = urls.filter(function(u){ return u; }).slice(0,10);
   return db.collection('hw_status').doc(key).set({
     id:key, sessionId:String(p.sessionId), studentId:String(p.studentId), hwId:String(p.hwId),
     submissionUrl:urls, submittedAt:nowStr()
@@ -1589,7 +1589,7 @@ api.submitExamProof = function(db, p){
   var urls=[];
   try{ urls = JSON.parse(p.urls||'[]'); }catch(e){ urls=[]; }
   if (!Array.isArray(urls)) urls=[];
-  urls = urls.filter(function(u){ return u; }).slice(0,6);
+  urls = urls.filter(function(u){ return u; }).slice(0,12);
   return db.collection('scores').doc(String(p.id)).set({
     examSubmissionUrl:urls, examSubmittedAt:nowStr()
   },{merge:true}).then(function(){
