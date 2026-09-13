@@ -2065,6 +2065,12 @@ api.deleteAstTaskItem = function(db, p){
   return db.collection('ast_task_items').doc(String(p.id)).delete()
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
+api.updateAstTaskItem = function(db, p){
+  var text = String(p.text||'').trim();
+  if (!text) return Promise.resolve({ success:false, msg:'항목을 입력해주세요.' });
+  return db.collection('ast_task_items').doc(String(p.id)).update({ text:text })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
 
 api.getWorkTypes = function(db){
   return db.collection('work_types').get().then(function(snap){

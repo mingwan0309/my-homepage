@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=32"></script>
+<script src="firebase-api.js?v=33"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -3618,17 +3618,41 @@ function updateAttSelectAllState(){
   var all=document.getElementById('att-select-all');
   all.checked = boxes.length>0 && Array.prototype.every.call(boxes, function(b){return b.checked;});
 }
+var attEditingId=null;
 function renderAttItemList(){
   var el=document.getElementById('att-item-list');
   if(!attTaskItems.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:8px 0;">아직 등록된 항목이 없어요. 아래에서 추가해보세요.</div>'; return; }
   el.innerHTML=attTaskItems.map(function(it){
+    if(attEditingId===it.id){
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">'
+        +'<input type="text" id="att-edit-input-'+it.id+'" value="'+escHtml(it.text)+'" style="flex:1;padding:8px 10px;border:1.5px solid #3b6cf7;border-radius:7px;font-size:13.5px;outline:none;font-family:inherit;">'
+        +'<button type="button" onclick="saveAstTaskItemUI(\''+it.id+'\')" style="background:none;border:none;color:#16a34a;font-size:12px;font-weight:700;cursor:pointer;">저장</button>'
+        +'<button type="button" onclick="attEditingId=null;renderAttItemList();" style="background:none;border:none;color:#94a3b8;font-size:12px;font-weight:700;cursor:pointer;">취소</button>'
+        +'</div>';
+    }
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">'
       +'<label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;">'
       +'<input type="checkbox" class="att-item-check" value="'+escHtml(it.text)+'" onchange="updateAttPreview()"> '+escHtml(it.text)
       +'</label>'
-      +'<button type="button" onclick="deleteAstTaskItemUI(\''+it.id+'\')" style="background:none;border:none;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;">삭제</button>'
+      +'<button type="button" onclick="attEditingId=\''+it.id+'\';renderAttItemList();" style="background:none;border:none;color:#3b6cf7;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">✏️ 수정</button>'
+      +'<button type="button" onclick="deleteAstTaskItemUI(\''+it.id+'\')" style="background:none;border:none;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">삭제</button>'
       +'</div>';
   }).join('');
+}
+async function saveAstTaskItemUI(id){
+  var input=document.getElementById('att-edit-input-'+id);
+  var text=input?input.value.trim():'';
+  if(!text){ alert('항목을 입력해주세요.'); return; }
+  var r=await fetch(SU+'?action=updateAstTaskItem&id='+encodeURIComponent(id)+'&text='+encodeURIComponent(text)).then(function(r){return r.json();});
+  if(r.success){
+    var it=attTaskItems.find(function(x){return x.id===id;});
+    if(it) it.text=text;
+    attEditingId=null;
+    renderAttItemList();
+    updateAttPreview();
+  } else {
+    alert(r.msg||'저장 실패했어요.');
+  }
 }
 async function addAstTaskItemUI(){
   var input=document.getElementById('att-new-item');
