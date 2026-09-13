@@ -172,6 +172,25 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
   .vid-drop-head{padding:14px 15px;font-size:14.5px;min-height:48px;}
   /* 검색창 */
   input[type="text"],input[type="search"],input[type="date"],input[type="tel"],select{font-size:16px;}
+  /* 학생 추가 폼 등 여러 입력칸 가로 나열 -> 줄바꿈 */
+  .fr{flex-wrap:wrap;}
+  .fr .fg{flex:1 1 140px;min-width:140px;}
+  /* 목록 검색창 등 고정폭 입력 -> 전체폭 */
+  #stu-search,#ast-search{width:100%!important;}
+  #btn-bulk-parent{width:100%;}
+  #btn-bulk-parent,#stu-search{flex:1 1 100%;}
+  /* 영상/부교재 강의 등록 폼의 2~3단 그리드 -> 1단 */
+  #page-videos .card>div[style*="grid-template-columns:1fr 1fr"],
+  #page-textbookvideos .card>div[style*="grid-template-columns:1fr 1fr 1fr"]{grid-template-columns:1fr!important;}
+  /* 1:1 문의 - 목록/대화창 좌우 배치 -> 위아래로 쌓기 */
+  #page-chat>div[style*="grid-template-columns:280px 1fr"]{grid-template-columns:1fr!important;height:auto!important;}
+  #page-chat #chat-thread-list{max-height:220px;overflow-y:auto;}
+  #page-chat [style*="border-right:1px solid #f1f5f9"]{border-right:none!important;border-bottom:1px solid #f1f5f9;}
+  #page-chat #chat-active-view,#page-chat #chat-empty-state{min-height:360px;}
+  /* 조교 근태기록 - 조교목록/상세 좌우 배치 -> 위아래로 쌓기 */
+  #ast-tab-logs>div[style*="align-items:flex-start"]{flex-direction:column;}
+  #ast-tab-logs>div[style*="align-items:flex-start"]>div{width:100%!important;}
+  #ast-log-list{max-height:280px!important;}
 }.chat-thread-item{display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #f1f5f9;}
 .chat-thread-item:hover{background:#f8fafc;}
 .chat-thread-item.active{background:#eff6ff;}
