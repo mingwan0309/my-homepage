@@ -2045,6 +2045,27 @@ api.setAssistantActive = function(db, p){
 api.deleteAssistant = function(db, p){
   return db.collection('assistants').doc(String(p.id)).delete().then(function(){ return { success:true }; });
 };
+/* === 조교 "오늘 할 일" 체크리스트 항목 관리 (2026-09-13 추가) === */
+// 자주 시키는 일들을 미리 등록해두고, 발송할 때 그 중에서 골라 체크하는 용도. 목록 자체는 그냥 저장소 역할만 함
+// (실제 발송은 클라이언트가 체크된 항목 텍스트를 모아서 sendAlimtalk을 직접 호출 — 이 API는 목록 관리 전용)
+api.getAstTaskItems = function(db){
+  return db.collection('ast_task_items').get().then(function(snap){
+    return { items: docsToArr(snap).sort(function(a,b){return (a.createdAt||'')<(b.createdAt||'')?-1:1;})
+      .map(function(r){ return { id:r.id, text:r.text||'' }; }) };
+  });
+};
+api.addAstTaskItem = function(db, p){
+  var text = String(p.text||'').trim();
+  if (!text) return Promise.resolve({ success:false, msg:'항목을 입력해주세요.' });
+  var id = genId('ati');
+  return db.collection('ast_task_items').doc(id).set({ id:id, text:text, createdAt:nowStr() })
+    .then(function(){ return { success:true, id:id }; });
+};
+api.deleteAstTaskItem = function(db, p){
+  return db.collection('ast_task_items').doc(String(p.id)).delete()
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
 api.getWorkTypes = function(db){
   return db.collection('work_types').get().then(function(snap){
     return { workTypes: docsToArr(snap).sort(function(a,b){return (a.createdAt||'')>(b.createdAt||'')?1:-1;})

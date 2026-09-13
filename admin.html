@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=31"></script>
+<script src="firebase-api.js?v=32"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -295,6 +295,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div class="nav-group-body">
           <div class="nav-item" onclick="showPage('astguide',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📘</span> 조교 안내</div>
           <div class="nav-item" onclick="showPage('astcheck',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">✅</span> 체크리스트</div>
+          <div class="nav-item" onclick="showPage('asttask',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🔔</span> 할 일 알림</div>
         </div>
       </div>
       <div class="nav-group">
@@ -361,6 +362,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div class="nav-group-body">
           <div class="nav-item" onclick="showPage('astguide',this)"><span class="ni">📘</span> 조교 안내</div>
           <div class="nav-item" onclick="showPage('astcheck',this)"><span class="ni">✅</span> 체크리스트</div>
+          <div class="nav-item" onclick="showPage('asttask',this)"><span class="ni">🔔</span> 할 일 알림</div>
         </div>
       </div>
       <div class="nav-group">
@@ -987,6 +989,37 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <p style="font-size:12px;color:#94a3b8;margin-top:8px;">화면이 안 보이면 시트 공유 설정을 확인하세요. <a href="https://docs.google.com/spreadsheets/d/1XZ9W8pZhSG7mb5ZWLgiDsKnxQTfQTqd2_tO2_jK579I/edit" target="_blank" rel="noopener" style="color:#2563eb;font-weight:700;">새 탭에서 열기</a></p>
     </div>
 
+    <!-- 조교 할 일 알림 -->
+    <div id="page-asttask" class="page">
+      <div class="page-header"><div class="page-title">조교 할 일 알림</div></div>
+      <div class="card">
+        <div class="card-title">받을 조교</div>
+        <div style="margin-bottom:8px;">
+          <label style="font-size:12.5px;color:#64748b;cursor:pointer;"><input type="checkbox" id="att-select-all" onchange="toggleAttSelectAll(this)"> 전체 선택</label>
+        </div>
+        <div id="att-ast-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">체크리스트에서 고르기</div>
+        <p style="font-size:12.5px;color:#94a3b8;margin:-6px 0 12px;">체크한 항목이 메시지에 그대로 들어가요. 목록 자체는 계속 남아서 다음에도 재사용할 수 있어요.</p>
+        <div id="att-item-list" style="margin-bottom:12px;"></div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="att-new-item" placeholder="새 항목 추가 (예: 숙제 미제출자 재촉 알림 보내기)" style="flex:1;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;">
+          <button class="btn-primary" onclick="addAstTaskItemUI()">+ 추가</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">추가 전달사항 (선택)</div>
+        <textarea id="att-extra-note" rows="3" placeholder="오늘만 따로 전달할 내용이 있으면 적어주세요." style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;resize:vertical;"></textarea>
+      </div>
+      <div class="card">
+        <div class="card-title">미리보기</div>
+        <div id="att-preview" style="background:#f8fafc;border-radius:10px;padding:14px;font-size:13.5px;color:#334155;white-space:pre-wrap;line-height:1.6;min-height:24px;">선택한 항목이 여기에 미리보기로 나와요.</div>
+        <button class="btn-primary" style="margin-top:14px;" onclick="sendAstTaskAlert()">🔔 알림톡 발송하기</button>
+        <div id="att-msg" style="margin-top:8px;font-size:13px;"></div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -1219,7 +1252,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','astguide','astcheck'];
+    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','astguide','astcheck','asttask'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
@@ -1274,6 +1307,7 @@ function showPage(page,el){
     }
   }
   if(page==='survey') loadSurveys();
+  if(page==='asttask') loadAstTaskPage();
   if(page==='gamesettings') loadGameSettings();
   if(page==='typinggame') loadTypingSentenceList();
   location.hash = page;
@@ -3548,6 +3582,103 @@ async function svRenderResults(){
         }).join('')
       + '</tbody></table></div>';
   }catch(e){ body.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>'; }
+}
+
+// ── 조교 할 일 알림 (2026-09-13 추가) ──
+var attAssistants=[], attTaskItems=[];
+async function loadAstTaskPage(){
+  document.getElementById('att-ast-list').innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  document.getElementById('att-item-list').innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  try{
+    var r1=await fetch(SU+'?action=getAssistants').then(function(r){return r.json();});
+    attAssistants=(r1.assistants||[]).sort(function(a,b){return a.name<b.name?-1:1;});
+  }catch(e){ attAssistants=[]; }
+  try{
+    var r2=await fetch(SU+'?action=getAstTaskItems').then(function(r){return r.json();});
+    attTaskItems=r2.items||[];
+  }catch(e){ attTaskItems=[]; }
+  renderAttAssistantList();
+  renderAttItemList();
+  updateAttPreview();
+}
+function renderAttAssistantList(){
+  var el=document.getElementById('att-ast-list');
+  if(!attAssistants.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;">등록된 조교가 없어요.</div>'; return; }
+  el.innerHTML=attAssistants.map(function(a){
+    return '<label style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:20px;font-size:13px;cursor:pointer;">'
+      +'<input type="checkbox" class="att-ast-check" value="'+a.id+'" onchange="updateAttSelectAllState()"> '+escHtml(a.name)
+      +'</label>';
+  }).join('');
+}
+function toggleAttSelectAll(cb){
+  document.querySelectorAll('.att-ast-check').forEach(function(el){ el.checked=cb.checked; });
+}
+function updateAttSelectAllState(){
+  var boxes=document.querySelectorAll('.att-ast-check');
+  var all=document.getElementById('att-select-all');
+  all.checked = boxes.length>0 && Array.prototype.every.call(boxes, function(b){return b.checked;});
+}
+function renderAttItemList(){
+  var el=document.getElementById('att-item-list');
+  if(!attTaskItems.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:8px 0;">아직 등록된 항목이 없어요. 아래에서 추가해보세요.</div>'; return; }
+  el.innerHTML=attTaskItems.map(function(it){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">'
+      +'<label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;">'
+      +'<input type="checkbox" class="att-item-check" value="'+escHtml(it.text)+'" onchange="updateAttPreview()"> '+escHtml(it.text)
+      +'</label>'
+      +'<button type="button" onclick="deleteAstTaskItemUI(\''+it.id+'\')" style="background:none;border:none;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;">삭제</button>'
+      +'</div>';
+  }).join('');
+}
+async function addAstTaskItemUI(){
+  var input=document.getElementById('att-new-item');
+  var text=input.value.trim();
+  if(!text) return;
+  var r=await fetch(SU+'?action=addAstTaskItem&text='+encodeURIComponent(text)).then(function(r){return r.json();});
+  if(r.success){
+    input.value='';
+    var r2=await fetch(SU+'?action=getAstTaskItems').then(function(r){return r.json();});
+    attTaskItems=r2.items||[];
+    renderAttItemList();
+  }
+}
+async function deleteAstTaskItemUI(id){
+  if(!confirm('이 항목을 목록에서 삭제할까요?'))return;
+  await fetch(SU+'?action=deleteAstTaskItem&id='+encodeURIComponent(id)).then(function(r){return r.json();});
+  attTaskItems=attTaskItems.filter(function(it){return it.id!==id;});
+  renderAttItemList();
+  updateAttPreview();
+}
+function buildAttMessage(){
+  var checked=Array.prototype.map.call(document.querySelectorAll('.att-item-check:checked'), function(el){return el.value;});
+  var extra=(document.getElementById('att-extra-note')||{}).value||'';
+  var lines=checked.map(function(t){ return '- '+t; });
+  if(extra.trim()) lines.push(extra.trim());
+  return lines.join('\n');
+}
+function updateAttPreview(){
+  var msg=buildAttMessage();
+  document.getElementById('att-preview').textContent = msg || '선택한 항목이 여기에 미리보기로 나와요.';
+}
+document.addEventListener('input', function(e){ if(e.target && e.target.id==='att-extra-note') updateAttPreview(); });
+async function sendAstTaskAlert(){
+  var msgEl=document.getElementById('att-msg');
+  var targetIds=Array.prototype.map.call(document.querySelectorAll('.att-ast-check:checked'), function(el){return el.value;});
+  if(!targetIds.length){ msgEl.style.color='#dc2626'; msgEl.textContent='받을 조교를 선택해주세요.'; return; }
+  var message=buildAttMessage();
+  if(!message.trim()){ msgEl.style.color='#dc2626'; msgEl.textContent='보낼 내용이 없어요. 체크리스트를 고르거나 전달사항을 입력해주세요.'; return; }
+  if(!confirm(targetIds.length+'명에게 아래 내용으로 알림톡을 보낼까요?\n(카카오 알림톡 발송 - 비용이 발생합니다)\n\n'+message))return;
+  msgEl.style.color='#64748b'; msgEl.textContent='발송 중...';
+  var today=new Date(); var todayStr2=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  var messages=targetIds.map(function(id){
+    var a=attAssistants.find(function(x){return x.id===id;});
+    return { phone:id, name:a?a.name:'', className:'오늘 할 일 안내', sessionNum:todayStr2, message:message };
+  });
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:messages})}).then(function(r){return r.json();});
+    if(r.success){ msgEl.style.color='#16a34a'; msgEl.textContent=messages.length+'명에게 발송 완료!'; }
+    else { msgEl.style.color='#dc2626'; msgEl.textContent=r.msg||'발송 실패했어요.'; }
+  }catch(e){ msgEl.style.color='#dc2626'; msgEl.textContent='발송 중 오류가 발생했어요.'; }
 }
 
 // ── 미니게임 - 똥피하기 설정(보너스 글자) ──
