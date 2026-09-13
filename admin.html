@@ -615,6 +615,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
             <input type="checkbox" id="mc-showall" onchange="toggleMcShowAll(this.checked)"> 등록된 학생 전체 보기(관리용)
           </label>
         </div>
+        <input type="text" id="mc-name-search" placeholder="🔍 학생 이름으로 찾기" oninput="renderMcList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:16px;margin-bottom:12px;font-family:inherit;">
+        <style>@media(min-width:769px){#mc-name-search{font-size:14px!important;}}</style>
         <div id="mc-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
     </div>
@@ -2546,8 +2548,11 @@ function renderMcList(){
     return m.day===today.dayName || m.targetDay===today.dayName;
   });
   if(astHasMyStudents()&&mcMineOnly) list=list.filter(function(m){ return cu.studentIds.indexOf(m.studentId)>-1; });
+  var searchEl=document.getElementById('mc-name-search');
+  var searchQ=searchEl?searchEl.value.trim():'';
+  if(searchQ) list=list.filter(function(m){ return (m.name||'').indexOf(searchQ)>-1; });
   if(!list.length){
-    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">'+(mcShowAll?'등록된 학생이 없습니다.':'오늘('+today.dayName+'요일)은 의무클리닉 대상 학생이 없습니다.')+'</div>';
+    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">'+(searchQ?'🔍 \''+escHtml(searchQ)+'\' 이름과 일치하는 학생이 없어요.':(mcShowAll?'등록된 학생이 없습니다.':'오늘('+today.dayName+'요일)은 의무클리닉 대상 학생이 없습니다.'))+'</div>';
     return;
   }
   var isTeacher=cu&&cu.role==='teacher';
