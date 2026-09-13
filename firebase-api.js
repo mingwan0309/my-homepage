@@ -144,10 +144,14 @@ api.login = function(db, p){
     });
     var tryParent = function(j){
       if (j >= parentCands.length) return { success:false };
-      return db.collection('students').where('parentPhone','==',parentCands[j]).limit(1).get().then(function(snap){
+      // 형제자매가 같은 학부모 번호를 쓸 수 있어서 limit(1) 대신 전체를 받아와야 함 —
+      // 그중 한 명만 비활성화(active:false)돼도 그 문서가 먼저 걸리면 다른 활성 자녀가 있는데도
+      // 로그인 자체가 막혀버리는 버그가 있었음(2026-09-14 발견). 활성 계정이 하나라도 있으면 그걸 씀.
+      return db.collection('students').where('parentPhone','==',parentCands[j]).get().then(function(snap){
         if (snap.empty) return tryParent(j+1);
-        var u = snap.docs[0].data(); var sid = snap.docs[0].id;
-        if (u.active === false) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
+        var activeDoc = snap.docs.find(function(d){ return d.data().active !== false; });
+        if (!activeDoc) return { success:false, msg:'비활성화된 계정입니다. 선생님께 문의해주세요.' };
+        var u = activeDoc.data(); var sid = activeDoc.id;
         var res = { success:true, role:'student', name:u.name||sid, classId:'', className:'', studentId:sid };
         if (!u.classId) return res;
         res.classId = String(u.classId);
@@ -218,16 +222,33 @@ api.addStudent = function(db, p){
       try { secondary = firebase.app('mk-secondary'); }
       catch(e) { secondary = firebase.initializeApp(firebase.app().options, 'mk-secondary'); }
       var parentPhone = String(p.parentPhone || '');
-      return secondary.auth().createUserWithEmailAndPassword(toAuthEmail(sid), toAuthPassword(pw))
-        .then(function(){ return secondary.auth().signOut(); })
-        .catch(function(){})
+      var warnings = [];
+      // 번호 재사용(예전에 삭제된 학생/조교의 Auth 계정이 그대로 남아있는 경우) 등으로
+      // 계정 생성이 실패하면, 예전엔 에러를 그냥 무시해서 "겉으로는 추가 성공"인데 실제로는
+      // 방금 입력한 비밀번호로 로그인이 안 되는(예전 비밀번호가 그대로 남은) 학생이 조용히 생기는
+      // 버그가 있었음(2026-09-14 발견) — 이제 충돌이 있으면 새 비밀번호로 실제 로그인되는지
+      // 검증해서, 안 되면 화면에 경고를 띄워 선생님이 콘솔에서 정리하도록 함.
+      var ensureAccount = function(email, pass, label){
+        return secondary.auth().createUserWithEmailAndPassword(email, pass)
+          .then(function(){ return secondary.auth().signOut(); })
+          .catch(function(err){
+            if (err && err.code === 'auth/email-already-in-use') {
+              return secondary.auth().signInWithEmailAndPassword(email, pass)
+                .then(function(){ return secondary.auth().signOut(); })
+                .catch(function(){
+                  warnings.push(label+' 계정이 이미 있는데 지금 입력한 비밀번호로 로그인이 안 돼요(예전 계정 충돌). Firebase 콘솔 Authentication에서 '+email+' 계정을 삭제 후 "계정 재발급"으로 다시 만들어주세요.');
+                  return secondary.auth().signOut().catch(function(){});
+                });
+            }
+            warnings.push(label+' 로그인 계정 생성 실패('+(err&&err.code||'')+')');
+          });
+      };
+      return ensureAccount(toAuthEmail(sid), toAuthPassword(pw), '학생')
         .then(function(){
           // 학부모 전화번호가 있으면 별도 로그인 계정 생성 (초기 비번 123456)
-          if (!parentPhone) return { success:true };
-          return secondary.auth().createUserWithEmailAndPassword(toAuthEmail(parentPhone), toAuthPassword('123456'))
-            .then(function(){ return secondary.auth().signOut(); })
-            .catch(function(){})
-            .then(function(){ return { success:true }; });
+          if (!parentPhone) return { success:true, warnings:warnings };
+          return ensureAccount(toAuthEmail(parentPhone), toAuthPassword('123456'), '학부모')
+            .then(function(){ return { success:true, warnings:warnings }; });
         });
     });
   });
