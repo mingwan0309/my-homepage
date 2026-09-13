@@ -887,6 +887,14 @@ function parseMathValue(s){
 // 객관식은 그대로 값 비교, 주관식(숫자 기입형)은 "5"/"05"/"5.0"/"3/4"(=0.75)처럼 표기가
 // 달라도 같은 값이면 정답 처리되도록 숫자로 변환해서 비교(둘 다 숫자로 못 바꾸면 문자열 비교로 대체 — 예: √2)
 // 복수정답 지원: correct가 배열이면 그 중 하나라도 맞으면 정답 처리(예전 단일값 데이터도 배열로 감싸서 동일하게 처리)
+// 주관식 문항인데 정답이 숫자로 안 바뀌는(한글/영어 등) 경우 — 부분점수가 있을 수 있어서 자동으로
+// 맞다/틀리다 채점하지 않고 선생님이 성적 패널에서 직접 점수를 매기게 함(session.html의 akIsManualQuestion과 동일 기준)
+function isManualShortQuestion(r){
+  if(!r||r.type!=='short') return false;
+  var arr=Array.isArray(r.correct)?r.correct:(r.correct==null?[]:[r.correct]);
+  if(!arr.length) return false;
+  return arr.some(function(c){ return isNaN(parseMathValue(c)); });
+}
 function answerMatches(given, correct, type){
   var arr = Array.isArray(correct) ? correct : (correct==null ? [] : [correct]);
   return arr.some(function(c){
@@ -1024,6 +1032,7 @@ api.submitExamAnswers = function(db, p){
           var score = 0, total = 0, wrongQuestions = [];
           key.forEach(function(r){
             if (r.correct == null) return;
+            if (isManualShortQuestion(r)) return; // 문자 정답 주관식은 자기채점(맞았는지 표시)에서 제외 — 선생님이 직접 채점
             total += Number(r.points) || 0;
             if (answerMatches(answers[r.q], r.correct, r.type)) score += Number(r.points) || 0;
             else wrongQuestions.push(r.q);
@@ -1052,12 +1061,19 @@ api.getExamSubmissions = function(db, p){
     return { submissions: docsToArr(snap).map(function(r){
       return { id:r.id, examId:r.examId, sessionId:r.sessionId, studentId:r.studentId,
         studentName:r.studentName||'', answers:r.answers||{}, graded:r.graded===true, submittedAt:r.submittedAt||'',
-        leaveCount:Number(r.leaveCount||0), leaveLog:r.leaveLog||[] };
+        leaveCount:Number(r.leaveCount||0), leaveLog:r.leaveLog||[], manualScores:r.manualScores||{} };
     }) };
   });
 };
 api.markSubmissionGraded = function(db, p){
   return db.collection('exam_submissions').doc(String(p.id)).update({ graded:true })
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+// 주관식(문자 정답) 문항에 선생님이 직접 매긴 점수 — {문항번호: 점수} 통째로 저장(교사/조교 전용, 규칙상 이미 허용됨)
+api.setSubmissionManualScore = function(db, p){
+  var manualScores = {};
+  try { manualScores = (typeof p.manualScores==='string') ? JSON.parse(p.manualScores) : (p.manualScores||{}); } catch(e) { manualScores = {}; }
+  return db.collection('exam_submissions').doc(String(p.id)).update({ manualScores: manualScores })
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 

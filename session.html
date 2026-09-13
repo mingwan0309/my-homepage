@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>차시 — 김민관 수학</title>
-<script src="firebase-api.js?v=29"></script>
+<script src="firebase-api.js?v=30"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
 <style>
@@ -404,6 +404,11 @@ tr:hover td{background:#fafbff;}
       <h3 id="panel-exam-name">시험명</h3>
       <div class="sub" id="panel-sub"></div>
       <div id="panel-leave-warn" style="display:none;background:#fef2f2;color:#dc2626;font-size:12px;font-weight:700;padding:8px 10px;border-radius:8px;margin-bottom:10px;"></div>
+      <!-- 주관식(문자 정답) 문항은 자동채점 대상이 아니라서, 학생이 실제로 낸 답을 보고 직접 점수를 매기는 영역 -->
+      <div id="panel-manual-area" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:800;color:#1d4ed8;margin-bottom:6px;">✍️ 주관식 문항 직접 채점 (문자 정답이라 자동채점 안 됨)</div>
+        <div id="panel-manual-rows"></div>
+      </div>
       <div class="score-input-wrap">
         <label>점수 <span id="panel-max-score" style="font-weight:400;color:#94a3b8;font-size:12px;"></span></label>
         <input class="score-input" type="number" id="panel-score" placeholder="—" oninput="autoPassFromScore()" onchange="autoPassFromScore()">
@@ -564,7 +569,7 @@ tr:hover td{background:#fafbff;}
         <span style="font-size:12px;font-weight:800;color:#475569;"><span id="ak-keypad-qlabel"></span>번 정답 입력</span>
         <button type="button" onclick="closeAkKeypad()" style="background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;">닫기</button>
       </div>
-      <div id="ak-keypad-display" style="min-height:36px;padding:8px 12px;background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;font-size:16px;font-weight:800;margin-bottom:8px;word-break:break-all;">&nbsp;</div>
+      <input id="ak-keypad-display" type="text" placeholder="숫자·한글·영어 직접 입력 가능" style="width:100%;box-sizing:border-box;min-height:36px;padding:8px 12px;background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;font-size:16px;font-weight:800;margin-bottom:8px;">
       <div id="ak-keypad-buttons" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;"></div>
     </div>
     <div class="modal-btns">
@@ -980,7 +985,7 @@ async function autoGradeSubmission(docId, s){
     if(!ex) return; // 이 화면에 없는 시험이면 다음에 그 화면에서 채점됨
     var key=await fetchExamKey(s.examId);
     if(!key.some(function(r){return r.correct!=null;})) return;
-    var g=gradeWithAnswerKey(s.answers||{}, key);
+    var g=gradeWithAnswerKey(s.answers||{}, key, s.manualScores);
     var cutoff0=getEffectiveCutoff(ex);
     var pass=(cutoff0!=null)?(Number(g.score)>=cutoff0?'submit':'nosub'):'';
     await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(s.examId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=&examLeaveCount='+encodeURIComponent(s.leaveCount||0)+'&examLeaveLog='+encodeURIComponent(JSON.stringify(s.leaveLog||[]))).then(function(r){return r.json();});
@@ -2041,6 +2046,63 @@ function openPanel(studentId, examId){
   updatePassBtns();
   renderPanelStats(examId, sc&&sc.score!==''?sc.score:'');
   document.getElementById('score-panel').classList.add('open');
+  loadPanelManualArea(studentId, examId);
+}
+// 주관식(문자 정답) 문항은 자동채점이 안 되므로, 학생이 실제로 낸 답을 보여주고 선생님이 직접 점수를 매기게 함(부분점수 가능)
+var panelManualSubId=null, panelManualExamId=null, panelManualKey=null, panelManualExamRef=null;
+async function loadPanelManualArea(studentId, examId){
+  var area=document.getElementById('panel-manual-area');
+  var rowsEl=document.getElementById('panel-manual-rows');
+  area.style.display='none'; rowsEl.innerHTML='';
+  panelManualSubId=null; panelManualExamId=null; panelManualKey=null; panelManualExamRef=null;
+  try{
+    var key=await fetchExamKey(examId);
+    var manualQs=(key||[]).filter(function(r){ return r.correct!=null && akIsManualQuestion(r); });
+    if(!manualQs.length) return;
+    var sr=await fetch(SU+'?action=getExamSubmissions&examId='+encodeURIComponent(examId)).then(function(r){return r.json();});
+    var sub=(sr.submissions||[]).find(function(s){return s.studentId===studentId;});
+    if(!sub) return; // 아직 폰으로 제출 안 했으면 매길 답 자체가 없음
+    if(panelStudentId!==studentId || panelExamId!==examId) return; // 패널이 그 사이 닫혔거나 다른 걸로 바뀌었으면 무시
+    panelManualSubId=sub.id; panelManualExamId=examId; panelManualKey=key;
+    panelManualExamRef=exams.find(function(e){return e.id===examId;});
+    var ms=sub.manualScores||{};
+    rowsEl.innerHTML=manualQs.map(function(r){
+      var given=(sub.answers||{})[r.q];
+      var cur=ms[r.q]!=null?ms[r.q]:'';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;flex-wrap:wrap;">'
+        +'<span style="font-size:12px;font-weight:700;color:#1d4ed8;width:30px;">'+r.q+'번</span>'
+        +'<span style="font-size:12px;color:#334155;flex:1;min-width:80px;">학생 답: '+(given!=null&&given!==''?escHtml(String(given)):'<span style="color:#94a3b8;">(무응답)</span>')+'</span>'
+        +'<input type="number" step="0.1" min="0" max="'+r.points+'" value="'+cur+'" id="panel-manual-input-'+r.q+'" style="width:60px;padding:5px 7px;border:1.5px solid #bfdbfe;border-radius:6px;font-size:12px;text-align:center;">'
+        +'<span style="font-size:11px;color:#94a3b8;">/ '+r.points+'점</span>'
+        +'</div>';
+    }).join('') + '<button type="button" onclick="savePanelManualScores()" style="margin-top:6px;width:100%;background:#1d4ed8;color:#fff;border:none;padding:8px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">✍️ 주관식 점수 저장(자동채점 점수에 합산)</button>';
+    area.style.display='';
+  }catch(e){}
+}
+async function savePanelManualScores(){
+  if(!panelManualSubId||!panelManualKey) return;
+  var manualQs=panelManualKey.filter(function(r){return r.correct!=null && akIsManualQuestion(r);});
+  var manualScores={};
+  manualQs.forEach(function(r){
+    var el=document.getElementById('panel-manual-input-'+r.q);
+    var v=el?(Number(el.value)||0):0;
+    v=Math.max(0,Math.min(Number(r.points)||0,v));
+    manualScores[r.q]=v;
+  });
+  await fetch(SU+'?action=setSubmissionManualScore&id='+encodeURIComponent(panelManualSubId)+'&manualScores='+encodeURIComponent(JSON.stringify(manualScores)));
+  var sr=await fetch(SU+'?action=getExamSubmissions&examId='+encodeURIComponent(panelManualExamId)).then(function(r){return r.json();});
+  var sub=(sr.submissions||[]).find(function(s){return s.id===panelManualSubId;});
+  if(!sub) return;
+  var g=gradeWithAnswerKey(sub.answers||{}, panelManualKey, manualScores);
+  var cutoff=getEffectiveCutoff(panelManualExamRef);
+  var pass=(cutoff!=null)?(Number(g.score)>=cutoff?'submit':'nosub'):panelPass;
+  document.getElementById('panel-score').value=g.score;
+  panelPass=pass; updatePassBtns();
+  await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(panelStudentId)+'&examId='+encodeURIComponent(panelManualExamId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback='+encodeURIComponent(document.getElementById('panel-feedback').value||'')).then(function(r){return r.json();});
+  await loadScores();
+  renderScores();
+  renderPanelStats(panelManualExamId, g.score);
+  alert('주관식 점수를 반영해서 저장했어요.');
 }
 
 function closePanel(){
@@ -2753,7 +2815,7 @@ async function gradeSubmissions(showAlert){
     if(!key.some(function(r){return r.correct!=null;})){ if(showAlert) alert('정답이 등록되어 있지 않아요.'); return; }
     for(var i=0;i<subs.length;i++){
       var s=subs[i];
-      var g=gradeWithAnswerKey(s.answers||{}, key);
+      var g=gradeWithAnswerKey(s.answers||{}, key, s.manualScores);
       var cutoff5=getEffectiveCutoff(ex);
       var pass=(cutoff5!=null)?(Number(g.score)>=cutoff5?'submit':'nosub'):'';
       await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId||sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=&examLeaveCount='+encodeURIComponent(s.leaveCount||0)+'&examLeaveLog='+encodeURIComponent(JSON.stringify(s.leaveLog||[]))).then(function(r){return r.json();});
@@ -2859,7 +2921,9 @@ function renderAnswerKeyRows(){
       +answerCell
       +ptCell
       +'<button type="button" onclick="setAkCorrect('+r.q+',null)" style="margin-left:auto;background:#f1f5f9;border:none;color:#94a3b8;font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;">제외</button>'
-      +(isShort?'<div style="width:100%;font-size:11px;color:#f59e0b;">⚠ 주관식 문항은 OMR 스캔 채점 대상이 아니에요(폰 응시만 지원)</div>':'')
+      +(isShort?('<div style="width:100%;font-size:11px;color:#f59e0b;">⚠ 주관식 문항은 OMR 스캔 채점 대상이 아니에요(폰 응시만 지원)'
+        +(akIsManualQuestion(r)?' · 정답이 문자라 자동채점 안 되고, 성적 패널에서 직접 점수를 매겨야 해요(부분점수 가능)':'')
+        +'</div>'):'')
       +'</div>';
   }).join('');
   updateAkTotal();
@@ -2898,7 +2962,8 @@ function openAkKeypad(q){
   akKeypadQ=q;
   document.getElementById('ak-keypad-qlabel').textContent=q;
   var disp=document.getElementById('ak-keypad-display');
-  disp.textContent=' ';
+  disp.value='';
+  disp.focus();
   var el=document.getElementById('ak-keypad-buttons');
   el.innerHTML=AK_KEYPAD_KEYS.map(function(k){
     return '<button type="button" onclick="akKeypadPress(\''+k+'\')" style="min-height:42px;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;font-size:15px;font-weight:700;color:#334155;cursor:pointer;">'+k+'</button>';
@@ -2908,17 +2973,20 @@ function openAkKeypad(q){
   panel.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function akKeypadPress(k){
+  // 텍스트 입력창이라 한글/영어는 그냥 직접 타이핑하면 되고, 이 버튼들은 분수(/)·마이너스·루트(√) 같은
+  // 폰 기본 키보드에 없거나 자판을 계속 바꿔야 하는 기호를 커서 끝에 덧붙이는 용도로만 씀
   var disp=document.getElementById('ak-keypad-display');
-  var v=disp.textContent===' '?'':disp.textContent;
+  var v=disp.value;
   if(k==='⌫') v=v.slice(0,-1);
   else if(k==='C') v='';
   else v+=k;
-  disp.textContent=v||' ';
+  disp.value=v;
+  disp.focus();
 }
 function akKeypadDone(){
   if(akKeypadQ==null) return;
   var disp=document.getElementById('ak-keypad-display');
-  var v=disp.textContent===' '?'':disp.textContent.trim();
+  var v=disp.value.trim();
   if(v) addAkShortAnswer(akKeypadQ, v);
   closeAkKeypad();
   renderAnswerKeyRows();
@@ -3159,11 +3227,22 @@ function akAnswerMatches(given, correct, type){
     return given===c;
   });
 }
-function gradeWithAnswerKey(answers, answerKey){
+// 주관식 문항인데 정답이 숫자로 안 바뀌는(한글/영어 등) 경우 — 부분점수가 있을 수 있어서
+// 자동으로 맞다/틀리다 판정하지 않고 선생님이 성적 패널에서 직접 점수를 매기게 함
+function akIsManualQuestion(r){
+  if(!r||r.type!=='short') return false;
+  var arr=akToArr(r.correct);
+  if(!arr.length) return false;
+  return arr.some(function(c){ return isNaN(akParseMathValue(c)); });
+}
+// manualScores: {q: 선생님이 직접 매긴 점수} — 아직 안 매겼으면 그 문항은 0점으로 반영(패널에서 나중에 더할 수 있음)
+function gradeWithAnswerKey(answers, answerKey, manualScores){
   var score=0, total=0;
+  manualScores=manualScores||{};
   (answerKey||[]).forEach(function(r){
     if(r.correct==null) return;
     total += Number(r.points)||0;
+    if(akIsManualQuestion(r)){ score += Number(manualScores[r.q])||0; return; }
     if(akAnswerMatches(answers[r.q], r.correct, r.type)) score += Number(r.points)||0;
   });
   return { score:Math.round(score*10)/10, total:Math.round(total*10)/10 };
