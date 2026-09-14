@@ -891,10 +891,12 @@ function sendClinicHourReminders() {
   }
 }
 
-// ── 숙제/재시험 증빙 사진 12시간 자동 완료 처리 (2026-09-14 추가) ──
+// ── 숙제/재시험 증빙 사진 6시간 자동 완료 처리 (2026-09-14 추가, 자동완료 후 12시간까지는
+// 목록에 "자동완료" 배지를 달고 계속 보이도록 2026-09-14 수정) ──
 // 학생이 숙제 증빙(hw_status) 또는 재시험 증빙(scores) 사진을 올렸는데 선생님/조교가
-// 12시간 안에 확인해서 완료 처리를 안 하면, 자동으로 완료 처리해줌 — 트리거에 등록해서
+// 6시간 안에 확인해서 완료 처리를 안 하면, 자동으로 완료 처리해줌 — 트리거에 등록해서
 // 1시간마다 실행시키는 함수(의무클리닉 1시간 전 알림 트리거와는 별개로 새로 등록 필요).
+var HW_AUTO_COMPLETE_HOURS = 6;
 function autoCompleteOldSubmissions() {
   try { autoCompleteOldHwProofs(); } catch (err) { Logger.log('[autoCompleteOldHwProofs] 오류: ' + err); }
   try { autoCompleteOldExamProofs(); } catch (err) { Logger.log('[autoCompleteOldExamProofs] 오류: ' + err); }
@@ -907,11 +909,14 @@ function autoCompleteOldHwProofs() {
     if (r.pass === 'complete' || r.pass === 'na') return false;
     var subDate = parseKstTimestamp(r.submittedAt);
     if (!subDate) return false;
-    return (kstNow.getTime() - subDate.getTime()) >= 12 * 60 * 60 * 1000;
+    return (kstNow.getTime() - subDate.getTime()) >= HW_AUTO_COMPLETE_HOURS * 60 * 60 * 1000;
   });
   targets.forEach(function(r){
-    var fields = { pass: 'complete', autoCompletedAt: mcTodayInfoSeoul().dateStr };
-    if (!r.feedback) fields.feedback = '제출하신 증빙이 12시간 동안 확인되지 않아 자동으로 완료 처리되었습니다.';
+    // autoCompleted(불리언)는 화면에서 "6시간 지나 자동완료됐지만 아직 12시간(제출 후) 안 지난 것"을
+    // 수동완료와 구분해서 계속 보여주는 용도 — pass는 그대로 'complete'로 둬서 급여/리더보드 등
+    // 기존 로직에는 영향 없게 함.
+    var fields = { pass: 'complete', autoCompleted: true, autoCompletedAt: mcTodayInfoSeoul().dateStr };
+    if (!r.feedback) fields.feedback = '제출하신 증빙이 ' + HW_AUTO_COMPLETE_HOURS + '시간 동안 확인되지 않아 자동으로 완료 처리되었습니다.';
     firestorePatchFields('hw_status', r.id, fields);
   });
 }
@@ -923,11 +928,11 @@ function autoCompleteOldExamProofs() {
     if (r.alertResolved) return false;
     var subDate = parseKstTimestamp(r.examSubmittedAt);
     if (!subDate) return false;
-    return (kstNow.getTime() - subDate.getTime()) >= 12 * 60 * 60 * 1000;
+    return (kstNow.getTime() - subDate.getTime()) >= HW_AUTO_COMPLETE_HOURS * 60 * 60 * 1000;
   });
   targets.forEach(function(r){
-    var fields = { alertResolved: true, autoCompletedAt: mcTodayInfoSeoul().dateStr };
-    if (!r.feedback) fields.feedback = '제출하신 증빙이 12시간 동안 확인되지 않아 자동으로 완료 처리되었습니다.';
+    var fields = { alertResolved: true, autoCompleted: true, autoCompletedAt: mcTodayInfoSeoul().dateStr };
+    if (!r.feedback) fields.feedback = '제출하신 증빙이 ' + HW_AUTO_COMPLETE_HOURS + '시간 동안 확인되지 않아 자동으로 완료 처리되었습니다.';
     firestorePatchFields('scores', r.id, fields);
   });
 }

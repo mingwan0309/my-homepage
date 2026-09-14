@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=34"></script>
+<script src="firebase-api.js?v=35"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -2999,8 +2999,9 @@ async function loadHwManage(){
   }
 }
 function renderHwCard(h){
-  var badgeColor = h.pass==='incomplete' ? '#dc2626' : '#ca8a04';
-  var badgeBg = h.pass==='incomplete' ? '#fee2e2' : '#fef9c3';
+  var badgeColor = h.autoCompleted ? '#16a34a' : (h.pass==='incomplete' ? '#dc2626' : '#ca8a04');
+  var badgeBg = h.autoCompleted ? '#f0fdf4' : (h.pass==='incomplete' ? '#fee2e2' : '#fef9c3');
+  var badgeLabel = h.autoCompleted ? '🤖 자동완료' : HW_STATUS_LABEL_ADMIN[h.pass];
   var subUrls = h.submissionUrls||[];
   var hasSubmission = subUrls.length>0;
   var photoLinks = hasSubmission
@@ -3030,12 +3031,14 @@ function renderHwCard(h){
     +photoLinks+lastRem
     +'</div>'
     +'</div>'
-    +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+HW_STATUS_LABEL_ADMIN[h.pass]+'</span>'
+    +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+badgeLabel+'</span>'
     +'</div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
-    +'<button class="hw-action-btn" onclick="sendHwReminder(\''+h.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 재촉 띵동띵동</button>'
-    +'<button class="hw-action-btn" onclick="markHwComplete(\''+h.id+'\')" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;">✓ 완료 처리</button>'
-    +'</div>'
+    +(h.autoCompleted
+      ? '<div style="font-size:11.5px;color:#16a34a;margin-top:10px;">⏱ 선생님/조교가 확인 전에 6시간이 지나서 자동으로 완료 처리됐어요. (제출 후 12시간까지만 이 목록에 표시돼요)</div>'
+      : '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
+        +'<button class="hw-action-btn" onclick="sendHwReminder(\''+h.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 재촉 띵동띵동</button>'
+        +'<button class="hw-action-btn" onclick="markHwComplete(\''+h.id+'\')" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;">✓ 완료 처리</button>'
+        +'</div>')
     +'</div>';
 }
 function renderHwManageList(){
@@ -3295,8 +3298,9 @@ async function loadTestManage(){
 }
 var TEST_KIND_LABEL={nosub:'미통과',absent:'미응시'};
 function renderTestCard(t){
-  var badgeColor = t.kind==='absent' ? '#475569' : '#dc2626';
-  var badgeBg = t.kind==='absent' ? '#f1f5f9' : '#fee2e2';
+  var badgeColor = t.autoCompleted ? '#16a34a' : (t.kind==='absent' ? '#475569' : '#dc2626');
+  var badgeBg = t.autoCompleted ? '#f0fdf4' : (t.kind==='absent' ? '#f1f5f9' : '#fee2e2');
+  var badgeLabel = t.autoCompleted ? '🤖 자동완료' : TEST_KIND_LABEL[t.kind];
   var lastRem = t.lastReminderAt ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">🔔 마지막 재촉: '+t.lastReminderAt+(t.lastReminderBy?' · '+t.lastReminderBy:'')+'</div>' : '';
   var subUrls = t.submissionUrls||[];
   var hasSubmission = subUrls.length>0;
@@ -3321,12 +3325,14 @@ function renderTestCard(t){
     +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(t.examName)+(t.score!==''?' · '+t.score+'점':'')+'</div>'
     +photoLinks+lastRem
     +'</div>'
-    +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+TEST_KIND_LABEL[t.kind]+'</span>'
+    +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+badgeLabel+'</span>'
     +'</div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
-    +'<button class="hw-action-btn" onclick="sendExamReminder(\''+t.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 재촉하기</button>'
-    +'<button class="hw-action-btn" onclick="markExamResolved(\''+t.id+'\')" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;">✓ 해결 처리</button>'
-    +'</div>'
+    +(t.autoCompleted
+      ? '<div style="font-size:11.5px;color:#16a34a;margin-top:10px;">⏱ 선생님/조교가 확인 전에 6시간이 지나서 자동으로 완료 처리됐어요. (제출 후 12시간까지만 이 목록에 표시돼요)</div>'
+      : '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
+        +'<button class="hw-action-btn" onclick="sendExamReminder(\''+t.id+'\')" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;">🔔 재촉하기</button>'
+        +'<button class="hw-action-btn" onclick="markExamResolved(\''+t.id+'\')" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;">✓ 해결 처리</button>'
+        +'</div>')
     +'</div>';
 }
 function renderTestManageList(){

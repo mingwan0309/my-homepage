@@ -1216,6 +1216,12 @@ api.markHwReminderSent = function(db, p){
   });
 };
 
+// "YYYY.MM.DD HH:MM"(nowStr()) 문자열을 타임스탬프(ms)로 변환 — 실패하면 null
+function parseNowStrMs(s){
+  var m = String(s||'').match(/^(\d{4})\.(\d{2})\.(\d{2})\s+(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]), Number(m[4]), Number(m[5])).getTime();
+}
 // submissionUrl 필드가 예전엔 문자열 하나였고 지금은 배열임 — 둘 다 안전하게 배열로 통일
 function hwUrlsToArray(v){
   if (Array.isArray(v)) return v.filter(function(u){ return u; });
@@ -1507,8 +1513,18 @@ api.deleteTypingSentence = function(db, p){
 };
 
 api.getIncompleteHomeworks = function(db){
-  return db.collection('hw_status').where('pass','in',['incomplete','partial','notsub']).get().then(function(snap){
-    var rows = docsToArr(snap);
+  return Promise.all([
+    db.collection('hw_status').where('pass','in',['incomplete','partial','notsub']).get(),
+    db.collection('hw_status').where('autoCompleted','==',true).get()
+  ]).then(function(snaps){
+    var rows = docsToArr(snaps[0]);
+    // 자동완료(6시간 경과)된 건도, 제출 후 12시간이 안 지났으면 "자동완료" 배지를 달고 계속 보여줌
+    // (12시간 지나면 화면에서 자연스럽게 빠짐 — 별도 정리 작업 불필요, 매번 지금 시각 기준으로 다시 계산)
+    var autoRows = docsToArr(snaps[1]).filter(function(r){
+      var ms = parseNowStrMs(r.submittedAt);
+      return ms !== null && (Date.now() - ms) < 12*60*60*1000;
+    });
+    rows = rows.concat(autoRows);
     if (!rows.length) return { items: [] };
     var hwIds=[], sessionIds=[], studentIds=[];
     rows.forEach(function(r){
@@ -1532,7 +1548,7 @@ api.getIncompleteHomeworks = function(db){
           var hw=hwMap[r.hwId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{}, stu=stuMap[r.studentId]||{};
           return {
             id:r.id, sessionId:String(r.sessionId), hwId:String(r.hwId), studentId:String(r.studentId),
-            pass:r.pass||'', feedback:r.feedback||'',
+            pass:r.pass||'', feedback:r.feedback||'', autoCompleted:r.autoCompleted===true,
             submissionUrls:hwUrlsToArray(r.submissionUrl), submittedAt:r.submittedAt||'',
             lastReminderAt:r.lastReminderAt||'', lastReminderBy:r.lastReminderBy||'', lastReminderText:r.lastReminderText||'', reminderLogs:r.reminderLogs||[],
             hwName:hw.name||'(삭제된 과제)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'', sessLabel:ses.label||'',
@@ -1540,8 +1556,9 @@ api.getIncompleteHomeworks = function(db){
             studentName:stu.name||r.studentId, studentPhone:r.studentId, parentPhone:stu.parentPhone||''
           };
         });
-        // 학생이 방금 사진을 올려 확인이 필요한 것부터, 그 다음 오래된 순
+        // 자동완료된 건 맨 아래로, 그 앞은 학생이 방금 사진을 올려 확인이 필요한 것부터, 그 다음 오래된 순
         items.sort(function(a,b){
+          if (a.autoCompleted !== b.autoCompleted) return a.autoCompleted ? 1 : -1;
           var aSub=a.submissionUrls.length?1:0, bSub=b.submissionUrls.length?1:0;
           if (aSub!==bSub) return bSub-aSub;
           return (a.sessionDate||'') < (b.sessionDate||'') ? -1 : 1;
@@ -1554,8 +1571,17 @@ api.getIncompleteHomeworks = function(db){
 
 // 재시험 필요(미통과) / 미응시 시험 목록 (완료 처리 안 된 것만, 숙제관리의 getIncompleteHomeworks와 동일한 패턴)
 api.getExamAlerts = function(db){
-  return db.collection('scores').where('pass','in',['nosub','absent']).get().then(function(snap){
-    var rows = docsToArr(snap).filter(function(r){ return !r.alertResolved; });
+  return Promise.all([
+    db.collection('scores').where('pass','in',['nosub','absent']).get(),
+    db.collection('scores').where('autoCompleted','==',true).get()
+  ]).then(function(snaps){
+    var rows = docsToArr(snaps[0]).filter(function(r){ return !r.alertResolved; });
+    // 자동완료(6시간 경과)된 건도, 제출 후 12시간이 안 지났으면 "자동완료" 배지를 달고 계속 보여줌
+    var autoRows = docsToArr(snaps[1]).filter(function(r){
+      var ms = parseNowStrMs(r.examSubmittedAt);
+      return ms !== null && (Date.now() - ms) < 12*60*60*1000;
+    });
+    rows = rows.concat(autoRows);
     if (!rows.length) return { items: [] };
     var examIds=[], sessionIds=[], studentIds=[];
     rows.forEach(function(r){
@@ -1579,7 +1605,7 @@ api.getExamAlerts = function(db){
           var ex=examMap[r.examId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{}, stu=stuMap[r.studentId]||{};
           return {
             id:r.id, sessionId:String(r.sessionId), examId:String(r.examId), studentId:String(r.studentId),
-            kind:r.pass, score:r.score||'', feedback:r.feedback||'',
+            kind:r.pass, score:r.score||'', feedback:r.feedback||'', autoCompleted:r.autoCompleted===true,
             lastReminderAt:r.retestReminderAt||'', lastReminderBy:r.retestReminderBy||'',
             submissionUrls:hwUrlsToArray(r.examSubmissionUrl), submittedAt:r.examSubmittedAt||'',
             examName:ex.name||'(삭제된 시험)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
@@ -1588,8 +1614,9 @@ api.getExamAlerts = function(db){
             studentName:stu.name||r.studentId, studentPhone:r.studentId, parentPhone:stu.parentPhone||''
           };
         });
-        // 학생이 방금 사진을 올려 확인이 필요한 것부터, 그 다음 오래된 순
+        // 자동완료된 건 맨 아래로, 그 앞은 학생이 방금 사진을 올려 확인이 필요한 것부터, 그 다음 오래된 순
         items.sort(function(a,b){
+          if (a.autoCompleted !== b.autoCompleted) return a.autoCompleted ? 1 : -1;
           var aSub=a.submissionUrls.length?1:0, bSub=b.submissionUrls.length?1:0;
           if (aSub!==bSub) return bSub-aSub;
           return (a.sessionDate||'') < (b.sessionDate||'') ? -1 : 1;
