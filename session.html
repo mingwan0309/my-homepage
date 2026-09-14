@@ -896,6 +896,14 @@ tr:hover td{background:#fafbff;}
 </div>
 
 <script>
+// 숫자칸(type=number)에 커서가 있는 상태로 화면을 스크롤하면 브라우저가 그걸 "값 증가/감소"로
+// 잘못 해석해서 숫자가 제멋대로 바뀌는 문제가 있어서(예: 21분 입력 후 스크롤하다가 17분으로 바뀜),
+// 숫자칸에 포커스된 채로 휠을 굴리면 그냥 포커스를 풀어서 값이 안 바뀌게 막음(스크롤은 정상 동작).
+document.addEventListener('wheel', function(e){
+  if(document.activeElement && document.activeElement.tagName==='INPUT' && document.activeElement.type==='number'){
+    document.activeElement.blur();
+  }
+}, {passive:true});
 const SU='https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
 const session=JSON.parse(localStorage.getItem('mkmath_session')||'null');
 const params=new URLSearchParams(location.search);
