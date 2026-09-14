@@ -246,6 +246,14 @@
 - **번호 재사용 시 새 학생 추가는 "성공"으로 뜨는데 실제로는 로그인이 안 되던 버그.** `api.addStudent`가 Firebase Auth 계정을 만들 때 이미 그 번호로 계정이 있으면(예: 예전에 삭제된 학생/조교의 Auth 계정이 고아로 남아있는 경우 — 학생 삭제는 Firestore 문서만 지우고 Auth는 안 지워짐, 문서 상단에 이미 명시됨) 에러를 조용히 무시하고 `success:true`를 반환했음 → 화면엔 "추가되었습니다"가 뜨지만 실제 Auth 계정 비밀번호는 예전 사람 것 그대로라 새로 입력한 비밀번호로 로그인이 안 됐음. 이제 계정이 이미 있으면 방금 입력한 비밀번호로 실제 로그인이 되는지 검증해서, 안 되면 admin.html에 경고 문구로 "Firebase 콘솔에서 이 계정 삭제 후 재발급 필요"를 띄움(`api.addStudent`가 `warnings` 배열을 반환, `addSingle()`이 alert로 보여줌). **엑셀 일괄 등록(`callAdd` 아닌 다른 경로)에도 같은 경고 표시가 필요한지 추가 확인 필요.**
 - **점검했지만 코드 수정은 안 하고 남겨둔 위험 요소(추후 필요시 참고):** 학부모 `parentPhone` 저장 형식(하이픈 유무 등)이 로그인 시도 형식과 완전히 다르면 로그인은 되는데 `mandatory_clinic`/`attendance`/`hw_status`/`material_views` 등 Firestore 규칙의 `isParentOf` 정확 일치 비교에서 걸려 데이터가 안 보일 수 있음 — 실제 신고가 들어오면 그 학부모의 `parentPhone` 저장값과 로그인 시도 번호 형식을 직접 대조해볼 것.
 
+## 숙제/재시험 증빙 12시간 자동 완료 (2026-09-14 추가)
+학생이 숙제 증빙 사진(`hw_status.submissionUrl`) 또는 재시험 증빙 사진(`scores.examSubmissionUrl`)을 올렸는데 선생님/조교가 12시간 안에 확인해서 완료 처리를 안 하면, **자동으로 완료 처리**됨.
+- Code.gs에 `autoCompleteOldSubmissions()`(내부적으로 `autoCompleteOldHwProofs`/`autoCompleteOldExamProofs` 둘 다 실행) 함수를 추가함. `hw_status`는 `submittedAt`이 있고 `pass`가 `complete`/`na`가 아닌 것 중 제출 후 12시간 지난 것을 찾아 `pass:'complete'`로 바꾸고, `scores`(재시험)는 `examSubmittedAt`이 있고 `alertResolved`가 아직 안 된 것 중 12시간 지난 것을 찾아 `alertResolved:true`로 바꿈. 둘 다 기존에 선생님이 적어둔 코멘트(`feedback`)가 비어있을 때만 "제출하신 증빙이 12시간 동안 확인되지 않아 자동으로 완료 처리되었습니다." 안내 문구를 채워 넣음(이미 코멘트가 있으면 안 건드림).
+- **이 기능이 실제로 작동하려면 사용자가 Apps Script에서 시간 기반 트리거를 새로 하나 더 등록해야 함**(의무클리닉 1시간 전 알림 트리거와는 별개): Apps Script 편집기 → 왼쪽 시계 아이콘(트리거) → "+ 트리거 추가" → 실행할 함수: `autoCompleteOldSubmissions` → 이벤트 소스: 시간 기반 → 시간 기반 트리거 유형: **시간 타이머 → 1시간마다** → 저장. (매 시간 확인하는 방식이라 실제로는 제출 후 12~13시간 사이에 처리됨 — "정확히 12시간 0초"까지 맞출 필요는 없어서 이 정도 오차는 의도적으로 허용함.)
+- Firestore REST API 호출 시 기존 `firestorePatchStringField`(필드 1개)와 별도로 **`firestorePatchFields`(필드 여러 개를 한 번에 갱신, 문자열/불리언 지원)**를 새로 추가함 — 이후 여러 필드를 한 번에 패치해야 하는 기능이 생기면 이 함수를 재사용할 것(단, 여전히 최상위 필드만 지원, 중첩 맵 필드는 안 됨).
+- 제출 시각(`submittedAt`/`examSubmittedAt`, `nowStr()` 형식 "YYYY.MM.DD HH:MM")은 **학생 기기의 로컬 시각을 그대로 저장한 문자열**이라, 학생 기기가 한국 시간이 아니면(거의 없겠지만) 오차가 생길 수 있음 — 일반적인 사용 환경에서는 무시 가능한 수준.
+- 자동완료된 기록은 `autoCompletedAt` 필드(날짜 문자열)로 표시만 해두고, 현재 화면(admin.html/mypage.html)에 이 필드를 사용한 별도 "자동 완료" 배지는 아직 안 만들어둠(완료로 넘어가면 숙제관리/재시험 관리 목록에서는 어차피 자동으로 빠지므로 급하지 않다고 판단) — 필요해지면 이 필드로 구분해서 배지 추가 가능.
+
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
 - Apps Script 재배포 시 "새 버전" 안내 빼먹기

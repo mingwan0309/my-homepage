@@ -741,6 +741,37 @@ function firestorePatchStringField(collection, docId, fieldName, value) {
     Logger.log('[firestorePatchStringField] ' + collection + '/' + docId + ' 갱신 실패: ' + res.getContentText());
   }
 }
+// 최상위 필드 여러 개를 한 번에 갱신(문자열/불리언 지원) — firestorePatchStringField와 같은 이유로
+// 여전히 최상위(중첩 아닌) 필드만 지원함
+function firestorePatchFields(collection, docId, fieldsObj) {
+  var token = ScriptApp.getOAuthToken();
+  var keys = Object.keys(fieldsObj);
+  var maskParams = keys.map(function(k){ return 'updateMask.fieldPaths=' + encodeURIComponent(k); }).join('&');
+  var url = firestoreBaseUrl() + '/' + collection + '/' + docId + '?' + maskParams;
+  var body = { fields: {} };
+  keys.forEach(function(k){
+    var v = fieldsObj[k];
+    if (typeof v === 'boolean') body.fields[k] = { booleanValue: v };
+    else body.fields[k] = { stringValue: String(v) };
+  });
+  var res = UrlFetchApp.fetch(url, {
+    method: 'PATCH',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) {
+    Logger.log('[firestorePatchFields] ' + collection + '/' + docId + ' 갱신 실패: ' + res.getContentText());
+  }
+}
+// "YYYY.MM.DD HH:MM" 형식(nowStr(), 학생 기기 시각 기준)을 Date로 변환 — 못 읽으면 null
+function parseKstTimestamp(s) {
+  var m = String(s || '').match(/^(\d{4})\.(\d{2})\.(\d{2})\s+(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  // 학생 기기가 대부분 한국 시간이라고 가정하고, UTC 값 그대로 "그 시각"으로 취급해서
+  // mcTodayInfoSeoul()과 같은 방식(UTC+9를 더한 값)으로 지금 시각과 비교할 수 있게 함
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5])));
+}
 // "17:00", "17시" 처럼 자유롭게 입력된 시간 문자열에서 시:분(하루 중 몇 분째)을 최대한 느슨하게 뽑아냄
 function mcParseTimeToMinutes(t) {
   var m = String(t || '').match(/(\d{1,2})\s*[:시]\s*(\d{0,2})/);
@@ -858,4 +889,45 @@ function sendClinicHourReminders() {
   } catch (err) {
     Logger.log('[sendClinicHourReminders] 오류: ' + err);
   }
+}
+
+// ── 숙제/재시험 증빙 사진 12시간 자동 완료 처리 (2026-09-14 추가) ──
+// 학생이 숙제 증빙(hw_status) 또는 재시험 증빙(scores) 사진을 올렸는데 선생님/조교가
+// 12시간 안에 확인해서 완료 처리를 안 하면, 자동으로 완료 처리해줌 — 트리거에 등록해서
+// 1시간마다 실행시키는 함수(의무클리닉 1시간 전 알림 트리거와는 별개로 새로 등록 필요).
+function autoCompleteOldSubmissions() {
+  try { autoCompleteOldHwProofs(); } catch (err) { Logger.log('[autoCompleteOldHwProofs] 오류: ' + err); }
+  try { autoCompleteOldExamProofs(); } catch (err) { Logger.log('[autoCompleteOldExamProofs] 오류: ' + err); }
+}
+function autoCompleteOldHwProofs() {
+  var kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  var list = firestoreListAll('hw_status');
+  var targets = list.filter(function(r){
+    if (!r.submittedAt) return false;
+    if (r.pass === 'complete' || r.pass === 'na') return false;
+    var subDate = parseKstTimestamp(r.submittedAt);
+    if (!subDate) return false;
+    return (kstNow.getTime() - subDate.getTime()) >= 12 * 60 * 60 * 1000;
+  });
+  targets.forEach(function(r){
+    var fields = { pass: 'complete', autoCompletedAt: mcTodayInfoSeoul().dateStr };
+    if (!r.feedback) fields.feedback = '제출하신 증빙이 12시간 동안 확인되지 않아 자동으로 완료 처리되었습니다.';
+    firestorePatchFields('hw_status', r.id, fields);
+  });
+}
+function autoCompleteOldExamProofs() {
+  var kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  var list = firestoreListAll('scores');
+  var targets = list.filter(function(r){
+    if (!r.examSubmittedAt) return false;
+    if (r.alertResolved) return false;
+    var subDate = parseKstTimestamp(r.examSubmittedAt);
+    if (!subDate) return false;
+    return (kstNow.getTime() - subDate.getTime()) >= 12 * 60 * 60 * 1000;
+  });
+  targets.forEach(function(r){
+    var fields = { alertResolved: true, autoCompletedAt: mcTodayInfoSeoul().dateStr };
+    if (!r.feedback) fields.feedback = '제출하신 증빙이 12시간 동안 확인되지 않아 자동으로 완료 처리되었습니다.';
+    firestorePatchFields('scores', r.id, fields);
+  });
 }
