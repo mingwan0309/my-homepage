@@ -897,6 +897,13 @@ function sendClinicHourReminders() {
 // 6시간 안에 확인해서 완료 처리를 안 하면, 자동으로 완료 처리해줌 — 트리거에 등록해서
 // 1시간마다 실행시키는 함수(의무클리닉 1시간 전 알림 트리거와는 별개로 새로 등록 필요).
 var HW_AUTO_COMPLETE_HOURS = 6;
+// 무작위 점검(표본 검사) 비율 — 자동완료 시점이 된 건 중 이 비율만큼은 자동완료시키지 않고
+// "선생님이 직접 확인해야 하는 것"으로 남겨둠. 학생 입장에서 자기 게 뽑힐지 모르니까
+// "아무 사진이나 올리고 6시간 버티기"가 안 통하게 하는 장치(2026-09-16 추가).
+// ⚠️ 한 번 굴린 주사위는 다시 굴리지 않는 게 핵심 — 뽑힌 건 reviewSampled:true로 표시해두고
+// 이후 실행에서는 아예 후보에서 빼버림. 매번 다시 굴리면 결국 언젠가 자동완료로 빠져나가서
+// 점검 자체가 무의미해짐.
+var HW_REVIEW_SAMPLE_RATE = 0.3;
 function autoCompleteOldSubmissions() {
   try { autoCompleteOldHwProofs(); } catch (err) { Logger.log('[autoCompleteOldHwProofs] 오류: ' + err); }
   try { autoCompleteOldExamProofs(); } catch (err) { Logger.log('[autoCompleteOldExamProofs] 오류: ' + err); }
@@ -907,11 +914,17 @@ function autoCompleteOldHwProofs() {
   var targets = list.filter(function(r){
     if (!r.submittedAt) return false;
     if (r.pass === 'complete' || r.pass === 'na') return false;
+    if (r.reviewSampled === true) return false; // 이미 점검 대상으로 뽑힌 건 다시 주사위 굴리지 않음
     var subDate = parseKstTimestamp(r.submittedAt);
     if (!subDate) return false;
     return (kstNow.getTime() - subDate.getTime()) >= HW_AUTO_COMPLETE_HOURS * 60 * 60 * 1000;
   });
   targets.forEach(function(r){
+    // 무작위로 뽑히면 자동완료 대신 "선생님 직접 확인" 대상으로 남김(상태는 미이행/미제출 그대로 유지)
+    if (Math.random() < HW_REVIEW_SAMPLE_RATE) {
+      firestorePatchFields('hw_status', r.id, { reviewSampled: true, reviewSampledAt: mcTodayInfoSeoul().dateStr });
+      return;
+    }
     // autoCompleted(불리언)는 화면에서 "6시간 지나 자동완료됐지만 아직 12시간(제출 후) 안 지난 것"을
     // 수동완료와 구분해서 계속 보여주는 용도 — pass는 그대로 'complete'로 둬서 급여/리더보드 등
     // 기존 로직에는 영향 없게 함.
@@ -926,11 +939,16 @@ function autoCompleteOldExamProofs() {
   var targets = list.filter(function(r){
     if (!r.examSubmittedAt) return false;
     if (r.alertResolved) return false;
+    if (r.reviewSampled === true) return false; // 이미 점검 대상으로 뽑힌 건 다시 주사위 굴리지 않음
     var subDate = parseKstTimestamp(r.examSubmittedAt);
     if (!subDate) return false;
     return (kstNow.getTime() - subDate.getTime()) >= HW_AUTO_COMPLETE_HOURS * 60 * 60 * 1000;
   });
   targets.forEach(function(r){
+    if (Math.random() < HW_REVIEW_SAMPLE_RATE) {
+      firestorePatchFields('scores', r.id, { reviewSampled: true, reviewSampledAt: mcTodayInfoSeoul().dateStr });
+      return;
+    }
     var fields = { alertResolved: true, autoCompleted: true, autoCompletedAt: mcTodayInfoSeoul().dateStr };
     if (!r.feedback) fields.feedback = '제출하신 증빙이 ' + HW_AUTO_COMPLETE_HOURS + '시간 동안 확인되지 않아 자동으로 완료 처리되었습니다.';
     firestorePatchFields('scores', r.id, fields);
