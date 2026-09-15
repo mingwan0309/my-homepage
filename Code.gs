@@ -781,6 +781,12 @@ function mcParseTimeToMinutes(t) {
   if (isNaN(h) || h < 0 || h > 23) return null;
   return h * 60 + (isNaN(mi) ? 0 : mi);
 }
+// 오늘로부터 n일 전/후의 한국 날짜 문자열("YYYY-MM-DD") — mcTodayInfoSeoul과 같은 방식(UTC+9)
+function kstDateStrOffset(days) {
+  var d = new Date(Date.now() + 9 * 60 * 60 * 1000 + (days || 0) * 24 * 60 * 60 * 1000);
+  var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+  return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
+}
 // 서버(Apps Script)가 어느 시간대에서 돌든 흔들리지 않게, UTC 시각에 9시간을 더해 "한국 시각처럼 읽는" 방식
 function mcTodayInfoSeoul() {
   var now = new Date();
@@ -935,4 +941,83 @@ function autoCompleteOldExamProofs() {
     if (!r.feedback) fields.feedback = '제출하신 증빙이 ' + HW_AUTO_COMPLETE_HOURS + '시간 동안 확인되지 않아 자동으로 완료 처리되었습니다.';
     firestorePatchFields('scores', r.id, fields);
   });
+}
+
+// ── 주간 요약 알림톡 (2026-09-16 추가) ──
+// 화요일 낮에 주 1회 트리거로 실행 — 선생님 번호로만 요약 1통을 보냄.
+// 학생 기록은 전혀 건드리지 않고 숫자만 세서 보내는 구조라, 계산이 틀려도 사고가 안 나는 안전한 자동화.
+// ⚠️ 발송 대상은 반드시 선생님 본인(TEACHER_NOTIFY_PHONE) 1명뿐 — 학생/학부모에게는 절대 보내지 말 것.
+function sendWeeklySummary() {
+  try {
+    var todayStr = mcTodayInfoSeoul().dateStr;
+    var startStr = kstDateStrOffset(-7);
+    var inRange = function(d){ var s = String(d || ''); return s && s >= startStr && s <= todayStr; };
+
+    // 학생 이름 표
+    var nameById = {};
+    firestoreListAll('students').forEach(function(s){ nameById[s.id] = s.name || s.id; });
+
+    // 1) 지난 7일 결석 — attendance에는 날짜가 없고 sessionId만 있어서 sessions의 date로 기간을 판단함
+    var sesInRange = {};
+    firestoreListAll('sessions').forEach(function(s){ if (inRange(s.date)) sesInRange[s.id] = true; });
+    var absentNames = [];
+    firestoreListAll('attendance').forEach(function(a){
+      if (!sesInRange[a.sessionId]) return;
+      if (a.status !== '결석') return;
+      absentNames.push(nameById[a.studentId] || a.studentId);
+    });
+
+    // 2) 지난 7일 클리닉 신청(취소된 건 제외)
+    var clinicCount = firestoreListAll('clinic_bookings').filter(function(b){
+      return inRange(b.date) && b.status !== '취소';
+    }).length;
+
+    // 3) 숙제: 지금 밀려있는 건수 + 지난 7일 자동완료 건수 (같은 컬렉션이라 한 번만 읽어서 재사용)
+    var hwAll = firestoreListAll('hw_status');
+    var hwPending = hwAll.filter(function(r){
+      return r.pass === 'incomplete' || r.pass === 'partial' || r.pass === 'notsub';
+    }).length;
+    var autoCount = hwAll.filter(function(r){ return inRange(r.autoCompletedAt); }).length;
+
+    // 4) 재시험: 아직 해결 처리 안 된 것 + 지난 7일 자동완료 건수
+    var scoresAll = firestoreListAll('scores');
+    var retestPending = scoresAll.filter(function(r){
+      return (r.pass === 'nosub' || r.pass === 'absent') && !r.alertResolved;
+    }).length;
+    autoCount += scoresAll.filter(function(r){ return inRange(r.autoCompletedAt); }).length;
+
+    // 5) 아직 답변 안 한 질문
+    var qnaOpen = firestoreListAll('qna').filter(function(q){ return q.status === 'open'; }).length;
+
+    var absentText = absentNames.length
+      ? absentNames.length + '건 (' + absentNames.slice(0, 5).join(', ')
+        + (absentNames.length > 5 ? ' 외 ' + (absentNames.length - 5) + '명' : '') + ')'
+      : '0건';
+
+    var lines = [];
+    lines.push('[지난 7일] ' + startStr + ' ~ ' + todayStr);
+    lines.push('· 결석 ' + absentText);
+    lines.push('· 클리닉 신청 ' + clinicCount + '건');
+    lines.push('· 증빙 자동완료 ' + autoCount + '건');
+    lines.push('');
+    lines.push('[지금 밀려있는 것]');
+    lines.push('· 숙제 미이행·미제출 ' + hwPending + '건');
+    lines.push('· 재시험 안 끝난 학생 ' + retestPending + '명');
+    lines.push('· 답변 안 한 질문 ' + qnaOpen + '개');
+    if (!hwPending && !retestPending && !qnaOpen) {
+      lines.push('');
+      lines.push('밀린 것 없이 다 처리됐어요!');
+    }
+
+    var result = sendAlimtalkMessages([{
+      phone: TEACHER_NOTIFY_PHONE,
+      name: '김민관 선생님',
+      className: '주간 요약',
+      sessionNum: todayStr,
+      message: lines.join('\n')
+    }]);
+    if (!result.success) Logger.log('[sendWeeklySummary] 발송 실패: ' + result.msg);
+  } catch (err) {
+    Logger.log('[sendWeeklySummary] 오류: ' + err);
+  }
 }
