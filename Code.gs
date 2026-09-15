@@ -741,6 +741,50 @@ function firestorePatchStringField(collection, docId, fieldName, value) {
     Logger.log('[firestorePatchStringField] ' + collection + '/' + docId + ' 갱신 실패: ' + res.getContentText());
   }
 }
+// 조건에 맞는 문서만 골라서 읽어옴(필드 하나 = 값 비교). firestoreListAll은 컬렉션을 통째로
+// 읽어서 문서 수만큼 읽기 비용이 발생하는데, 5분마다 도는 검사에서 hw_status/scores 같은 큰
+// 컬렉션을 매번 통째로 읽으면 Firestore 무료 한도를 금방 넘김 — 자주 도는 기능에서는 반드시 이걸 쓸 것.
+function firestoreQueryEq(collection, field, value) {
+  var token = ScriptApp.getOAuthToken();
+  var body = {
+    structuredQuery: {
+      from: [{ collectionId: collection }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: field },
+          op: 'EQUAL',
+          value: { stringValue: String(value) }
+        }
+      },
+      limit: 1000
+    }
+  };
+  var res = UrlFetchApp.fetch(firestoreBaseUrl() + ':runQuery', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) {
+    Logger.log('[firestoreQueryEq] ' + collection + '.' + field + ' 조회 실패: ' + res.getContentText());
+    return [];
+  }
+  var out = [];
+  var rows = JSON.parse(res.getContentText()) || [];
+  rows.forEach(function(r){ if (r.document) out.push(firestoreDocToObj(r.document)); });
+  return out;
+}
+// 문서 1개만 읽기
+function firestoreGetDoc(collection, docId) {
+  var token = ScriptApp.getOAuthToken();
+  var res = UrlFetchApp.fetch(firestoreBaseUrl() + '/' + collection + '/' + encodeURIComponent(String(docId)), {
+    method: 'GET',
+    headers: { Authorization: 'Bearer ' + token },
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) return null;
+  return firestoreDocToObj(JSON.parse(res.getContentText()));
+}
 // 최상위 필드 여러 개를 한 번에 갱신(문자열/불리언 지원) — firestorePatchStringField와 같은 이유로
 // 여전히 최상위(중첩 아닌) 필드만 지원함
 function firestorePatchFields(collection, docId, fieldsObj) {
@@ -850,6 +894,13 @@ function sendMcHourReminders() {
     sendClinicHourReminders();
   } catch (err) {
     Logger.log('[sendClinicHourReminders 호출] 오류: ' + err);
+  }
+
+  // 조교 출근 1시간 후 "아직 체크 안 된 것" 알림도 같은 트리거에 얹어서 실행(별도 트리거 불필요).
+  try {
+    sendAssistantCheckNudges();
+  } catch (err) {
+    Logger.log('[sendAssistantCheckNudges 호출] 오류: ' + err);
   }
 }
 
@@ -1020,4 +1071,131 @@ function sendWeeklySummary() {
   } catch (err) {
     Logger.log('[sendWeeklySummary] 오류: ' + err);
   }
+}
+
+// ── 조교 출근 1시간 후 "아직 체크 안 된 것" 알림 (2026-09-16 추가) ──
+// 조교가 출근 버튼을 누르고 1시간이 지났는데 오늘 수업의 출석·시험·숙제가 아직 처리 안 됐으면,
+// 선생님 + 그 조교에게 명단과 함께 "쉬는시간에 교실 가서 체크하라"는 안내를 보냄.
+// 별도 트리거 필요 없음 — sendMcHourReminders(5분마다) 안에서 같이 호출됨.
+// ⚠️ 발송 비용: 한 번 보낼 때 (선생님 1통 + 출근한 조교 수만큼). 하루에 조교 1명당 최대 1번만 발송됨
+//    (work_logs 문서에 checkNudgeSent 표시를 남겨서 같은 근무에 다시 안 보냄).
+var ASSISTANT_CHECK_AFTER_MIN = 60;
+function sendAssistantCheckNudges() {
+  var today = mcTodayInfoSeoul();
+
+  // 1) 오늘 출근했고, 출근 1시간이 지났고, 아직 알림을 안 보낸 근무 기록만 추림
+  //    (대부분의 실행은 여기서 끝나서 요청 1번으로 끝남 — 5분마다 돌아도 부담 없게 하려는 구조)
+  var logs = firestoreQueryEq('work_logs', 'date', today.dateStr).filter(function(w){
+    if (w.checkNudgeSent === true) return false;
+    if (w.clockOut) return false; // 이미 퇴근했으면 보낼 이유 없음
+    var inMins = mcParseTimeToMinutes(w.clockIn);
+    if (inMins === null) return false;
+    return (today.nowMins - inMins) >= ASSISTANT_CHECK_AFTER_MIN;
+  });
+  if (!logs.length) return;
+
+  // 2) 오늘 차시 중 아직 처리 안 된 학생 명단 만들기
+  var blocks = buildTodayUncheckedBlocks(today);
+
+  // 처리할 게 하나도 없으면 알림을 아예 안 보냄(조용함 = 정상). 단, 같은 근무에 계속 다시 확인하지
+  // 않도록 표시는 남겨둠.
+  if (!blocks.length) {
+    logs.forEach(function(w){ firestorePatchFields('work_logs', w.id, { checkNudgeSent: true }); });
+    return;
+  }
+
+  var text = '아직 처리 안 된 학생이 있어요.\n\n'
+    + blocks.join('\n\n')
+    + '\n\n쉬는시간에 교실로 가서 출석과 과제를 다시 체크해주세요.';
+
+  var msgs = [{ phone: TEACHER_NOTIFY_PHONE, name: '김민관 선생님', className: '출결·과제 점검', sessionNum: today.dateStr, message: text }];
+  logs.forEach(function(w){
+    if (!w.assistantId) return;
+    msgs.push({ phone: w.assistantId, name: (w.assistantName || '조교') + '님', className: '출결·과제 점검', sessionNum: today.dateStr, message: text });
+  });
+
+  var result = sendAlimtalkMessages(msgs);
+  if (result.success) {
+    logs.forEach(function(w){ firestorePatchFields('work_logs', w.id, { checkNudgeSent: true }); });
+  } else {
+    // 발송 실패 시에는 표시를 남기지 않아서 다음 실행(5분 뒤)에 다시 시도됨
+    Logger.log('[sendAssistantCheckNudges] 발송 실패: ' + result.msg);
+  }
+}
+
+// 오늘 날짜 차시들을 훑어서 "아직 처리 안 된 학생"을 반별 문단으로 만들어 돌려줌.
+// 처리할 게 없는 차시는 아예 문단을 안 만듦.
+function buildTodayUncheckedBlocks(today) {
+  var blocks = [];
+  var sessions = firestoreQueryEq('sessions', 'date', today.dateStr);
+
+  sessions.forEach(function(ses){
+    var cls = firestoreGetDoc('classes', ses.classId);
+    // 아직 수업 시작 전인 반은 건너뜀 — 조교가 수업 훨씬 전에 출근한 경우
+    // "아무도 출석 체크가 안 됐다"고 잘못 알리는 걸 막기 위함(시간 형식을 못 읽으면 그냥 포함).
+    var startMins = cls ? mcParseTimeToMinutes(cls.time) : null;
+    if (startMins !== null && today.nowMins < startMins) return;
+
+    var roster = firestoreQueryEq('students', 'classId', String(ses.classId)).filter(function(s){
+      return s.active !== false && (s.role || 'student') === 'student';
+    });
+    if (!roster.length) return;
+    var nameOf = function(s){ return s.name || s.id; };
+
+    // 출석: 기록이 없거나 '미정'이면 아직 체크 안 된 것
+    var attBy = {};
+    firestoreQueryEq('attendance', 'sessionId', ses.id).forEach(function(a){ attBy[a.studentId] = a.status || ''; });
+    var noAtt = roster.filter(function(s){
+      var v = attBy[s.id];
+      return !v || v === '미정';
+    }).map(nameOf);
+
+    // 시험 미응시: 오늘 차시에 등록된 시험 중, 점수 기록이 아예 없거나 '미응시'로 찍힌 게 있으면
+    var noExam = [];
+    var exams = firestoreQueryEq('exams', 'sessionId', ses.id);
+    if (exams.length) {
+      var scoreBy = {};
+      firestoreQueryEq('scores', 'sessionId', ses.id).forEach(function(sc){ scoreBy[sc.examId + '__' + sc.studentId] = sc; });
+      roster.forEach(function(s){
+        var missing = exams.some(function(ex){
+          var sc = scoreBy[ex.id + '__' + s.id];
+          return !sc || sc.pass === 'absent';
+        });
+        if (missing) noExam.push(nameOf(s));
+      });
+    }
+
+    // 숙제 미제출: 기록이 없거나, 상태가 비어있거나, '미제출'인 경우
+    // (이행함/일부미이행/미이행/해당없음은 이미 확인이 끝난 것이므로 제외)
+    var noHw = [];
+    var hws = firestoreQueryEq('homeworks', 'sessionId', ses.id);
+    if (hws.length) {
+      var hwBy = {};
+      firestoreQueryEq('hw_status', 'sessionId', ses.id).forEach(function(h){ hwBy[h.hwId + '__' + h.studentId] = h; });
+      roster.forEach(function(s){
+        var missing = hws.some(function(hw){
+          var h = hwBy[hw.id + '__' + s.id];
+          return !h || !h.pass || h.pass === 'notsub';
+        });
+        if (missing) noHw.push(nameOf(s));
+      });
+    }
+
+    if (!noAtt.length && !noExam.length && !noHw.length) return;
+
+    var title = ((cls && cls.name) ? cls.name : '반 미배정') + ' ' + (ses.label || (ses.sessionNum ? ses.sessionNum + '차시' : ''));
+    var lines = ['[' + title.trim() + ']'];
+    if (noAtt.length)  lines.push('· 출석 미체크: ' + joinNames(noAtt));
+    if (noExam.length) lines.push('· 시험 미응시: ' + joinNames(noExam));
+    if (noHw.length)   lines.push('· 숙제 미제출: ' + joinNames(noHw));
+    blocks.push(lines.join('\n'));
+  });
+
+  return blocks;
+}
+
+// 알림톡 전달사항 길이 제한(900자)이 있어서 이름이 너무 많으면 잘라서 "외 N명"으로 줄임
+function joinNames(names) {
+  if (names.length <= 10) return names.join(', ');
+  return names.slice(0, 10).join(', ') + ' 외 ' + (names.length - 10) + '명';
 }
