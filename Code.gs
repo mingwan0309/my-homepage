@@ -902,6 +902,13 @@ function sendMcHourReminders() {
   } catch (err) {
     Logger.log('[sendAssistantCheckNudges 호출] 오류: ' + err);
   }
+
+  // 결석자 "영상으로 대체 공부하세요" 안내(밤 10시 30분)도 같은 트리거에 얹어서 실행.
+  try {
+    sendAbsentVideoNotices();
+  } catch (err) {
+    Logger.log('[sendAbsentVideoNotices 호출] 오류: ' + err);
+  }
 }
 
 // 클리닉(추가클리닉 등, clinic_bookings) "오기 1시간 전" 자동 알림 — 의무클리닉과 동일한 패턴.
@@ -1198,4 +1205,78 @@ function buildTodayUncheckedBlocks(today) {
 function joinNames(names) {
   if (names.length <= 10) return names.join(', ');
   return names.slice(0, 10).join(', ') + ' 외 ' + (names.length - 10) + '명';
+}
+
+// ── 결석자 "영상으로 대체 공부하세요" 안내 알림톡 (2026-09-16 추가) ──
+// 그날 밤 10시 30분에, 오늘 수업에서 '결석'으로 체크된 학생의 학생·학부모 번호로 발송.
+// 수업이 끝나고 영상·과제를 올린 뒤에 나가도록 늦은 시간으로 잡았음(선생님 요청).
+// ⚠️ '지각'·'조퇴'·'출석'은 발송 대상이 아님 — 오직 '결석'만.
+// 별도 트리거 필요 없음 — sendMcHourReminders(5분마다) 안에서 같이 호출되며,
+// 앱스 스크립트 트리거가 분 단위 지정을 못 해서 "지금이 10:30~11:00 사이인가"를 직접 확인하는 방식.
+var ABSENT_NOTICE_START_MIN = 22 * 60 + 30; // 밤 10시 30분
+var ABSENT_NOTICE_WINDOW_MIN = 30;          // 11시까지 사이에 한 번 발송(실행이 한 번 건너뛰어도 따라잡게)
+function sendAbsentVideoNotices() {
+  var today = mcTodayInfoSeoul();
+  if (today.nowMins < ABSENT_NOTICE_START_MIN) return;
+  if (today.nowMins >= ABSENT_NOTICE_START_MIN + ABSENT_NOTICE_WINDOW_MIN) return;
+
+  // 오늘 차시 중 아직 안 보낸 것만 (차시 문서에 보낸 날짜를 남겨서 중복 발송 방지)
+  var sessions = firestoreQueryEq('sessions', 'date', today.dateStr).filter(function(s){
+    return s.absentNoticeSent !== today.dateStr;
+  });
+  if (!sessions.length) return;
+
+  var todayDots = today.dateStr.replace(/-/g, '.'); // 자료 업로드 시각이 "2026.09.16 21:30" 형식이라
+
+  sessions.forEach(function(ses){
+    var absentIds = firestoreQueryEq('attendance', 'sessionId', ses.id)
+      .filter(function(a){ return a.status === '결석'; })
+      .map(function(a){ return String(a.studentId); });
+
+    // 결석자가 없으면 발송할 게 없으니 표시만 남기고 끝(5분마다 다시 확인하지 않게)
+    if (!absentIds.length) {
+      firestorePatchStringField('sessions', ses.id, 'absentNoticeSent', today.dateStr);
+      return;
+    }
+
+    var cls = firestoreGetDoc('classes', ses.classId);
+    var className = (cls && cls.name) || '';
+    var sessLabel = ses.label || (ses.sessionNum ? ses.sessionNum + '차시' : '');
+
+    // 오늘 올라온 영상 자료 이름 + 이 차시에 등록된 과제 이름 (없으면 이름 없이 일반 안내만 나감)
+    var videoNames = firestoreQueryEq('materials', 'classId', String(ses.classId))
+      .filter(function(m){ return m.category === '영상 자료' && String(m.uploadDate || '').indexOf(todayDots) === 0; })
+      .map(function(m){ return m.name || ''; })
+      .filter(function(n){ return n; });
+    var hwNames = firestoreQueryEq('homeworks', 'sessionId', ses.id)
+      .map(function(h){ return h.name || ''; })
+      .filter(function(n){ return n; });
+
+    var body = '오늘 수업에 결석했어요.\n자료실에 올라온 수업 영상과 과제를 꼭 확인해서 공부해주세요.';
+    if (videoNames.length) body += '\n\n[영상] ' + videoNames.join(', ');
+    if (hwNames.length)    body += '\n[과제] ' + hwNames.join(', ');
+    body += '\n\n마이페이지 → 내 반 → 자료실에서 볼 수 있어요.';
+
+    var msgs = [];
+    absentIds.forEach(function(sid){
+      var stu = firestoreGetDoc('students', sid);
+      var nm = (stu && stu.name) || sid;
+      // 학생 로그인 아이디(=문서ID)가 곧 학생 전화번호임.
+      // ⚠️ students 문서에는 studentPhone이라는 필드가 없음(화면용 API가 문서ID로 만들어서 내려주는 값일 뿐) —
+      //    Firestore에서 직접 읽을 때 stu.studentPhone을 쓰면 항상 undefined라서 학생에게 발송이 안 됨.
+      msgs.push({ phone: sid, name: nm, className: className, sessionNum: sessLabel, message: body });
+      if (stu && stu.parentPhone) {
+        msgs.push({ phone: stu.parentPhone, name: nm, className: className, sessionNum: sessLabel, message: body });
+      }
+    });
+    if (!msgs.length) return;
+
+    var result = sendAlimtalkMessages(msgs);
+    if (result.success) {
+      firestorePatchStringField('sessions', ses.id, 'absentNoticeSent', today.dateStr);
+    } else {
+      // 표시를 안 남기므로 5분 뒤(발송 시간대 안이면) 다시 시도됨
+      Logger.log('[sendAbsentVideoNotices] ' + className + ' 발송 실패: ' + result.msg);
+    }
+  });
 }
