@@ -314,8 +314,10 @@
 - **비용: 결석자 1명당 2통(학생+학부모).** 결석이 많은 날은 그만큼 나감.
 - **⚠️ 학생 번호는 `students` 문서의 `studentPhone` 필드가 아니라 문서 ID 자체임.** `studentPhone`은 화면용 API가 문서 ID로 만들어서 내려주는 값일 뿐 **Firestore에 저장돼 있지 않음** — Apps Script에서 Firestore를 직접 읽을 때 `stu.studentPhone`을 쓰면 항상 `undefined`라 학생에게 발송이 안 됨. 이 함수는 문서 ID를 쓰고 있음. (같은 실수가 `sendMcHourReminders`에 남아 있음 — 아래 항목 참고.)
 
-### ⚠️ 발견된 기존 버그: 의무클리닉 1시간 전 알림이 학생 본인에게 안 감 (2026-09-16 발견, 아직 안 고침)
-`sendMcHourReminders()`가 학생 번호를 `student.studentPhone`으로 읽는데 그 필드는 **Firestore에 존재하지 않음**(위 설명 참고) → 이 알림은 지금까지 **학부모와 선생님에게만** 갔고 **학생 본인에게는 한 번도 안 갔음**. CLAUDE.md에 적힌 의도("학생·학부모 번호로 발송")와 실제 동작이 다름. 고치려면 `student.studentPhone` → `student.id`(또는 `m.studentId`)로 바꾸면 되지만, **고치는 순간 그 알림의 발송 건수가 늘어나 비용이 증가**하므로 사용자에게 알리고 동의를 받은 뒤에 고칠 것. 2026-09-16에 사용자에게 보고함.
+### 버그 수정: 의무클리닉 1시간 전 알림이 학생 본인에게 안 가던 문제 (2026-09-16 발견·수정 완료)
+`sendMcHourReminders()`가 학생 번호를 `student.studentPhone`으로 읽었는데 그 필드는 **Firestore에 저장돼 있지 않아서**(화면용 API가 문서 ID로 만들어 내려주는 값일 뿐) 항상 빈 값 → 이 알림이 **학부모와 선생님에게만 가고 학생 본인에게는 한 번도 안 갔음**. `m.studentId`(=문서 ID=전화번호)를 쓰도록 수정 완료. **이 줄을 다시 `student.studentPhone`으로 되돌리지 말 것.**
+- 같은 함정을 피해야 하는 곳: **Apps Script가 Firestore를 직접 읽을 때는 학생 전화번호 = `students` 문서 ID**. `sendClinicHourReminders`(`b.studentId` 사용)와 `sendAbsentVideoNotices`(문서 ID 사용)는 원래부터 정상.
+- 영향 범위 점검 결과 이 버그는 `sendMcHourReminders` 한 곳뿐이었음 — 추가클리닉 1시간 전 알림, 의무클리닉 결석 체크 알림톡(관리 화면에서 발송), 결석자 영상 안내는 모두 정상 동작이었음.
 
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)

@@ -872,7 +872,11 @@ function sendMcHourReminders() {
       var changeLabel = (m.targetDay && m.day) ? (m.targetDay + '요일→' + m.day + '요일로 변경된 ') : '';
       var text = m.name + ' 학생, ' + changeLabel + '의무클리닉 1시간 전(' + m.time + ')입니다. 잊지 말고 와주세요!';
       var msgs = [];
-      if (student.studentPhone) msgs.push({ phone: student.studentPhone, name: m.name, className: '의무클리닉', sessionNum: today.dateStr, message: text });
+      // ⚠️ 학생 번호는 students 문서의 studentPhone이 아니라 문서 ID(=m.studentId) 자체임.
+      // studentPhone은 화면용 API가 문서 ID로 만들어서 내려주는 값일 뿐 Firestore에 저장돼 있지 않아서,
+      // 예전엔 여기서 항상 빈 값이 나와 학생 본인에게만 알림이 안 갔음(2026-09-16 수정).
+      // 이 줄을 다시 student.studentPhone으로 되돌리지 말 것.
+      if (m.studentId)          msgs.push({ phone: m.studentId,          name: m.name, className: '의무클리닉', sessionNum: today.dateStr, message: text });
       if (student.parentPhone)  msgs.push({ phone: student.parentPhone,  name: m.name, className: '의무클리닉', sessionNum: today.dateStr, message: text });
       msgs.push({ phone: TEACHER_NOTIFY_PHONE, name: m.name, className: '의무클리닉', sessionNum: today.dateStr, message: text });
       if (!msgs.length) return;
