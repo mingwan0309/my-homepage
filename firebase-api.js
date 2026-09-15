@@ -1549,7 +1549,6 @@ api.getIncompleteHomeworks = function(db){
           return {
             id:r.id, sessionId:String(r.sessionId), hwId:String(r.hwId), studentId:String(r.studentId),
             pass:r.pass||'', feedback:r.feedback||'', autoCompleted:r.autoCompleted===true,
-            reviewSampled:r.reviewSampled===true,
             submissionUrls:hwUrlsToArray(r.submissionUrl), submittedAt:r.submittedAt||'',
             lastReminderAt:r.lastReminderAt||'', lastReminderBy:r.lastReminderBy||'', lastReminderText:r.lastReminderText||'', reminderLogs:r.reminderLogs||[],
             hwName:hw.name||'(삭제된 과제)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'', sessLabel:ses.label||'',
@@ -1557,11 +1556,9 @@ api.getIncompleteHomeworks = function(db){
             studentName:stu.name||r.studentId, studentPhone:r.studentId, parentPhone:stu.parentPhone||''
           };
         });
-        // 무작위 점검 대상(반드시 사람이 봐야 하는 것)이 맨 위, 자동완료된 건 맨 아래,
-        // 그 사이는 학생이 방금 사진을 올려 확인이 필요한 것부터, 그 다음 오래된 순
+        // 자동완료된 건 맨 아래로, 그 앞은 학생이 방금 사진을 올려 확인이 필요한 것부터, 그 다음 오래된 순
         items.sort(function(a,b){
           if (a.autoCompleted !== b.autoCompleted) return a.autoCompleted ? 1 : -1;
-          if (a.reviewSampled !== b.reviewSampled) return a.reviewSampled ? -1 : 1;
           var aSub=a.submissionUrls.length?1:0, bSub=b.submissionUrls.length?1:0;
           if (aSub!==bSub) return bSub-aSub;
           return (a.sessionDate||'') < (b.sessionDate||'') ? -1 : 1;
@@ -1609,7 +1606,6 @@ api.getExamAlerts = function(db){
           return {
             id:r.id, sessionId:String(r.sessionId), examId:String(r.examId), studentId:String(r.studentId),
             kind:r.pass, score:r.score||'', feedback:r.feedback||'', autoCompleted:r.autoCompleted===true,
-            reviewSampled:r.reviewSampled===true,
             lastReminderAt:r.retestReminderAt||'', lastReminderBy:r.retestReminderBy||'',
             submissionUrls:hwUrlsToArray(r.examSubmissionUrl), submittedAt:r.examSubmittedAt||'',
             examName:ex.name||'(삭제된 시험)', sessionNum:ses.sessionNum||'', sessionDate:ses.date||'',
@@ -1618,10 +1614,9 @@ api.getExamAlerts = function(db){
             studentName:stu.name||r.studentId, studentPhone:r.studentId, parentPhone:stu.parentPhone||''
           };
         });
-        // 무작위 점검 대상이 맨 위, 자동완료된 건 맨 아래, 그 사이는 사진 올라온 것부터 오래된 순
+        // 자동완료된 건 맨 아래로, 그 앞은 학생이 방금 사진을 올려 확인이 필요한 것부터, 그 다음 오래된 순
         items.sort(function(a,b){
           if (a.autoCompleted !== b.autoCompleted) return a.autoCompleted ? 1 : -1;
-          if (a.reviewSampled !== b.reviewSampled) return a.reviewSampled ? -1 : 1;
           var aSub=a.submissionUrls.length?1:0, bSub=b.submissionUrls.length?1:0;
           if (aSub!==bSub) return bSub-aSub;
           return (a.sessionDate||'') < (b.sessionDate||'') ? -1 : 1;
