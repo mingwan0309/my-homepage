@@ -295,6 +295,16 @@
 - **비용: 한 번 보낼 때 (선생님 1통 + 그때 출근해 있는 조교 수만큼).** 조교가 여러 명이면 그만큼 나감.
 - **⚠️ 성능/비용 구조상 중요:** 이 검사는 5분마다 도는데, `firestoreListAll`(컬렉션 통째로 읽기)로 `hw_status`/`scores` 같은 큰 컬렉션을 매번 읽으면 Firestore 무료 읽기 한도(5만/일)를 금방 넘김. 그래서 **조건에 맞는 문서만 읽는 `firestoreQueryEq(컬렉션, 필드, 값)`**(Firestore REST `:runQuery`)와 `firestoreGetDoc(컬렉션, 문서ID)`를 새로 만들어서 씀. 게다가 맨 처음에 `work_logs`를 오늘 날짜로만 조회해서 **대상이 없으면 요청 1번으로 바로 끝나게** 해둠 — 자주 도는 기능을 새로 추가할 때는 반드시 이 패턴(싼 조회로 먼저 걸러내기 + `firestoreQueryEq`)을 따를 것, `firestoreListAll`을 쓰지 말 것.
 
+## 사진 제출 마감(D-2) 카운트다운 + 마이페이지 잠금 화면 (2026-09-16 추가)
+숙제 증빙·재시험 증빙 사진을 **수업한 날(차시 날짜) + 2일**(`PROOF_DUE_DAYS`) 안에 올리게 하고, 기한이 지나도록 한 장도 안 올리면 **학생이 마이페이지에 들어갈 때 화면 전체를 덮는 잠금 화면**이 떠서 ①추가 클리닉을 신청하거나 ②그 자리에서 사진을 올려야 계속 쓸 수 있게 함(둘 중 **하나만** 하면 풀림 — 사용자가 "유연" 쪽을 선택).
+- **mypage.html 안에서만 구현됨. firebase-api.js·Firestore 규칙·Code.gs 변경 없음** — 필요한 데이터(차시 날짜 `sessionDate`, 제출 사진 `submissionUrls`, 클리닉 예약)가 기존 API(`getMyHomeworkStatus`/`getMyExamAlerts`/`getBookings`)로 이미 다 내려와서 계산만 화면에서 함.
+- 주요 함수: `proofDueInfo(차시날짜)`(마감일·남은일수 계산) / `proofDueBadge()`(카드에 붙는 D-2·D-1·오늘 마감·기한 지남 배지, **사진을 한 장도 안 올린 항목에만** 표시) / `collectOverdueProofs()`(기한 지났고 사진 없는 것 모으기) / `hasUpcomingClinic()`(오늘 이후 날짜의 취소 안 된 예약이 하나라도 있으면 통과) / `checkProofDeadlineGate()` / `openProofGate()`·`closeProofGate()`.
+- 초기 로드는 `runProofDeadlineFlow()`가 숙제·재시험을 **둘 다 불러온 뒤에** 판정함(따로따로 하면 숙제만 보고 잘못 뜸). 사진을 올리거나 지울 때마다 `submitHwProofUrls`/`submitExamProofUrls` 끝에서 `checkProofDeadlineGate()`를 다시 호출해서, 올리면 잠금이 바로 풀리고 지우면 다시 잠김.
+- **학부모 계정과 선생님 미리보기에서는 절대 안 뜸** — 학부모는 로그인해도 `role`이 `'student'`라서 역할로는 구분이 안 되고, **`session.authId !== session.id`이면 학부모**로 판정함(비밀번호 변경의 `isParent` 판정과 같은 방식). 선생님 미리보기는 `isPreviewMode`로 제외. **이 두 가드를 빼면 학부모가 자녀 화면을 못 보게 갇힘 — 절대 지우지 말 것.**
+- 클리닉 예약 조회가 실패하면 **잠그지 않고 통과**시킴(잘못 가두는 것보다 안 막는 쪽이 안전 — 학생이 아예 못 들어가는 사고를 막기 위한 의도적 선택).
+- 모바일 검증 완료(375px): 가로 넘침 없음, 버튼 높이 46/46/52px(최소 44px 규칙 충족), 본문 스크롤 잠금(`body.overflow=hidden`) 동작 확인.
+- 마감 기간을 바꾸려면 mypage.html의 `var PROOF_DUE_DAYS = 2;` 숫자만 고치면 됨(배지 문구와 잠금 판정이 같이 따라감).
+
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
 - Apps Script 재배포 시 "새 버전" 안내 빼먹기

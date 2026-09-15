@@ -749,8 +749,7 @@ loadInfo();
   loadAttendance();
   loadClassMaterials();
   loadMyMandatoryClinic();
-  loadMyHomework();
-  loadMyExamAlerts();
+  runProofDeadlineFlow();
   loadMySurveys();
   loadAssignmentCard();
   loadGameCard();
@@ -1244,6 +1243,120 @@ async function loadMyMandatoryClinic(){
   }catch(e){}
 }
 
+// ── 사진 제출 마감(수업 후 2일) 카운트다운 + 기한 지나면 화면 잠금 (2026-09-16 추가) ──
+// 마감일은 "차시 날짜 + 2일". 기한이 지났는데 아직 사진을 한 장도 안 올린 게 있으면
+// 마이페이지 전체를 덮는 화면이 떠서, 추가 클리닉을 신청하거나 그 자리에서 사진을 올려야 풀린다.
+// 학부모 계정과 선생님 미리보기에서는 절대 뜨지 않음(학생 본인에게만 해당되는 조치라서).
+var PROOF_DUE_DAYS = 2;
+var proofGateReady = false;
+
+function proofDueInfo(sessionDate){
+  if(!sessionDate) return null;
+  var d = new Date(String(sessionDate).replace(/\./g,'-') + 'T00:00:00');
+  if(isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + PROOF_DUE_DAYS);
+  var today = new Date(); today.setHours(0,0,0,0);
+  var daysLeft = Math.round((d.getTime() - today.getTime()) / 86400000);
+  var p = function(n){ return (n<10?'0':'')+n; };
+  return {
+    daysLeft: daysLeft,
+    overdue: daysLeft < 0,
+    dueStr: d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())
+  };
+}
+// 카드에 붙는 D-2 / D-1 / 오늘 마감 / 기한 지남 배지 (사진을 아직 한 장도 안 올린 항목에만 표시)
+function proofDueBadge(sessionDate){
+  var info = proofDueInfo(sessionDate);
+  if(!info) return '';
+  var label, bg, color;
+  if(info.overdue){ label='⛔ 기한 지남'; bg='#fee2e2'; color='#b91c1c'; }
+  else if(info.daysLeft===0){ label='⏰ 오늘 마감'; bg='#fee2e2'; color='#dc2626'; }
+  else if(info.daysLeft===1){ label='D-1'; bg='#ffedd5'; color='#c2410c'; }
+  else if(info.daysLeft===2){ label='D-2'; bg='#fef9c3'; color='#a16207'; }
+  else { label='D-'+info.daysLeft; bg='#f1f5f9'; color='#64748b'; }
+  return '<span style="display:inline-block;background:'+bg+';color:'+color+';font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:20px;margin-left:6px;">'+label+'</span>'
+    + '<div style="font-size:11.5px;color:#94a3b8;margin-top:4px;">사진 제출 기한: '+info.dueStr+'까지</div>';
+}
+// 아직 사진을 안 올렸고 기한도 지난 항목들 모으기
+function collectOverdueProofs(){
+  var out = [];
+  (myHwItems||[]).forEach(function(h){
+    if(h.pass==='complete' || h.pass==='na') return;
+    if((h.submissionUrls||[]).length) return;
+    var info = proofDueInfo(h.sessionDate);
+    if(info && info.overdue) out.push({ kind:'hw', id:h.id, name:h.hwName, where:(h.className||''), due:info.dueStr });
+  });
+  (myExamItems||[]).forEach(function(t){
+    if((t.submissionUrls||[]).length) return;
+    var info = proofDueInfo(t.sessionDate);
+    if(info && info.overdue) out.push({ kind:'exam', id:t.id, name:t.examName, where:(t.className||''), due:info.dueStr });
+  });
+  return out;
+}
+// 앞으로 갈 클리닉 예약이 하나라도 잡혀 있으면 잠금이 풀린다
+async function hasUpcomingClinic(){
+  try{
+    var r = await fetch(SU+'?action=getBookings&studentId='+encodeURIComponent(session.id)).then(function(r){return r.json();});
+    var today = new Date(); today.setHours(0,0,0,0);
+    return (r.bookings||[]).some(function(b){
+      if(b.status==='취소') return false;
+      if(!b.date) return false;
+      var d = new Date(String(b.date).replace(/\./g,'-')+'T00:00:00');
+      return !isNaN(d.getTime()) && d.getTime() >= today.getTime();
+    });
+  }catch(e){ return true; } // 조회 실패 시에는 막지 않음(잘못 가두는 것보다 안 막는 쪽이 안전)
+}
+async function runProofDeadlineFlow(){
+  await loadMyHomework();
+  await loadMyExamAlerts();
+  proofGateReady = true;
+  await checkProofDeadlineGate();
+}
+async function checkProofDeadlineGate(){
+  if(!proofGateReady) return;
+  if(isPreviewMode) return;                                   // 선생님 미리보기에서는 안 뜸
+  if(session.authId && session.authId !== session.id) return; // 학부모 계정에서는 안 뜸
+  var overdue = collectOverdueProofs();
+  if(!overdue.length){ closeProofGate(); return; }
+  if(await hasUpcomingClinic()){ closeProofGate(); return; }
+  openProofGate(overdue);
+}
+function closeProofGate(){
+  var el = document.getElementById('proof-gate');
+  if(el) el.remove();
+  document.body.style.overflow='';
+}
+function openProofGate(items){
+  closeProofGate();
+  document.body.style.overflow='hidden';
+  var rows = items.map(function(it){
+    var btn = it.kind==='hw'
+      ? 'triggerHwUpload(\''+it.id+'\')'
+      : 'triggerExamUpload(\''+it.id+'\')';
+    return '<div style="border:1px solid #fecaca;background:#fff5f5;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
+      +'<div style="font-weight:800;font-size:14px;color:#1e293b;">'+escHtml(it.name)+'</div>'
+      +'<div style="font-size:12px;color:#94a3b8;margin-top:3px;">'+escHtml(it.where)+' · 기한 '+it.due+'까지였어요</div>'
+      +'<button onclick="'+btn+'" style="width:100%;min-height:46px;margin-top:10px;background:#fff;border:1.5px solid #3b6cf7;color:#3b6cf7;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📷 지금 사진 올리기</button>'
+      +'</div>';
+  }).join('');
+  var wrap = document.createElement('div');
+  wrap.id='proof-gate';
+  wrap.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.93);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  wrap.innerHTML =
+    '<div style="background:#fff;border-radius:18px;width:100%;max-width:420px;max-height:88vh;overflow-y:auto;padding:24px 18px;box-sizing:border-box;">'
+    +'<div style="font-size:36px;text-align:center;line-height:1;">⏰</div>'
+    +'<div style="font-size:19px;font-weight:800;color:#dc2626;text-align:center;margin:12px 0 8px;">제출 기한이 지났어요</div>'
+    +'<div style="font-size:13.5px;color:#475569;text-align:center;line-height:1.65;margin-bottom:18px;">'
+      +'사진 제출 기한(수업 후 '+PROOF_DUE_DAYS+'일)이 지난 항목이 있어요.<br>'
+      +'<b>추가 클리닉을 신청</b>하거나 <b>지금 사진을 올려야</b> 마이페이지를 계속 쓸 수 있어요.'
+    +'</div>'
+    +rows
+    +'<button onclick="location.href=\'clinic.html\'" style="width:100%;min-height:52px;margin-top:6px;background:#3b6cf7;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">🏥 추가 클리닉 신청하러 가기</button>'
+    +'<div style="font-size:11.5px;color:#94a3b8;text-align:center;margin-top:12px;line-height:1.6;">클리닉을 신청하거나 사진을 올리면<br>이 화면은 바로 사라져요.</div>'
+    +'</div>';
+  document.body.appendChild(wrap);
+}
+
 // ── 내 숙제 현황 (완료/일부미이행/미이행/미제출 + 사진 증빙 업로드) ──
 var HW_STATUS_LABEL={complete:'제출',partial:'일부미이행',incomplete:'미이행',notsub:'미제출'};
 var myHwItems=[], hwUploadTargetId='';
@@ -1289,10 +1402,12 @@ function renderHwItems(items){
     var uploadBtn = canUpload && urls.length<HW_MAX_PHOTOS
       ? '<button class="hw-upload-btn" id="hw-upload-btn-'+h.id+'" onclick="triggerHwUpload(\''+h.id+'\')">📷 '+(urls.length?'사진 추가 올리기':'사진/파일 올리기')+'</button>'
       : (canUpload && urls.length>=HW_MAX_PHOTOS ? '<div class="hw-photo-count" style="margin-top:6px;">최대 '+HW_MAX_PHOTOS+'장까지 올렸어요. 더 올리려면 먼저 하나를 지워주세요.</div>' : '');
+    var dueBadge = (canUpload && !urls.length) ? proofDueBadge(h.sessionDate) : '';
     return '<div class="hw-item">'
       +'<div class="hw-item-top"><span class="hw-item-name">'+escHtml(h.hwName)+'</span>'
       +'<span class="hw-status-badge '+badgeCls+'">'+badgeLabel+'</span></div>'
       +'<div class="hw-item-sub">'+escHtml(whereTxt)+'</div>'
+      +dueBadge
       +(h.feedback?'<div class="hw-feedback">'+escHtml(h.feedback)+'</div>':'')
       +photoList+uploadBtn
       +'</div>';
@@ -1320,6 +1435,7 @@ function hwFileToBase64(file){
 async function submitHwProofUrls(item, urls){
   await fetch(SU+'?action=submitHwProof&sessionId='+encodeURIComponent(item.sessionId)+'&studentId='+encodeURIComponent(session.id)+'&hwId='+encodeURIComponent(item.hwId)+'&urls='+encodeURIComponent(JSON.stringify(urls)));
   await loadMyHomework();
+  checkProofDeadlineGate(); // 사진을 올렸으면 잠금 화면이 바로 사라지도록(반대로 지우면 다시 뜸)
 }
 async function deleteHwPhoto(id, url){
   var item=myHwItems.find(function(h){return h.id===id;});
@@ -1394,10 +1510,12 @@ function renderMyExamAlerts(){
     var uploadBtn = urls.length<EXAM_MAX_PHOTOS
       ? '<button class="hw-upload-btn" id="exam-upload-btn-'+t.id+'" onclick="triggerExamUpload(\''+t.id+'\')">📷 '+(urls.length?'사진 추가 올리기':'고쳐서 사진 찍어 제출하기')+'</button>'
       : '<div class="hw-photo-count" style="margin-top:6px;">최대 '+EXAM_MAX_PHOTOS+'장까지 올렸어요. '+(EXAM_MAX_PHOTOS+1)+'장 이상 제출해야 하면, 남은 사진은 여기 말고 민관T 개인 카톡으로 보내주세요.</div>';
+    var dueBadge = urls.length ? '' : proofDueBadge(t.sessionDate);
     return '<div class="hw-item">'
       +'<div class="hw-item-top"><span class="hw-item-name">'+escHtml(t.examName)+'</span>'
       +'<span class="hw-status-badge '+badgeCls+'">'+EXAM_KIND_LABEL[t.kind]+'</span></div>'
       +'<div class="hw-item-sub">'+escHtml(whereTxt)+'</div>'
+      +dueBadge
       +(t.feedback?'<div class="hw-feedback">'+escHtml(t.feedback)+'</div>':'')
       +photoList+uploadBtn
       +'</div>';
@@ -1417,6 +1535,7 @@ function triggerExamUpload(id){
 async function submitExamProofUrls(item, urls){
   await fetch(SU+'?action=submitExamProof&id='+encodeURIComponent(item.id)+'&studentId='+encodeURIComponent(session.id)+'&urls='+encodeURIComponent(JSON.stringify(urls)));
   await loadMyExamAlerts();
+  checkProofDeadlineGate(); // 사진을 올렸으면 잠금 화면이 바로 사라지도록(반대로 지우면 다시 뜸)
 }
 async function deleteExamPhoto(id, url){
   var item=myExamItems.find(function(t){return t.id===id;});
