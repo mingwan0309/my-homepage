@@ -913,6 +913,13 @@ function sendMcHourReminders() {
   } catch (err) {
     Logger.log('[sendAbsentVideoNotices 호출] 오류: ' + err);
   }
+
+  // 증빙 사진 제출 기한(수업 후 2일) 초과자 안내(밤 9시)도 같은 트리거에 얹어서 실행.
+  try {
+    sendProofOverdueNotices();
+  } catch (err) {
+    Logger.log('[sendProofOverdueNotices 호출] 오류: ' + err);
+  }
 }
 
 // 클리닉(추가클리닉 등, clinic_bookings) "오기 1시간 전" 자동 알림 — 의무클리닉과 동일한 패턴.
@@ -1283,4 +1290,118 @@ function sendAbsentVideoNotices() {
       Logger.log('[sendAbsentVideoNotices] ' + className + ' 발송 실패: ' + result.msg);
     }
   });
+}
+
+// ── 증빙 사진 제출 기한(수업 후 2일) 초과자 안내 (2026-09-16 추가) ──
+// 마이페이지 D-2 팝업에 적혀있던 "기한 안에 제출하지 않으면 선생님과 부모님께 알림이 발송됩니다"를
+// 실제로 구현한 기능. 밤 9시에 하루 한 번, 사진을 한 장도 안 올린 채 기한(수업일+2일)이 지난
+// 숙제·재시험 증빙을 찾아서 학생별로 묶어 학부모+선생님께 발송함.
+// ⚠️ PROOF_DUE_DAYS는 mypage.html의 같은 이름 상수와 반드시 같아야 함 — 마이페이지 팝업에
+//    "D-2"라고 뜬 게 실제로는 기한이 지나지 않은 걸로 처리되는 일이 없도록 값을 맞춰서 고칠 것.
+var PROOF_DUE_DAYS = 2;
+var PROOF_OVERDUE_NOTICE_START_MIN = 21 * 60; // 밤 9시
+var PROOF_OVERDUE_NOTICE_WINDOW_MIN = 30;
+// 수업일(YYYY-MM-DD) + PROOF_DUE_DAYS가 오늘보다 전이면(=오늘이 더 나중이면) 기한이 지난 것
+// (mypage.html의 proofDueInfo와 동일한 기준: daysLeft<0 ⇔ dueDate<today)
+function isProofOverdue(sessionDateStr, todayStr) {
+  var m = String(sessionDateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  var d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  d.setUTCDate(d.getUTCDate() + PROOF_DUE_DAYS);
+  var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+  var dueStr = d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
+  return todayStr > dueStr;
+}
+function sendProofOverdueNotices() {
+  var today = mcTodayInfoSeoul();
+  if (today.nowMins < PROOF_OVERDUE_NOTICE_START_MIN) return;
+  if (today.nowMins >= PROOF_OVERDUE_NOTICE_START_MIN + PROOF_OVERDUE_NOTICE_WINDOW_MIN) return;
+
+  // hw_status/scores 전체를 훑는 무거운 조회라, 발송 시간대(30분) 안에서도 하루에 딱 한 번만
+  // 실제로 돌게 ScriptProperties에 실행한 날짜를 남겨둠(5분마다 도는 트리거에 얹혀 있으므로).
+  var props = PropertiesService.getScriptProperties();
+  var doneKey = 'proofOverdueNoticeDate';
+  if (props.getProperty(doneKey) === today.dateStr) return;
+
+  try {
+    var sessById = {};
+    firestoreListAll('sessions').forEach(function(s){ sessById[s.id] = s; });
+    var classNameById = {};
+    firestoreListAll('classes').forEach(function(c){ classNameById[c.id] = c.name || ''; });
+    var nameById = {}, parentById = {};
+    firestoreListAll('students').forEach(function(s){ nameById[s.id] = s.name || s.id; parentById[s.id] = s.parentPhone || ''; });
+    var hwById = {};
+    firestoreListAll('homeworks').forEach(function(h){ hwById[h.id] = h; });
+    var examById = {};
+    firestoreListAll('exams').forEach(function(e){ examById[e.id] = e; });
+
+    var sessLabelOf = function(ses){
+      return (classNameById[ses.classId] || '') + ' ' + (ses.label || (ses.sessionNum ? ses.sessionNum + '차시' : ''));
+    };
+
+    // 학생별로 밀린 항목 문구를 모음
+    var byStudent = {};
+    function addItem(studentId, label) {
+      if (!byStudent[studentId]) byStudent[studentId] = [];
+      byStudent[studentId].push(label);
+    }
+
+    // 숙제 증빙 — mypage.html의 collectPendingProofs()와 같은 기준(완료/해당없음 제외, 사진 없음, 기한 지남)
+    var hwAll = firestoreListAll('hw_status');
+    var hwOverdue = hwAll.filter(function(r){
+      if (r.overdueNotifySent) return false;
+      if (r.pass === 'complete' || r.pass === 'na') return false;
+      if (r.submissionUrl && r.submissionUrl.length) return false;
+      var ses = sessById[r.sessionId];
+      if (!ses || !ses.date) return false;
+      return isProofOverdue(ses.date, today.dateStr);
+    });
+    hwOverdue.forEach(function(r){
+      var ses = sessById[r.sessionId] || {};
+      var hw = hwById[r.hwId] || {};
+      addItem(r.studentId, sessLabelOf(ses).trim() + ' 숙제(' + (hw.name || '과제') + ')');
+    });
+
+    // 재시험 증빙 — getMyExamAlerts와 같은 기준(미통과/미응시, 해결 안 됨, 사진 없음, 기한 지남)
+    var scoresAll = firestoreListAll('scores');
+    var scOverdue = scoresAll.filter(function(r){
+      if (r.examOverdueNotifySent) return false;
+      if (r.pass !== 'nosub' && r.pass !== 'absent') return false;
+      if (r.alertResolved) return false;
+      if (r.examSubmissionUrl && r.examSubmissionUrl.length) return false;
+      var ses = sessById[r.sessionId];
+      if (!ses || !ses.date) return false;
+      return isProofOverdue(ses.date, today.dateStr);
+    });
+    scOverdue.forEach(function(r){
+      var ses = sessById[r.sessionId] || {};
+      var ex = examById[r.examId] || {};
+      addItem(r.studentId, sessLabelOf(ses).trim() + ' 재시험(' + (ex.name || '시험') + ')');
+    });
+
+    var studentIds = Object.keys(byStudent);
+    if (!studentIds.length) { props.setProperty(doneKey, today.dateStr); return; }
+
+    var msgs = [];
+    studentIds.forEach(function(sid){
+      var nm = nameById[sid] || sid;
+      var itemsText = byStudent[sid].map(function(x){ return '- ' + x; }).join('\n');
+      var text = nm + ' 학생이 증빙 사진 제출 기한(수업 후 ' + PROOF_DUE_DAYS + '일)을 넘겼어요.\n\n'
+        + itemsText + '\n\n추가 클리닉 신청 부탁드립니다.';
+      if (parentById[sid]) msgs.push({ phone: parentById[sid], name: nm, className: '증빙 기한 초과', sessionNum: today.dateStr, message: text });
+      msgs.push({ phone: TEACHER_NOTIFY_PHONE, name: nm, className: '증빙 기한 초과', sessionNum: today.dateStr, message: text });
+    });
+
+    var result = sendAlimtalkMessages(msgs);
+    if (result.success) {
+      hwOverdue.forEach(function(r){ firestorePatchFields('hw_status', r.id, { overdueNotifySent: true }); });
+      scOverdue.forEach(function(r){ firestorePatchFields('scores', r.id, { examOverdueNotifySent: true }); });
+      props.setProperty(doneKey, today.dateStr);
+    } else {
+      // ScriptProperties 표시를 안 남기므로 발송 시간대(30분) 안이면 5분 뒤 다시 시도됨
+      Logger.log('[sendProofOverdueNotices] 발송 실패: ' + result.msg);
+    }
+  } catch (err) {
+    Logger.log('[sendProofOverdueNotices] 오류: ' + err);
+  }
 }
