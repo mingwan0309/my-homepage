@@ -319,6 +319,12 @@
 - 같은 함정을 피해야 하는 곳: **Apps Script가 Firestore를 직접 읽을 때는 학생 전화번호 = `students` 문서 ID**. `sendClinicHourReminders`(`b.studentId` 사용)와 `sendAbsentVideoNotices`(문서 ID 사용)는 원래부터 정상.
 - 영향 범위 점검 결과 이 버그는 `sendMcHourReminders` 한 곳뿐이었음 — 추가클리닉 1시간 전 알림, 의무클리닉 결석 체크 알림톡(관리 화면에서 발송), 결석자 영상 안내는 모두 정상 동작이었음.
 
+## 🚨 재시험 증빙 사진이 한 번도 저장된 적 없던 버그 (2026-09-16 발견·수정, 규칙 v7)
+학생이 마이페이지에서 **재시험 증빙 사진**을 올리면 사진은 구글 드라이브에 올라가고 화면에는 "✅ N장 제출했어요!"까지 떴지만, **정작 `scores` 문서에 사진 주소를 기록하는 단계가 Firestore 규칙에 막혀서 조용히 실패**하고 있었음. `scores` 규칙이 `allow write: if isTeacher() || isAssistant()`뿐이라 학생 쓰기가 전부 거부됐는데, `hw_status`에는 있는 "학생 본인이 사진 항목만 갱신 가능" 예외 조항이 `scores`에는 없었음(재시험 증빙 기능을 만들 때 규칙을 같이 안 넣은 것). 결과: **이 기능이 생긴 이후 학생들이 올린 재시험 사진은 전부 저장 안 됐고, 선생님 테스트 관리 화면에도 한 번도 안 떴음.** 학생·선생님 모두 눈치 못 채다가, 2026-09-16 D-2 잠금 화면이 "사진이 실제로 있냐"를 확인하면서 학생(김유찬)이 "올려도 안 사라진다"고 신고해서 드러남.
+- **수정 ①(진짜 원인) — Firestore 규칙 v7**: `/scores/{id}`에 `allow update: if isOwner(resource.data.studentId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['examSubmissionUrl','examSubmittedAt'])` 추가(hw_status의 예외와 동일한 형태). 스크래치패드 `firestore_rules_최종_2026-09-16_v7.txt`. **사용자가 콘솔에 붙여넣어야 실제로 고쳐짐.**
+- **수정 ②(재발 방지) — mypage.html**: `submitHwProofUrls`/`submitExamProofUrls`가 응답의 `success`를 확인해서 `false`면 throw하도록 바꿈. **firebase-api.js의 fetch 가로채기는 Firestore 권한 거부 같은 에러를 throw하지 않고 `{success:false}`로 감싸서 정상 응답처럼 돌려주기 때문에**, 결과를 안 보면 실패를 성공으로 착각함 — 저장 결과가 중요한 호출은 반드시 `success`를 확인할 것. 실패 시 학생에게 "사진은 올라갔는데 제출 기록 저장이 거부됐어요. 선생님께 알려주세요." 안내가 뜸.
+- **후속 조치 필요(사용자에게 안내함):** 규칙 v7 게시 전에 학생들이 "제출했다"고 생각한 재시험 사진들은 실제로는 기록이 없으므로, 그 학생들에게 다시 올려달라고 해야 함. 드라이브에는 파일이 남아있지만 어느 시험 건지 연결이 안 돼 있어서 코드로 복구는 불가.
+
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
 - Apps Script 재배포 시 "새 버전" 안내 빼먹기

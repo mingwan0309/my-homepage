@@ -1433,7 +1433,10 @@ function hwFileToBase64(file){
   });
 }
 async function submitHwProofUrls(item, urls){
-  await fetch(SU+'?action=submitHwProof&sessionId='+encodeURIComponent(item.sessionId)+'&studentId='+encodeURIComponent(session.id)+'&hwId='+encodeURIComponent(item.hwId)+'&urls='+encodeURIComponent(JSON.stringify(urls)));
+  // 저장이 거부돼도(권한 등) 통신 자체는 성공으로 돌아오기 때문에, 응답의 success를 반드시 확인해야 함.
+  // 이걸 안 보면 실제로는 저장이 안 됐는데 "제출했어요"라고 잘못 안내하게 됨(2026-09-16 재시험 쪽에서 실제로 발생).
+  var r=await fetch(SU+'?action=submitHwProof&sessionId='+encodeURIComponent(item.sessionId)+'&studentId='+encodeURIComponent(session.id)+'&hwId='+encodeURIComponent(item.hwId)+'&urls='+encodeURIComponent(JSON.stringify(urls))).then(function(r){return r.json();});
+  if(!r || r.success===false) throw new Error('저장 거부: '+(r&&r.msg||''));
   await loadMyHomework();
   checkProofDeadlineGate(); // 사진을 올렸으면 잠금 화면이 바로 사라지도록(반대로 지우면 다시 뜸)
 }
@@ -1472,7 +1475,7 @@ async function onHwFileSelected(e){
       await submitHwProofUrls(item, merged);
       alert('✅ '+newUrls.length+'장 제출했어요! 선생님이 확인하시면 완료로 바뀌어요.');
     }
-  }catch(err){ alert('업로드 중 오류가 발생했어요. 다시 시도해주세요.'); }
+  }catch(err){ alert(String(err&&err.message||'').indexOf('저장 거부')===0 ? '사진은 올라갔는데 제출 기록 저장이 거부됐어요. 선생님께 알려주세요.' : '업로드 중 오류가 발생했어요. 다시 시도해주세요.'); }
   finally{ hwUploadTargetId=''; }
 }
 
@@ -1533,7 +1536,8 @@ function triggerExamUpload(id){
   input.click();
 }
 async function submitExamProofUrls(item, urls){
-  await fetch(SU+'?action=submitExamProof&id='+encodeURIComponent(item.id)+'&studentId='+encodeURIComponent(session.id)+'&urls='+encodeURIComponent(JSON.stringify(urls)));
+  var r=await fetch(SU+'?action=submitExamProof&id='+encodeURIComponent(item.id)+'&studentId='+encodeURIComponent(session.id)+'&urls='+encodeURIComponent(JSON.stringify(urls))).then(function(r){return r.json();});
+  if(!r || r.success===false) throw new Error('저장 거부: '+(r&&r.msg||''));
   await loadMyExamAlerts();
   checkProofDeadlineGate(); // 사진을 올렸으면 잠금 화면이 바로 사라지도록(반대로 지우면 다시 뜸)
 }
@@ -1572,7 +1576,7 @@ async function onExamFileSelected(e){
       await submitExamProofUrls(item, merged);
       alert('✅ '+newUrls.length+'장 제출했어요! 선생님이 확인하시면 목록에서 빠져요.');
     }
-  }catch(err){ alert('업로드 중 오류가 발생했어요. 다시 시도해주세요.'); }
+  }catch(err){ alert(String(err&&err.message||'').indexOf('저장 거부')===0 ? '사진은 올라갔는데 제출 기록 저장이 거부됐어요. 선생님께 알려주세요.' : '업로드 중 오류가 발생했어요. 다시 시도해주세요.'); }
   finally{ examUploadTargetId=''; }
 }
 
