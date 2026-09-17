@@ -617,7 +617,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
             <input type="checkbox" id="mc-showall" onchange="toggleMcShowAll(this.checked)"> 등록된 학생 전체 보기(관리용)
           </label>
         </div>
-        <input type="text" id="mc-name-search" placeholder="🔍 학생 이름으로 찾기" oninput="renderMcList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:16px;margin-bottom:12px;font-family:inherit;">
+        <input type="search" id="mc-name-search" name="mc-student-name-filter" autocomplete="off" placeholder="🔍 학생 이름으로 찾기" oninput="renderMcList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:16px;margin-bottom:12px;font-family:inherit;">
         <style>@media(min-width:769px){#mc-name-search{font-size:14px!important;}}</style>
         <div id="mc-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
@@ -635,7 +635,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <label id="hw-mine-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer;margin:-6px 0 12px;">
           <input type="checkbox" id="hw-mine" checked onchange="toggleHwMineOnly(this.checked)"> 내 담당 학생만 보기
         </label>
-        <input type="text" id="hw-name-search" placeholder="🔍 학생 이름으로 찾기" oninput="renderHwManageList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+        <input type="search" id="hw-name-search" name="hw-student-name-filter" autocomplete="off" placeholder="🔍 학생 이름으로 찾기" oninput="renderHwManageList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
         <style>#hw-name-search{font-size:16px!important;}@media(min-width:769px){#hw-name-search{font-size:14px!important;}}</style>
         <div id="hw-bulk-bar" style="display:none;position:sticky;top:0;z-index:5;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="font-size:13px;font-weight:800;color:#1d4ed8;"><span id="hw-bulk-count">0</span>명 선택됨</span>
@@ -648,7 +648,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       </div>
       <div id="hwtest-pane-test" style="display:none;">
         <p style="font-size:12px;color:#94a3b8;margin:-4px 0 14px;">시험 점수 입력 화면에서 '미통과'이거나, 조교/교사가 직접 '미응시'로 표시한 학생만 모아서 보여줘요. 재시험을 보고 '해결' 처리하면 이 목록에서 빠져요.</p>
-        <input type="text" id="test-name-search" placeholder="🔍 학생 이름으로 찾기" oninput="renderTestManageList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:16px;margin-bottom:12px;font-family:inherit;">
+        <input type="search" id="test-name-search" name="test-student-name-filter" autocomplete="off" placeholder="🔍 학생 이름으로 찾기" oninput="renderTestManageList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:16px;margin-bottom:12px;font-family:inherit;">
         <style>@media(min-width:769px){#test-name-search{font-size:14px!important;}}</style>
         <div id="testmanage-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
