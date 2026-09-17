@@ -1477,6 +1477,13 @@ function aiDraftAnswer(data) {
     }
     var out = (body.content || []).filter(function(c){ return c.type === 'text'; }).map(function(c){ return c.text; }).join('\n').trim();
     firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: out, error: '', createdAt: nowKst, model: AI_DRAFT_MODEL });
+    // 초안이 준비되면 선생님 폰으로 알림톡 — 질문 올라왔을 때 가는 알림과 별개로 "이제 확인하고 답변 달면 된다"는 신호
+    if (!data.silent) {
+      try {
+        sendAlimtalkMessages([{ phone: TEACHER_NOTIFY_PHONE, name: String(data.studentName || ''), className: 'AI 풀이 초안 준비됨', sessionNum: nowKst,
+          message: (data.studentName || '학생') + '님 질문 "' + String(data.title || '').slice(0, 30) + '"의 AI 풀이 초안이 준비됐어요. 질의응답에서 열어 확인 후 답변을 달아주세요.' }]);
+      } catch (e) { Logger.log('[aiDraftAnswer] 알림톡 실패: ' + e); }
+    }
     return { success: true };
   } catch (err) {
     Logger.log('[aiDraftAnswer] 오류: ' + err);

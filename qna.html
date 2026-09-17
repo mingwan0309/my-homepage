@@ -538,7 +538,8 @@ async function regenerateAiDraft() {
   var btn = document.getElementById('ai-regen-btn');
   if (btn) { btn.disabled = true; btn.textContent = '만드는 중... (최대 1분)'; }
   try {
-    await fetch(SU, { method:'POST', body: JSON.stringify({ action:'aiDraftAnswer', questionId: currentQuestion.id, title: currentQuestion.title || '', content: currentQuestion.content || '', studentName: currentQuestion.studentName || '' }) });
+    // silent: 선생님이 직접 눌러서 만드는 거라 "초안 준비됨" 알림톡은 안 보냄
+    await fetch(SU, { method:'POST', body: JSON.stringify({ action:'aiDraftAnswer', questionId: currentQuestion.id, title: currentQuestion.title || '', content: currentQuestion.content || '', studentName: currentQuestion.studentName || '', silent: true }) });
   } catch(e) {}
   await loadAiDraft(currentQuestion.id);
 }
