@@ -11,6 +11,7 @@ function doPost(e) {
     }
     if (data.action === 'sendAlimtalk') return sendAlimtalk(data);
     if (data.action === 'aiDraftAnswer') return json(aiDraftAnswer(data));
+    if (data.action === 'aiNoteImage') return json(aiNoteImage(data));
     if (data.action === 'getFileBase64') {
       // 큰 파일(수 MB)을 한 번에 통째로 응답하면 Apps Script가 내부적으로
       // script.googleusercontent.com 으로 리다이렉트시키는데, 이 리다이렉트가
@@ -1436,6 +1437,104 @@ function aiExtractDriveIds(html) {
   while ((m = re.exec(String(html || ''))) !== null) { if (ids.indexOf(m[1]) < 0) ids.push(m[1]); }
   return ids.slice(0, AI_DRAFT_MAX_IMAGES);
 }
+// ===== AI 풀이 초안 → "노트 사진" 이미지 생성 (Gemini 이미지 모델, 2026-09-17) =====
+// 선생님이 질의응답에서 "📷 AI 노트 사진으로 넣기"를 누르면, 문제 사진 + 풀이 초안 글을 Gemini에 보내
+// "스프링 노트에 검은 펜으로 손글씨로 쓴 사진"을 생성해서 드라이브에 저장하고 주소를 돌려줌.
+// API 키는 코드에 없음 — Apps Script 프로젝트 설정 → 스크립트 속성에 GEMINI_API_KEY 로 저장해야 작동.
+// (homework.html에 하드코딩돼 있던 옛 GEMINI_KEY는 2026-09-17 확인 결과 이미 죽은 키라 여기선 안 씀)
+// 모델은 스크립트 속성 GEMINI_IMAGE_MODEL 로 바꿀 수 있음(없으면 아래 기본값). 글씨 정확도가 중요해서 기본은 Pro.
+// ⚠️ 이미지 생성 AI는 한글·수식·숫자를 틀리게 그릴 수 있음 — 선생님이 반드시 눈으로 확인 후 답변 등록할 것.
+var AI_NOTE_IMAGE_MODEL_DEFAULT = 'gemini-3-pro-image';
+var AI_NOTE_IMAGE_PROMPT = 'A realistic top-down photo of a math solution handwritten on a spiral-bound notebook lying on a wooden desk. '
+  + 'Cream-white lined paper with light blue-gray horizontal rules and a thin red vertical margin line on the left; large silver spiral coils on the left edge. '
+  + 'The attached image is a clipping of the math problem: it is taped to the top-left area of the page with four strips of translucent masking tape. '
+  + 'Reproduce that clipping EXACTLY as it is (it is a printed capture — do not retype, redraw or alter it). '
+  + 'To the right of the clipping, starting with "풀이)", and continuing below it across the full width, the solution is handwritten in neat, tidy, rounded Korean handwriting with a black gel pen (not a font look, real pen strokes, consistent size). '
+  + 'Numbered step titles like "1.", "2." with the lines under each step slightly indented. Fractions are written stacked (numerator over denominator with a bar), exponents as small raised digits. '
+  + 'The final answer line starts with a check mark and is double-underlined. Natural soft daylight, slight paper texture, no watermark, no hands, no other objects. 16:9 landscape.\n\n'
+  + 'IMPORTANT: The handwritten solution on the page must be EXACTLY the following Korean text, in this order, with every number, symbol, variable and formula copied precisely. Do not add, omit, translate or paraphrase anything:\n\n';
+
+function aiNoteImage(data) {
+  var props = PropertiesService.getScriptProperties();
+  var apiKey = props.getProperty('GEMINI_API_KEY');
+  if (!apiKey) return { success: false, msg: 'GEMINI_API_KEY가 Apps Script 스크립트 속성에 없어요. 프로젝트 설정(⚙) → 스크립트 속성에 추가해주세요.' };
+  var model = props.getProperty('GEMINI_IMAGE_MODEL') || AI_NOTE_IMAGE_MODEL_DEFAULT;
+  var draft = String(data.draftText || '').trim();
+  if (!draft) return { success: false, msg: '풀이 초안 글이 비어있어요.' };
+  try {
+    // 질문에 첨부된 첫 번째 사진을 "문제 조각"으로 같이 보냄
+    var problem = null;
+    var ids = aiExtractDriveIds(data.content);
+    for (var i = 0; i < ids.length && !problem; i++) {
+      try {
+        var blob = DriveApp.getFileById(ids[i]).getBlob();
+        var mime = blob.getContentType() || '';
+        if (mime.indexOf('image/') !== 0) continue;
+        var bytes = blob.getBytes();
+        if (bytes.length > 6 * 1024 * 1024) continue;
+        problem = { mime: mime === 'image/jpg' ? 'image/jpeg' : mime, b64: Utilities.base64Encode(bytes) };
+      } catch (e) { Logger.log('[aiNoteImage] 이미지 읽기 실패 ' + ids[i] + ': ' + e); }
+    }
+    var prompt = AI_NOTE_IMAGE_PROMPT + draft;
+    if (!problem) prompt = prompt.replace(/The attached image is a clipping[^\n]*?alter it\)\. /, 'There is no problem clipping; the handwriting starts at the top of the page. ');
+
+    // 새 Interactions API(2026)로 먼저 시도, 안 되면(404/400) 예전 generateContent 방식으로 한 번 더
+    var input = [{ type: 'text', text: prompt }];
+    if (problem) input.push({ type: 'image', mime_type: problem.mime, data: problem.b64 });
+    var res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+      method: 'POST', headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+      payload: JSON.stringify({ model: model, input: input, response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: '16:9', image_size: '2K' } }),
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode(), body = {};
+    try { body = JSON.parse(res.getContentText()); } catch (e) {}
+    if (code === 404 || code === 400) {
+      Logger.log('[aiNoteImage] interactions ' + code + ' → generateContent로 재시도: ' + res.getContentText().slice(0, 300));
+      var parts = [];
+      if (problem) parts.push({ inline_data: { mime_type: problem.mime, data: problem.b64 } });
+      parts.push({ text: prompt });
+      res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
+        method: 'POST', headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+        payload: JSON.stringify({ contents: [{ parts: parts }], generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '16:9' } } }),
+        muteHttpExceptions: true
+      });
+      code = res.getResponseCode(); body = {};
+      try { body = JSON.parse(res.getContentText()); } catch (e) {}
+    }
+    if (code !== 200) {
+      var msg = (body.error && body.error.message) || ('HTTP ' + code);
+      Logger.log('[aiNoteImage] 오류 ' + code + ': ' + res.getContentText().slice(0, 600));
+      return { success: false, msg: msg };
+    }
+    // 응답 어디에 있든 base64 이미지 블록을 찾음(Interactions: outputs/steps 안 {type:'image',data}, 구형: parts[].inlineData)
+    var img = aiFindImageBlock(body);
+    if (!img) {
+      Logger.log('[aiNoteImage] 이미지 없음: ' + res.getContentText().slice(0, 600));
+      return { success: false, msg: '이미지가 안 만들어졌어요 (응답에 이미지 없음). 프롬프트가 차단됐거나 모델이 글만 돌려줬을 수 있어요.' };
+    }
+    var outMime = img.mime || 'image/jpeg';
+    var ext = outMime.indexOf('png') >= 0 ? 'png' : 'jpg';
+    var folderName = 'MKMath 자료실';
+    var folders = DriveApp.getFoldersByName(folderName);
+    var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+    var file = folder.createFile(Utilities.newBlob(Utilities.base64Decode(img.data), outMime, 'ai_note_' + Date.now() + '.' + ext));
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return { success: true, url: 'https://drive.google.com/file/d/' + file.getId() + '/view', fileId: file.getId(), model: model };
+  } catch (err) {
+    Logger.log('[aiNoteImage] 예외: ' + err);
+    return { success: false, msg: String(err) };
+  }
+}
+function aiFindImageBlock(node) {
+  if (!node || typeof node !== 'object') return null;
+  if (Array.isArray(node)) { for (var i = 0; i < node.length; i++) { var r = aiFindImageBlock(node[i]); if (r) return r; } return null; }
+  if (node.type === 'image' && typeof node.data === 'string' && node.data.length > 100) return { mime: node.mime_type || node.mimeType, data: node.data };
+  var inl = node.inlineData || node.inline_data;
+  if (inl && typeof inl.data === 'string' && inl.data.length > 100) return { mime: inl.mimeType || inl.mime_type, data: inl.data };
+  for (var k in node) { if (node.hasOwnProperty(k)) { var r2 = aiFindImageBlock(node[k]); if (r2) return r2; } }
+  return null;
+}
+
 function aiDraftAnswer(data) {
   var qid = String(data.questionId || '');
   if (!qid) return { success: false, msg: 'questionId 없음' };

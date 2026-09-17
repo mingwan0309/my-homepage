@@ -10,7 +10,7 @@
 <style>html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;}</style>
 <script>['gesturestart','gesturechange','gestureend'].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();},{passive:false});});</script>
 <title>질의응답 | 김민관 수학</title>
-<script src="firebase-api.js?v=41"></script>
+<script src="firebase-api.js?v=42"></script>
 <script src="chat-widget.js" defer></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -528,7 +528,7 @@ function renderAiDraft() {
     + '<div style="white-space:pre-wrap;font-size:14px;line-height:1.7;color:#1e293b;background:#fff;border:1px solid #ede9fe;border-radius:8px;padding:12px 14px;max-height:420px;overflow:auto;">' + esc(aiDraftCur.text) + '</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">'
     + '<button type="button" onclick="aiDraftToAnswer(false)" style="' + btnStyle + 'background:#7c3aed;border:none;color:#fff;">✏️ 답변에 글로 넣기</button>'
-    + '<button type="button" id="ai-img-btn" onclick="aiDraftToAnswer(true)" style="' + btnStyle + 'background:#1e3a8a;border:none;color:#fff;">📷 노트 사진(손글씨)으로 넣기</button>'
+    + '<button type="button" id="ai-img-btn" onclick="aiDraftToAnswer(true)" style="' + btnStyle + 'background:#1e3a8a;border:none;color:#fff;">📷 AI 노트 사진으로 넣기</button>'
     + regenBtn
     + '</div>'
     + '<div style="font-size:11.5px;color:#94a3b8;margin-top:8px;">' + (aiDraftCur.createdAt ? aiDraftCur.createdAt + ' 생성 · ' : '') + 'AI 풀이는 틀릴 수 있어요. 꼭 확인하고 고쳐서 보내주세요.</div>'
@@ -556,15 +556,31 @@ async function aiDraftToAnswer(asImage) {
     return;
   }
   var btn = document.getElementById('ai-img-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '이미지 만드는 중...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'AI가 노트 사진 만드는 중... (30초~1분)'; }
+  var marker = 'ai-note-' + Date.now();
   try {
-    var pimg = await loadProblemImageForNote();
-    var blob = await renderHandwritingNote(aiDraftCur.text, pimg);
-    var file = new File([blob], 'ai_note.jpg', { type:'image/jpeg' });
-    await insertImages([file], 'ans');
+    // Gemini 이미지 생성(Code.gs aiNoteImage): 문제 사진 + 초안 글 → 스프링 노트 손글씨 사진. 키는 Apps Script 스크립트 속성에만 있음.
+    el.focus();
+    document.execCommand('insertHTML', false, '<span id="' + marker + '" style="color:#94a3b8;">[AI 노트 사진 만드는 중...]</span>');
+    var r = await fetch(SU, { method:'POST', headers:{ 'Content-Type':'text/plain' }, body: JSON.stringify({ action:'aiNoteImage', questionId: currentQuestion.id, content: currentQuestion.content || '', draftText: aiDraftCur.text }) }).then(function(x){ return x.json(); });
+    var span = document.getElementById(marker);
+    if (!r || !r.success || !r.url) throw new Error((r && r.msg) || '응답 없음');
+    var m = r.url.match(/\/d\/([^\/]+)/);
+    var src = m ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1600') : r.url;
+    if (span) span.outerHTML = '<img src="' + src + '" style="max-width:100%;">';
     el.scrollIntoView({ behavior:'smooth', block:'center' });
-  } catch(e) { alert('이미지 만들기 실패: ' + (e && e.message || e)); }
-  if (btn) { btn.disabled = false; btn.textContent = '📷 노트 사진(손글씨)으로 넣기'; }
+  } catch(e) {
+    var sp = document.getElementById(marker); if (sp) sp.remove();
+    var msg = (e && e.message) || String(e);
+    if (confirm('AI 노트 사진 만들기 실패: ' + msg + '\n\n대신 폰트로 그린 노트 이미지(수식은 정확함)로 넣을까요?')) {
+      try {
+        var pimg = await loadProblemImageForNote();
+        var blob = await renderHandwritingNote(aiDraftCur.text, pimg);
+        await insertImages([new File([blob], 'ai_note.jpg', { type:'image/jpeg' })], 'ans');
+      } catch(e2) { alert('이미지 만들기 실패: ' + (e2 && e2.message || e2)); }
+    }
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '📷 AI 노트 사진으로 넣기'; }
 }
 // 초안 텍스트를 "책상 위 스프링 노트를 위에서 찍은 사진"처럼 그림.
 // (AI 이미지 생성이 아니라 캔버스 렌더링이라 수식·숫자가 안 틀림 — 이미지 생성 AI는 한글·수식을 자주 망가뜨려서 일부러 이 방식)

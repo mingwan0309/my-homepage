@@ -2689,7 +2689,7 @@ window.fetch = function(url, opts){
       var postAction = bodyObj.action || '';
       // 파일 업로드(uploadFile)와 알림톡 발송(sendAlimtalk)만 진짜 Apps Script로 통과
       // (외부에서 이 주소를 직접 호출해 알림톡을 무단 발송/파일을 무단 업로드하지 못하도록 앱 전용 토큰을 자동으로 붙여서 보냄)
-      if (postAction === 'uploadFile' || postAction === 'sendAlimtalk' || postAction === 'getFileBase64' || postAction === 'aiDraftAnswer' || !postAction) {
+      if (postAction === 'uploadFile' || postAction === 'sendAlimtalk' || postAction === 'getFileBase64' || postAction === 'aiDraftAnswer' || postAction === 'aiNoteImage' || !postAction) {
         if (postAction) {
           bodyObj.appToken = APP_SHARED_TOKEN;
           opts = Object.assign({}, opts, { body: JSON.stringify(bodyObj) });
