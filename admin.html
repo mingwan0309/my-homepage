@@ -3337,29 +3337,34 @@ function renderOverdueList(){
     el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">'+(searchQ?'🔍 \''+escHtml(searchQ)+'\' 이름과 일치하는 학생이 없어요.':'🎉 기한을 넘긴 미제출이 없어요.')+'</div>';
     return;
   }
-  // 학생별로 묶어서, 많이 지난 학생부터 위로
-  var byStu={}, order=[];
+  // 기한(=수업일+2일) 날짜별로 묶어서, 많이 지난 날짜부터 위로 (2026-09-17 요청: 학생별 → 날짜별)
+  var byDate={}, order=[];
   all.forEach(function(x){
-    var sid=x.item.studentId||x.item.studentName;
-    if(!byStu[sid]){ byStu[sid]={name:x.item.studentName||'', cls:x.item.className||'반 미배정', items:[], maxD:0}; order.push(sid); }
-    byStu[sid].items.push(x);
-    var d=proofOverdueDays(x.item.sessionDate)||0;
-    if(d>byStu[sid].maxD) byStu[sid].maxD=d;
+    var key=x.item.sessionDate||'';
+    if(!byDate[key]){ byDate[key]={items:[], d:proofOverdueDays(key)||0}; order.push(key); }
+    byDate[key].items.push(x);
   });
-  order.sort(function(a,b){ return byStu[b].maxD-byStu[a].maxD || byStu[a].name.localeCompare(byStu[b].name,'ko'); });
-  el.innerHTML=order.map(function(sid){
-    var s=byStu[sid];
-    s.items.sort(function(a,b){ return (proofOverdueDays(b.item.sessionDate)||0)-(proofOverdueDays(a.item.sessionDate)||0); });
-    return '<div style="margin-bottom:16px;">'
-      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;margin-bottom:8px;">'
-      +   '<span style="font-size:14px;font-weight:800;color:#1e293b;">'+escHtml(s.name)+'</span>'
-      +   '<span style="font-size:12px;color:#64748b;">🏫 '+escHtml(s.cls)+'</span>'
-      +   '<span style="background:#dc2626;color:#fff;font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:12px;">최대 D+'+s.maxD+'</span>'
-      +   '<span style="font-size:12px;color:#94a3b8;">'+s.items.length+'건</span>'
+  order.sort(function(a,b){ return byDate[b].d-byDate[a].d; });
+  var dueStrOf=function(sessionDate){
+    var m=String(sessionDate||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(!m) return '';
+    var dt=new Date(Number(m[1]),Number(m[2])-1,Number(m[3])+PROOF_DUE_DAYS);
+    var pad=function(n){return (n<10?'0':'')+n;};
+    return dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
+  };
+  el.innerHTML=order.map(function(key){
+    var g=byDate[key];
+    // 같은 날짜 안에서는 반 → 이름 순
+    g.items.sort(function(a,b){ return (a.item.className||'').localeCompare(b.item.className||'','ko') || (a.item.studentName||'').localeCompare(b.item.studentName||'','ko'); });
+    return '<div style="margin-bottom:18px;">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:9px 12px;margin-bottom:8px;">'
+      +   '<span style="font-size:14px;font-weight:800;color:#b91c1c;">⏰ 기한 '+escHtml(dueStrOf(key))+'</span>'
+      +   '<span style="background:#dc2626;color:#fff;font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:12px;">D+'+g.d+'</span>'
+      +   '<span style="font-size:12px;color:#64748b;">수업일 '+escHtml(key||'미상')+'</span>'
+      +   '<span style="font-size:12px;color:#94a3b8;">'+g.items.length+'건</span>'
       + '</div>'
-      + s.items.map(function(x){
-          var d=proofOverdueDays(x.item.sessionDate)||0;
-          return '<div style="font-size:11.5px;color:#64748b;margin:4px 0 2px 2px;">'+(x.kind==='hw'?'📋 숙제':'📝 재시험')+' · <span style="color:#dc2626;font-weight:800;">D+'+d+'</span> <span style="color:#94a3b8;">(수업일 '+escHtml(x.item.sessionDate||'')+')</span></div>'
+      + g.items.map(function(x){
+          return '<div style="font-size:11.5px;color:#64748b;margin:4px 0 2px 2px;">'+(x.kind==='hw'?'📋 숙제':'📝 재시험')+' · 🏫 '+escHtml(x.item.className||'반 미배정')+'</div>'
             + (x.kind==='hw'?renderHwCard(x.item):renderTestCard(x.item));
         }).join('')
       + '</div>';
