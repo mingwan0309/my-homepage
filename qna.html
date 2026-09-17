@@ -527,7 +527,7 @@ function renderAiDraft() {
   // 노트 사진이 이미 만들어져 있으면(질문 올라올 때 자동 생성) 사진을 먼저 크게 보여주고, 글 초안은 접어둠
   var imgSrc = aiDraftCur.imageUrl ? aiDriveThumb(aiDraftCur.imageUrl) : '';
   var imgBlock = imgSrc
-    ? '<div style="background:#fff;border:1px solid #ede9fe;border-radius:8px;padding:8px;"><img src="' + imgSrc + '" style="width:100%;border-radius:6px;display:block;" alt="AI 풀이 노트 사진"></div>'
+    ? '<div style="background:#fff;border:1px solid #ede9fe;border-radius:8px;padding:8px;">' + aiNoteSplitHtml(imgSrc) + '<div style="font-size:11px;color:#94a3b8;text-align:center;">위: 노트 왼쪽 반 · 아래: 오른쪽 반 (사진 누르면 전체 크게 보기)</div></div>'
     : '<div style="font-size:13px;color:#c2410c;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;">📷 노트 사진이 아직 없어요' + (aiDraftCur.imageError ? ' — ' + esc(aiDraftCur.imageError) : ' (만드는 중이거나 실패했을 수 있어요)') + '</div>';
   box.innerHTML = '<div style="margin-top:20px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:14px 16px;">' + head
     + imgBlock
@@ -542,6 +542,14 @@ function renderAiDraft() {
     + '<div style="font-size:11.5px;color:#94a3b8;margin-top:8px;">' + (aiDraftCur.createdAt ? aiDraftCur.createdAt + ' 생성 · ' : '') + 'AI 풀이는 틀릴 수 있어요. 꼭 확인하고 고쳐서 보내주세요.</div>'
     + '</div>';
 }
+// 16:9 가로 노트 사진을 폰에서 읽기 좋게 "왼쪽 반 / 오른쪽 반" 두 장으로 나눠 세로로 쌓아 보여주는 HTML
+// (사진 자체는 한 장이고 CSS로 잘라서 보여주는 것 — 사진을 누르면 라이트박스에서 전체가 열림)
+function aiNoteSplitHtml(src) {
+  var box = 'overflow:hidden;width:100%;aspect-ratio:16/18;border-radius:6px;background:#fff;margin:6px 0;';
+  var img = 'width:200%;max-width:none;height:auto;display:block;';
+  return '<div class="ai-note-half" style="' + box + '"><img src="' + src + '" style="' + img + '" alt="풀이 노트 왼쪽"></div>'
+       + '<div class="ai-note-half" style="' + box + '"><img src="' + src + '" style="' + img + 'margin-left:-100%;" alt="풀이 노트 오른쪽"></div>';
+}
 // 드라이브 파일 주소 → 화면에 <img>로 뜨는 thumbnail 주소 (view 주소를 그대로 쓰면 이미지가 안 뜸)
 function aiDriveThumb(url) {
   var m = String(url || '').match(/\/d\/([^\/]+)/) || String(url || '').match(/[?&]id=([^&]+)/);
@@ -553,7 +561,7 @@ function aiImageToAnswer() {
   if (!editingAnswer) startEdit();
   var el = document.getElementById('ans-editor');
   if (!el) return;
-  var html = '<img src="' + aiDriveThumb(aiDraftCur.imageUrl) + '" style="max-width:100%;">';
+  var html = aiNoteSplitHtml(aiDriveThumb(aiDraftCur.imageUrl)) + '<p><br></p>';
   el.innerHTML = (el.innerHTML.trim() && el.innerHTML.trim() !== '<br>') ? el.innerHTML + html : html;
   el.scrollIntoView({ behavior:'smooth', block:'center' });
 }
@@ -602,7 +610,7 @@ async function aiDraftToAnswer(asImage) {
     if (!r || !r.success || !r.url) throw new Error((r && (r.msg || r.error)) || ('응답 없음: ' + JSON.stringify(r || null).slice(0, 300)));
     var m = r.url.match(/\/d\/([^\/]+)/);
     var src = m ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1600') : r.url;
-    if (span) span.outerHTML = '<img src="' + src + '" style="max-width:100%;">';
+    if (span) span.outerHTML = aiNoteSplitHtml(src) + '<p><br></p>';
     el.scrollIntoView({ behavior:'smooth', block:'center' });
   } catch(e) {
     var sp = document.getElementById(marker); if (sp) sp.remove();
