@@ -1529,7 +1529,10 @@ function aiNoteImage(data) {
     var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
     var file = folder.createFile(Utilities.newBlob(Utilities.base64Decode(img.data), outMime, 'ai_note_' + Date.now() + '.' + ext));
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    return { success: true, url: 'https://drive.google.com/file/d/' + file.getId() + '/view', fileId: file.getId(), model: model };
+    var url = 'https://drive.google.com/file/d/' + file.getId() + '/view';
+    // 질문 id가 있으면 초안 문서에도 사진 주소를 남겨서, 선생님이 질문을 열 때 바로 사진이 보이게
+    if (data.questionId) { try { firestorePatchFields('qna_ai_drafts', String(data.questionId), { imageUrl: url, imageError: '', imageModel: model }); } catch (e) {} }
+    return { success: true, url: url, fileId: file.getId(), model: model };
   } catch (err) {
     Logger.log('[aiNoteImage] 예외: ' + err);
     return { success: false, msg: String(err) };
@@ -1638,15 +1641,26 @@ function aiDraftAnswer(data) {
       firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: '', error: msg, createdAt: nowKst, model: '' });
       return { success: false, msg: msg };
     }
-    firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: r.text, error: '', createdAt: nowKst, model: r.model });
-    // 초안이 준비되면 선생님 폰으로 알림톡 — 질문 올라왔을 때 가는 알림과 별개로 "이제 확인하고 답변 달면 된다"는 신호
+    firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: r.text, error: '', createdAt: nowKst, model: r.model, imageUrl: '', imageError: '' });
+
+    // 글 초안이 나오면 곧바로 "노트 사진"까지 자동 생성 (2026-09-18 — 선생님이 버튼을 안 눌러도 사진이 준비돼 있게)
+    // aiNoteImage가 questionId를 받으면 성공 시 imageUrl을 초안 문서에 직접 남김. 실패하면 여기서 imageError만 기록.
+    var img = { success: false, msg: '' };
+    try { img = aiNoteImage({ questionId: qid, content: data.content, draftText: r.text }); }
+    catch (e) { img = { success: false, msg: String(e) }; }
+    if (!img.success) { try { firestorePatchFields('qna_ai_drafts', qid, { imageError: String(img.msg || '알 수 없는 오류').slice(0, 800) }); } catch (e) {} }
+
+    // 준비되면 선생님 폰으로 알림톡 — 질문 올라왔을 때 가는 알림과 별개로 "이제 확인하고 답변 달면 된다"는 신호
     if (!data.silent) {
       try {
-        sendAlimtalkMessages([{ phone: TEACHER_NOTIFY_PHONE, name: String(data.studentName || ''), className: 'AI 풀이 초안 준비됨', sessionNum: nowKst,
-          message: (data.studentName || '학생') + '님 질문 "' + String(data.title || '').slice(0, 30) + '"의 AI 풀이 초안이 준비됐어요. 질의응답에서 열어 확인 후 답변을 달아주세요.' }]);
+        var who = (data.studentName || '학생') + '님 질문 "' + String(data.title || '').slice(0, 30) + '"';
+        var msg2 = img.success
+          ? who + '의 AI 풀이 노트 사진이 준비됐어요. 질의응답에서 열어 확인 후 답변에 넣어주세요.'
+          : who + '의 AI 풀이 초안(글)은 준비됐는데 노트 사진 만들기는 실패했어요. 질의응답에서 확인해주세요.';
+        sendAlimtalkMessages([{ phone: TEACHER_NOTIFY_PHONE, name: String(data.studentName || ''), className: img.success ? 'AI 노트 사진 준비됨' : 'AI 초안 준비됨(사진 실패)', sessionNum: nowKst, message: msg2 }]);
       } catch (e) { Logger.log('[aiDraftAnswer] 알림톡 실패: ' + e); }
     }
-    return { success: true };
+    return { success: true, image: img.success };
   } catch (err) {
     Logger.log('[aiDraftAnswer] 오류: ' + err);
     try { firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: '', error: String(err), createdAt: nowKst, model: '' }); } catch (e) {}

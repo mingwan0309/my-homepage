@@ -10,7 +10,7 @@
 <style>html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;}</style>
 <script>['gesturestart','gesturechange','gestureend'].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();},{passive:false});});</script>
 <title>질의응답 | 김민관 수학</title>
-<script src="firebase-api.js?v=42"></script>
+<script src="firebase-api.js?v=43"></script>
 <script src="chat-widget.js" defer></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -524,15 +524,49 @@ function renderAiDraft() {
       + '<div style="font-size:13px;color:#c2410c;margin-bottom:10px;">초안을 못 만들었어요: ' + esc(aiDraftCur.error) + '</div>' + regenBtn + '</div>';
     return;
   }
+  // 노트 사진이 이미 만들어져 있으면(질문 올라올 때 자동 생성) 사진을 먼저 크게 보여주고, 글 초안은 접어둠
+  var imgSrc = aiDraftCur.imageUrl ? aiDriveThumb(aiDraftCur.imageUrl) : '';
+  var imgBlock = imgSrc
+    ? '<div style="background:#fff;border:1px solid #ede9fe;border-radius:8px;padding:8px;"><img src="' + imgSrc + '" style="width:100%;border-radius:6px;display:block;" alt="AI 풀이 노트 사진"></div>'
+    : '<div style="font-size:13px;color:#c2410c;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;">📷 노트 사진이 아직 없어요' + (aiDraftCur.imageError ? ' — ' + esc(aiDraftCur.imageError) : ' (만드는 중이거나 실패했을 수 있어요)') + '</div>';
   box.innerHTML = '<div style="margin-top:20px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:14px 16px;">' + head
-    + '<div style="white-space:pre-wrap;font-size:14px;line-height:1.7;color:#1e293b;background:#fff;border:1px solid #ede9fe;border-radius:8px;padding:12px 14px;max-height:420px;overflow:auto;">' + esc(aiDraftCur.text) + '</div>'
+    + imgBlock
+    + '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:#6d28d9;font-weight:700;">📝 글 초안 보기</summary>'
+    + '<div style="white-space:pre-wrap;font-size:14px;line-height:1.7;color:#1e293b;background:#fff;border:1px solid #ede9fe;border-radius:8px;padding:12px 14px;max-height:420px;overflow:auto;margin-top:6px;">' + esc(aiDraftCur.text) + '</div></details>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">'
-    + '<button type="button" onclick="aiDraftToAnswer(false)" style="' + btnStyle + 'background:#7c3aed;border:none;color:#fff;">✏️ 답변에 글로 넣기</button>'
-    + '<button type="button" id="ai-img-btn" onclick="aiDraftToAnswer(true)" style="' + btnStyle + 'background:#1e3a8a;border:none;color:#fff;">📷 AI 노트 사진으로 넣기</button>'
+    + (imgSrc ? '<button type="button" onclick="aiImageToAnswer()" style="' + btnStyle + 'background:#1e3a8a;border:none;color:#fff;">🖼 이 노트 사진을 답변에 넣기</button>' : '')
+    + '<button type="button" id="ai-img-btn" onclick="regenerateAiImage()" style="' + btnStyle + 'background:#fff;border:1.5px solid #1e3a8a;color:#1e3a8a;">📷 사진 ' + (imgSrc ? '다시 ' : '') + '만들기</button>'
+    + '<button type="button" onclick="aiDraftToAnswer(false)" style="' + btnStyle + 'background:#fff;border:1.5px solid #c4b5fd;color:#6d28d9;">✏️ 글로 넣기</button>'
     + regenBtn
     + '</div>'
     + '<div style="font-size:11.5px;color:#94a3b8;margin-top:8px;">' + (aiDraftCur.createdAt ? aiDraftCur.createdAt + ' 생성 · ' : '') + 'AI 풀이는 틀릴 수 있어요. 꼭 확인하고 고쳐서 보내주세요.</div>'
     + '</div>';
+}
+// 드라이브 파일 주소 → 화면에 <img>로 뜨는 thumbnail 주소 (view 주소를 그대로 쓰면 이미지가 안 뜸)
+function aiDriveThumb(url) {
+  var m = String(url || '').match(/\/d\/([^\/]+)/) || String(url || '').match(/[?&]id=([^&]+)/);
+  return m ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1600') : url;
+}
+// 이미 만들어진 노트 사진을 답변 편집기에 바로 넣기 (API 호출 없음)
+function aiImageToAnswer() {
+  if (!aiDraftCur || !aiDraftCur.imageUrl) return;
+  if (!editingAnswer) startEdit();
+  var el = document.getElementById('ans-editor');
+  if (!el) return;
+  var html = '<img src="' + aiDriveThumb(aiDraftCur.imageUrl) + '" style="max-width:100%;">';
+  el.innerHTML = (el.innerHTML.trim() && el.innerHTML.trim() !== '<br>') ? el.innerHTML + html : html;
+  el.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+// 노트 사진만 다시 만들기 (글 초안은 그대로 두고 Gemini 이미지 생성만 다시 — 결과는 초안 문서에 저장되고 화면을 다시 불러옴)
+async function regenerateAiImage() {
+  if (!aiDraftCur || !aiDraftCur.text) { alert('글 초안이 먼저 있어야 사진을 만들 수 있어요. "초안 다시 만들기"를 눌러주세요.'); return; }
+  var btn = document.getElementById('ai-img-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'AI가 노트 사진 만드는 중... (30초~1분)'; }
+  try {
+    var r = await fetch(SU, { method:'POST', headers:{ 'Content-Type':'text/plain' }, body: JSON.stringify({ action:'aiNoteImage', questionId: currentQuestion.id, content: currentQuestion.content || '', draftText: aiDraftCur.text }) }).then(function(x){ return x.json(); });
+    if (!r || !r.success || !r.url) alert('노트 사진 만들기 실패: ' + ((r && (r.msg || r.error)) || '응답 없음'));
+  } catch(e) { alert('노트 사진 만들기 실패: ' + (e && e.message || e)); }
+  await loadAiDraft(currentQuestion.id);
 }
 async function regenerateAiDraft() {
   var btn = document.getElementById('ai-regen-btn');

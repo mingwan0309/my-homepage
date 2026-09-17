@@ -434,7 +434,7 @@ api.getAiDraft = function(db, p){
   return db.collection('qna_ai_drafts').doc(String(p.questionId)).get().then(function(d){
     if (!d.exists) return { draft:null };
     var r = d.data();
-    return { draft:{ text:r.text||'', createdAt:r.createdAt||'', model:r.model||'', error:r.error||'' } };
+    return { draft:{ text:r.text||'', createdAt:r.createdAt||'', model:r.model||'', error:r.error||'', imageUrl:r.imageUrl||'', imageError:r.imageError||'' } };
   }, function(){ return { draft:null }; });
 };
 
