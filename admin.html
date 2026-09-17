@@ -655,6 +655,11 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       </div>
       <div id="hwtest-pane-overdue" style="display:none;">
         <p style="font-size:12px;color:#94a3b8;margin:-4px 0 14px;">수업일 + 2일이 지났는데 사진을 한 장도 안 올린 숙제·재시험을 모아서 보여줘요. 사진이 올라오거나 완료/해결 처리되면 자동으로 빠져요.</p>
+        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+          <button type="button" class="hwtest-subtab active" id="overdue-kind-all" onclick="setOverdueKind('all')" style="padding:7px 12px;font-size:12.5px;">전체 <span id="overdue-cnt-all"></span></button>
+          <button type="button" class="hwtest-subtab" id="overdue-kind-hw" onclick="setOverdueKind('hw')" style="padding:7px 12px;font-size:12.5px;">📋 과제 <span id="overdue-cnt-hw"></span></button>
+          <button type="button" class="hwtest-subtab" id="overdue-kind-exam" onclick="setOverdueKind('exam')" style="padding:7px 12px;font-size:12.5px;">📝 재시험 <span id="overdue-cnt-exam"></span></button>
+        </div>
         <input type="search" id="overdue-name-search" name="overdue-student-name-filter" autocomplete="off" placeholder="🔍 학생 이름으로 찾기" oninput="renderOverdueList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:16px;margin-bottom:12px;font-family:inherit;">
         <style>@media(min-width:769px){#overdue-name-search{font-size:14px!important;}}</style>
         <div id="overdue-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
@@ -3322,6 +3327,12 @@ function updateOverdueTabCount(){
   var n=hwmanageList.filter(isProofOverdueItem).length + (testmanageLoaded?testmanageList.filter(isProofOverdueItem).length:0);
   cnt.textContent=n; cnt.style.display=n?'':'none';
 }
+var overdueKind='all';
+function setOverdueKind(k){
+  overdueKind=k;
+  ['all','hw','exam'].forEach(function(x){ document.getElementById('overdue-kind-'+x).classList.toggle('active',k===x); });
+  renderOverdueList();
+}
 function renderOverdueList(){
   var el=document.getElementById('overdue-list');
   if(!el) return;
@@ -3332,6 +3343,11 @@ function renderOverdueList(){
   var searchEl=document.getElementById('overdue-name-search');
   var searchQ=searchEl?searchEl.value.trim():'';
   if(searchQ) all=all.filter(function(x){ return (x.item.studentName||'').indexOf(searchQ)>-1; });
+  // 과제/재시험 건수를 버튼에 표시 (필터 적용 전 기준)
+  var nHw=all.filter(function(x){return x.kind==='hw';}).length, nEx=all.length-nHw;
+  var setCnt=function(id,n){ var s=document.getElementById(id); if(s) s.textContent=n?'('+n+')':''; };
+  setCnt('overdue-cnt-all',all.length); setCnt('overdue-cnt-hw',nHw); setCnt('overdue-cnt-exam',nEx);
+  if(overdueKind!=='all') all=all.filter(function(x){ return x.kind===overdueKind; });
   updateOverdueTabCount();
   if(!all.length){
     el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">'+(searchQ?'🔍 \''+escHtml(searchQ)+'\' 이름과 일치하는 학생이 없어요.':'🎉 기한을 넘긴 미제출이 없어요.')+'</div>';
@@ -3354,14 +3370,15 @@ function renderOverdueList(){
   };
   el.innerHTML=order.map(function(key){
     var g=byDate[key];
-    // 같은 날짜 안에서는 반 → 이름 순
-    g.items.sort(function(a,b){ return (a.item.className||'').localeCompare(b.item.className||'','ko') || (a.item.studentName||'').localeCompare(b.item.studentName||'','ko'); });
+    // 같은 날짜 안에서는 과제 먼저 → 재시험, 그 안에서 반 → 이름 순
+    g.items.sort(function(a,b){ return (a.kind===b.kind?0:(a.kind==='hw'?-1:1)) || (a.item.className||'').localeCompare(b.item.className||'','ko') || (a.item.studentName||'').localeCompare(b.item.studentName||'','ko'); });
+    var gHw=g.items.filter(function(x){return x.kind==='hw';}).length, gEx=g.items.length-gHw;
     return '<div style="margin-bottom:18px;">'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:9px 12px;margin-bottom:8px;">'
       +   '<span style="font-size:14px;font-weight:800;color:#b91c1c;">⏰ 기한 '+escHtml(dueStrOf(key))+'</span>'
       +   '<span style="background:#dc2626;color:#fff;font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:12px;">D+'+g.d+'</span>'
       +   '<span style="font-size:12px;color:#64748b;">수업일 '+escHtml(key||'미상')+'</span>'
-      +   '<span style="font-size:12px;color:#94a3b8;">'+g.items.length+'건</span>'
+      +   '<span style="font-size:12px;color:#475569;font-weight:700;">'+(gHw?'📋 과제 '+gHw:'')+(gHw&&gEx?' · ':'')+(gEx?'📝 재시험 '+gEx:'')+'</span>'
       + '</div>'
       + g.items.map(function(x){
           return '<div style="font-size:11.5px;color:#64748b;margin:4px 0 2px 2px;">'+(x.kind==='hw'?'📋 숙제':'📝 재시험')+' · 🏫 '+escHtml(x.item.className||'반 미배정')+'</div>'
