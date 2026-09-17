@@ -1476,6 +1476,12 @@ function aiDraftAnswer(data) {
       return { success: false, msg: msg };
     }
     var out = (body.content || []).filter(function(c){ return c.type === 'text'; }).map(function(c){ return c.text; }).join('\n').trim();
+    if (!out) {
+      // 200인데 글이 비어 오면 원인을 볼 수 있게 응답 앞부분을 error에 남김(stop_reason 등)
+      var raw = res.getContentText();
+      firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: '', error: '응답에 글이 없음 (stop_reason: ' + (body.stop_reason || '?') + ') — ' + raw.slice(0, 600), createdAt: nowKst, model: AI_DRAFT_MODEL });
+      return { success: false, msg: 'empty' };
+    }
     firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: out, error: '', createdAt: nowKst, model: AI_DRAFT_MODEL });
     // 초안이 준비되면 선생님 폰으로 알림톡 — 질문 올라왔을 때 가는 알림과 별개로 "이제 확인하고 답변 달면 된다"는 신호
     if (!data.silent) {
