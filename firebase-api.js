@@ -416,8 +416,26 @@ api.submitQuestion = function(db, p){
   }).then(function(){
     logActivity(db, p.studentId, p.studentName, 'student', (p.studentName||p.studentId)+'(학생)님이 질문을 작성했습니다. ('+(p.title||'')+')', 'QNA_SUBMIT');
     notifyTeacherNewQuestion(p.studentName||p.studentId, p.title||'');
+    requestAiDraftAnswer(id, p.title||'', p.content||'', p.studentName||'');
     return { success:true, id:id };
   });
+};
+// 질문이 올라오면 Apps Script가 Claude로 풀이 초안을 만들어 qna_ai_drafts/{questionId}에 저장 (2026-09-17 추가).
+// 학생 화면은 결과를 기다리지 않음(수십 초 걸릴 수 있음) — 선생님이 질문을 열 때 초안을 읽어서 보여줌.
+// API 키는 Apps Script 스크립트 속성(ANTHROPIC_API_KEY)에만 있음 — 여기(클라이언트)엔 절대 안 둠.
+function requestAiDraftAnswer(questionId, title, contentHtml, studentName){
+  try{
+    var body = { action:'aiDraftAnswer', appToken: APP_SHARED_TOKEN, questionId:questionId, title:title, content:contentHtml, studentName:studentName };
+    return (typeof _origFetch==='function'?_origFetch:window.fetch)(TEACHER_APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify(body) }).catch(function(){});
+  }catch(e){}
+}
+// 선생님/조교 전용: 저장된 AI 풀이 초안 읽기 (Firestore 규칙에서 qna_ai_drafts는 교사/조교만 읽기 가능)
+api.getAiDraft = function(db, p){
+  return db.collection('qna_ai_drafts').doc(String(p.questionId)).get().then(function(d){
+    if (!d.exists) return { draft:null };
+    var r = d.data();
+    return { draft:{ text:r.text||'', createdAt:r.createdAt||'', model:r.model||'', error:r.error||'' } };
+  }, function(){ return { draft:null }; });
 };
 
 api.getQuestions = function(db, p){
@@ -2671,7 +2689,7 @@ window.fetch = function(url, opts){
       var postAction = bodyObj.action || '';
       // 파일 업로드(uploadFile)와 알림톡 발송(sendAlimtalk)만 진짜 Apps Script로 통과
       // (외부에서 이 주소를 직접 호출해 알림톡을 무단 발송/파일을 무단 업로드하지 못하도록 앱 전용 토큰을 자동으로 붙여서 보냄)
-      if (postAction === 'uploadFile' || postAction === 'sendAlimtalk' || postAction === 'getFileBase64' || !postAction) {
+      if (postAction === 'uploadFile' || postAction === 'sendAlimtalk' || postAction === 'getFileBase64' || postAction === 'aiDraftAnswer' || !postAction) {
         if (postAction) {
           bodyObj.appToken = APP_SHARED_TOKEN;
           opts = Object.assign({}, opts, { body: JSON.stringify(bodyObj) });

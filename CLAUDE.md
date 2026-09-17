@@ -111,6 +111,14 @@
 - **선생님 화면 이름 옆 "undefined" 표시 버그.** 질문 상세에서 작성 시각을 `currentQuestion.createdAt`으로 읽었는데 실제 데이터 필드명은 `date`라 항상 undefined였음(사이드바의 다른 질문 목록 시간도 같은 이유로 비어있었음, `oq.createdAt`→`oq.date`) — 둘 다 실제 필드명으로 수정.
 - **질문 등록 시 선생님 알림톡 발송 추가 (2026-09-08).** 학생이 질의응답에 새 질문을 올리면 `api.submitQuestion`이 `notifyTeacherNewQuestion()`을 호출해서 선생님 번호로 실제 카카오 알림톡이 발송됨(조교 출퇴근 알림과 같은 재사용 템플릿, 이름/제목만 다르게 채움) — **질문 등록 횟수만큼 그대로 유료 발송되니 유의**.
 
+## 질의응답 AI 풀이 초안 (2026-09-17 추가)
+학생이 질문을 올리면 **Claude API**가 문제(글+사진)를 읽고 풀이 초안을 만들어두고, 선생님이 질문을 열 때 **"🤖 AI 풀이 초안"** 상자로 보여줌. **학생에게는 절대 직접 안 보임** — 선생님/조교가 확인 후 "✏️ 답변에 글로 넣기" 또는 "🖼 손글씨 노트 이미지로 넣기"를 눌러야 답변 편집기에 들어가고, 답변 등록을 눌러야 공개됨(AI 풀이가 틀릴 수 있어서 검토 단계를 의도적으로 둠).
+- 흐름: `api.submitQuestion`(firebase-api.js) → `requestAiDraftAnswer()`가 진짜 Apps Script에 `aiDraftAnswer` 액션을 **기다리지 않고** 쏨(수십 초 걸림) → Code.gs `aiDraftAnswer()`가 질문 본문의 드라이브 이미지(최대 4장, 4.5MB 이하)를 `DriveApp`으로 읽어 base64로 Claude(`AI_DRAFT_MODEL`=claude-sonnet-5)에 보내고 → 결과를 Firestore `qna_ai_drafts/{questionId}`(text/error/createdAt/model)에 REST로 저장(Apps Script는 규칙을 안 타므로 쓰기 가능). 선생님 화면은 `api.getAiDraft`로 읽음. 초안이 없거나 실패했으면 "🤖 지금 초안 만들기"/"🔄 초안 다시 만들기"로 수동 재생성 가능(옛 질문에도 씀).
+- **API 키는 코드에 없음.** Apps Script 편집기 → 프로젝트 설정(⚙) → 스크립트 속성에 `ANTHROPIC_API_KEY`로 저장해야 작동. 없으면 초안에 안내 문구만 남김. 키가 git/클라이언트에 노출되지 않도록 이 구조를 유지할 것.
+- **Firestore 규칙 필요:** `match /qna_ai_drafts/{id} { allow read, write: if isTeacher() || isAssistant(); }` — 학생이 읽으면 안 되므로 반드시 교사/조교 전용.
+- 손글씨 이미지는 **AI 이미지 생성이 아니라** 초안 텍스트를 캔버스에 손글씨 폰트(Nanum Pen Script, Google Fonts)로 그린 것(`renderHandwritingNote`, qna.html) — 이미지 생성 AI는 수식·숫자를 자주 틀리게 그려서 일부러 이 방식을 택함. 만든 이미지는 기존 `insertImages` 경로로 드라이브에 업로드돼 답변에 `<img>`로 들어감.
+- 비용: 질문 1건당 Claude API 호출 1회(사진 포함 시 수십 원 수준). 프롬프트는 Code.gs `AI_DRAFT_SYSTEM`(마크다운/LaTeX 금지, 유니코드 기호, 마지막 줄 "답: ...", 못 읽으면 추측 금지).
+
 ## 차시 이름 (2026-08-19 추가)
 `sessions` 문서에 `label`(선택) 필드 추가. 원래 차시는 항상 "N차시"로만 표시됐는데, class.html 차시 칩이나 session.html 상단 드롭다운의 연필(✏️) 아이콘으로 교사/조교가 직접 표시 이름을 지정할 수 있음(`api.updateSession`, 예: "2차시" → "2차시 개념정리"). **비워두면 다시 자동으로 "N차시"로 돌아감.** 이 이름은 목록뿐 아니라 화면 제목, document.title, 수업 결과 알림톡의 {차시} 토큰, 학생 상세 이력(출결/성적), 시험/과제 참고 목록 등 사람이 보는 곳 전부에 반영됨 — `sessLabel(s)` 헬퍼(`s.label || s.sessionNum+'차시'`)로 통일해서 처리. 단 `sessionNum`(숫자) 자체는 정렬·직전 차시 찾기 등 내부 로직용으로 그대로 유지되고 이름 설정과 무관.
 

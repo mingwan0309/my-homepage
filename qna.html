@@ -2,13 +2,15 @@
 <html lang="ko">
 <head>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <!-- AI 초안을 손글씨 노트 이미지로 만들 때 쓰는 손글씨 폰트(선생님 화면에서만 사용) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap">
   <style>*{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}</style>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <style>html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;}</style>
 <script>['gesturestart','gesturechange','gestureend'].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();},{passive:false});});</script>
 <title>질의응답 | 김민관 수학</title>
-<script src="firebase-api.js?v=40"></script>
+<script src="firebase-api.js?v=41"></script>
 <script src="chat-widget.js" defer></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -239,6 +241,7 @@ body { font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothi
         <div class="detail-title" id="detail-title"></div>
         <div class="detail-author" id="detail-author"></div>
         <div class="detail-content" id="detail-content"><div class="spinner">불러오는 중...</div></div>
+        <div id="ai-draft-box" style="display:none;"></div>
         <div id="answer-section"></div>
         <div class="detail-footer">
           <button class="btn-list2" onclick="showList()">＜ 목록으로</button>
@@ -481,9 +484,117 @@ async function loadDetail(id) {
     }
 
     renderAnswer();
+    if (isTeacher) loadAiDraft(currentQuestion.id); else document.getElementById('ai-draft-box').style.display = 'none';
   } catch(e) {
     document.getElementById('detail-content').innerHTML = '<p style="color:#dc2626">불러오기 실패</p>';
   }
+}
+
+/* ========= AI 풀이 초안 (선생님/조교 전용, 2026-09-17 추가) =========
+   학생이 질문을 올리면 Apps Script가 Claude로 풀이 초안을 만들어 qna_ai_drafts에 저장해두고,
+   여기서 그걸 읽어 보여줌. 학생에게는 절대 직접 안 보임 — 선생님이 확인 후 "답변에 넣기"로 써야 공개됨. */
+var aiDraftCur = null;
+async function loadAiDraft(qid) {
+  var box = document.getElementById('ai-draft-box');
+  aiDraftCur = null;
+  box.style.display = '';
+  box.innerHTML = '<div style="margin-top:20px;font-size:12.5px;color:#94a3b8;">🤖 AI 초안 확인 중...</div>';
+  try {
+    var r = await fetch(SU + '?action=getAiDraft&questionId=' + encodeURIComponent(qid)).then(function(r){ return r.json(); });
+    aiDraftCur = r.draft || null;
+  } catch(e) { aiDraftCur = null; }
+  renderAiDraft();
+}
+function renderAiDraft() {
+  var box = document.getElementById('ai-draft-box');
+  var btnStyle = 'padding:8px 12px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;';
+  var regenBtn = '<button type="button" id="ai-regen-btn" onclick="regenerateAiDraft()" style="' + btnStyle + 'background:#fff;border:1.5px solid #cbd5e1;color:#475569;">🔄 초안 다시 만들기</button>';
+  var head = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
+    + '<div style="font-size:14px;font-weight:800;color:#6d28d9;">🤖 AI 풀이 초안 <span style="font-size:11px;font-weight:600;color:#94a3b8;">· 학생에게는 안 보여요. 확인 후 답변에 넣어야 공개돼요</span></div>'
+    + '</div>';
+  if (!aiDraftCur) {
+    box.innerHTML = '<div style="margin-top:20px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:14px 16px;">' + head
+      + '<div style="font-size:13px;color:#64748b;margin-bottom:10px;">이 질문엔 아직 초안이 없어요. (이 기능 전에 올라온 질문이거나, 아직 만드는 중일 수 있어요 — 보통 30초 안에 생겨요)</div>'
+      + '<button type="button" id="ai-regen-btn" onclick="regenerateAiDraft()" style="' + btnStyle + 'background:#7c3aed;border:none;color:#fff;">🤖 지금 초안 만들기</button>'
+      + '</div>';
+    return;
+  }
+  if (aiDraftCur.error && !aiDraftCur.text) {
+    box.innerHTML = '<div style="margin-top:20px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px;">' + head
+      + '<div style="font-size:13px;color:#c2410c;margin-bottom:10px;">초안을 못 만들었어요: ' + esc(aiDraftCur.error) + '</div>' + regenBtn + '</div>';
+    return;
+  }
+  box.innerHTML = '<div style="margin-top:20px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:14px 16px;">' + head
+    + '<div style="white-space:pre-wrap;font-size:14px;line-height:1.7;color:#1e293b;background:#fff;border:1px solid #ede9fe;border-radius:8px;padding:12px 14px;max-height:420px;overflow:auto;">' + esc(aiDraftCur.text) + '</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">'
+    + '<button type="button" onclick="aiDraftToAnswer(false)" style="' + btnStyle + 'background:#7c3aed;border:none;color:#fff;">✏️ 답변에 글로 넣기</button>'
+    + '<button type="button" id="ai-img-btn" onclick="aiDraftToAnswer(true)" style="' + btnStyle + 'background:#1e3a8a;border:none;color:#fff;">🖼 손글씨 노트 이미지로 넣기</button>'
+    + regenBtn
+    + '</div>'
+    + '<div style="font-size:11.5px;color:#94a3b8;margin-top:8px;">' + (aiDraftCur.createdAt ? aiDraftCur.createdAt + ' 생성 · ' : '') + 'AI 풀이는 틀릴 수 있어요. 꼭 확인하고 고쳐서 보내주세요.</div>'
+    + '</div>';
+}
+async function regenerateAiDraft() {
+  var btn = document.getElementById('ai-regen-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '만드는 중... (최대 1분)'; }
+  try {
+    await fetch(SU, { method:'POST', body: JSON.stringify({ action:'aiDraftAnswer', questionId: currentQuestion.id, title: currentQuestion.title || '', content: currentQuestion.content || '', studentName: currentQuestion.studentName || '' }) });
+  } catch(e) {}
+  await loadAiDraft(currentQuestion.id);
+}
+// 초안을 답변 편집기에 넣기 — asImage면 손글씨 노트 이미지로 만들어 업로드해서 <img>로 삽입
+async function aiDraftToAnswer(asImage) {
+  if (!aiDraftCur || !aiDraftCur.text) return;
+  if (!editingAnswer) startEdit();
+  var el = document.getElementById('ans-editor');
+  if (!el) return;
+  if (!asImage) {
+    var html = aiDraftCur.text.split('\n').map(function(line){ return '<p>' + (esc(line) || '<br>') + '</p>'; }).join('');
+    el.innerHTML = (el.innerHTML.trim() && el.innerHTML.trim() !== '<br>') ? el.innerHTML + html : html;
+    el.scrollIntoView({ behavior:'smooth', block:'center' });
+    return;
+  }
+  var btn = document.getElementById('ai-img-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '이미지 만드는 중...'; }
+  try {
+    var blob = await renderHandwritingNote(aiDraftCur.text);
+    var file = new File([blob], 'ai_note.png', { type:'image/png' });
+    await insertImages([file], 'ans');
+    el.scrollIntoView({ behavior:'smooth', block:'center' });
+  } catch(e) { alert('이미지 만들기 실패: ' + (e && e.message || e)); }
+  if (btn) { btn.disabled = false; btn.textContent = '🖼 손글씨 노트 이미지로 넣기'; }
+}
+// 텍스트를 "줄 노트에 파란 펜으로 쓴" 이미지로 그림 (AI 이미지 생성이 아니라 폰트 렌더링이라 수식·숫자가 안 틀림)
+async function renderHandwritingNote(text) {
+  try { await document.fonts.load('32px "Nanum Pen Script"'); } catch(e) {}
+  var W = 1200, PAD = 70, LINE = 52, FONT = '34px "Nanum Pen Script", "Pretendard", sans-serif';
+  var measure = document.createElement('canvas').getContext('2d');
+  measure.font = FONT;
+  var maxW = W - PAD * 2;
+  var lines = [];
+  String(text || '').split('\n').forEach(function(para){
+    if (!para.trim()) { lines.push(''); return; }
+    var cur = '';
+    para.split('').forEach(function(ch){
+      var t = cur + ch;
+      if (measure.measureText(t).width > maxW && cur) { lines.push(cur); cur = ch; } else cur = t;
+    });
+    if (cur) lines.push(cur);
+  });
+  var H = PAD * 2 + Math.max(lines.length, 6) * LINE;
+  var c = document.createElement('canvas'); c.width = W; c.height = H;
+  var ctx = c.getContext('2d');
+  ctx.fillStyle = '#fffefb'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#dbe4f0'; ctx.lineWidth = 1.5;
+  for (var y = PAD + LINE * 0.75; y < H - PAD * 0.5; y += LINE) { ctx.beginPath(); ctx.moveTo(PAD - 30, y); ctx.lineTo(W - PAD + 30, y); ctx.stroke(); }
+  ctx.strokeStyle = '#f4b6b6'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PAD - 10, 0); ctx.lineTo(PAD - 10, H); ctx.stroke();
+  ctx.font = FONT; ctx.fillStyle = '#1e3a8a'; ctx.textBaseline = 'alphabetic';
+  lines.forEach(function(line, i){
+    // 글자를 아주 살짝 흔들어서 인쇄 느낌을 줄임
+    var y = PAD + LINE * 0.75 + i * LINE - 6 + (Math.sin(i * 1.7) * 1.5);
+    ctx.fillText(line, PAD + (Math.cos(i * 2.3) * 2), y);
+  });
+  return new Promise(function(resolve, reject){ c.toBlob(function(b){ b ? resolve(b) : reject(new Error('canvas')); }, 'image/png'); });
 }
 
 /* ========= ANSWER ========= */
