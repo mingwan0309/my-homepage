@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=38"></script>
+<script src="firebase-api.js?v=39"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -626,6 +626,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <!-- 숙제관리 & 테스트 관리 -->
     <div id="page-hwmanage" class="page">
       <div class="page-header"><div class="page-title">숙제관리 &amp; 테스트 관리</div><button type="button" id="hw-history-btn" onclick="showAllHwReminderHistory()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;">🔔 전체 재촉 알림 이력</button></div>
+      <div id="hw-undo-bar" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:10px 14px;margin:-8px 0 14px;"></div>
       <div style="display:flex;gap:8px;margin:-8px 0 14px;">
         <button type="button" id="hwtest-tab-hw" class="hwtest-subtab active" onclick="switchHwTestTab('hw')">📋 숙제관리</button>
         <button type="button" id="hwtest-tab-test" class="hwtest-subtab" onclick="switchHwTestTab('test')">📝 테스트 관리</button>
@@ -2994,6 +2995,7 @@ async function loadActivityLog(){
 }
 async function loadHwManage(){
   var el=document.getElementById('hwmanage-list');
+  renderHwUndoBar();
   var mineWrap=document.getElementById('hw-mine-wrap');
   if(mineWrap) mineWrap.style.display=astHasMyStudents()?'flex':'none';
   el.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
@@ -3197,11 +3199,63 @@ async function showAllHwReminderHistory(){
     box.firstChild.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
   }
 }
+// ── 완료/해결 처리 되돌리기 (2026-09-17 추가) ──
+// 실수로 완료(또는 해결) 처리한 걸 한 번에 원상복구. 처리 직전 상태를 기억해뒀다가 "↩ 되돌리기"를 누르면
+// 과제는 예전 pass/feedback으로 다시 저장하고, 재시험은 alertResolved를 풀어줌. 새로고침해도 24시간 동안은 남아있게 localStorage에 보관.
+var HW_UNDO_KEY='mkmath_hwUndo';
+function hwUndoSave(entry){
+  entry.at=Date.now();
+  try{ localStorage.setItem(HW_UNDO_KEY, JSON.stringify(entry)); }catch(e){}
+  renderHwUndoBar();
+}
+function hwUndoLoad(){
+  try{
+    var e=JSON.parse(localStorage.getItem(HW_UNDO_KEY)||'null');
+    if(!e || Date.now()-e.at > 24*60*60*1000) return null;
+    return e;
+  }catch(err){ return null; }
+}
+function hwUndoClear(){ try{ localStorage.removeItem(HW_UNDO_KEY); }catch(e){} renderHwUndoBar(); }
+function renderHwUndoBar(){
+  var bar=document.getElementById('hw-undo-bar');
+  if(!bar) return;
+  var e=hwUndoLoad();
+  if(!e || !e.items || !e.items.length){ bar.style.display='none'; return; }
+  var names=e.items.map(function(x){return x.studentName;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+  var label=(e.type==='hw'?'과제 완료':'재시험 해결')+' 처리 '+e.items.length+'건 ('+escHtml(names.slice(0,3).join(', '))+(names.length>3?' 외 '+(names.length-3)+'명':'')+')';
+  var ago=Math.round((Date.now()-e.at)/60000);
+  bar.style.display='flex';
+  bar.innerHTML='<span style="font-size:13px;color:#1e293b;">✓ '+label+' <span style="color:#94a3b8;font-size:11.5px;">· '+(ago<1?'방금':ago+'분 전')+'</span></span>'
+    +'<button type="button" onclick="hwUndoRun()" style="background:#1e293b;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;">↩ 되돌리기</button>'
+    +'<button type="button" onclick="hwUndoClear()" title="닫기" style="background:none;border:none;color:#94a3b8;font-size:18px;cursor:pointer;padding:0 4px;">✕</button>';
+}
+async function hwUndoRun(){
+  var e=hwUndoLoad();
+  if(!e){ renderHwUndoBar(); return; }
+  if(!confirm(e.items.length+'건을 처리 전 상태로 되돌릴까요?'))return;
+  try{
+    if(e.type==='hw'){
+      await Promise.all(e.items.map(function(h){
+        return fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass='+encodeURIComponent(h.pass||'notsub')+'&feedback='+encodeURIComponent(h.feedback||''));
+      }));
+    } else {
+      await Promise.all(e.items.map(function(t){
+        return fetch(SU+'?action=unmarkExamAlertResolved&id='+encodeURIComponent(t.id));
+      }));
+    }
+    hwUndoClear();
+    alert('되돌렸어요.');
+    loadHwManage();
+    if(testmanageLoaded) loadTestManage();
+  }catch(err){ alert('되돌리기 실패: '+err.message); }
+}
 async function markHwComplete(id){
   var h=hwmanageList.find(function(x){return x.id===id;});
   if(!h)return;
   if(!confirm(h.studentName+' 학생의 "'+h.hwName+'" 과제를 완료로 처리할까요?'))return;
+  var before={type:'hw', items:[{sessionId:h.sessionId,studentId:h.studentId,hwId:h.hwId,pass:h.pass,feedback:h.feedback,studentName:h.studentName}]};
   await fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass=complete&feedback='+encodeURIComponent('제출하신 과제가 [제출] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!'));
+  hwUndoSave(before);
   loadHwManage();
 }
 // ── 숙제관리 여러 명 한 번에 처리 ──
@@ -3296,9 +3350,11 @@ async function bulkMarkHwComplete(){
   if(!items.length){ alert('선택된 학생이 없어요.'); return; }
   var names2=items.map(function(h){return h.studentName;}).join(', ');
   if(!confirm(items.length+'명('+names2+')의 과제를 한 번에 완료 처리할까요?'))return;
+  var before={type:'hw', items:items.map(function(h){ return {sessionId:h.sessionId,studentId:h.studentId,hwId:h.hwId,pass:h.pass,feedback:h.feedback,studentName:h.studentName}; })};
   await Promise.all(items.map(function(h){
     return fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass=complete&feedback='+encodeURIComponent('제출하신 과제가 [제출] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!'));
   }));
+  hwUndoSave(before);
   hwSelected={};
   loadHwManage();
 }
@@ -3526,6 +3582,7 @@ async function markExamResolved(id){
   if(!t)return;
   if(!confirm(t.studentName+' 학생의 "'+t.examName+'" 항목을 해결 처리할까요? (재시험을 보고 통과했거나 별도로 확인된 경우)'))return;
   await fetch(SU+'?action=markExamAlertResolved&id='+encodeURIComponent(t.id));
+  hwUndoSave({type:'exam', items:[{id:t.id, studentName:t.studentName}]});
   loadTestManage();
 }
 

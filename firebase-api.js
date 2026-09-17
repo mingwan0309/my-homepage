@@ -1637,6 +1637,10 @@ api.getExamAlerts = function(db){
 api.markExamAlertResolved = function(db, p){
   return db.collection('scores').doc(String(p.id)).set({ alertResolved:true },{merge:true}).then(function(){ return { success:true }; });
 };
+// 실수로 "해결 처리"한 걸 되돌리기 — 다시 테스트 관리 목록에 뜨게 함
+api.unmarkExamAlertResolved = function(db, p){
+  return db.collection('scores').doc(String(p.id)).set({ alertResolved:false },{merge:true}).then(function(){ return { success:true }; });
+};
 api.markExamReminderSent = function(db, p){
   return db.collection('scores').doc(String(p.id)).set({ retestReminderAt:nowStr(), retestReminderBy:p.by||'' },{merge:true}).then(function(){ return { success:true }; });
 };
