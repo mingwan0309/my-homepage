@@ -9,7 +9,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>마이페이지 — 김민관 수학</title>
-<script src="firebase-api.js?v=37"></script>
+<script src="firebase-api.js?v=38"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="chat-widget.js" defer></script>
 <script src="faq-data.js"></script>
@@ -778,18 +778,28 @@ function startLiveExamPolling(){
   });
 }
 async function loadLiveExams(){
-  var all=[];
+  var all=[], loadErr=null;
   try{
     var r=await fetch(SU+'?action=getMyOpenExams&studentId='+encodeURIComponent(session.id)+'&classId='+encodeURIComponent(session.classId||'')).then(function(r){return r.json();});
     all=r.exams||[];
-  }catch(e){ all=[]; }
+  }catch(e){ all=[]; loadErr=e; }
   liveExams = all.filter(function(e){ return !e.submitted; });
   // 제출 완료 카드는 하루 정도만 보여주고 그 뒤로는 자동으로 안 보이게 함(계속 남아있으면 지저분해서)
   var oneDayAgo=Date.now()-24*60*60*1000;
   var doneList = all.filter(function(e){ return e.submitted && (!e.submittedAtMs || e.submittedAtMs>=oneDayAgo); });
 
   var card=document.getElementById('live-exam-card');
-  if(!liveExams.length){ card.style.display='none'; }
+  // 불러오기가 실패했는데도 카드를 그냥 숨겨버리면, "테스트가 안 뜬다"는 신고가 와도 학생·선생님 모두
+  // 원인을 알 방법이 전혀 없음(실제로 이 문제로 한참 헤맴). 실패한 경우엔 숨기지 말고 화면에 드러낸다.
+  if(!liveExams.length && loadErr){
+    card.style.display='';
+    document.getElementById('live-exam-list').innerHTML=
+      '<div style="padding:10px 0;font-size:13px;font-weight:700;color:#dc2626;line-height:1.5;">'
+      +'테스트 목록을 불러오지 못했어요.<br>이 화면을 그대로 선생님께 보여주세요.'
+      +'<div style="font-weight:400;color:#94a3b8;font-size:11.5px;margin-top:6px;word-break:break-all;">'
+      +escHtml(String((loadErr&&loadErr.message)||loadErr))+'</div></div>';
+  }
+  else if(!liveExams.length){ card.style.display='none'; }
   else{
     card.style.display='';
     document.getElementById('live-exam-list').innerHTML=liveExams.map(function(e,i){

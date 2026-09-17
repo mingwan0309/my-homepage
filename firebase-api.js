@@ -976,9 +976,17 @@ api.getMyOpenExams = function(db, p){
       // 아직 없는 문서를 studentId로 하나씩 get()하면, 보안 규칙이 "그 문서의 studentId가 나인지" 확인하려다
       // 문서 자체가 없어서(resource==null) 오히려 권한거부로 막힌다(교사 계정은 전권이라 안 걸렸던 것).
       // 그래서 존재 확인은 doc()이 아니라 studentId로 쿼리해서 실제로 있는 것만 받아오는 방식으로 우회한다.
-      return db.collection('exam_submissions').where('studentId','==',sid).get().then(function(subSnap){
+      // ⚠️ 이 조회가 실패해도 "지금 응시할 수 있는 시험" 목록까지 같이 사라지면 절대 안 됨.
+      // 예전엔 여기서 에러가 나면 promise 전체가 실패해서 학생 화면에서 테스트 카드가 통째로 안 보였고,
+      // 화면에 아무 안내도 안 떠서 원인을 알 방법이 없었음(로그인에 성공한 번호 형식과 students 문서 ID
+      // 형식이 다른 학생은 보안 규칙의 본인 확인에 걸려 실제로 이 조회만 권한거부가 남 — afterSignIn 참고).
+      // 지난 제출 기록을 못 읽는 것과 시험 목록을 보여주는 건 별개이므로 여기서 끊어둔다.
+      return db.collection('exam_submissions').where('studentId','==',sid).get().catch(function(err){
+        console.error('[getMyOpenExams] 제출 기록 조회 실패 — 응시 목록은 그대로 보여줌:', err);
+        return null;
+      }).then(function(subSnap){
         var subsByExamId = {};
-        subSnap.forEach(function(d){ subsByExamId[d.data().examId] = d.data(); });
+        if (subSnap) subSnap.forEach(function(d){ subsByExamId[d.data().examId] = d.data(); });
         // 자기채점이 아직 안 된(selfScore가 없는) 제출은, 제출 당시 exam_keys 읽기가 막혀있었던 옛날 기록일 수 있으므로
         // 지금 다시 한 번 계산을 시도한다(지금은 본인이 제출한 시험이라 exam_keys를 읽을 수 있음, hasSubmittedExam 규칙).
         var needsSelfScore = all.filter(function(e){
