@@ -528,7 +528,7 @@ function renderAiDraft() {
     + '<div style="white-space:pre-wrap;font-size:14px;line-height:1.7;color:#1e293b;background:#fff;border:1px solid #ede9fe;border-radius:8px;padding:12px 14px;max-height:420px;overflow:auto;">' + esc(aiDraftCur.text) + '</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">'
     + '<button type="button" onclick="aiDraftToAnswer(false)" style="' + btnStyle + 'background:#7c3aed;border:none;color:#fff;">✏️ 답변에 글로 넣기</button>'
-    + '<button type="button" id="ai-img-btn" onclick="aiDraftToAnswer(true)" style="' + btnStyle + 'background:#1e3a8a;border:none;color:#fff;">🖼 손글씨 노트 이미지로 넣기</button>'
+    + '<button type="button" id="ai-img-btn" onclick="aiDraftToAnswer(true)" style="' + btnStyle + 'background:#1e3a8a;border:none;color:#fff;">📷 노트 사진(손글씨)으로 넣기</button>'
     + regenBtn
     + '</div>'
     + '<div style="font-size:11.5px;color:#94a3b8;margin-top:8px;">' + (aiDraftCur.createdAt ? aiDraftCur.createdAt + ' 생성 · ' : '') + 'AI 풀이는 틀릴 수 있어요. 꼭 확인하고 고쳐서 보내주세요.</div>'
@@ -558,20 +558,47 @@ async function aiDraftToAnswer(asImage) {
   var btn = document.getElementById('ai-img-btn');
   if (btn) { btn.disabled = true; btn.textContent = '이미지 만드는 중...'; }
   try {
-    var blob = await renderHandwritingNote(aiDraftCur.text);
-    var file = new File([blob], 'ai_note.png', { type:'image/png' });
+    var pimg = await loadProblemImageForNote();
+    var blob = await renderHandwritingNote(aiDraftCur.text, pimg);
+    var file = new File([blob], 'ai_note.jpg', { type:'image/jpeg' });
     await insertImages([file], 'ans');
     el.scrollIntoView({ behavior:'smooth', block:'center' });
   } catch(e) { alert('이미지 만들기 실패: ' + (e && e.message || e)); }
-  if (btn) { btn.disabled = false; btn.textContent = '🖼 손글씨 노트 이미지로 넣기'; }
+  if (btn) { btn.disabled = false; btn.textContent = '📷 노트 사진(손글씨)으로 넣기'; }
 }
-// 텍스트를 "줄 노트에 파란 펜으로 쓴" 이미지로 그림 (AI 이미지 생성이 아니라 폰트 렌더링이라 수식·숫자가 안 틀림)
-async function renderHandwritingNote(text) {
+// 초안 텍스트를 "책상 위 줄노트를 위에서 찍은 사진"처럼 그림.
+// (AI 이미지 생성이 아니라 캔버스 렌더링이라 수식·숫자가 안 틀림 — 이미지 생성 AI는 한글·수식을 자주 망가뜨려서 일부러 이 방식)
+// 구성: 연한 책상 배경 위에 살짝 기울어진 흰 줄노트 → 왼쪽 위에 문제 사진을 마스킹테이프로 붙인 모양 →
+//        진한 파란 잉크로 흘려 쓴 손글씨(글자마다 크기·기울기·굵기가 조금씩 달라서 폰트 티가 덜 남) → 마지막 "답:" 줄엔 손으로 그린 동그라미.
+async function renderHandwritingNote(text, problemImg) {
   try { await document.fonts.load('32px "Nanum Pen Script"'); } catch(e) {}
-  var W = 1200, PAD = 70, LINE = 52, FONT = '34px "Nanum Pen Script", "Pretendard", sans-serif';
+  // 같은 초안이면 매번 같은 모양이 나오게 고정 시드 난수 사용
+  var seed = 7;
+  String(text || '').split('').forEach(function(ch){ seed = (seed * 31 + ch.charCodeAt(0)) % 2147483647; });
+  function rnd() { seed = (seed * 48271) % 2147483647; return seed / 2147483647; }
+  function rr(a, b) { return a + (b - a) * rnd(); }
+
+  var W = 1400, DESK = 46;               // 전체 폭, 책상 여백
+  var PW = W - DESK * 2;                  // 종이 폭
+  var PADX = 96, PADTOP = 72, LINE = 58;  // 종이 안쪽 여백, 줄 간격
+  var FS = 37;                            // 기본 글자 크기
+  var FONT = FS + 'px "Nanum Pen Script", "Pretendard", sans-serif';
+  var INK = '#1b2f7d';
+
+  // 문제 사진 자리(왼쪽 위) — 있으면 그 아래부터 글을 씀
+  var snip = null;
+  if (problemImg && problemImg.naturalWidth) {
+    var maxSw = Math.round(PW * 0.5), maxSh = 420;
+    var sc = Math.min(maxSw / problemImg.naturalWidth, maxSh / problemImg.naturalHeight, 1.2);
+    snip = { w: Math.round(problemImg.naturalWidth * sc), h: Math.round(problemImg.naturalHeight * sc), x: PADX - 24, y: PADTOP - 6, rot: rr(-2.2, -0.8) * Math.PI / 180 };
+  }
+  // 글이 노트 줄 위에 정확히 얹히도록 줄 간격 단위로 맞춤
+  var textTop = PADTOP + (snip ? Math.ceil((snip.h + 40) / LINE) * LINE : 0);
+
+  // 글 줄바꿈(기본 폰트로 측정)
   var measure = document.createElement('canvas').getContext('2d');
   measure.font = FONT;
-  var maxW = W - PAD * 2;
+  var maxW = PW - PADX * 2;
   var lines = [];
   String(text || '').split('\n').forEach(function(para){
     if (!para.trim()) { lines.push(''); return; }
@@ -582,20 +609,162 @@ async function renderHandwritingNote(text) {
     });
     if (cur) lines.push(cur);
   });
-  var H = PAD * 2 + Math.max(lines.length, 6) * LINE;
+  var PH = textTop + Math.max(lines.length, 5) * LINE + 70;   // 종이 높이
+  var H = PH + DESK * 2;
+
   var c = document.createElement('canvas'); c.width = W; c.height = H;
   var ctx = c.getContext('2d');
-  ctx.fillStyle = '#fffefb'; ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = '#dbe4f0'; ctx.lineWidth = 1.5;
-  for (var y = PAD + LINE * 0.75; y < H - PAD * 0.5; y += LINE) { ctx.beginPath(); ctx.moveTo(PAD - 30, y); ctx.lineTo(W - PAD + 30, y); ctx.stroke(); }
-  ctx.strokeStyle = '#f4b6b6'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PAD - 10, 0); ctx.lineTo(PAD - 10, H); ctx.stroke();
-  ctx.font = FONT; ctx.fillStyle = '#1e3a8a'; ctx.textBaseline = 'alphabetic';
+
+  // 책상(살짝 어두운 배경) + 종이 그림자
+  var bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#d9d4cc'); bg.addColorStop(1, '#c9c3ba');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  var pageRot = rr(-0.5, 0.5) * Math.PI / 180;
+  ctx.save();
+  ctx.translate(W / 2, H / 2); ctx.rotate(pageRot); ctx.translate(-W / 2, -H / 2);
+  ctx.shadowColor = 'rgba(0,0,0,0.28)'; ctx.shadowBlur = 26; ctx.shadowOffsetX = 6; ctx.shadowOffsetY = 12;
+  ctx.fillStyle = '#fdfdfb'; ctx.fillRect(DESK, DESK, PW, PH);
+  ctx.shadowColor = 'transparent';
+  // 사진 느낌의 은은한 빛(왼쪽 위 밝고 오른쪽 아래 살짝 어두움)
+  var light = ctx.createRadialGradient(W * 0.3, H * 0.2, 80, W * 0.5, H * 0.6, Math.max(W, H));
+  light.addColorStop(0, 'rgba(255,255,255,0)'); light.addColorStop(1, 'rgba(120,110,95,0.13)');
+  ctx.fillStyle = light; ctx.fillRect(DESK, DESK, PW, PH);
+  // 종이 질감(아주 미세한 점 노이즈)
+  ctx.fillStyle = 'rgba(0,0,0,0.035)';
+  for (var n = 0; n < (PW * PH) / 260; n++) { ctx.fillRect(DESK + rnd() * PW, DESK + rnd() * PH, 1.2, 1.2); }
+  // 노트 줄 + 빨간 여백선 + 왼쪽 펀치 구멍
+  ctx.strokeStyle = 'rgba(120,150,200,0.42)'; ctx.lineWidth = 1.4;
+  for (var y = DESK + PADTOP + LINE * 0.72; y < DESK + PH - 30; y += LINE) { ctx.beginPath(); ctx.moveTo(DESK + 8, y); ctx.lineTo(DESK + PW - 8, y); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(230,120,120,0.55)'; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.moveTo(DESK + PADX - 22, DESK); ctx.lineTo(DESK + PADX - 22, DESK + PH); ctx.stroke();
+  for (var hy = DESK + 60; hy < DESK + PH - 40; hy += 210) {
+    ctx.beginPath(); ctx.arc(DESK + 34, hy, 9, 0, Math.PI * 2);
+    ctx.fillStyle = '#cdc7be'; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  // 문제 사진: 흰 테두리 종이 조각처럼 살짝 기울여 붙이고, 위 양쪽에 마스킹테이프
+  if (snip) {
+    var cx = DESK + snip.x + snip.w / 2, cy = DESK + snip.y + snip.h / 2;
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(snip.rot);
+    ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 4;
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(-snip.w / 2 - 7, -snip.h / 2 - 7, snip.w + 14, snip.h + 14);
+    ctx.shadowColor = 'transparent';
+    try { ctx.drawImage(problemImg, -snip.w / 2, -snip.h / 2, snip.w, snip.h); } catch(e) {}
+    // 마스킹테이프 두 장(반투명 베이지, 끝이 살짝 찢어진 모양)
+    function tape(tx, ty, ang) {
+      ctx.save(); ctx.translate(tx, ty); ctx.rotate(ang);
+      ctx.beginPath();
+      var tw = 92, th = 30;
+      ctx.moveTo(-tw / 2, -th / 2);
+      for (var i = 0; i <= 6; i++) ctx.lineTo(-tw / 2 + rr(-3, 3), -th / 2 + (th / 6) * i);
+      ctx.lineTo(-tw / 2, th / 2); ctx.lineTo(tw / 2, th / 2);
+      for (var j = 6; j >= 0; j--) ctx.lineTo(tw / 2 + rr(-3, 3), -th / 2 + (th / 6) * j);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(232,214,170,0.72)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(160,140,95,0.25)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+    }
+    tape(-snip.w / 2 + 26, -snip.h / 2 - 2, rr(-0.75, -0.45));
+    tape(snip.w / 2 - 26, -snip.h / 2 - 2, rr(0.45, 0.75));
+    ctx.restore();
+  }
+
+  // 손글씨: 글자마다 크기·기울기·굵기·위치를 조금씩 바꿔 '빠르게 흘려 쓴' 느낌
+  ctx.textBaseline = 'alphabetic';
+  var slant = -0.10; // 오른쪽으로 살짝 눕힌 필기체 기울기
+  var answerLineIdx = -1;
+  for (var li = lines.length - 1; li >= 0; li--) { if (/^\s*답\s*[:：]/.test(lines[li])) { answerLineIdx = li; break; } }
   lines.forEach(function(line, i){
-    // 글자를 아주 살짝 흔들어서 인쇄 느낌을 줄임
-    var y = PAD + LINE * 0.75 + i * LINE - 6 + (Math.sin(i * 1.7) * 1.5);
-    ctx.fillText(line, PAD + (Math.cos(i * 2.3) * 2), y);
+    var baseY = DESK + textTop + LINE * 0.72 + i * LINE - 5 + Math.sin(i * 1.3) * 1.5;
+    var x = DESK + PADX + rr(-3, 3);
+    var drift = 0;
+    for (var k = 0; k < line.length; k++) {
+      var ch = line[k];
+      var size = FS + rr(-1.6, 1.6);
+      var rot = rr(-2, 2) * Math.PI / 180;
+      var dy = rr(-1.6, 1.6) + drift;
+      drift += rr(-0.15, 0.15);
+      ctx.save();
+      ctx.translate(x, baseY + dy);
+      ctx.transform(1, 0, slant, 1, 0, 0);
+      ctx.rotate(rot);
+      ctx.font = size + 'px "Nanum Pen Script", "Pretendard", sans-serif';
+      ctx.fillStyle = 'rgba(27,47,125,' + rr(0.86, 1) + ')';
+      ctx.fillText(ch, 0, 0);
+      // 펜 눌림 차이: 획을 얇게~두껍게 덧그림
+      ctx.strokeStyle = 'rgba(27,47,125,' + rr(0.35, 0.8) + ')';
+      ctx.lineWidth = rr(0.25, 1.35); ctx.lineJoin = 'round';
+      ctx.strokeText(ch, 0, 0);
+      ctx.restore();
+      measure.font = FONT;
+      x += measure.measureText(ch).width * (size / FS) + rr(-0.6, 0.6);
+    }
+    // 마지막 "답:" 줄엔 손으로 대충 그린 동그라미
+    if (i === answerLineIdx && line.trim()) {
+      measure.font = FONT;
+      var lw = measure.measureText(line).width;
+      var ox = DESK + PADX + lw / 2, oy = baseY - FS * 0.32, rx = lw / 2 + 26, ry = FS * 0.78;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(27,47,125,0.85)'; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+      ctx.beginPath();
+      var w1 = rr(2, 5), w2 = rr(1, 3), ph = rr(0, 6);
+      for (var t = 0; t <= 1.08; t += 0.02) {
+        var a = t * Math.PI * 2 - 0.4;
+        // 매끈한 타원에 완만한 흔들림만 줘서 손으로 한 번에 휙 그린 느낌
+        var wob = Math.sin(a * 3 + ph) * w1 + Math.sin(a * 7 + ph * 2) * w2;
+        var px = ox + Math.cos(a) * (rx + wob), py = oy + Math.sin(a) * (ry + wob * 0.6);
+        if (t === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
   });
-  return new Promise(function(resolve, reject){ c.toBlob(function(b){ b ? resolve(b) : reject(new Error('canvas')); }, 'image/png'); });
+  ctx.restore(); // 종이 회전 끝
+
+  return new Promise(function(resolve, reject){ c.toBlob(function(b){ b ? resolve(b) : reject(new Error('canvas')); }, 'image/jpeg', 0.92); });
+}
+
+// 질문에 첨부된 첫 번째 문제 사진을 캔버스에 그릴 수 있는 이미지로 불러옴 (없거나 실패하면 null)
+// 드라이브 썸네일 주소는 캔버스에서 바로 못 쓰는 경우(CORS)가 있어서, 그때는 Apps Script로 파일 바이트를 나눠 받아옴(class.html 다운로드와 같은 방식)
+async function loadProblemImageForNote() {
+  var html = (currentQuestion && currentQuestion.content) || '';
+  var m = /(?:drive\.google\.com\/file\/d\/|drive\.google\.com\/thumbnail\?id=|[?&]id=)([A-Za-z0-9_-]{20,})/.exec(html);
+  if (!m) return null;
+  var fileId = m[1];
+  function loadImg(src) {
+    return new Promise(function(resolve, reject){
+      var im = new Image(); im.crossOrigin = 'anonymous';
+      im.onload = function(){ resolve(im); }; im.onerror = function(){ reject(new Error('img')); };
+      im.src = src;
+    });
+  }
+  try {
+    var im = await loadImg('https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1200');
+    // 실제로 캔버스에 그릴 수 있는지(오염 여부) 확인
+    var t = document.createElement('canvas'); t.width = 2; t.height = 2;
+    var tc = t.getContext('2d'); tc.drawImage(im, 0, 0, 2, 2); tc.getImageData(0, 0, 1, 1);
+    return im;
+  } catch(e) {}
+  try {
+    var CHUNK = 250000, start = 0, total = null, mime = 'image/jpeg', chunks = [];
+    while (true) {
+      var res = await fetch(SU, { method:'POST', headers:{ 'Content-Type':'text/plain' }, body: JSON.stringify({ action:'getFileBase64', fileId: fileId, start: start, length: CHUNK }) });
+      var d = await res.json();
+      if (!d.success || !d.base64) return null;
+      var bin = atob(d.base64), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      chunks.push(bytes);
+      if (total === null) { total = d.totalSize; mime = d.mimeType || mime; }
+      start += bytes.length;
+      if (bytes.length === 0 || start >= total) break;
+    }
+    var blob = new Blob(chunks, { type: mime });
+    var url = URL.createObjectURL(blob);
+    var im2 = await loadImg(url);
+    return im2;
+  } catch(e) { return null; }
 }
 
 /* ========= ANSWER ========= */
