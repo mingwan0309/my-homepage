@@ -1464,7 +1464,9 @@ function aiDraftAnswer(data) {
     var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-      payload: JSON.stringify({ model: AI_DRAFT_MODEL, max_tokens: 2500, system: AI_DRAFT_SYSTEM, messages: [{ role: 'user', content: content }] }),
+      // thinking disabled: 이 모델은 답하기 전 "생각" 단계가 기본으로 켜져 있어서, 그게 max_tokens를 다 먹고
+      // 정작 답이 빈 채로 오는 문제가 있었음(stop_reason: max_tokens, content에 thinking 블록만). 풀이 초안엔 불필요.
+      payload: JSON.stringify({ model: AI_DRAFT_MODEL, max_tokens: 6000, thinking: { type: 'disabled' }, system: AI_DRAFT_SYSTEM, messages: [{ role: 'user', content: content }] }),
       muteHttpExceptions: true
     });
     var code = res.getResponseCode();
