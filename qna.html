@@ -1070,11 +1070,15 @@ async function insertImages(files, editorId) {
         const imgSrc = m ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1600') : up.url;
         span.outerHTML = '<img src="' + imgSrc + '" style="max-width:100%;">';
       } else if (span) {
-        span.outerHTML = '[이미지 업로드 실패]';
+        // 왜 실패했는지 화면에 같이 보여줘야 원인을 찾을 수 있음(예전엔 "실패"만 떠서 진단이 안 됐음)
+        var why = (up && (up.error || up.msg)) || '서버 응답 없음';
+        console.error('[qna] 이미지 업로드 실패:', up);
+        span.outerHTML = '<span style="color:#dc2626;">[이미지 업로드 실패: ' + esc(String(why)).slice(0, 200) + ']</span>';
       }
     } catch (e) {
+      console.error('[qna] 이미지 업로드 예외:', e);
       const span = document.getElementById(marker);
-      if (span) span.outerHTML = '[이미지 업로드 실패]';
+      if (span) span.outerHTML = '<span style="color:#dc2626;">[이미지 업로드 실패: ' + esc(String((e && e.message) || e)).slice(0, 200) + ']</span>';
     }
   }
 }
