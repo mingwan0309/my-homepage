@@ -1478,33 +1478,38 @@ function aiNoteImage(data) {
     var prompt = AI_NOTE_IMAGE_PROMPT + draft;
     if (!problem) prompt = prompt.replace(/The attached image is a clipping[^\n]*?alter it\)\. /, 'There is no problem clipping; the handwriting starts at the top of the page. ');
 
-    // 새 Interactions API(2026)로 먼저 시도, 안 되면(404/400) 예전 generateContent 방식으로 한 번 더
-    var input = [{ type: 'text', text: prompt }];
-    if (problem) input.push({ type: 'image', mime_type: problem.mime, data: problem.b64 });
-    var res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-      method: 'POST', headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
-      payload: JSON.stringify({ model: model, input: input, response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: '16:9', image_size: '2K' } }),
-      muteHttpExceptions: true
-    });
-    var code = res.getResponseCode(), body = {};
-    try { body = JSON.parse(res.getContentText()); } catch (e) {}
-    if (code === 404 || code === 400) {
-      Logger.log('[aiNoteImage] interactions ' + code + ' → generateContent로 재시도: ' + res.getContentText().slice(0, 300));
-      var parts = [];
-      if (problem) parts.push({ inline_data: { mime_type: problem.mime, data: problem.b64 } });
-      parts.push({ text: prompt });
-      res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
-        method: 'POST', headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
-        payload: JSON.stringify({ contents: [{ parts: parts }], generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '16:9' } } }),
-        muteHttpExceptions: true
-      });
-      code = res.getResponseCode(); body = {};
-      try { body = JSON.parse(res.getContentText()); } catch (e) {}
+    // 모델·호출방식을 차례로 시도: (설정 모델 → flash 계열) × (새 Interactions API → 예전 generateContent)
+    // 어느 조합이 되는지는 계정/지역/결제 상태에 따라 달라서, 전부 실패하면 각 시도의 실제 오류를 모아서 돌려줌(진단용)
+    var models = [model];
+    ['gemini-3.1-flash-image', 'gemini-2.5-flash-image'].forEach(function(m){ if (models.indexOf(m) < 0) models.push(m); });
+    var errors = [], body = null, code = 0, res = null;
+    outer:
+    for (var mi = 0; mi < models.length; mi++) {
+      var mdl = models[mi];
+      var attempts = [
+        { name: 'interactions', url: 'https://generativelanguage.googleapis.com/v1beta/interactions',
+          payload: (function(){ var input = [{ type: 'text', text: prompt }]; if (problem) input.push({ type: 'image', mime_type: problem.mime, data: problem.b64 });
+            return { model: mdl, input: input, response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: '16:9', image_size: '2K' } }; })() },
+        { name: 'generateContent', url: 'https://generativelanguage.googleapis.com/v1beta/models/' + mdl + ':generateContent',
+          payload: (function(){ var parts = []; if (problem) parts.push({ inline_data: { mime_type: problem.mime, data: problem.b64 } }); parts.push({ text: prompt });
+            return { contents: [{ parts: parts }], generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '16:9' } } }; })() }
+      ];
+      for (var ai = 0; ai < attempts.length; ai++) {
+        var at = attempts[ai];
+        try {
+          res = UrlFetchApp.fetch(at.url, { method: 'POST', headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' }, payload: JSON.stringify(at.payload), muteHttpExceptions: true });
+        } catch (fe) { errors.push(mdl + '/' + at.name + ': ' + fe); continue; }
+        code = res.getResponseCode(); body = null;
+        var raw = res.getContentText() || '';
+        try { body = JSON.parse(raw); } catch (e) {}
+        if (code === 200 && body) { model = mdl; break outer; }
+        var em = (body && body.error && (body.error.message || body.error.status)) || raw.replace(/\s+/g, ' ').slice(0, 160) || ('HTTP ' + code);
+        errors.push(mdl + '/' + at.name + ' → ' + code + ': ' + em);
+        Logger.log('[aiNoteImage] ' + errors[errors.length - 1]);
+      }
     }
-    if (code !== 200) {
-      var msg = (body.error && body.error.message) || ('HTTP ' + code);
-      Logger.log('[aiNoteImage] 오류 ' + code + ': ' + res.getContentText().slice(0, 600));
-      return { success: false, msg: msg };
+    if (code !== 200 || !body) {
+      return { success: false, msg: '이미지 생성 API가 전부 실패했어요.\n' + errors.join('\n') };
     }
     // 응답 어디에 있든 base64 이미지 블록을 찾음(Interactions: outputs/steps 안 {type:'image',data}, 구형: parts[].inlineData)
     var img = aiFindImageBlock(body);
