@@ -3346,14 +3346,25 @@ function renderTestManageList(){
     el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">'+(searchQ?'🔍 \''+escHtml(searchQ)+'\' 이름과 일치하는 학생이 없어요.':'🎉 재시험이 필요한 학생이 없어요.')+'</div>';
     return;
   }
+  // 사진을 올린 학생은 선생님이 확인만 하면 끝나는 건이라, 반/차시 묶음에 섞이지 않게 맨 위에 따로 모아서 보여줌(2026-09-17 요청)
+  var submittedList=srcList.filter(function(t){ return (t.submissionUrls||[]).length>0 && !t.autoCompleted; });
+  var restList=srcList.filter(function(t){ return submittedList.indexOf(t)<0; });
+  var submittedHtml = submittedList.length
+    ? '<div style="margin-bottom:18px;">'
+      + '<div style="font-size:13.5px;font-weight:800;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;padding:8px 12px;border-radius:10px;margin-bottom:8px;">📷 사진 제출됨 — 확인해주세요 <span style="background:#1d4ed8;color:#fff;font-size:11.5px;padding:2px 8px;border-radius:12px;margin-left:4px;">'+submittedList.length+'</span></div>'
+      + submittedList.map(function(t){
+          return '<div style="font-size:11.5px;color:#64748b;margin:4px 0 2px 2px;">🏫 '+escHtml(t.className||'반 미배정')+'</div>'+renderTestCard(t);
+        }).join('')
+      + '</div>'
+    : '';
   var groups={}, order=[];
-  srcList.forEach(function(t){
+  restList.forEach(function(t){
     var cls=t.className||'반 미배정';
     if(!groups[cls]){ groups[cls]=[]; order.push(cls); }
     groups[cls].push(t);
   });
   order.sort(function(a,b){ return a.localeCompare(b,'ko'); });
-  el.innerHTML=order.map(function(cls){
+  el.innerHTML=submittedHtml+order.map(function(cls){
     var items=groups[cls];
     // 반 안에서 다시 차시별로 묶어서 보여줌 — 어느 차시 시험인지 한눈에 안 보인다는 요청으로 추가(2026-09-06)
     var sessGroups={}, sessOrder=[];
