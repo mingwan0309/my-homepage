@@ -491,7 +491,7 @@ async function loadDetail(id) {
 }
 
 /* ========= AI 풀이 초안 (선생님/조교 전용, 2026-09-17 추가) =========
-   학생이 질문을 올리면 Apps Script가 Claude로 풀이 초안을 만들어 qna_ai_drafts에 저장해두고,
+   학생이 질문을 올리면 Apps Script가 AI(Gemini Pro 우선, 실패 시 Claude)로 풀이 초안을 만들어 qna_ai_drafts에 저장해두고,
    여기서 그걸 읽어 보여줌. 학생에게는 절대 직접 안 보임 — 선생님이 확인 후 "답변에 넣기"로 써야 공개됨. */
 var aiDraftCur = null;
 async function loadAiDraft(qid) {

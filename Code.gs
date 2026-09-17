@@ -1409,13 +1409,17 @@ function sendProofOverdueNotices() {
   }
 }
 
-// ── 질의응답 AI 풀이 초안 (2026-09-17 추가) ──
-// 학생이 질문을 올리면 firebase-api.js가 이 액션을 호출 → Claude API로 풀이 초안을 만들어
+// ── 질의응답 AI 풀이 초안 (2026-09-17 추가, 2026-09-18 Gemini Pro 우선으로 전환) ──
+// 학생이 질문을 올리면 firebase-api.js가 이 액션을 호출 → AI로 풀이 초안을 만들어
 // Firestore qna_ai_drafts/{questionId}에 저장. 학생에게는 절대 직접 안 보여주고(규칙: 교사/조교만 읽기),
 // 선생님이 qna.html에서 질문을 열 때 "🤖 AI 초안"으로 보고 확인 후 답변에 쓰는 구조.
-// ⚠️ API 키는 코드에 안 박음 — Apps Script 편집기 → 프로젝트 설정(⚙) → 스크립트 속성에
-//    ANTHROPIC_API_KEY 이름으로 저장해야 작동함. 없으면 초안에 안내 문구만 남기고 조용히 끝남.
-var AI_DRAFT_MODEL = 'claude-sonnet-5';
+// ⚠️ API 키는 코드에 안 박음 — Apps Script 편집기 → 프로젝트 설정(⚙) → 스크립트 속성에 저장해야 작동함.
+//    - GEMINI_API_KEY 가 있으면 Gemini Pro 로 먼저 시도(사용자가 Gemini Pro 를 원함).
+//    - Gemini 가 실패(키 없음/오류)하면 ANTHROPIC_API_KEY 가 있을 때 Claude 로 한 번 더 시도(예비).
+//    - 둘 다 없으면 초안에 안내 문구만 남기고 조용히 끝남.
+//    - 스크립트 속성 GEMINI_DRAFT_MODEL 로 모델 이름을 바꿀 수 있음(없으면 아래 후보를 순서대로 시도, 404면 다음 후보).
+var AI_DRAFT_MODEL = 'claude-sonnet-5';               // Claude 예비용 모델
+var AI_DRAFT_GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3-pro-preview', 'gemini-2.5-pro']; // 앞에서부터 시도
 var AI_DRAFT_MAX_IMAGES = 4;
 var AI_DRAFT_SYSTEM = '당신은 한국 고등학교 수학 학원의 보조 선생님입니다. 학생이 올린 수학 질문(글과 사진)을 읽고 풀이 초안을 작성하세요.\n'
   + '규칙:\n'
@@ -1541,55 +1545,100 @@ function aiFindImageBlock(node) {
   return null;
 }
 
+// Gemini(generateContent) 호출 — 성공하면 {ok:true, text, model}, 실패하면 {ok:false, err}
+function aiDraftCallGemini(apiKey, images, text) {
+  var override = PropertiesService.getScriptProperties().getProperty('GEMINI_DRAFT_MODEL');
+  var models = override ? [override].concat(AI_DRAFT_GEMINI_MODELS) : AI_DRAFT_GEMINI_MODELS;
+  var parts = images.map(function(im){ return { inline_data: { mime_type: im.mime, data: im.data } }; });
+  parts.push({ text: text });
+  var lastErr = '';
+  for (var i = 0; i < models.length; i++) {
+    var model = models[i];
+    try {
+      var res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
+        method: 'POST',
+        headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+        payload: JSON.stringify({
+          system_instruction: { parts: [{ text: AI_DRAFT_SYSTEM }] },
+          contents: [{ role: 'user', parts: parts }],
+          // 생각(thinking) 토큰이 출력 한도를 다 먹고 정작 답이 빈 채로 오는 일이 없게 넉넉히
+          generationConfig: { maxOutputTokens: 16000, temperature: 0.3 }
+        }),
+        muteHttpExceptions: true
+      });
+      var code = res.getResponseCode();
+      var body = {};
+      try { body = JSON.parse(res.getContentText()); } catch (e) {}
+      if (code === 404) { lastErr = model + ': 모델 없음(404)'; continue; } // 모델 이름이 바뀐 경우 다음 후보로
+      if (code !== 200) { lastErr = model + ': ' + ((body.error && body.error.message) || ('HTTP ' + code)); continue; }
+      var cand = (body.candidates || [])[0] || {};
+      var out = ((cand.content || {}).parts || [])
+        .filter(function(pt){ return pt.text && !pt.thought; }) // thought:true 는 생각 과정이라 제외
+        .map(function(pt){ return pt.text; }).join('\n').trim();
+      if (!out) { lastErr = model + ': 응답에 글이 없음 (finishReason: ' + (cand.finishReason || '?') + ')'; continue; }
+      return { ok: true, text: out, model: model };
+    } catch (e) { lastErr = model + ': ' + e; }
+  }
+  return { ok: false, err: 'Gemini 실패 — ' + lastErr };
+}
+// Claude(messages) 호출 — 예비용
+function aiDraftCallClaude(apiKey, images, text) {
+  var content = images.map(function(im){ return { type: 'image', source: { type: 'base64', media_type: im.mime, data: im.data } }; });
+  content.push({ type: 'text', text: text });
+  var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+    // thinking disabled: 이 모델은 답하기 전 "생각" 단계가 기본으로 켜져 있어서, 그게 max_tokens를 다 먹고
+    // 정작 답이 빈 채로 오는 문제가 있었음(stop_reason: max_tokens, content에 thinking 블록만). 풀이 초안엔 불필요.
+    payload: JSON.stringify({ model: AI_DRAFT_MODEL, max_tokens: 6000, thinking: { type: 'disabled' }, system: AI_DRAFT_SYSTEM, messages: [{ role: 'user', content: content }] }),
+    muteHttpExceptions: true
+  });
+  var code = res.getResponseCode();
+  var body = {};
+  try { body = JSON.parse(res.getContentText()); } catch (e) {}
+  if (code !== 200) return { ok: false, err: 'Claude 실패 — ' + ((body.error && body.error.message) || ('HTTP ' + code)) };
+  var out = (body.content || []).filter(function(c){ return c.type === 'text'; }).map(function(c){ return c.text; }).join('\n').trim();
+  if (!out) return { ok: false, err: 'Claude 실패 — 응답에 글이 없음 (stop_reason: ' + (body.stop_reason || '?') + ')' };
+  return { ok: true, text: out, model: AI_DRAFT_MODEL };
+}
+
 function aiDraftAnswer(data) {
   var qid = String(data.questionId || '');
   if (!qid) return { success: false, msg: 'questionId 없음' };
-  var apiKey = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
+  var props = PropertiesService.getScriptProperties();
+  var geminiKey = props.getProperty('GEMINI_API_KEY');
+  var claudeKey = props.getProperty('ANTHROPIC_API_KEY');
   var nowKst = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy.MM.dd HH:mm');
-  if (!apiKey) {
-    firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: '', error: 'ANTHROPIC_API_KEY가 Apps Script 스크립트 속성에 없어서 초안을 만들지 못했어요.', createdAt: nowKst, model: AI_DRAFT_MODEL });
+  if (!geminiKey && !claudeKey) {
+    firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: '', error: 'GEMINI_API_KEY(또는 ANTHROPIC_API_KEY)가 Apps Script 스크립트 속성에 없어서 초안을 만들지 못했어요.', createdAt: nowKst, model: '' });
     return { success: false, msg: 'no api key' };
   }
   try {
-    var content = [];
+    // 질문에 첨부된 사진들(드라이브)을 base64로 — Gemini/Claude 공통
+    var images = [];
     aiExtractDriveIds(data.content).forEach(function(id){
       try {
         var blob = DriveApp.getFileById(id).getBlob();
         var mime = blob.getContentType() || '';
         if (mime.indexOf('image/') !== 0) return;
         var bytes = blob.getBytes();
-        if (bytes.length > 4.5 * 1024 * 1024) return; // Claude 이미지 크기 한도(5MB) 근처는 건너뜀
-        content.push({ type: 'image', source: { type: 'base64', media_type: mime === 'image/jpg' ? 'image/jpeg' : mime, data: Utilities.base64Encode(bytes) } });
+        if (bytes.length > 4.5 * 1024 * 1024) return; // 이미지 크기 한도 근처는 건너뜀
+        images.push({ mime: mime === 'image/jpg' ? 'image/jpeg' : mime, data: Utilities.base64Encode(bytes) });
       } catch (e) { Logger.log('[aiDraftAnswer] 이미지 읽기 실패 ' + id + ': ' + e); }
     });
     var text = '학생 이름: ' + (data.studentName || '') + '\n제목: ' + (data.title || '') + '\n\n질문 내용:\n' + aiHtmlToText(data.content);
-    if (content.length) text += '\n\n(위에 첨부된 사진 ' + content.length + '장이 문제 사진입니다.)';
-    content.push({ type: 'text', text: text });
+    if (images.length) text += '\n\n(위에 첨부된 사진 ' + images.length + '장이 문제 사진입니다.)';
 
-    var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-      // thinking disabled: 이 모델은 답하기 전 "생각" 단계가 기본으로 켜져 있어서, 그게 max_tokens를 다 먹고
-      // 정작 답이 빈 채로 오는 문제가 있었음(stop_reason: max_tokens, content에 thinking 블록만). 풀이 초안엔 불필요.
-      payload: JSON.stringify({ model: AI_DRAFT_MODEL, max_tokens: 6000, thinking: { type: 'disabled' }, system: AI_DRAFT_SYSTEM, messages: [{ role: 'user', content: content }] }),
-      muteHttpExceptions: true
-    });
-    var code = res.getResponseCode();
-    var body = {};
-    try { body = JSON.parse(res.getContentText()); } catch (e) {}
-    if (code !== 200) {
-      var msg = (body.error && body.error.message) || ('HTTP ' + code);
-      firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: '', error: msg, createdAt: nowKst, model: AI_DRAFT_MODEL });
+    // Gemini Pro 먼저 → 실패하면 Claude 예비
+    var r = null, errs = [];
+    if (geminiKey) { r = aiDraftCallGemini(geminiKey, images, text); if (!r.ok) { errs.push(r.err); r = null; } }
+    if (!r && claudeKey) { r = aiDraftCallClaude(claudeKey, images, text); if (!r.ok) { errs.push(r.err); r = null; } }
+    if (!r) {
+      var msg = errs.join(' / ');
+      firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: '', error: msg, createdAt: nowKst, model: '' });
       return { success: false, msg: msg };
     }
-    var out = (body.content || []).filter(function(c){ return c.type === 'text'; }).map(function(c){ return c.text; }).join('\n').trim();
-    if (!out) {
-      // 200인데 글이 비어 오면 원인을 볼 수 있게 응답 앞부분을 error에 남김(stop_reason 등)
-      var raw = res.getContentText();
-      firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: '', error: '응답에 글이 없음 (stop_reason: ' + (body.stop_reason || '?') + ') — ' + raw.slice(0, 600), createdAt: nowKst, model: AI_DRAFT_MODEL });
-      return { success: false, msg: 'empty' };
-    }
-    firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: out, error: '', createdAt: nowKst, model: AI_DRAFT_MODEL });
+    firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: r.text, error: '', createdAt: nowKst, model: r.model });
     // 초안이 준비되면 선생님 폰으로 알림톡 — 질문 올라왔을 때 가는 알림과 별개로 "이제 확인하고 답변 달면 된다"는 신호
     if (!data.silent) {
       try {
@@ -1600,7 +1649,7 @@ function aiDraftAnswer(data) {
     return { success: true };
   } catch (err) {
     Logger.log('[aiDraftAnswer] 오류: ' + err);
-    try { firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: '', error: String(err), createdAt: nowKst, model: AI_DRAFT_MODEL }); } catch (e) {}
+    try { firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: '', error: String(err), createdAt: nowKst, model: '' }); } catch (e) {}
     return { success: false, msg: String(err) };
   }
 }
