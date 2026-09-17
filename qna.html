@@ -1152,6 +1152,54 @@ function relTime(str) {
   } catch(e) { return str; }
 }
 </script>
+<!-- 사진 크게 보기 (2026-09-18): 질문/답변/AI 초안 안의 사진을 누르면 전체화면으로 열리고, 그동안만 핀치줌 허용 -->
+<style>
+#img-lb{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.95);display:none;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pinch-zoom pan-x pan-y;}
+#img-lb.on{display:block;}
+#img-lb .lb-wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:56px 8px 24px;box-sizing:border-box;}
+#img-lb img{max-width:100%;height:auto;display:block;border-radius:6px;background:#fff;}
+#img-lb.zoomed .lb-wrap{align-items:flex-start;justify-content:flex-start;}
+#img-lb.zoomed img{max-width:none;width:220%;}
+#img-lb .lb-bar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 10px;background:rgba(0,0,0,.6);z-index:2;}
+#img-lb .lb-bar button{height:38px;padding:0 14px;border-radius:8px;border:1px solid #64748b;background:#1e293b;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
+#img-lb .lb-hint{position:fixed;left:0;right:0;top:50px;text-align:center;font-size:12px;color:#cbd5e1;pointer-events:none;z-index:2;}
+</style>
+<div id="img-lb" onclick="if(event.target===this||event.target.classList.contains('lb-wrap'))closeImgLb()">
+  <div class="lb-bar"><button type="button" id="lb-zoom-btn" onclick="toggleImgLbZoom()">🔍 확대</button><button type="button" onclick="closeImgLb()">✕ 닫기</button></div>
+  <div class="lb-hint">두 손가락으로 벌리면 더 확대돼요 · 사진을 눌러도 확대/축소</div>
+  <div class="lb-wrap"><img id="img-lb-img" alt="" onclick="toggleImgLbZoom()"></div>
+</div>
+<script>
+(function(){
+  var ORIG_VP = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover';
+  function setVp(zoomable){ var m = document.querySelector('meta[name="viewport"]'); if (m) m.setAttribute('content', zoomable ? 'width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, user-scalable=yes, viewport-fit=cover' : ORIG_VP); }
+  window.openImgLb = function(src){
+    var lb = document.getElementById('img-lb'), im = document.getElementById('img-lb-img');
+    // 드라이브 썸네일이면 더 큰 해상도로 요청
+    im.src = String(src || '').replace(/([?&]sz=)w\d+/, '$1w2400');
+    lb.classList.remove('zoomed'); document.getElementById('lb-zoom-btn').textContent = '🔍 확대';
+    lb.classList.add('on'); lb.scrollTop = 0; lb.scrollLeft = 0;
+    document.body.style.overflow = 'hidden'; setVp(true);
+  };
+  window.closeImgLb = function(){
+    var lb = document.getElementById('img-lb'); lb.classList.remove('on','zoomed');
+    document.getElementById('img-lb-img').src = ''; document.body.style.overflow = ''; setVp(false);
+  };
+  window.toggleImgLbZoom = function(){
+    var lb = document.getElementById('img-lb'); lb.classList.toggle('zoomed');
+    document.getElementById('lb-zoom-btn').textContent = lb.classList.contains('zoomed') ? '🔎 축소' : '🔍 확대';
+  };
+  // 질문 본문/답변/AI 초안 안의 사진 클릭 → 크게 보기 (편집 중인 입력창 안 사진은 제외)
+  document.addEventListener('click', function(e){
+    var img = e.target && e.target.closest ? e.target.closest('img') : null;
+    if (!img || !img.src) return;
+    if (img.closest('#img-lb') || img.closest('[contenteditable="true"]') || img.closest('.editor')) return;
+    if (!img.closest('#detail-content') && !img.closest('#answer-section') && !img.closest('#ai-draft-box')) return;
+    e.preventDefault(); openImgLb(img.src);
+  });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && document.getElementById('img-lb').classList.contains('on')) closeImgLb(); });
+})();
+</script>
 </body>
 </html>
 
