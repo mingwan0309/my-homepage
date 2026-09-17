@@ -357,7 +357,9 @@
 
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33PizaOHEwpTk8Bl5W92B1MQwXHTzBBgBMDRQZS/exec';
-const GEMINI_KEY = 'AQ.Ab8RN6I_i0JpzUDebt56rdrPDqu25kXdPFSEwiqQNzRqCDoDoA';
+// AI 채점용 Gemini 키는 2026-09-18부로 코드에서 제거함(공개 저장소에 키가 올라가 있어서 유출→Google Cloud 프로젝트 정지 사유가 됨).
+// 다시 쓰려면 키를 여기에 넣지 말고 Code.gs(스크립트 속성)를 거치는 방식으로 만들 것.
+const GEMINI_KEY = '';
 
 let currentUser = null;
 let problems = [];
@@ -911,6 +913,7 @@ async function submitAnswer() {
   parts.push({ inline_data: { mime_type: 'image/jpeg', data: imageData } });
 
   try {
+    if (!GEMINI_KEY) throw new Error('AI 자동 채점 기능은 현재 사용 중지 상태예요. 선생님께 풀이를 직접 보여주세요.');
     // 혼잡/오류 시 다른 모델로 자동 재시도
     const models = ['gemini-flash-latest', 'gemini-3-flash-preview', 'gemini-flash-lite-latest'];
     let data = null, lastErr = '';
