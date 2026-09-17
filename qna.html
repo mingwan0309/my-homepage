@@ -3,7 +3,7 @@
 <head>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <!-- AI 초안을 손글씨 노트 이미지로 만들 때 쓰는 손글씨 폰트(선생님 화면에서만 사용) -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&family=Gaegu:wght@400;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&family=Gamja+Flower&display=swap">
   <style>*{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}</style>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -571,7 +571,7 @@ async function aiDraftToAnswer(asImage) {
 // 참고한 모양(2026-09-17 사용자가 준 사진): 나무 책상 + 왼쪽 스프링 + 크림색 줄노트, 문제 조각을 왼쪽 위에 마스킹테이프 3장으로 붙임,
 // 조각 오른쪽에 "풀이)"부터 시작해서 조각 아래로 이어지는 단정한 검은 펜 손글씨, 마지막 "답:" 줄엔 ✓ 표시와 밑줄 두 줄.
 async function renderHandwritingNote(text, problemImg) {
-  try { await Promise.all([document.fonts.load('32px "Gaegu"'), document.fonts.load('bold 32px "Gaegu"')]); } catch(e) {}
+  try { await document.fonts.load('32px "Gamja Flower"'); } catch(e) {}
   // 같은 초안이면 매번 같은 모양이 나오게 고정 시드 난수 사용
   var seed = 7;
   String(text || '').split('').forEach(function(ch){ seed = (seed * 31 + ch.charCodeAt(0)) % 2147483647; });
@@ -582,11 +582,11 @@ async function renderHandwritingNote(text, problemImg) {
   var SPIRAL = 78;                        // 왼쪽 스프링 영역 폭(나무 책상이 보이는 부분)
   var PX = SPIRAL, PY = 26;               // 종이 왼쪽 위
   var PW = W - PX - 30;                   // 종이 폭
-  var PADL = 70, PADR = 50, PADTOP = 30, LINE = 60;
-  var FS = 38;
-  var FAMILY = '"Gaegu", "Nanum Pen Script", "Pretendard", sans-serif';
+  var PADL = 76, PADR = 50, PADTOP = 30, LINE = 62;
+  var FS = 40;
+  var FAMILY = '"Gamja Flower", "Nanum Pen Script", "Pretendard", sans-serif';
   var FONT = FS + 'px ' + FAMILY;
-  var INK = '43,43,48';                   // 검정에 가까운 짙은 회색 펜
+  var INK = '38,38,44';                   // 검정에 가까운 짙은 회색 펜
 
   // 문제 사진 자리(왼쪽 위)
   var snip = null;
@@ -616,7 +616,7 @@ async function renderHandwritingNote(text, problemImg) {
     var cur = '';
     para.split('').forEach(function(ch){
       var t = cur + ch;
-      if (measure.measureText(t).width * 0.92 > lineBox(lines.length).w && cur) { lines.push(cur); cur = ch; } else cur = t;
+      if (measure.measureText(t).width > lineBox(lines.length).w && cur) { lines.push(cur); cur = ch; } else cur = t;
     });
     if (cur) lines.push(cur);
   });
@@ -638,26 +638,49 @@ async function renderHandwritingNote(text, problemImg) {
     ctx.stroke();
   }
 
-  // 종이(크림색) + 그림자
+  // 아래에 깔린 다음 장들(종이 두께감) + 맨 위 종이(크림색) + 그림자
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.30)'; ctx.shadowBlur = 18; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 6;
+  ctx.shadowColor = 'rgba(0,0,0,0.32)'; ctx.shadowBlur = 20; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 8;
+  ctx.fillStyle = '#efece3'; ctx.fillRect(PX + 3, PY + 5, PW, PH);
+  ctx.fillStyle = '#f5f2ea'; ctx.fillRect(PX + 1.5, PY + 2.5, PW, PH);
+  ctx.shadowColor = 'transparent';
   ctx.fillStyle = '#fbf9f2'; ctx.fillRect(PX, PY, PW, PH);
   ctx.restore();
+  // 빛: 왼쪽 위가 밝고 오른쪽 아래로 갈수록 살짝 어두워짐 + 스프링 쪽은 종이가 휘어서 그늘
   var light = ctx.createLinearGradient(PX, PY, PX + PW, PY + PH);
-  light.addColorStop(0, 'rgba(255,255,255,0.10)'); light.addColorStop(1, 'rgba(110,95,70,0.12)');
+  light.addColorStop(0, 'rgba(255,255,255,0.12)'); light.addColorStop(1, 'rgba(110,95,70,0.14)');
   ctx.fillStyle = light; ctx.fillRect(PX, PY, PW, PH);
-  ctx.fillStyle = 'rgba(0,0,0,0.03)';
-  for (var n = 0; n < (PW * PH) / 300; n++) { ctx.fillRect(PX + rnd() * PW, PY + rnd() * PH, 1.2, 1.2); }
-  // 노트 줄(회색)
-  ctx.strokeStyle = 'rgba(150,150,150,0.55)'; ctx.lineWidth = 1.3;
-  for (var y = PY + PADTOP + LINE * 0.78; y < PY + PH - 20; y += LINE) { ctx.beginPath(); ctx.moveTo(PX, y); ctx.lineTo(PX + PW, y); ctx.stroke(); }
-  // 왼쪽 스프링: 종이에 뚫린 구멍 + 그 사이를 지나는 은색 링
-  for (var sy = PY + 34; sy < PY + PH - 20; sy += 46) {
-    ctx.beginPath(); ctx.ellipse(PX + 26, sy, 7, 9, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#4a3423'; ctx.fill();
-    ctx.beginPath(); ctx.ellipse(PX - 14, sy + 4, 24, 12, -0.35, Math.PI * 0.95, Math.PI * 2.05);
-    ctx.strokeStyle = '#d9d9dc'; ctx.lineWidth = 4.5; ctx.lineCap = 'round'; ctx.stroke();
-    ctx.strokeStyle = 'rgba(90,90,95,0.7)'; ctx.lineWidth = 1.2; ctx.stroke();
+  var curl = ctx.createLinearGradient(PX, 0, PX + 110, 0);
+  curl.addColorStop(0, 'rgba(60,45,30,0.16)'); curl.addColorStop(1, 'rgba(60,45,30,0)');
+  ctx.fillStyle = curl; ctx.fillRect(PX, PY, 110, PH);
+  // 종이 섬유 질감(가는 점 + 아주 옅은 얼룩)
+  ctx.fillStyle = 'rgba(0,0,0,0.035)';
+  for (var n = 0; n < (PW * PH) / 240; n++) { ctx.fillRect(PX + rnd() * PW, PY + rnd() * PH, 1.3, 1.3); }
+  for (var b = 0; b < 14; b++) {
+    var bx = PX + rnd() * PW, by = PY + rnd() * PH, br = 60 + rnd() * 160;
+    var bl = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+    bl.addColorStop(0, 'rgba(120,100,70,' + rr(0.015, 0.04) + ')'); bl.addColorStop(1, 'rgba(120,100,70,0)');
+    ctx.fillStyle = bl; ctx.fillRect(bx - br, by - br, br * 2, br * 2);
+  }
+  // 노트 줄(연한 회색, 인쇄된 느낌으로 가늘게)
+  ctx.strokeStyle = 'rgba(140,145,155,0.5)'; ctx.lineWidth = 1.1;
+  for (var y = PY + PADTOP + LINE * 0.78; y < PY + PH - 20; y += LINE) { ctx.beginPath(); ctx.moveTo(PX + 52, y); ctx.lineTo(PX + PW, y); ctx.stroke(); }
+  // 왼쪽 트윈링 스프링: 종이에 뚫린 구멍 두 개 + 그 사이로 지나가는 은색 철사 고리
+  for (var sy = PY + 30; sy < PY + PH - 16; sy += 44) {
+    [0, 12].forEach(function(o){
+      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(PX + 20 + o * 0, sy - 5 + o, 12, 8, 3) : ctx.rect(PX + 20, sy - 5 + o, 12, 8);
+      ctx.fillStyle = '#3b2a1c'; ctx.fill();
+    });
+    // 철사: 구멍에서 왼쪽 바깥으로 나갔다가 돌아오는 고리(그림자 → 몸통 → 하이라이트 순으로 그려 입체감)
+    function wire(offX, offY, col, w) {
+      ctx.beginPath(); ctx.moveTo(PX + 26 + offX, sy - 1 + offY);
+      ctx.bezierCurveTo(PX - 4 + offX, sy - 16 + offY, PX - 34 + offX, sy - 4 + offY, PX - 32 + offX, sy + 8 + offY);
+      ctx.bezierCurveTo(PX - 30 + offX, sy + 20 + offY, PX + 4 + offX, sy + 20 + offY, PX + 26 + offX, sy + 11 + offY);
+      ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.stroke();
+    }
+    wire(2, 3, 'rgba(0,0,0,0.28)', 5);
+    wire(0, 0, '#8e8f94', 4.6);
+    wire(-0.6, -0.8, '#e6e7ea', 1.6);
   }
 
   // 문제 사진: 흰 종이 조각처럼 살짝 기울여 붙이고 마스킹테이프 3장
@@ -712,17 +735,17 @@ async function renderHandwritingNote(text, problemImg) {
       ctx.save();
       ctx.translate(x, baseY + dy);
       ctx.rotate(rot);
-      ctx.font = (isHead ? 'bold ' : '') + size + 'px ' + FAMILY;
+      ctx.font = size + 'px ' + FAMILY;
       ctx.fillStyle = 'rgba(' + INK + ',' + rr(0.9, 1) + ')';
       ctx.fillText(ch, 0, 0);
       // 펜 굵기: 얇은 폰트라 획을 살짝 덧그려 실제 펜 두께로
       ctx.strokeStyle = 'rgba(' + INK + ',' + rr(0.5, 0.8) + ')';
-      ctx.lineWidth = rr(0.65, 1.05); ctx.lineJoin = 'round';
+      ctx.lineWidth = isHead ? rr(0.9, 1.3) : rr(0.25, 0.6); ctx.lineJoin = 'round';
       ctx.strokeText(ch, 0, 0);
       ctx.restore();
-      measure.font = (isHead ? 'bold ' : '') + FONT;
+      measure.font = FONT;
       // Gaegu의 영문·숫자는 폭이 넓어서 실제 펜글씨처럼 살짝 붙여 씀
-      x += measure.measureText(ch).width * (ch === ' ' ? 0.7 : (ch.charCodeAt(0) < 128 ? 0.86 : 1)) + rr(-0.3, 0.3);
+      x += measure.measureText(ch).width * (ch === ' ' ? 0.85 : 1) + rr(-0.3, 0.3);
     }
     // 마지막 "답:" 줄엔 손으로 그은 밑줄 두 줄
     if (i === answerLineIdx && line.trim()) {
