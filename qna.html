@@ -564,7 +564,8 @@ async function aiDraftToAnswer(asImage) {
     document.execCommand('insertHTML', false, '<span id="' + marker + '" style="color:#94a3b8;">[AI 노트 사진 만드는 중...]</span>');
     var r = await fetch(SU, { method:'POST', headers:{ 'Content-Type':'text/plain' }, body: JSON.stringify({ action:'aiNoteImage', questionId: currentQuestion.id, content: currentQuestion.content || '', draftText: aiDraftCur.text }) }).then(function(x){ return x.json(); });
     var span = document.getElementById(marker);
-    if (!r || !r.success || !r.url) throw new Error((r && r.msg) || '응답 없음');
+    // Apps Script 바깥 catch는 msg가 아니라 error 필드로 돌려주므로 둘 다 확인, 그것도 없으면 응답 원문을 보여줌(진단용)
+    if (!r || !r.success || !r.url) throw new Error((r && (r.msg || r.error)) || ('응답 없음: ' + JSON.stringify(r || null).slice(0, 300)));
     var m = r.url.match(/\/d\/([^\/]+)/);
     var src = m ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1600') : r.url;
     if (span) span.outerHTML = '<img src="' + src + '" style="max-width:100%;">';

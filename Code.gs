@@ -47,7 +47,8 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify({ error: 'unknown action' }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
+    Logger.log('[doPost] 예외: ' + err + ' / ' + (err && err.stack));
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'doPost 예외: ' + err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -1489,7 +1490,7 @@ function aiNoteImage(data) {
       var attempts = [
         { name: 'interactions', url: 'https://generativelanguage.googleapis.com/v1beta/interactions',
           payload: (function(){ var input = [{ type: 'text', text: prompt }]; if (problem) input.push({ type: 'image', mime_type: problem.mime, data: problem.b64 });
-            return { model: mdl, input: input, response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: '16:9', image_size: '2K' } }; })() },
+            return { model: mdl, input: input, response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: '16:9', image_size: '1K' } }; })() },
         { name: 'generateContent', url: 'https://generativelanguage.googleapis.com/v1beta/models/' + mdl + ':generateContent',
           payload: (function(){ var parts = []; if (problem) parts.push({ inline_data: { mime_type: problem.mime, data: problem.b64 } }); parts.push({ text: prompt });
             return { contents: [{ parts: parts }], generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '16:9' } } }; })() }
