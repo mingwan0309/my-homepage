@@ -782,12 +782,16 @@ api.setScore = function(db, p){
   return ref.get().then(function(doc){
     var prevLeaveCount = doc.exists ? (doc.data().examLeaveCount||0) : 0;
     var prevLeaveLog = doc.exists ? (doc.data().examLeaveLog||[]) : [];
+    // merge:true — 예전엔 통째로 덮어써서 학생이 올린 재시험 증빙 사진(examSubmissionUrl)·재촉 이력이 점수만 다시 저장해도 날아갔음.
+    // alertResolved:false — 선생님이 점수를 다시 저장하면 "해결 처리"를 자동으로 풀어서, 미통과/미응시면 테스트 관리 목록에 다시 뜨게
+    // (실수로 해결 처리한 걸 성적표에서 되돌릴 수 있는 유일한 경로. 통과면 pass 조건에서 걸러져 어차피 목록에 안 뜸).
     return ref.set({
       id:key, sessionId:String(p.sessionId), studentId:String(p.studentId), examId:String(p.examId),
       score:p.score||'', pass:p.pass||'', feedback:p.feedback||'',
       examLeaveCount: (p.examLeaveCount!==undefined) ? Number(p.examLeaveCount||0) : prevLeaveCount,
-      examLeaveLog: (newLeaveLog!==undefined) ? newLeaveLog : prevLeaveLog
-    });
+      examLeaveLog: (newLeaveLog!==undefined) ? newLeaveLog : prevLeaveLog,
+      alertResolved:false
+    },{merge:true});
   }).then(function(){
     recomputeExamRanks(db, p.examId);
     return { success:true };
