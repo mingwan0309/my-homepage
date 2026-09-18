@@ -187,9 +187,30 @@ document.addEventListener('DOMContentLoaded', async function(){
     return;
   }
   document.getElementById('page-main').style.display='block';
+  // 점수가 저장되지 않는 두 가지 흔한 경우를 미리 안내 (2026-09-18 — 점수가 서버에 한 건도 안 남는 학생이 있어서 추가)
+  // ① 학부모 계정으로 들어온 경우: 보안 규칙상 학생 본인 로그인만 점수 저장 가능
+  if(session.authId && session.authId!==session.id){
+    showGameNotice('⚠️ 지금 로그인한 계정('+escHtml(session.authId)+')이 학생 본인 아이디('+escHtml(session.id)+')와 달라서(학부모 계정 등) 게임 점수가 기록되지 않아요. 학생 본인 아이디로 다시 로그인한 뒤 도전해주세요.');
+  }
+  // ② 화면엔 로그인돼 있는 것처럼 보이지만 실제 인증이 풀린 경우(앱 데이터 정리 등): 저장이 전부 거부됨
+  try{
+    await new Promise(function(res){ var t=setTimeout(res,4000); var un=firebase.auth().onAuthStateChanged(function(){ clearTimeout(t); un(); res(); }); });
+    if(!firebase.auth().currentUser){
+      showGameNotice('⚠️ 로그인이 풀려 있어서 점수가 기록되지 않아요. <a href="index.html" style="color:#fbbf24;font-weight:800;">여기를 눌러 다시 로그인</a>한 뒤 도전해주세요.');
+    }
+  }catch(e){}
   await loadStatus();
   loadBonusConfig();
 });
+function showGameNotice(html){
+  var el=document.getElementById('game-notice');
+  if(!el){
+    el=document.createElement('div'); el.id='game-notice';
+    el.style.cssText='margin:0 0 14px;padding:12px 14px;border-radius:10px;background:#7f1d1d;color:#fecaca;font-size:13px;line-height:1.6;font-weight:600;';
+    var main=document.getElementById('page-main'); main.insertBefore(el, main.firstChild);
+  }
+  el.innerHTML=html;
+}
 // 똥피하기 보너스 글자 설정 — 관리 페이지에서 등록해둔 목록을 불러옴(비어있으면 기본값)
 var bonusConfig=[{char:'복',points:5},{char:'워',points:7}];
 async function loadBonusConfig(){
