@@ -1306,7 +1306,16 @@ function showPage(page,el){
   if(page==='students') loadStu();
   if(page==='reviewmanage') loadRv();
   if(page==='notice') loadNotices();
-  if(page==='clinic'){ loadClinics(); loadClinicBookingsToday(); }
+  if(page==='clinic'){
+    // 조교는 "오늘 예약된 클리닉 학생" 명단(출석/결석/재촉)만 — 클리닉 자체를 만들고 지우는 관리 영역은 교사 전용
+    var astOnly = cu && cu.role==='assistant';
+    var addBtn=document.querySelector('#page-clinic .page-header .btn-primary');
+    if(addBtn) addBtn.style.display = astOnly ? 'none' : '';
+    var listArea=document.getElementById('clinic-list-area');
+    if(listArea) listArea.style.display = astOnly ? 'none' : '';
+    if(!astOnly) loadClinics();
+    loadClinicBookingsToday();
+  }
   if(page==='mclinic') loadMclinic();
   if(page==='hwmanage'){ switchHwTestTab('hw'); loadHwManage(); }
   if(page==='activitylog') loadActivityLog();
@@ -1355,7 +1364,7 @@ function setupAssistantSession(sessObj, isPreview){
   document.getElementById('dashboard').style.display='flex';
   document.getElementById('sb-user').textContent=sessObj.name||sessObj.id;
   if(!isPreview){ startMcHourReminderTimer(); startClinicHourReminderTimer(); }
-  var mcAllowedPages=['classes','students','mclinic','hwmanage','qna','pwchange','assistants','astguide','astcheck'];
+  var mcAllowedPages=['classes','students','clinic','mclinic','hwmanage','qna','pwchange','assistants','astguide','astcheck']; // 'clinic'=추가클리닉 오늘 명단(2026-09-18 조교에게 개방)
   document.querySelectorAll('.sidebar-nav .nav-item, .mob-drawer-panel .nav-item').forEach(function(n){
     if(n.classList.contains('nav-group-head')){
       // 그룹 헤더(클리닉/숙제)는 자체 onclick이 페이지 이동이 아니라 펼치기라서, 안에 허용된 하위 메뉴가 하나라도 있으면 그대로 둠

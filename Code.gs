@@ -742,7 +742,9 @@ function firestorePatchStringField(collection, docId, fieldName, value) {
   });
   if (res.getResponseCode() !== 200) {
     Logger.log('[firestorePatchStringField] ' + collection + '/' + docId + ' 갱신 실패: ' + res.getContentText());
+    return false;
   }
+  return true; // 호출한 쪽에서 "표시 저장 성공했을 때만 발송" 판단에 씀
 }
 // 조건에 맞는 문서만 골라서 읽어옴(필드 하나 = 값 비교). firestoreListAll은 컬렉션을 통째로
 // 읽어서 문서 수만큼 읽기 비용이 발생하는데, 5분마다 도는 검사에서 hw_status/scores 같은 큰
@@ -884,12 +886,12 @@ function sendMcHourReminders() {
       msgs.push({ phone: TEACHER_NOTIFY_PHONE, name: m.name, className: '의무클리닉', sessionNum: today.dateStr, message: text });
       if (!msgs.length) return;
 
-      var result = sendAlimtalkMessages(msgs);
-      if (result.success) {
-        firestorePatchStringField('mandatory_clinic', m.id, 'lastHourReminderDate', today.dateStr);
-      } else {
-        Logger.log('[sendMcHourReminders] ' + m.name + ' 발송 실패: ' + result.msg);
+      // '보냈음' 표시를 먼저 남기고 발송(2026-09-18) — 반대 순서면 표시 저장이 실패할 때 5분마다 같은 알림이 반복됨.
+      if (!firestorePatchStringField('mandatory_clinic', m.id, 'lastHourReminderDate', today.dateStr)) {
+        Logger.log('[sendMcHourReminders] ' + m.name + ' 발송 표시 저장 실패 → 발송 건너뜀'); return;
       }
+      var result = sendAlimtalkMessages(msgs);
+      if (!result.success) Logger.log('[sendMcHourReminders] ' + m.name + ' 발송 실패: ' + result.msg);
     });
   } catch (err) {
     Logger.log('[sendMcHourReminders] 오류: ' + err);
@@ -957,12 +959,12 @@ function sendClinicHourReminders() {
       if (student && student.parentPhone) msgs.push({ phone: student.parentPhone, name: name, className: '클리닉', sessionNum: today.dateStr, message: text });
       msgs.push({ phone: TEACHER_NOTIFY_PHONE, name: name, className: '클리닉', sessionNum: today.dateStr, message: text });
 
-      var result = sendAlimtalkMessages(msgs);
-      if (result.success) {
-        firestorePatchStringField('clinic_bookings', b.id, 'lastHourReminderDate', today.dateStr);
-      } else {
-        Logger.log('[sendClinicHourReminders] ' + name + ' 발송 실패: ' + result.msg);
+      // '보냈음' 표시를 먼저 남기고 발송(2026-09-18, 위 의무클리닉과 동일)
+      if (!firestorePatchStringField('clinic_bookings', b.id, 'lastHourReminderDate', today.dateStr)) {
+        Logger.log('[sendClinicHourReminders] ' + name + ' 발송 표시 저장 실패 → 발송 건너뜀'); return;
       }
+      var result = sendAlimtalkMessages(msgs);
+      if (!result.success) Logger.log('[sendClinicHourReminders] ' + name + ' 발송 실패: ' + result.msg);
     });
   } catch (err) {
     Logger.log('[sendClinicHourReminders] 오류: ' + err);
@@ -1117,17 +1119,26 @@ function sendAssistantCheckNudges() {
 
   // 2) 오늘 차시 중 아직 처리 안 된 학생 명단 만들기
   var blocks = buildTodayUncheckedBlocks(today);
+  // 2-1) 오늘 클리닉 오는 학생 명단(추가클리닉 예약 + 의무클리닉 시간대 변경) — 2026-09-18 추가.
+  //      출근한 조교가 오늘 누가 몇 시에 클리닉 오는지 폰에서 바로 보게 하려는 것.
+  var clinicBlock = buildTodayClinicBlock(today);
 
-  // 처리할 게 하나도 없으면 알림을 아예 안 보냄(조용함 = 정상). 단, 같은 근무에 계속 다시 확인하지
-  // 않도록 표시는 남겨둠.
-  if (!blocks.length) {
+  // 처리할 것도, 오늘 클리닉 명단도 하나도 없으면 알림을 아예 안 보냄(조용함 = 정상). 단, 같은 근무에
+  // 계속 다시 확인하지 않도록 표시는 남겨둠.
+  if (!blocks.length && !clinicBlock) {
     logs.forEach(function(w){ firestorePatchFields('work_logs', w.id, { checkNudgeSent: true }); });
     return;
   }
 
-  var text = '아직 처리 안 된 학생이 있어요.\n\n'
-    + blocks.join('\n\n')
-    + '\n\n쉬는시간에 교실로 가서 출석과 과제를 다시 체크해주세요.';
+  var text;
+  if (blocks.length) {
+    text = '아직 처리 안 된 학생이 있어요.\n\n'
+      + blocks.join('\n\n')
+      + '\n\n쉬는시간에 교실로 가서 출석과 과제를 다시 체크해주세요.';
+    if (clinicBlock) text += '\n\n' + clinicBlock;
+  } else {
+    text = '오늘 출석·과제는 모두 처리됐어요.\n\n' + clinicBlock;
+  }
 
   var msgs = [{ phone: TEACHER_NOTIFY_PHONE, name: '김민관 선생님', className: '출결·과제 점검', sessionNum: today.dateStr, message: text }];
   logs.forEach(function(w){
@@ -1142,6 +1153,37 @@ function sendAssistantCheckNudges() {
     // 발송 실패 시에는 표시를 남기지 않아서 다음 실행(5분 뒤)에 다시 시도됨
     Logger.log('[sendAssistantCheckNudges] 발송 실패: ' + result.msg);
   }
+}
+
+// 오늘 클리닉 오는 학생 명단 문단 — [추가클리닉] clinic_bookings(오늘 날짜, 취소 제외) + [변경 클리닉] mandatory_clinic
+// (오늘 실제로 오는 시간대 변경 학생만 — 참고용 "오늘 아님" 항목은 제외). 둘 다 비어 있으면 빈 문자열.
+function buildTodayClinicBlock(today) {
+  var lines = [];
+  try {
+    var bookings = firestoreQueryEq('clinic_bookings', 'date', today.dateStr).filter(function(b){
+      return b.status !== '취소' && b.status !== 'cancelled';
+    }).sort(function(a, b){ return String(a.time || '') < String(b.time || '') ? -1 : 1; });
+    if (bookings.length) {
+      lines.push('[오늘 추가클리닉 ' + bookings.length + '명]');
+      bookings.forEach(function(b){
+        lines.push('· ' + (b.studentName || b.studentId) + ' ' + (b.time || '') + (b.clinicName ? ' (' + b.clinicName + ')' : ''));
+      });
+    }
+  } catch (e) { Logger.log('[buildTodayClinicBlock] 추가클리닉 조회 오류: ' + e); }
+  try {
+    var mcs = firestoreListAll('mandatory_clinic').filter(function(m){
+      return m.type === 'temp' ? m.date === today.dateStr : m.day === today.dayName;
+    }).sort(function(a, b){ return String(a.time || '') < String(b.time || '') ? -1 : 1; });
+    if (mcs.length) {
+      if (lines.length) lines.push('');
+      lines.push('[오늘 변경 클리닉 ' + mcs.length + '명]');
+      mcs.forEach(function(m){
+        var tag = m.type === 'temp' ? '임시' : (m.targetDay ? m.targetDay + '요일분' : '정규변경');
+        lines.push('· ' + (m.name || m.studentId) + ' ' + (m.time || '') + ' (' + tag + ')');
+      });
+    }
+  } catch (e) { Logger.log('[buildTodayClinicBlock] 변경클리닉 조회 오류: ' + e); }
+  return lines.join('\n');
 }
 
 // 오늘 날짜 차시들을 훑어서 "아직 처리 안 된 학생"을 반별 문단으로 만들어 돌려줌.
