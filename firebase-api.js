@@ -1475,14 +1475,25 @@ api.getGameStatus = function(db, p){
         Object.keys(games).forEach(function(gk){ total += games[gk].score; name = games[gk].studentName || name; });
         return { studentId: stuId, studentName: name, score: total };
       });
-      var list = totals.sort(function(a,b){ return b.score-a.score; }).slice(0,10);
-      var defaultList = Object.keys(defaultAgg).map(function(stuId){
+      // 순위표는 상위 10명만 보여주지만, 본인이 11등 밖이면 "내 순위"를 따로 붙여서 항상 자기 기록이 보이게 함
+      // (예전엔 10등 밖이면 자기 점수가 아예 안 보여서 "내 점수가 순위에 안 뜬다"는 문의가 있었음, 2026-09-18)
+      function withMyRank(sorted){
+        var top = sorted.slice(0,10);
+        var myIdx = -1;
+        for (var i=0;i<sorted.length;i++){ if (String(sorted[i].studentId)===sid){ myIdx=i; break; } }
+        if (myIdx >= 10) { var me = Object.assign({}, sorted[myIdx], { rank: myIdx+1, outsideTop: true }); top.push(me); }
+        return top;
+      }
+      var sortedTotals = totals.sort(function(a,b){ return b.score-a.score; });
+      var list = withMyRank(sortedTotals);
+      var defaultList = withMyRank(Object.keys(defaultAgg).map(function(stuId){
         var a = defaultAgg[stuId];
         return { studentId: stuId, studentName: a.studentName, total: a.total, best: a.best };
-      }).sort(function(a,b){ return b.total-a.total; }).slice(0,10);
+      }).sort(function(a,b){ return b.total-a.total; }));
       return {
         maxAttempts: (maxAttempts===Infinity ? -1 : maxAttempts),
-        perGame: perGame, leaderboard: list, defaultWeekly: defaultList, weekKey: wk
+        perGame: perGame, leaderboard: list, defaultWeekly: defaultList, weekKey: wk,
+        myWeekCount: (bestByStudentGame[sid] ? Object.keys(bestByStudentGame[sid]).length : 0)
       };
     });
   });

@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>미니게임 — 김민관 수학</title>
-<script src="firebase-api.js?v=43"></script>
+<script src="firebase-api.js?v=44"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;}
@@ -218,9 +218,10 @@ function renderLeaderboard(list){
   var el=document.getElementById('lb-list');
   if(!list.length){ el.innerHTML='<div class="lb-empty">아직 이번 주 기록이 없어요. 첫 도전자가 되어보세요!</div>'; return; }
   el.innerHTML=list.map(function(l,i){
-    var rank=i+1;
+    var rank=l.rank||(i+1);
     var isMe=l.studentId===session.id;
-    return '<div class="lb-row">'
+    return (l.outsideTop?'<div class="lb-empty" style="padding:4px 0;">···</div>':'')
+      +'<div class="lb-row">'
       +'<span class="lb-rank'+(rank===1?' gold':'')+'">'+(rank===1?'👑':rank)+'</span>'
       +'<span class="lb-name" style="'+(isMe?'color:#4ade80;':'')+'">'+escHtml(l.studentName)+(isMe?' (나)':'')+'</span>'
       +'<span class="lb-score">'+l.score+'점</span>'
@@ -232,9 +233,10 @@ function renderDefaultWeekly(list){
   var el=document.getElementById('lb-default-list');
   if(!list.length){ el.innerHTML='<div class="lb-empty">아직 이번 주 기록이 없어요. 첫 도전자가 되어보세요!</div>'; return; }
   el.innerHTML=list.map(function(l,i){
-    var rank=i+1;
+    var rank=l.rank||(i+1);
     var isMe=l.studentId===session.id;
-    return '<div class="lb-row">'
+    return (l.outsideTop?'<div class="lb-empty" style="padding:4px 0;">···</div>':'')
+      +'<div class="lb-row">'
       +'<span class="lb-rank'+(rank===1?' gold':'')+'">'+(rank===1?'👑':rank)+'</span>'
       +'<span class="lb-name" style="'+(isMe?'color:#4ade80;':'')+'">'+escHtml(l.studentName)+(isMe?' (나)':'')+'</span>'
       +'<span class="lb-score">누적 '+l.total+'점<span style="color:#64748b;font-weight:600;font-size:11px;"> · 최고 '+l.best+'점</span></span>'
@@ -539,9 +541,21 @@ async function submitScore(score){
   try{
     var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'submitGameScore',studentId:session.id,studentName:session.name||'',score:score,gameKey:activeGameKey})});
     var d=await res.json();
-    document.getElementById('r-msg').textContent = (d&&d.success!==false) ? '점수가 기록됐어요!' : (d&&d.msg?d.msg:'이미 오늘 도전한 기록이 있어요.');
+    var msgEl=document.getElementById('r-msg');
+    if(d&&d.success!==false){
+      msgEl.textContent='점수가 기록됐어요!';
+      loadStatus(); // 순위표·남은 횟수 바로 갱신
+    } else {
+      var m=(d&&d.msg)||'';
+      if(/permission|insufficient/i.test(m)){
+        // Firestore 규칙에서 거부됨(로그인 계정과 학생 아이디 형식이 안 맞는 경우 등) — 선생님이 원인을 찾을 수 있게 아이디를 같이 보여줌
+        msgEl.textContent='점수 저장이 거부됐어요. 선생님께 이 화면을 보여주세요. (아이디: '+(session.id||'')+' / 로그인: '+(session.authId||'')+')';
+      } else {
+        msgEl.textContent=m||'이미 오늘 도전한 기록이 있어요.';
+      }
+    }
   }catch(e){
-    document.getElementById('r-msg').textContent='제출 중 오류가 발생했어요. 다시 확인해주세요.';
+    document.getElementById('r-msg').textContent='제출 중 오류가 발생했어요('+(e&&e.message||'')+'). 인터넷 연결을 확인하고 다시 시도해주세요.';
   }
 }
 </script>
