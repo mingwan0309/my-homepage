@@ -108,7 +108,8 @@ a{text-decoration:none;}
         <div class="touch-hint" id="canvas-touch-hint">화면을 좌우로 드래그하거나 ←/→ 키로 피하세요</div>
         <div id="typing-game-area" style="display:none;">
           <div id="typing-sentence" style="background:#1e2a45;border-radius:14px;padding:24px 18px;text-align:center;font-size:17px;font-weight:700;line-height:1.6;min-height:90px;display:flex;align-items:center;justify-content:center;"></div>
-          <input id="typing-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="문장을 그대로 입력 후 Enter" style="width:100%;box-sizing:border-box;margin-top:14px;padding:14px 16px;border-radius:12px;border:none;font-size:16px;">
+          <input id="typing-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="문장을 그대로 입력하세요" style="width:100%;box-sizing:border-box;margin-top:14px;padding:14px 16px;border-radius:12px;border:none;font-size:16px;">
+          <button type="button" id="typing-submit-btn" onclick="checkTypingAnswer()" style="width:100%;box-sizing:border-box;margin-top:10px;min-height:48px;border:none;border-radius:12px;background:#6366f1;color:#fff;font-size:16px;font-weight:800;cursor:pointer;">✅ 제출</button>
           <div id="typing-feedback" style="text-align:center;margin-top:10px;font-size:13.5px;font-weight:700;height:18px;"></div>
         </div>
       </div>
@@ -292,7 +293,7 @@ function renderIntroContent(){
   document.getElementById('intro-title').textContent = meta.title;
   document.getElementById('intro-rows').innerHTML = rowsHtml;
   document.getElementById('intro-hint').textContent = activeGameKey==='typing'
-    ? '화면의 문장을 그대로 입력하고 Enter를 누르세요'
+    ? '화면의 문장을 그대로 입력하고 ✅ 제출 버튼을 누르세요'
     : '화면을 좌우로 드래그하거나 ←/→ 키로 이동해요';
 }
 function showIntro(){
@@ -354,6 +355,7 @@ async function startTypingGame(){
   document.getElementById('hud-score').textContent='0';
   var input=document.getElementById('typing-input');
   input.disabled=false;
+  typingChecking=false;
   typingGameEndAt=Date.now()+TYPING_GAME_SECONDS*1000;
   bindTypingControls();
   nextTypingSentence();
@@ -378,12 +380,16 @@ function nextTypingSentence(){
 }
 function bindTypingControls(){
   var input=document.getElementById('typing-input');
-  input.onkeydown=function(e){ if(e.key==='Enter') checkTypingAnswer(); };
+  // 폰 한글 키보드는 조합 중 Enter가 key='Process'/keyCode 229로 오기도 해서 keyCode 13도 같이 봄
+  input.onkeydown=function(e){ if(e.key==='Enter' || e.keyCode===13){ e.preventDefault(); checkTypingAnswer(); } };
 }
+var typingChecking=false; // 제출 후 다음 문장 뜨기 전까지 중복 제출(점수 이중 가산) 방지
 function checkTypingAnswer(){
   var input=document.getElementById('typing-input');
+  if(input.disabled || typingChecking) return;
   var val=input.value.trim();
   if(!val || !typingGameCur) return;
+  typingChecking=true;
   var ok = val===typingGameCur.text.trim();
   var fb=document.getElementById('typing-feedback');
   if(ok){
@@ -393,7 +399,7 @@ function checkTypingAnswer(){
   } else {
     fb.style.color='#f87171'; fb.textContent='❌ 띄어쓰기·문장부호까지 똑같이 입력해보세요';
   }
-  setTimeout(function(){ if(typingGameTimerInt) nextTypingSentence(); }, ok?300:1000);
+  setTimeout(function(){ typingChecking=false; if(typingGameTimerInt) nextTypingSentence(); }, ok?300:1000);
 }
 function typingGameTick(){
   var left=Math.max(0, typingGameEndAt-Date.now());
