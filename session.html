@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>차시 — 김민관 수학</title>
-<script src="firebase-api.js?v=45"></script>
+<script src="firebase-api.js?v=46"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -1320,7 +1320,7 @@ async function loadScores(){
   scoresMap={};
   (sr.scores||[]).forEach(function(s){
     if(!scoresMap[s.studentId])scoresMap[s.studentId]={};
-    scoresMap[s.studentId][s.examId]={score:s.score,pass:s.pass,feedback:s.feedback||'',examLeaveCount:s.examLeaveCount||0,examLeaveLog:s.examLeaveLog||[]};
+    scoresMap[s.studentId][s.examId]={score:s.score,pass:s.pass,feedback:s.feedback||'',examLeaveCount:s.examLeaveCount||0,examLeaveLog:s.examLeaveLog||[],objectiveScore:(s.objectiveScore!=null?s.objectiveScore:null),manualScores:s.manualScores||null,omrAnswers:s.omrAnswers||null};
   });
   renderScores();
 }
@@ -2064,15 +2064,18 @@ async function loadPanelManualArea(studentId, examId){
   var area=document.getElementById('panel-manual-area');
   var rowsEl=document.getElementById('panel-manual-rows');
   area.style.display='none'; rowsEl.innerHTML='';
-  panelManualSubId=null; panelManualExamId=null; panelManualKey=null; panelManualExamRef=null;
+  area.querySelector('div').textContent='✍️ 주관식 문항 직접 채점 (문자 정답이라 자동채점 안 됨)';
+  panelManualSubId=null; panelManualExamId=null; panelManualKey=null; panelManualExamRef=null; panelPaperKey=null; panelPaperExamId=null;
   try{
     var key=await fetchExamKey(examId);
     var manualQs=(key||[]).filter(function(r){ return r.correct!=null && akIsManualQuestion(r); });
-    if(!manualQs.length) return;
+    var anyShort=(key||[]).some(function(r){ return r.correct!=null && r.type==='short'; });
+    if(!manualQs.length && !anyShort) return;
     var sr=await fetch(SU+'?action=getExamSubmissions&examId='+encodeURIComponent(examId)).then(function(r){return r.json();});
     var sub=(sr.submissions||[]).find(function(s){return s.studentId===studentId;});
-    if(!sub) return; // 아직 폰으로 제출 안 했으면 매길 답 자체가 없음
     if(panelStudentId!==studentId || panelExamId!==examId) return; // 패널이 그 사이 닫혔거나 다른 걸로 바뀌었으면 무시
+    if(!sub){ renderPanelPaperManual(studentId, examId, key); return; } // 폰 제출이 없으면 종이(OMR) 시험 — 주관식/서술형 점수를 직접 입력
+    if(!manualQs.length) return;
     panelManualSubId=sub.id; panelManualExamId=examId; panelManualKey=key;
     panelManualExamRef=exams.find(function(e){return e.id===examId;});
     var ms=sub.manualScores||{};
@@ -2088,6 +2091,63 @@ async function loadPanelManualArea(studentId, examId){
     }).join('') + '<button type="button" onclick="savePanelManualScores()" style="margin-top:6px;width:100%;background:#1d4ed8;color:#fff;border:none;padding:8px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">✍️ 주관식 점수 저장(자동채점 점수에 합산)</button>';
     area.style.display='';
   }catch(e){}
+}
+// ── 종이(OMR) 시험의 주관식/서술형 직접 채점 (2026-09-19) ──
+// OMR은 ①~⑤ 마킹만 읽으므로 주관식(type='short') 문항은 전부 여기서 조교/교사가 점수를 넣어야 함.
+// 저장: scores.manualScores={문항:점수}, scores.objectiveScore=객관식 자동채점 점수, 최종 score = objectiveScore + Σmanual.
+var panelPaperKey=null, panelPaperExamId=null;
+function renderPanelPaperManual(studentId, examId, key){
+  var area=document.getElementById('panel-manual-area');
+  var rowsEl=document.getElementById('panel-manual-rows');
+  var shortQs=(key||[]).filter(function(r){ return r.correct!=null && r.type==='short'; });
+  if(!shortQs.length) return;
+  panelPaperKey=key; panelPaperExamId=examId;
+  var sc=(scoresMap[studentId]||{})[examId]||{};
+  var ms=sc.manualScores||{};
+  var hasObj=(sc.objectiveScore!=null && sc.objectiveScore!=='');
+  var objLabel=hasObj?('객관식 자동채점 '+sc.objectiveScore+'점'):(sc.score!==''&&sc.score!=null?'현재 저장된 점수 '+sc.score+'점(객관식 점수로 봄)':'아직 점수 없음');
+  rowsEl.innerHTML='<div style="font-size:11.5px;color:#475569;margin-bottom:6px;">📷 OMR은 객관식만 자동채점돼요. 아래 주관식/서술형 점수를 넣으면 합산돼서 최종 점수로 저장돼요. <b>('+objLabel+')</b></div>'
+    +shortQs.map(function(r){
+      var cur=ms[r.q]!=null?ms[r.q]:'';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;flex-wrap:wrap;">'
+        +'<span style="font-size:12px;font-weight:700;color:#1d4ed8;width:36px;">'+r.q+'번</span>'
+        +'<span style="font-size:12px;color:#334155;flex:1;min-width:60px;">정답: '+escHtml(String(Array.isArray(r.correct)?r.correct.join(', '):r.correct))+'</span>'
+        +'<input type="number" step="0.1" min="0" max="'+r.points+'" value="'+cur+'" id="panel-paper-input-'+r.q+'" style="width:60px;padding:5px 7px;border:1.5px solid #bfdbfe;border-radius:6px;font-size:12px;text-align:center;">'
+        +'<span style="font-size:11px;color:#94a3b8;">/ '+r.points+'점</span>'
+        +'</div>';
+    }).join('')
+    +'<button type="button" onclick="savePanelPaperManual()" style="margin-top:6px;width:100%;background:#1d4ed8;color:#fff;border:none;padding:8px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">✍️ 주관식/서술형 점수 저장(객관식 점수에 합산)</button>';
+  area.querySelector('div').textContent='✍️ 주관식/서술형 점수 입력 (OMR 자동채점 제외분)';
+  area.style.display='';
+}
+async function savePanelPaperManual(){
+  if(!panelPaperKey||!panelPaperExamId||!panelStudentId) return;
+  var shortQs=panelPaperKey.filter(function(r){return r.correct!=null && r.type==='short';});
+  var sc=(scoresMap[panelStudentId]||{})[panelPaperExamId]||{};
+  var prevManual=sc.manualScores||{};
+  var manualScores={}, sum=0;
+  shortQs.forEach(function(r){
+    var el=document.getElementById('panel-paper-input-'+r.q);
+    var v=el?(Number(el.value)||0):0;
+    v=Math.max(0,Math.min(Number(r.points)||0,v));
+    manualScores[r.q]=v; sum+=v;
+  });
+  // 객관식 점수: OMR로 저장된 objectiveScore가 있으면 그것, 없으면 (현재 점수 − 예전에 넣었던 주관식 합)으로 역산
+  var base;
+  if(sc.objectiveScore!=null && sc.objectiveScore!==''){ base=Number(sc.objectiveScore)||0; }
+  else { var prevSum=0; shortQs.forEach(function(r){ prevSum+=Number(prevManual[r.q])||0; }); base=(Number(sc.score)||0)-prevSum; if(base<0)base=0; }
+  var finalScore=Math.round((base+sum)*10)/10;
+  var exRef=exams.find(function(e){return e.id===panelPaperExamId;});
+  var cutoff=getEffectiveCutoff(exRef);
+  var pass=(cutoff!=null)?(finalScore>=cutoff?'submit':'nosub'):panelPass;
+  document.getElementById('panel-score').value=finalScore;
+  panelPass=pass; updatePassBtns();
+  var r=await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(panelStudentId)+'&examId='+encodeURIComponent(panelPaperExamId)+'&score='+encodeURIComponent(finalScore)+'&pass='+encodeURIComponent(pass)+'&feedback='+encodeURIComponent(document.getElementById('panel-feedback').value||'')+'&objectiveScore='+encodeURIComponent(base)+'&manualScores='+encodeURIComponent(JSON.stringify(manualScores))).then(function(r){return r.json();});
+  if(!r||!r.success){ alert('저장이 거부됐어요: '+((r&&r.msg)||'권한 오류')); return; }
+  await loadScores();
+  renderScores();
+  renderPanelStats(panelPaperExamId, finalScore);
+  alert('주관식/서술형 점수를 합산해서 저장했어요. (객관식 '+base+' + 주관식 '+sum+' = '+finalScore+'점)');
 }
 async function savePanelManualScores(){
   if(!panelManualSubId||!panelManualKey) return;
@@ -2320,12 +2380,20 @@ async function saveScore(){
   var score=document.getElementById('panel-score').value;
   var feedback=document.getElementById('panel-feedback').value.trim();
   var sid=panelStudentId, eid=panelExamId, pp=panelPass;
+  // 선생님이 최종 점수를 직접 고쳐 저장하면, 종이 시험의 "객관식 점수(objectiveScore)"도 (새 점수 − 주관식 합)으로 맞춰둬야
+  // 나중에 조교가 주관식 점수를 다시 넣을 때 옛 객관식 점수로 되돌아가지 않음(2026-09-19)
+  var prevSc=(scoresMap[sid]||{})[eid]||{};
+  var objParam='';
+  if(prevSc.objectiveScore!=null && prevSc.objectiveScore!=='' && score!==''){
+    var msum=0; var pm=prevSc.manualScores||{}; Object.keys(pm).forEach(function(k){ msum+=Number(pm[k])||0; });
+    objParam='&objectiveScore='+encodeURIComponent(Math.max(0,Math.round(((Number(score)||0)-msum)*10)/10));
+  }
   if(!scoresMap[sid])scoresMap[sid]={};
-  scoresMap[sid][eid]={score:score,pass:pp,feedback:feedback};
+  scoresMap[sid][eid]={score:score,pass:pp,feedback:feedback,objectiveScore:prevSc.objectiveScore,manualScores:prevSc.manualScores,omrAnswers:prevSc.omrAnswers};
   renderScores();
   closePanel();
   try{
-    var r=await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(sid)+'&examId='+encodeURIComponent(eid)+'&score='+encodeURIComponent(score)+'&pass='+encodeURIComponent(pp)+'&feedback='+encodeURIComponent(feedback)).then(function(r){return r.json();});
+    var r=await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(sid)+'&examId='+encodeURIComponent(eid)+'&score='+encodeURIComponent(score)+'&pass='+encodeURIComponent(pp)+'&feedback='+encodeURIComponent(feedback)+objParam).then(function(r){return r.json();});
     if(!r.success)alert('저장 실패: '+JSON.stringify(r));
   }catch(e){alert('저장 오류: '+e.message);}
 }
@@ -3525,16 +3593,25 @@ async function saveOmrResults(){
   var skipped=omrResultList.filter(function(r){return r.ok && !r.studentId;}).length;
   if(!toSave.length){ alert('저장할 채점 결과가 없어요(학생 매칭이 안 됐어요).'); return; }
   if(!confirm(toSave.length+'명 성적을 저장할까요?'+(skipped?' (매칭 안 된 '+skipped+'명은 제외됨)':'')))return;
+  var omrKey2=await fetchExamKey(currentExamId);
+  var shortQs=(omrKey2||[]).filter(function(r){return r.correct!=null && r.type==='short';});
   for(var i=0;i<toSave.length;i++){
     var r=toSave[i];
+    // OMR은 객관식만 읽으므로 r.score = 객관식 점수. 주관식/서술형은 성적 패널에서 조교가 직접 입력하는데,
+    // 이미 입력돼 있던 주관식 점수가 있으면(다시 스캔한 경우 등) 날리지 않고 합산해서 최종 점수로 저장(2026-09-19).
+    var prev=(scoresMap[r.studentId]||{})[currentExamId]||{};
+    var prevManual=prev.manualScores||{};
+    var manualSum=0; shortQs.forEach(function(q){ manualSum+=Number(prevManual[q.q])||0; });
+    var finalScore=Math.round((r.score+manualSum)*10)/10;
     var pass='';
     var cutoff6=getEffectiveCutoff(ex);
     if(cutoff6!=null){
-      pass = r.score>=cutoff6 ? 'submit' : 'nosub';
+      pass = finalScore>=cutoff6 ? 'submit' : 'nosub';
     }
-    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(r.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(r.score)+'&pass='+encodeURIComponent(pass));
+    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(r.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(finalScore)+'&pass='+encodeURIComponent(pass)+'&objectiveScore='+encodeURIComponent(r.score)+'&omrAnswers='+encodeURIComponent(JSON.stringify(r.answers||{})));
   }
-  alert('저장 완료! '+toSave.length+'명 성적이 반영됐어요.');
+  await loadScores();
+  alert('저장 완료! '+toSave.length+'명 성적이 반영됐어요.'+(shortQs.length?'\n\n주관식/서술형 '+shortQs.length+'문항은 자동채점되지 않았어요. 성적 표에서 학생 칸을 눌러 "주관식/서술형 점수 입력"에 점수를 넣으면 합산돼요.':''));
   document.getElementById('omr-modal').classList.remove('show');
   renderScores();
 }

@@ -797,19 +797,27 @@ api.setScore = function(db, p){
   if (p.examLeaveLog!==undefined) {
     try { newLeaveLog = (typeof p.examLeaveLog==='string') ? JSON.parse(p.examLeaveLog) : p.examLeaveLog; } catch(e) { newLeaveLog = undefined; }
   }
+  // 종이(OMR) 시험의 주관식/서술형 직접 채점용(2026-09-19): objectiveScore=객관식 자동채점 점수, manualScores={문항:점수},
+  // omrAnswers={문항:마킹번호}. 넘어온 경우에만 반영(merge)하고 안 넘어오면 기존 값 유지.
+  var extra = {};
+  if (p.objectiveScore!==undefined && p.objectiveScore!=='') extra.objectiveScore = Number(p.objectiveScore);
+  if (p.manualScores!==undefined) { try { extra.manualScores = (typeof p.manualScores==='string') ? JSON.parse(p.manualScores) : (p.manualScores||{}); } catch(e) {} }
+  if (p.omrAnswers!==undefined) { try { extra.omrAnswers = (typeof p.omrAnswers==='string') ? JSON.parse(p.omrAnswers) : (p.omrAnswers||{}); } catch(e) {} }
   return ref.get().then(function(doc){
     var prevLeaveCount = doc.exists ? (doc.data().examLeaveCount||0) : 0;
     var prevLeaveLog = doc.exists ? (doc.data().examLeaveLog||[]) : [];
     // merge:true — 예전엔 통째로 덮어써서 학생이 올린 재시험 증빙 사진(examSubmissionUrl)·재촉 이력이 점수만 다시 저장해도 날아갔음.
     // alertResolved:false — 선생님이 점수를 다시 저장하면 "해결 처리"를 자동으로 풀어서, 미통과/미응시면 테스트 관리 목록에 다시 뜨게
     // (실수로 해결 처리한 걸 성적표에서 되돌릴 수 있는 유일한 경로. 통과면 pass 조건에서 걸러져 어차피 목록에 안 뜸).
-    return ref.set({
+    var data = {
       id:key, sessionId:String(p.sessionId), studentId:String(p.studentId), examId:String(p.examId),
       score:p.score||'', pass:p.pass||'', feedback:p.feedback||'',
       examLeaveCount: (p.examLeaveCount!==undefined) ? Number(p.examLeaveCount||0) : prevLeaveCount,
       examLeaveLog: (newLeaveLog!==undefined) ? newLeaveLog : prevLeaveLog,
       alertResolved:false
-    },{merge:true});
+    };
+    Object.keys(extra).forEach(function(k){ data[k]=extra[k]; });
+    return ref.set(data,{merge:true});
   }).then(function(){
     recomputeExamRanks(db, p.examId);
     return { success:true };
@@ -822,7 +830,8 @@ api.getScores = function(db, p){
       var scores = docsToArr(snap).map(function(r){
         return { sessionId:String(r.sessionId), studentId:String(r.studentId), examId:String(r.examId), score:r.score||'', pass:r.pass||'', feedback:r.feedback||'',
           rank:r.rank||null, grade:r.grade||null, cnt:r.cnt||null, avg:r.avg||null,
-          examLeaveCount:Number(r.examLeaveCount||0), examLeaveLog:r.examLeaveLog||[] };
+          examLeaveCount:Number(r.examLeaveCount||0), examLeaveLog:r.examLeaveLog||[],
+          objectiveScore:(r.objectiveScore!=null?r.objectiveScore:null), manualScores:r.manualScores||null, omrAnswers:r.omrAnswers||null };
       });
       return { scores: scores };
     });
