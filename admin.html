@@ -663,6 +663,14 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         </div>
         <input type="search" id="overdue-name-search" name="overdue-student-name-filter" autocomplete="off" placeholder="🔍 학생 이름으로 찾기" oninput="renderOverdueList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:16px;margin-bottom:12px;font-family:inherit;">
         <style>@media(min-width:769px){#overdue-name-search{font-size:14px!important;}}</style>
+        <div id="overdue-bulk-bar" style="display:none;position:sticky;top:0;z-index:5;background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:800;color:#b91c1c;"><span id="overdue-bulk-count">0</span>건 선택됨</span>
+          <button type="button" onclick="overdueSelectAll()" style="background:#fff;border:1.5px solid #e2e8f0;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">전체 선택</button>
+          <button type="button" onclick="overdueClearSelect()" style="background:#fff;border:1.5px solid #e2e8f0;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">선택 해제</button>
+          <button type="button" id="overdue-bulk-remind-btn" disabled onclick="bulkOverdueRemind()" style="background:#fff7ed;border:1.5px solid #fdba74;color:#c2410c;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">🔔 선택 재촉 (학생+학부모)</button>
+          <button type="button" id="overdue-bulk-resolve-btn" disabled onclick="bulkOverdueResolve()" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">✓ 선택 완료/해결 처리</button>
+        </div>
+        <style>#overdue-bulk-bar button:disabled{opacity:.4;cursor:not-allowed;}</style>
         <div id="overdue-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
     </div>
@@ -3042,7 +3050,9 @@ async function loadHwManage(){
     el.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>';
   }
 }
-function renderHwCard(h){
+// sel(선택): {checked, onchange} — 기한 지남 탭처럼 숙제관리와 다른 선택 상태를 써야 할 때 넘김.
+// 안 넘기면 숙제관리 탭의 hwSelected 기준으로 체크박스를 그림(기존 동작 그대로).
+function renderHwCard(h, sel){
   var badgeColor = h.autoCompleted ? '#16a34a' : (h.pass==='incomplete' ? '#dc2626' : '#ca8a04');
   var badgeBg = h.autoCompleted ? '#f0fdf4' : (h.pass==='incomplete' ? '#fee2e2' : '#fef9c3');
   var badgeLabel = h.autoCompleted ? '🤖 자동완료' : HW_STATUS_LABEL_ADMIN[h.pass];
@@ -3067,7 +3077,9 @@ function renderHwCard(h){
     +submitBadge
     +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
     +'<div style="display:flex;align-items:flex-start;gap:10px;">'
-    +'<input type="checkbox" class="hw-select-cb" data-id="'+h.id+'" onchange="toggleHwSelect(\''+h.id+'\',this.checked)" '+(hwSelected[h.id]?'checked':'')+' style="width:19px;height:19px;flex-shrink:0;margin-top:2px;cursor:pointer;">'
+    +(sel
+        ? '<input type="checkbox" onchange="'+sel.onchange+'" '+(sel.checked?'checked':'')+' style="width:19px;height:19px;flex-shrink:0;margin-top:2px;cursor:pointer;">'
+        : '<input type="checkbox" class="hw-select-cb" data-id="'+h.id+'" onchange="toggleHwSelect(\''+h.id+'\',this.checked)" '+(hwSelected[h.id]?'checked':'')+' style="width:19px;height:19px;flex-shrink:0;margin-top:2px;cursor:pointer;">')
     +'<div>'
     +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;"><span onclick="openStuDetailFromList(\''+h.studentId+'\')" style="cursor:pointer;text-decoration:underline;text-underline-offset:2px;">'+escHtml(h.studentName)+'</span> <span style="font-weight:800;color:#3b6cf7;font-size:14px;">'+(h.sessionNum?h.sessionNum+'차시':'')+'</span></div>'
     +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(h.hwName)+'</div>'
@@ -3252,7 +3264,7 @@ function renderHwUndoBar(){
   var e=hwUndoLoad();
   if(!e || !e.items || !e.items.length){ bar.style.display='none'; return; }
   var names=e.items.map(function(x){return x.studentName;}).filter(function(v,i,a){return a.indexOf(v)===i;});
-  var label=(e.type==='hw'?'과제 완료':'재시험 해결')+' 처리 '+e.items.length+'건 ('+escHtml(names.slice(0,3).join(', '))+(names.length>3?' 외 '+(names.length-3)+'명':'')+')';
+  var label=(e.type==='hw'?'과제 완료':(e.type==='exam'?'재시험 해결':'완료/해결'))+' 처리 '+e.items.length+'건 ('+escHtml(names.slice(0,3).join(', '))+(names.length>3?' 외 '+(names.length-3)+'명':'')+')';
   var ago=Math.round((Date.now()-e.at)/60000);
   bar.style.display='flex';
   bar.innerHTML='<span style="font-size:13px;color:#1e293b;">✓ '+label+' <span style="color:#94a3b8;font-size:11.5px;">· '+(ago<1?'방금':ago+'분 전')+'</span></span>'
@@ -3264,19 +3276,19 @@ async function hwUndoRun(){
   if(!e){ renderHwUndoBar(); return; }
   if(!confirm(e.items.length+'건을 처리 전 상태로 되돌릴까요?'))return;
   try{
-    if(e.type==='hw'){
-      await Promise.all(e.items.map(function(h){
-        return fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass='+encodeURIComponent(h.pass||'notsub')+'&feedback='+encodeURIComponent(h.feedback||''));
-      }));
-    } else {
-      await Promise.all(e.items.map(function(t){
-        return fetch(SU+'?action=unmarkExamAlertResolved&id='+encodeURIComponent(t.id));
-      }));
-    }
+    // 항목마다 kind가 있으면(기한 지남 탭에서 과제·재시험을 섞어 처리한 경우) 그걸 우선하고, 없으면 entry.type을 따름
+    await Promise.all(e.items.map(function(it){
+      var kind=it.kind||e.type;
+      if(kind==='hw'){
+        return fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(it.sessionId)+'&studentId='+encodeURIComponent(it.studentId)+'&hwId='+encodeURIComponent(it.hwId)+'&pass='+encodeURIComponent(it.pass||'notsub')+'&feedback='+encodeURIComponent(it.feedback||''));
+      }
+      return fetch(SU+'?action=unmarkExamAlertResolved&id='+encodeURIComponent(it.id));
+    }));
     hwUndoClear();
     alert('되돌렸어요.');
-    loadHwManage();
-    if(testmanageLoaded) loadTestManage();
+    await loadHwManage();
+    if(testmanageLoaded) await loadTestManage();
+    if(hwTestActiveTab==='overdue') renderOverdueList();
   }catch(err){ alert('되돌리기 실패: '+err.message); }
 }
 async function markHwComplete(id){
@@ -3454,24 +3466,141 @@ function renderOverdueList(){
     var pad=function(n){return (n<10?'0':'')+n;};
     return dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
   };
+  overdueVisible=all; // 전체 선택·일괄 처리는 지금 화면에 보이는 것(필터·검색 적용 후) 기준
   el.innerHTML=order.map(function(key){
     var g=byDate[key];
     // 같은 날짜 안에서는 과제 먼저 → 재시험, 그 안에서 반 → 이름 순
     g.items.sort(function(a,b){ return (a.kind===b.kind?0:(a.kind==='hw'?-1:1)) || (a.item.className||'').localeCompare(b.item.className||'','ko') || (a.item.studentName||'').localeCompare(b.item.studentName||'','ko'); });
     var gHw=g.items.filter(function(x){return x.kind==='hw';}).length, gEx=g.items.length-gHw;
+    var allInDate=g.items.every(function(x){ return overdueSelected[overdueKeyOf(x)]; });
     return '<div style="margin-bottom:18px;">'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:9px 12px;margin-bottom:8px;">'
+      +   '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#475569;font-weight:700;"><input type="checkbox" onchange="overdueSelectDate(\''+escHtml(key)+'\',this.checked)" '+(allInDate?'checked':'')+' style="width:18px;height:18px;cursor:pointer;">이 날짜 전체</label>'
       +   '<span style="font-size:14px;font-weight:800;color:#b91c1c;">⏰ 기한 '+escHtml(dueStrOf(key))+'</span>'
       +   '<span style="background:#dc2626;color:#fff;font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:12px;">D+'+g.d+'</span>'
       +   '<span style="font-size:12px;color:#64748b;">수업일 '+escHtml(key||'미상')+'</span>'
       +   '<span style="font-size:12px;color:#475569;font-weight:700;">'+(gHw?'📋 과제 '+gHw:'')+(gHw&&gEx?' · ':'')+(gEx?'📝 재시험 '+gEx:'')+'</span>'
       + '</div>'
       + g.items.map(function(x){
+          var k=overdueKeyOf(x);
+          var sel={ checked:!!overdueSelected[k], onchange:'toggleOverdueSelect(\''+k+'\',this.checked)' };
           return '<div style="font-size:11.5px;color:#64748b;margin:4px 0 2px 2px;">'+(x.kind==='hw'?'📋 숙제':'📝 재시험')+' · 🏫 '+escHtml(x.item.className||'반 미배정')+'</div>'
-            + (x.kind==='hw'?renderHwCard(x.item):renderTestCard(x.item));
+            + (x.kind==='hw'?renderHwCard(x.item, sel):renderTestCard(x.item, sel));
         }).join('')
       + '</div>';
   }).join('');
+  updateOverdueBulkBar();
+}
+
+// ── 기한 지남 탭: 여러 건 선택해서 한 번에 재촉/처리 (2026-09-19 추가) ──
+// 과제(hw)와 재시험(exam)이 한 화면에 섞여 있어서 선택 키를 "종류__id"로 만들어 구분함.
+// 숙제관리 탭의 hwSelected와는 별개 상태 — 탭을 오가도 서로 영향 없음.
+var overdueSelected={}, overdueVisible=[];
+function overdueKeyOf(x){ return x.kind+'__'+x.item.id; }
+function toggleOverdueSelect(key, checked){
+  if(checked) overdueSelected[key]=true; else delete overdueSelected[key];
+  updateOverdueBulkBar();
+}
+function overdueSelectAll(){
+  overdueVisible.forEach(function(x){ overdueSelected[overdueKeyOf(x)]=true; });
+  renderOverdueList();
+}
+function overdueSelectDate(dateKey, checked){
+  overdueVisible.filter(function(x){ return (x.item.sessionDate||'')===dateKey; }).forEach(function(x){
+    var k=overdueKeyOf(x);
+    if(checked) overdueSelected[k]=true; else delete overdueSelected[k];
+  });
+  renderOverdueList();
+}
+function overdueClearSelect(){
+  overdueSelected={};
+  renderOverdueList();
+}
+function overdueSelectedItems(){
+  return overdueVisible.filter(function(x){ return overdueSelected[overdueKeyOf(x)]; });
+}
+function updateOverdueBulkBar(){
+  var bar=document.getElementById('overdue-bulk-bar');
+  if(!bar) return;
+  var n=overdueSelectedItems().length;
+  var cnt=document.getElementById('overdue-bulk-count'); if(cnt) cnt.textContent=n;
+  bar.style.display=overdueVisible.length?'flex':'none';
+  var rb=document.getElementById('overdue-bulk-remind-btn'), cb=document.getElementById('overdue-bulk-resolve-btn');
+  if(rb) rb.disabled=!n;
+  if(cb) cb.disabled=!n;
+}
+function buildOverdueExamText(t){
+  return t.kind==='absent'
+    ? '['+t.examName+'] 시험에 응시하지 못했어요. 고쳐서 사진 찍어 마이페이지에서 제출해주세요!'
+    : '['+t.examName+'] 시험 결과가 기준에 미달했어요. 고쳐서 사진 찍어 마이페이지에서 제출해주세요!';
+}
+// 학생별로 묶어서 한 학생당 1통(학생) + 1통(학부모). 과제·재시험이 섞여 있으면 한 통에 같이 담음.
+async function bulkOverdueRemind(){
+  var items=overdueSelectedItems();
+  if(!items.length){ alert('선택된 항목이 없어요.'); return; }
+  var groups={}, order=[];
+  items.forEach(function(x){
+    var key=String(x.item.studentId);
+    if(!groups[key]){ groups[key]={studentId:x.item.studentId, studentName:x.item.studentName, studentPhone:x.item.studentPhone, parentPhone:x.item.parentPhone, className:x.item.className, hw:[], exam:[]}; order.push(key); }
+    (x.kind==='hw'?groups[key].hw:groups[key].exam).push(x.item);
+  });
+  var preview=order.map(function(k){
+    var g=groups[k];
+    var lines=[];
+    g.hw.forEach(function(h){ lines.push(buildHwReminderText(h)); });
+    g.exam.forEach(function(t){ lines.push(buildOverdueExamText(t)); });
+    var text='제출 기한이 지났어요.\n\n'+lines.join('\n\n')+'\n\n기한 안에 제출하지 못했으니 추가 클리닉을 신청해서 보충해주세요.';
+    return {g:g, text:text};
+  });
+  var msgs=[];
+  preview.forEach(function(p){
+    var g=p.g, cnt=g.hw.length+g.exam.length;
+    if(g.studentPhone) msgs.push({phone:g.studentPhone, name:g.studentName, className:g.className||'제출 기한 안내', sessionNum:cnt+'건', message:p.text});
+    if(g.parentPhone)  msgs.push({phone:g.parentPhone,  name:g.studentName, className:g.className||'제출 기한 안내', sessionNum:cnt+'건', message:p.text});
+  });
+  if(!msgs.length){ alert('⚠️ 선택된 학생들에게 등록된 전화번호가 없어서 알림톡을 보낼 수 없어요.'); return; }
+  var names=order.map(function(k){return groups[k].studentName;}).join(', ');
+  var sample=preview[0];
+  if(!confirm(order.length+'명('+names+')에게 재촉 알림톡을 보낼까요?\n학생·학부모 번호 모두에게 가서 총 '+msgs.length+'통 발송됩니다(유료).\n\n[예시 · '+sample.g.studentName+']\n'+sample.text))return;
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
+    if(!r.success){ alert('발송 실패: '+(r.msg||'')); return; }
+    var by=(cu&&(cu.name||cu.id))||'';
+    await Promise.all(preview.map(function(p){
+      var g=p.g;
+      return Promise.all(
+        g.hw.map(function(h){ return fetch(SU+'?action=markHwReminderSent&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&by='+encodeURIComponent(by)+'&text='+encodeURIComponent(buildHwReminderText(h))+'&studentName='+encodeURIComponent(h.studentName||'')+'&hwName='+encodeURIComponent(h.hwName||'')); })
+        .concat(g.exam.map(function(t){ return fetch(SU+'?action=markExamReminderSent&id='+encodeURIComponent(t.id)+'&by='+encodeURIComponent(by)); }))
+      );
+    }));
+    alert(order.length+'명에게 알림톡 발송 완료! (총 '+msgs.length+'통)');
+    overdueSelected={};
+    await loadHwManage();
+    if(testmanageLoaded) await loadTestManage();
+    renderOverdueList();
+  }catch(e){ alert('발송 중 오류: '+e.message); }
+}
+async function bulkOverdueResolve(){
+  var items=overdueSelectedItems();
+  if(!items.length){ alert('선택된 항목이 없어요.'); return; }
+  var hw=items.filter(function(x){return x.kind==='hw';}).map(function(x){return x.item;});
+  var ex=items.filter(function(x){return x.kind==='exam';}).map(function(x){return x.item;});
+  var names=items.map(function(x){return x.item.studentName;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+  if(!confirm(items.length+'건('+(hw.length?'과제 '+hw.length:'')+(hw.length&&ex.length?' + ':'')+(ex.length?'재시험 '+ex.length:'')+')을 한 번에 처리할까요?\n'+names.slice(0,5).join(', ')+(names.length>5?' 외 '+(names.length-5)+'명':'')+'\n\n과제는 "완료", 재시험은 "해결"로 바뀌고 이 목록에서 빠져요. (되돌리기 가능)'))return;
+  // 되돌리기용으로 처리 전 상태 저장 (과제·재시험 섞여 있어서 mixed 타입)
+  var before={type:'mixed', items:
+    hw.map(function(h){ return {kind:'hw', sessionId:h.sessionId,studentId:h.studentId,hwId:h.hwId,pass:h.pass,feedback:h.feedback,studentName:h.studentName}; })
+    .concat(ex.map(function(t){ return {kind:'exam', id:t.id, studentName:t.studentName}; }))
+  };
+  await Promise.all(
+    hw.map(function(h){ return fetch(SU+'?action=setHwStatus&sessionId='+encodeURIComponent(h.sessionId)+'&studentId='+encodeURIComponent(h.studentId)+'&hwId='+encodeURIComponent(h.hwId)+'&pass=complete&feedback='+encodeURIComponent('제출하신 과제가 [제출] 상태로 확인되었습니다.\n꾸준히 잘 하고 있어요!')); })
+    .concat(ex.map(function(t){ return fetch(SU+'?action=markExamAlertResolved&id='+encodeURIComponent(t.id)); }))
+  );
+  hwUndoSave(before);
+  overdueSelected={};
+  await loadHwManage();
+  if(testmanageLoaded) await loadTestManage();
+  renderOverdueList();
 }
 async function loadTestManage(){
   var el=document.getElementById('testmanage-list');
@@ -3486,7 +3615,8 @@ async function loadTestManage(){
   }
 }
 var TEST_KIND_LABEL={nosub:'미통과',absent:'미응시'};
-function renderTestCard(t){
+// sel(선택): {checked, onchange} — 넘기면 카드 왼쪽에 체크박스가 생김(기한 지남 탭용). 테스트 관리 탭은 안 넘겨서 기존과 동일.
+function renderTestCard(t, sel){
   var badgeColor = t.autoCompleted ? '#16a34a' : (t.kind==='absent' ? '#475569' : '#dc2626');
   var badgeBg = t.autoCompleted ? '#f0fdf4' : (t.kind==='absent' ? '#f1f5f9' : '#fee2e2');
   var badgeLabel = t.autoCompleted ? '🤖 자동완료' : TEST_KIND_LABEL[t.kind];
@@ -3509,10 +3639,13 @@ function renderTestCard(t){
   return '<div style="'+cardStyle+'">'
     +submitBadge
     +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
+    +'<div style="display:flex;align-items:flex-start;gap:10px;">'
+    +(sel ? '<input type="checkbox" onchange="'+sel.onchange+'" '+(sel.checked?'checked':'')+' style="width:19px;height:19px;flex-shrink:0;margin-top:2px;cursor:pointer;">' : '')
     +'<div>'
     +'<div style="font-weight:800;font-size:14.5px;color:#1e293b;">'+escHtml(t.studentName)+' <span style="font-weight:800;color:#3b6cf7;font-size:14px;">'+(t.sessionNum?t.sessionNum+'차시':'')+'</span></div>'
     +'<div style="font-size:13px;color:#475569;margin-top:2px;">📝 '+escHtml(t.examName)+(t.score!==''?' · '+t.score+'점':'')+'</div>'
     +photoLinks+lastRem
+    +'</div>'
     +'</div>'
     +'<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;flex-shrink:0;">'+badgeLabel+'</span>'
     +'</div>'
