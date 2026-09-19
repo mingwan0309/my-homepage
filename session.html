@@ -3149,7 +3149,7 @@ function findCorners(canvas){
   var br=bestInRegion(workW-mW,workH-mH,workW,workH);
   var minScore=K*K*0.35; // 마커가 충분히 진하고 큰 블록이어야 함(잡음 배제)
   if(tl.score<minScore||tr.score<minScore||bl.score<minScore||br.score<minScore) return null;
-  return { x0:Math.min(tl.x,bl.x), y0:Math.min(tl.y,tr.y), x1:Math.max(tr.x,br.x), y1:Math.max(bl.y,br.y) };
+  return { x0:Math.min(tl.x,bl.x), y0:Math.min(tl.y,tr.y), x1:Math.max(tr.x,br.x), y1:Math.max(bl.y,br.y), tl:{x:tl.x,y:tl.y}, tr:{x:tr.x,y:tr.y}, bl:{x:bl.x,y:bl.y}, br:{x:br.x,y:br.y} };
 }
 
 // 마커 감지 실패 원인 파악용 — 네 모서리 영역에서 찾은 가장 진한 블록의 점수(기준 대비 %)를 문자열로
@@ -3181,39 +3181,184 @@ function sampleDarkness(ctx, cx, cy, r){
   return 255-(sum/n);
 }
 
-// 캔버스 1장(학생 답안지 1장)을 읽어서 {phone, answers:{1:1~5|null,...20:...}} 반환
-function readOmrSheet(canvas){
-  var corners=findCorners(canvas);
-  if(!corners) return null;
+// ── 마커를 페이지 어디서든 찾기 (2026-09-19 추가) ──
+// 예전 방식(findCorners)은 답안지가 페이지를 꽉 채운 스캔만 전제해서 네 귀퉁이 32% 영역만 봤는데,
+// 복사기가 A4 가로로 크게 스캔해서 답안지가 페이지 일부만 차지하거나 방향이 돌아간 경우 전부 실패했음.
+// 여기서는 진한 덩어리(blob)들을 전부 찾아 "네 개가 직사각형을 이루는 것" 중 가장 큰 것을 마커로 삼는다.
+function findMarkerBlobs(canvas){
+  var W=canvas.width, H=canvas.height;
+  var longSide=Math.max(W,H), scale=1200/longSide;
+  var ww=Math.round(W*scale), wh=Math.round(H*scale);
+  var work=document.createElement('canvas'); work.width=ww; work.height=wh;
+  work.getContext('2d').drawImage(canvas,0,0,ww,wh);
+  var data=work.getContext('2d').getImageData(0,0,ww,wh).data;
+  var bin=new Uint8Array(ww*wh);
+  for(var i=0;i<ww*wh;i++){ bin[i]=((data[i*4]+data[i*4+1]+data[i*4+2])/3<140)?1:0; }
+  var label=new Int32Array(ww*wh); // 0=미방문
+  var blobs=[], stack=new Int32Array(ww*wh), cur=0;
+  var minSize=12, maxSize=48;
+  for(var y=0;y<wh;y++){
+    for(var x=0;x<ww;x++){
+      var idx=y*ww+x;
+      if(!bin[idx]||label[idx]) continue;
+      cur++; var sp=0; stack[sp++]=idx; label[idx]=cur;
+      var minx=x,maxx=x,miny=y,maxy=y,area=0;
+      while(sp>0){
+        var k=stack[--sp]; area++;
+        var kx=k%ww, ky=(k-kx)/ww;
+        if(kx<minx)minx=kx; if(kx>maxx)maxx=kx; if(ky<miny)miny=ky; if(ky>maxy)maxy=ky;
+        var nb=[k-1,k+1,k-ww,k+ww];
+        if(kx===0) nb[0]=-1; if(kx===ww-1) nb[1]=-1;
+        for(var n=0;n<4;n++){ var j=nb[n]; if(j>=0&&j<ww*wh&&bin[j]&&!label[j]){ label[j]=cur; stack[sp++]=j; } }
+        if(area>maxSize*maxSize*2) { /* 너무 큰 덩어리(테두리 선 등)는 계속 훑되 결과에서 뺌 */ }
+      }
+      var bw=maxx-minx+1, bh=maxy-miny+1, big=Math.max(bw,bh);
+      if(big<minSize||big>maxSize) continue;
+      var asp=bw/bh; if(asp<0.6||asp>1.7) continue;
+      var fill=area/(bw*bh); if(fill<0.2||fill>0.92) continue;
+      blobs.push({ x:(minx+maxx+1)/2/scale, y:(miny+maxy+1)/2/scale, size:big/scale, fill:fill });
+    }
+  }
+  // 후보가 너무 많으면(글자 등) 큰 것 위주로 80개만
+  blobs.sort(function(a,b){ return b.size-a.size; });
+  return blobs.slice(0,80);
+}
+function pickMarkerRectangle(blobs, W, H){
+  var longSide=Math.max(W,H);
+  var best=null, bestArea=0;
+  for(var i=0;i<blobs.length;i++){
+    for(var j=0;j<blobs.length;j++){
+      if(i===j) continue;
+      var a=blobs[i], b=blobs[j]; // a=좌상 후보, b=우상 후보
+      if(b.x-a.x < longSide*0.25) continue;
+      var tol=Math.max(10,(b.x-a.x)*0.03);
+      if(Math.abs(a.y-b.y)>tol) continue;
+      if(a.size/b.size>2||b.size/a.size>2) continue;
+      for(var k=0;k<blobs.length;k++){
+        if(k===i||k===j) continue;
+        var c=blobs[k]; // 좌하
+        if(Math.abs(c.x-a.x)>tol) continue;
+        if(c.y-a.y < longSide*0.2) continue;
+        if(a.size/c.size>2||c.size/a.size>2) continue;
+        for(var m=0;m<blobs.length;m++){
+          if(m===i||m===j||m===k) continue;
+          var d=blobs[m]; // 우하
+          if(Math.abs(d.x-b.x)>tol||Math.abs(d.y-c.y)>tol) continue;
+          if(a.size/d.size>2||d.size/a.size>2) continue;
+          var area=(b.x-a.x)*(c.y-a.y);
+          if(area>bestArea){ bestArea=area; best={ x0:Math.min(a.x,c.x), y0:Math.min(a.y,b.y), x1:Math.max(b.x,d.x), y1:Math.max(c.y,d.y), tl:{x:a.x,y:a.y}, tr:{x:b.x,y:b.y}, bl:{x:c.x,y:c.y}, br:{x:d.x,y:d.y} }; }
+        }
+      }
+    }
+  }
+  return best;
+}
+function rotateCanvas(canvas, deg){
+  if(!deg) return canvas;
+  var W=canvas.width, H=canvas.height;
+  var out=document.createElement('canvas');
+  if(deg===180){ out.width=W; out.height=H; } else { out.width=H; out.height=W; }
+  var ctx=out.getContext('2d');
+  ctx.translate(out.width/2,out.height/2);
+  ctx.rotate(deg*Math.PI/180);
+  ctx.drawImage(canvas,-W/2,-H/2);
+  return out;
+}
+function rotateCorners(c, deg, W, H){
+  function rp(p){
+    if(deg===90) return {x:H-p.y, y:p.x};
+    if(deg===180) return {x:W-p.x, y:H-p.y};
+    if(deg===270) return {x:p.y, y:W-p.x};
+    return {x:p.x,y:p.y};
+  }
+  var pts=[c.tl,c.tr,c.bl,c.br].map(rp);
+  // 회전 후 어느 점이 좌상/우상/좌하/우하인지 위치로 다시 정함
+  var byY=pts.slice().sort(function(a,b){return a.y-b.y;});
+  var top=byY.slice(0,2).sort(function(a,b){return a.x-b.x;}), bot=byY.slice(2).sort(function(a,b){return a.x-b.x;});
+  var xs=pts.map(function(p){return p.x;}), ys=pts.map(function(p){return p.y;});
+  return { x0:Math.min.apply(null,xs), y0:Math.min.apply(null,ys), x1:Math.max.apply(null,xs), y1:Math.max.apply(null,ys), tl:top[0], tr:top[1], bl:bot[0], br:bot[1] };
+}
+// 마커 사각형이 정해진 상태에서 실제 마킹 읽기 (기존 readOmrSheet의 본문)
+function readOmrSheetWithCorners(canvas, corners){
   var ctx=canvas.getContext('2d');
-  var SW=corners.x1-corners.x0, SH=corners.y1-corners.y0;
+  // 네 마커 점을 그대로 써서(좌상→우상 방향을 u축, 좌상→좌하 방향을 v축) 위치를 계산하면
+  // 답안지가 몇 도 기울어져 스캔돼도 마킹 칸 위치가 어긋나지 않음(예전엔 네 점의 최소/최대 사각형만 써서 기울면 밀렸음)
+  var tl=corners.tl, tr=corners.tr, bl=corners.bl, br=corners.br;
+  function pt(u,v){
+    var x=tl.x+u*(tr.x-tl.x)+v*(bl.x-tl.x)+u*v*(br.x-tr.x-bl.x+tl.x);
+    var y=tl.y+u*(tr.y-tl.y)+v*(bl.y-tl.y)+u*v*(br.y-tr.y-bl.y+tl.y);
+    return {x:x,y:y};
+  }
+  var SW=Math.hypot(tr.x-tl.x, tr.y-tl.y);
   var r=SW*(18/4099.5);
   var answers={};
   for(var q=1;q<=20;q++){
     var darks=[];
     for(var c=1;c<=5;c++){
-      var cx=corners.x0+(OMR_CAL.acol0+OMR_CAL.acolStep*(c-1))*SW;
-      var cy=corners.y0+(OMR_CAL.arow0+OMR_CAL.arowStep*(q-1))*SH;
-      darks.push(sampleDarkness(ctx,cx,cy,r));
+      var p=pt(OMR_CAL.acol0+OMR_CAL.acolStep*(c-1), OMR_CAL.arow0+OMR_CAL.arowStep*(q-1));
+      darks.push(sampleDarkness(ctx,p.x,p.y,r));
     }
-    var maxV=Math.max.apply(null,darks);
-    var best=darks.indexOf(maxV);
-    answers[q]= maxV>100 ? (best+1) : null;
+    answers[q]= omrPickMark(darks);
   }
   var digits=[];
   for(var c2=1;c2<=8;c2++){
     var colFrac=(c2<=4)?(OMR_CAL.pcolA0+OMR_CAL.pcolAStep*(c2-1)):(OMR_CAL.pcolB0+OMR_CAL.pcolBStep*(c2-5));
     var darks2=[];
     for(var d=0;d<=9;d++){
-      var cx2=corners.x0+colFrac*SW;
-      var cy2=corners.y0+(OMR_CAL.prow0+OMR_CAL.prowStep*d)*SH;
-      darks2.push(sampleDarkness(ctx,cx2,cy2,r));
+      var p2=pt(colFrac, OMR_CAL.prow0+OMR_CAL.prowStep*d);
+      darks2.push(sampleDarkness(ctx,p2.x,p2.y,r));
     }
-    var maxV2=Math.max.apply(null,darks2);
-    digits.push(maxV2>100 ? String(darks2.indexOf(maxV2)) : '?');
+    var pick=omrPickMark(darks2);
+    digits.push(pick!=null ? String(pick-1) : '?');
   }
   var phone=digits.slice(0,4).join('')+'-'+digits.slice(4).join('');
   return { phone:phone, answers:answers };
+}
+// 한 문항(또는 전화번호 한 자리)의 칸별 진하기 배열에서 마킹된 칸(1부터)을 고름, 없으면 null.
+// 예전엔 "진하기 100 초과"라는 절대 기준만 써서, 얇은 펜으로 작게 표시한 학생은 전부 미마킹으로 읽혔음(2026-09-19).
+// 지금은 절대 기준(100)을 넘으면 그대로 인정하고, 못 넘어도 나머지 칸들보다 확실히 진하면(2배 이상 + 최소 45) 마킹으로 봄.
+function omrPickMark(darks){
+  var maxV=Math.max.apply(null,darks);
+  var idx=darks.indexOf(maxV);
+  if(maxV>100) return idx+1;
+  var rest=darks.filter(function(v,i){return i!==idx;}).sort(function(a,b){return a-b;});
+  var median=rest[Math.floor(rest.length/2)];
+  if(maxV>=45 && maxV>=median*2+15) return idx+1;
+  return null;
+}
+// 읽은 결과가 "말이 되는지" 점수화 — 방향(0/90/180/270) 후보 중 고르는 데 씀
+function omrPlausibility(res){
+  if(!res) return -1;
+  var digitsOk=(res.phone.match(/[0-9]/g)||[]).length; // 최대 8
+  var answered=0; for(var q=1;q<=20;q++){ if(res.answers[q]!=null) answered++; }
+  var matched = (typeof findStudentByPhone==='function') && findStudentByPhone(res.phone) ? 1 : 0;
+  return digitsOk*2 + matched*20 + answered*0.2;
+}
+// 캔버스 1장(학생 답안지 1장)을 읽어서 {phone, answers:{1:1~5|null,...20:...}} 반환
+// ① 예전 방식(귀퉁이 영역)으로 마커를 찾고, 안 되면 ② 페이지 전체에서 마커 사각형을 찾음.
+// ③ 답안지 방향이 돌아가 있을 수 있어 후보 방향마다 읽어보고 가장 그럴듯한 결과를 택함.
+function readOmrSheet(canvas){
+  var W=canvas.width, H=canvas.height;
+  var corners=findCorners(canvas);
+  if(!corners){
+    var blobs=findMarkerBlobs(canvas);
+    corners=pickMarkerRectangle(blobs, W, H);
+  }
+  if(!corners) return null;
+  // 보정값 기준 답안지는 가로가 더 긴 사각형(4099.5×2798). 찾은 사각형이 세로로 길면 90도 돌아간 것.
+  var rectLandscape=(corners.x1-corners.x0) >= (corners.y1-corners.y0);
+  var degs = rectLandscape ? [0,180] : [90,270];
+  var best=null, bestScore=-2;
+  for(var i=0;i<degs.length;i++){
+    var deg=degs[i];
+    var cv=rotateCanvas(canvas,deg);
+    var cc=rotateCorners(corners,deg,W,H);
+    var res;
+    try{ res=readOmrSheetWithCorners(cv,cc); }catch(e){ res=null; }
+    var sc=omrPlausibility(res);
+    if(sc>bestScore){ bestScore=sc; best=res; }
+  }
+  return best;
 }
 
 function findStudentByPhone(phone){
