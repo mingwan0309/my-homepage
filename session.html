@@ -540,7 +540,7 @@ tr:hover td{background:#fafbff;}
     </div>
     <p style="font-size:12px;color:#94a3b8;margin:0 0 14px;">복사기로 스캔한 OMR 파일(PDF/JPG/PNG, 여러 장 가능)을 올려주세요. 자동으로 학부모 번호로 학생을 찾고 채점해요.</p>
     <div id="omr-drop-zone" style="border:2px dashed #cbd5e1;border-radius:12px;padding:24px;text-align:center;color:#94a3b8;font-size:14px;cursor:pointer;margin-bottom:14px;">
-      🖼️ 여기를 눌러 스캔 파일을 선택하세요 (PDF/JPG/PNG)
+      🖼️ 여기를 눌러 선택하거나, 스캔 파일을 이 상자에 끌어다 놓으세요 (PDF/JPG/PNG)
       <input type="file" id="omr-file-input" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" multiple style="display:none;" onchange="handleOmrFiles(this.files);this.value='';">
     </div>
     <div id="omr-progress" style="display:none;font-size:13px;color:#64748b;margin-bottom:10px;"></div>
@@ -3137,7 +3137,20 @@ function openOmrUploadModal(){
 }
 document.addEventListener('DOMContentLoaded',function(){
   var z=document.getElementById('omr-drop-zone');
-  if(z) z.addEventListener('click',function(){ document.getElementById('omr-file-input').click(); });
+  if(!z) return;
+  z.addEventListener('click',function(){ document.getElementById('omr-file-input').click(); });
+  // 파일을 끌어다 놓기(드래그 앤 드롭)도 지원 (2026-09-19)
+  var baseStyle='border:2px dashed #cbd5e1;border-radius:12px;padding:24px;text-align:center;color:#94a3b8;font-size:14px;cursor:pointer;margin-bottom:14px;';
+  var hoverStyle='border:2px dashed #3b6cf7;border-radius:12px;padding:24px;text-align:center;color:#3b6cf7;background:#eff6ff;font-size:14px;cursor:copy;margin-bottom:14px;';
+  ['dragenter','dragover'].forEach(function(ev){ z.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); z.style.cssText=hoverStyle; }); });
+  ['dragleave','drop'].forEach(function(ev){ z.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); z.style.cssText=baseStyle; }); });
+  z.addEventListener('drop',function(e){
+    var files=e.dataTransfer&&e.dataTransfer.files;
+    if(files&&files.length) handleOmrFiles(files);
+  });
+  // 모달 안 다른 곳(또는 페이지)에 놓쳐서 브라우저가 PDF를 열어버리는 일 방지
+  var modal=document.getElementById('omr-modal');
+  if(modal){ ['dragover','drop'].forEach(function(ev){ modal.addEventListener(ev,function(e){ if(!modal.classList.contains('show')) return; e.preventDefault(); }); }); }
 });
 
 // 파일(PDF 여러 페이지 또는 이미지)을 캔버스 배열로 변환
