@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=44"></script>
+<script src="firebase-api.js?v=45"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -279,6 +279,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-group">
         <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">🎮</span> 미니게임 <span class="nav-group-arrow">▾</span></div>
         <div class="nav-group-body">
+          <div class="nav-item" onclick="showPage('gamerank',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🏆</span> 게임 순위표</div>
           <div class="nav-item" onclick="showPage('gamesettings',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💩</span> 똥피하기 설정</div>
           <div class="nav-item" onclick="showPage('typinggame',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">✍️</span> 문장게임 문제관리</div>
         </div>
@@ -346,6 +347,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="nav-group">
         <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">🎮</span> 미니게임 <span class="nav-group-arrow">▾</span></div>
         <div class="nav-group-body">
+          <div class="nav-item" onclick="showPage('gamerank',this)"><span class="ni">🏆</span> 게임 순위표</div>
           <div class="nav-item" onclick="showPage('gamesettings',this)"><span class="ni">💩</span> 똥피하기 설정</div>
           <div class="nav-item" onclick="showPage('typinggame',this)"><span class="ni">✍️</span> 문장게임 문제관리</div>
         </div>
@@ -753,6 +755,47 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     </div>
 
     <!-- 미니게임 - 똥피하기 설정 -->
+    <!-- 미니게임 순위표(교사 열람용, 2026-09-19) -->
+    <div id="page-gamerank" class="page">
+      <div class="page-header">
+        <div class="page-title">미니게임 — 게임 순위표</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <select id="gr-week" onchange="loadGameRank()" style="padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;background:#fff;"></select>
+          <button class="btn-sm btn-blue" onclick="loadGameRank()">🔄 새로고침</button>
+        </div>
+      </div>
+      <div id="gr-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;"></div>
+      <div class="card">
+        <div class="card-title">🏆 종합 순위 <span style="font-size:12px;color:#94a3b8;font-weight:600;">— 게임별 최고점을 더한 총점 (학생 화면 순위표와 같은 기준)</span></div>
+        <div style="overflow-x:auto;"><div id="gr-overall"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div></div>
+      </div>
+      <div class="gr-two" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div class="card" style="margin:0;">
+          <div class="card-title">💩 똥피하기 주간 누적 <span style="font-size:12px;color:#94a3b8;font-weight:600;">— 이번 주 판 점수 전부 합산</span></div>
+          <div style="overflow-x:auto;"><div id="gr-default"></div></div>
+        </div>
+        <div class="card" style="margin:0;">
+          <div class="card-title">✍️ 문장 빨리 쓰기 최고점</div>
+          <div style="overflow-x:auto;"><div id="gr-typing"></div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title">🕓 최근 플레이 기록 <span style="font-size:12px;color:#94a3b8;font-weight:600;">— 선택한 주, 최신 100건</span></div>
+        <div style="overflow-x:auto;"><div id="gr-recent"></div></div>
+      </div>
+      <style>
+        .gr-tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:320px;}
+        .gr-tbl th{text-align:left;font-size:11.5px;color:#94a3b8;font-weight:700;padding:8px 10px;border-bottom:1.5px solid #f1f5f9;white-space:nowrap;}
+        .gr-tbl td{padding:10px 10px;border-bottom:1px solid #f8fafc;white-space:nowrap;vertical-align:middle;}
+        .gr-tbl tr:hover td{background:#f8fafc;}
+        .gr-rank{display:inline-block;min-width:26px;text-align:center;font-weight:800;color:#64748b;}
+        .gr-rank.r1{color:#d97706;font-size:16px;} .gr-rank.r2{color:#6b7280;font-size:15px;} .gr-rank.r3{color:#b45309;font-size:15px;}
+        .gr-chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:#f1f5f9;color:#475569;margin-right:4px;}
+        .gr-stat{flex:1;min-width:120px;background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+        .gr-stat .l{font-size:11.5px;color:#94a3b8;font-weight:700;} .gr-stat .v{font-size:22px;font-weight:800;color:#1e293b;margin-top:2px;}
+        @media(max-width:768px){ .gr-two{grid-template-columns:1fr!important;} #page-gamerank .page-header{flex-wrap:wrap;gap:10px;} #gr-week{font-size:16px!important;min-height:44px;} }
+      </style>
+    </div>
     <div id="page-gamesettings" class="page">
       <div class="page-header"><div class="page-title">미니게임 — 똥피하기 설정</div></div>
       <div class="card">
@@ -1285,7 +1328,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','astguide','astcheck','asttask'];
+    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','astguide','astcheck','asttask','gamerank'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
@@ -1350,6 +1393,7 @@ function showPage(page,el){
   }
   if(page==='survey') loadSurveys();
   if(page==='asttask') loadAstTaskPage();
+  if(page==='gamerank') loadGameRank();
   if(page==='gamesettings') loadGameSettings();
   if(page==='typinggame') loadTypingSentenceList();
   location.hash = page;
@@ -4082,6 +4126,58 @@ async function sendAstTaskAlert(){
 
 // ── 미니게임 - 똥피하기 설정(보너스 글자) ──
 var gsBonusItems=[];
+// ===== 미니게임 순위표(교사용) — api.getGameAdminBoard (2026-09-19) =====
+var GR_GAME_NAMES={ 'default':'💩 똥피하기', 'typing':'✍️ 문장 빨리 쓰기', 'numbercatch':'🔢 숫자 잡기' };
+function grGameName(gk){ return GR_GAME_NAMES[gk]||gk; }
+function grWeekLabel(wk){
+  // weekKey = 그 주 월요일 날짜. "9/14(월) ~ 9/20(일)" 형태로
+  var d=new Date(wk+'T00:00:00'); if(isNaN(d)) return wk;
+  var e=new Date(d); e.setDate(d.getDate()+6);
+  var f=function(x){return (x.getMonth()+1)+'/'+x.getDate();};
+  return f(d)+'(월) ~ '+f(e)+'(일)';
+}
+function grRankHtml(i){ return '<span class="gr-rank r'+(i+1)+'">'+(i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1))+'</span>'; }
+function grEmpty(msg){ return '<div style="color:#94a3b8;font-size:13px;padding:8px 0;">'+msg+'</div>'; }
+async function loadGameRank(){
+  var sel=document.getElementById('gr-week');
+  var wk=sel.value||'';
+  var ov=document.getElementById('gr-overall');
+  ov.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  try{
+    var r=await fetch(SU+'?action=getGameAdminBoard'+(wk?'&weekKey='+encodeURIComponent(wk):'')).then(function(x){return x.json();});
+    if(r.error) throw new Error(r.error);
+    sel.innerHTML=r.weeks.map(function(w,i){ return '<option value="'+w+'"'+(w===r.weekKey?' selected':'')+'>'+(i===0?'이번 주 · ':'')+grWeekLabel(w)+'</option>'; }).join('');
+    // 요약 카드
+    var top=r.overall[0];
+    document.getElementById('gr-summary').innerHTML=
+      '<div class="gr-stat"><div class="l">🥇 이 주 1등</div><div class="v" style="font-size:18px;">'+(top?escHtml(top.studentName||top.studentId)+' <span style="font-size:13px;color:#64748b;">'+top.score+'점</span>':'-')+'</div></div>'
+      +'<div class="gr-stat"><div class="l">참여 학생</div><div class="v">'+r.playerCount+'<span style="font-size:13px;color:#94a3b8;">명</span></div></div>'
+      +'<div class="gr-stat"><div class="l">플레이 횟수</div><div class="v">'+r.totalPlays+'<span style="font-size:13px;color:#94a3b8;">판</span></div></div>';
+    // 종합 순위
+    if(!r.overall.length){ ov.innerHTML=grEmpty('이 주에는 게임 기록이 없어요.'); }
+    else{
+      ov.innerHTML='<table class="gr-tbl"><thead><tr><th>순위</th><th>이름</th><th>총점</th><th>게임별 최고점</th><th>판수</th></tr></thead><tbody>'
+        +r.overall.map(function(o,i){
+          var chips=Object.keys(o.games).map(function(gk){ return '<span class="gr-chip">'+grGameName(gk)+' '+o.games[gk].best+'</span>'; }).join('');
+          return '<tr><td>'+grRankHtml(i)+'</td><td style="font-weight:700;"><span onclick="openStuDetailFromList(\''+o.studentId+'\')" style="cursor:pointer;text-decoration:underline;text-underline-offset:2px;">'+escHtml(o.studentName||o.studentId)+'</span></td><td style="font-weight:800;color:#3b6cf7;">'+o.score+'점</td><td>'+chips+'</td><td style="color:#64748b;">'+o.plays+'판</td></tr>';
+        }).join('')+'</tbody></table>';
+    }
+    // 똥피하기 누적
+    var dl=r.perGame['default']||[];
+    document.getElementById('gr-default').innerHTML=!dl.length?grEmpty('기록 없음'):
+      '<table class="gr-tbl"><thead><tr><th>순위</th><th>이름</th><th>누적</th><th>최고</th><th>판수</th></tr></thead><tbody>'
+      +dl.map(function(o,i){ return '<tr><td>'+grRankHtml(i)+'</td><td style="font-weight:700;">'+escHtml(o.studentName||o.studentId)+'</td><td style="font-weight:800;color:#3b6cf7;">'+o.total+'</td><td>'+o.best+'</td><td style="color:#64748b;">'+o.plays+'</td></tr>'; }).join('')+'</tbody></table>';
+    // 문장게임
+    var tl=r.perGame['typing']||[];
+    document.getElementById('gr-typing').innerHTML=!tl.length?grEmpty('기록 없음'):
+      '<table class="gr-tbl"><thead><tr><th>순위</th><th>이름</th><th>최고</th><th>판수</th></tr></thead><tbody>'
+      +tl.map(function(o,i){ return '<tr><td>'+grRankHtml(i)+'</td><td style="font-weight:700;">'+escHtml(o.studentName||o.studentId)+'</td><td style="font-weight:800;color:#3b6cf7;">'+o.best+'</td><td style="color:#64748b;">'+o.plays+'</td></tr>'; }).join('')+'</tbody></table>';
+    // 최근 기록
+    document.getElementById('gr-recent').innerHTML=!r.recent.length?grEmpty('기록 없음'):
+      '<table class="gr-tbl"><thead><tr><th>시각</th><th>이름</th><th>게임</th><th>점수</th></tr></thead><tbody>'
+      +r.recent.map(function(x){ return '<tr><td style="color:#64748b;">'+escHtml(x.createdAt||x.date)+'</td><td style="font-weight:700;">'+escHtml(x.studentName||x.studentId)+'</td><td>'+grGameName(x.gameKey)+'</td><td style="font-weight:800;">'+x.score+'</td></tr>'; }).join('')+'</tbody></table>';
+  }catch(e){ ov.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패: '+escHtml(e.message||'')+'</div>'; }
+}
 async function loadGameSettings(){
   var el=document.getElementById('gs-list');
   el.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';

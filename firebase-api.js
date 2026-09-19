@@ -1516,6 +1516,45 @@ api.submitGameScore = function(db, p){
 
 /* === 똥 피하기 게임 — 보너스 글자/점수 설정 === */
 var DEFAULT_BONUS_ITEMS = [{ char:'복', points:5 }, { char:'워', points:7 }];
+// 교사용 게임 순위표(admin.html "🏆 게임 순위표", 2026-09-19 추가) — 학생용 getGameStatus는 상위 10명만 주지만
+// 여기는 그 주의 전체 학생 순위 + 게임별 내역 + 최근 플레이 기록까지 다 내려줌. 기록 전체를 한 번 읽어서 주(weekKey) 목록도 같이 만듦.
+api.getGameAdminBoard = function(db, p){
+  var wantWeek = (p && p.weekKey) ? String(p.weekKey) : weekKeyOf();
+  return db.collection('game_scores').get().then(function(snap){
+    var all = docsToArr(snap);
+    var weekSet = {};
+    all.forEach(function(r){ if (r.weekKey) weekSet[r.weekKey] = true; });
+    var weeks = Object.keys(weekSet).sort().reverse();
+    if (weeks.indexOf(wantWeek) < 0) weeks.unshift(wantWeek);
+    var rows = all.filter(function(r){ return r.weekKey === wantWeek; });
+    var byStu = {}; // studentId -> { name, games:{gk:{best,total,plays}} }
+    rows.forEach(function(r){
+      var gk = r.gameKey || 'default';
+      var st = byStu[r.studentId] || (byStu[r.studentId] = { studentId:r.studentId, studentName:r.studentName||'', games:{} });
+      if (r.studentName) st.studentName = r.studentName;
+      var g = st.games[gk] || (st.games[gk] = { best:0, total:0, plays:0 });
+      g.best = Math.max(g.best, r.score||0); g.total += (r.score||0); g.plays++;
+    });
+    var overall = Object.keys(byStu).map(function(id){
+      var st = byStu[id], total = 0, plays = 0;
+      Object.keys(st.games).forEach(function(gk){ total += st.games[gk].best; plays += st.games[gk].plays; });
+      return { studentId:id, studentName:st.studentName, score:total, plays:plays, games:st.games };
+    }).sort(function(a,b){ return b.score-a.score; });
+    var perGame = {}; // gk -> [{studentId, studentName, best, total, plays}] (best 순)
+    Object.keys(byStu).forEach(function(id){
+      var st = byStu[id];
+      Object.keys(st.games).forEach(function(gk){
+        (perGame[gk] = perGame[gk] || []).push({ studentId:id, studentName:st.studentName, best:st.games[gk].best, total:st.games[gk].total, plays:st.games[gk].plays });
+      });
+    });
+    Object.keys(perGame).forEach(function(gk){
+      perGame[gk].sort(function(a,b){ return (gk==='default') ? (b.total-a.total) : (b.best-a.best); });
+    });
+    var recent = rows.slice().sort(function(a,b){ return (b.createdAt||'') < (a.createdAt||'') ? -1 : 1; }).slice(0,100)
+      .map(function(r){ return { studentId:r.studentId, studentName:r.studentName||'', gameKey:r.gameKey||'default', score:r.score||0, createdAt:r.createdAt||'', date:r.date||'' }; });
+    return { weekKey:wantWeek, weeks:weeks, overall:overall, perGame:perGame, recent:recent, totalPlays:rows.length, playerCount:overall.length };
+  });
+};
 api.getGameSettings = function(db){
   return db.collection('game_settings').doc('default').get().then(function(doc){
     var items = (doc.exists && Array.isArray(doc.data().bonusItems) && doc.data().bonusItems.length)
