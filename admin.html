@@ -621,6 +621,12 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <style>@media(min-width:769px){#mc-name-search{font-size:14px!important;}}</style>
         <div id="mc-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
+      <!-- 오늘 추가클리닉(clinic_bookings) 명단 — 클리닉예약 페이지의 카드와 같은 데이터·버튼을 여기서도 보여줌(조교가 한 화면에서 둘 다 보게, 2026-09-19) -->
+      <div class="card">
+        <div class="card-title">🏥 오늘 추가클리닉 예약 학생</div>
+        <p style="font-size:12px;color:#94a3b8;margin:-6px 0 12px;">학생이 직접 신청한 추가클리닉 중 오늘 날짜 예약이에요. 출석/결석 체크와 재촉·귀가 알림을 여기서 바로 할 수 있어요.</p>
+        <div id="mc-cb-today-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
+      </div>
     </div>
 
     <!-- 숙제관리 & 테스트 관리 -->
@@ -1324,7 +1330,7 @@ function showPage(page,el){
     if(!astOnly) loadClinics();
     loadClinicBookingsToday();
   }
-  if(page==='mclinic') loadMclinic();
+  if(page==='mclinic'){ loadMclinic(); loadClinicBookingsToday(); }
   if(page==='hwmanage'){ switchHwTestTab('hw'); loadHwManage(); }
   if(page==='activitylog') loadActivityLog();
   if(page==='chat') initChatPage();
@@ -2549,6 +2555,13 @@ function mcTodayInfo(){
   var d=new Date();
   return { dateStr: d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'), dayName: MC_DAY_NAMES[d.getDay()] };
 }
+// 임시(temp) 변경 날짜가 오늘 기준 ±7일 안인지 — 지난 주 이전 것은 참고용 표시에서도 빠지게
+function mcTempNearToday(dateStr, todayStr){
+  if(!dateStr) return false;
+  var a=new Date(dateStr+'T00:00:00'), b=new Date(todayStr+'T00:00:00');
+  if(isNaN(a)||isNaN(b)) return false;
+  return Math.abs(a-b) <= 7*24*60*60*1000;
+}
 function toggleMcTypeFields(){
   var isTemp=document.getElementById('mc-type').value==='temp';
   document.getElementById('mc-day-wrap').style.display=isTemp?'none':'block';
@@ -2621,7 +2634,9 @@ function renderMcList(){
   var today=mcTodayInfo();
   var list=mcShowAll?mcList:mcList.filter(function(m){
     // 실제로 오늘 오는 학생(day===오늘) + 원래 오늘 몫인데 다른 요일로 옮겨간 학생(targetDay===오늘, 참고용으로 같이 보여줌)
-    if(m.type==='temp') return m.date===today.dateStr || m.targetDay===today.dayName;
+    // 임시(temp) 변경은 "이번 주만"이라, 참고용 표시도 그 날짜가 오늘 기준 ±7일 안일 때만 — 예전엔 날짜와 상관없이
+    // targetDay만 맞으면 몇 주가 지나도 매주 계속 떴음(2026-09-19 수정)
+    if(m.type==='temp') return m.date===today.dateStr || (m.targetDay===today.dayName && mcTempNearToday(m.date, today.dateStr));
     return m.day===today.dayName || m.targetDay===today.dayName;
   });
   if(astHasMyStudents()&&mcMineOnly) list=list.filter(function(m){ return cu.studentIds.indexOf(m.studentId)>-1; });
@@ -2803,20 +2818,27 @@ async function mcSendGoHome(id, studentId, name){
 
 // ── 클리닉(추가클리닉 등) 오늘 예약 목록 + 재촉 + 1시간 전 자동 알림 (의무클리닉과 동일한 패턴) ──
 var cbTodayList=[];
+// 오늘 추가클리닉 명단은 클리닉예약 페이지(#cb-today-list)와 의무클리닉 페이지(#mc-cb-today-list) 두 곳에 같은 내용을 그림
+var CB_TODAY_CONTAINERS=['cb-today-list','mc-cb-today-list'];
+function cbTodayEls(){ return CB_TODAY_CONTAINERS.map(function(id){return document.getElementById(id);}).filter(Boolean); }
 async function loadClinicBookingsToday(){
-  var el=document.getElementById('cb-today-list');
-  if(!el) return;
+  var els=cbTodayEls();
+  if(!els.length) return;
   try{
     var r=await fetch(SU+'?action=getTodayClinicBookings').then(function(r){return r.json();});
     cbTodayList=r.list||[];
     renderCbTodayList();
-  }catch(e){ el.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>'; }
+  }catch(e){ els.forEach(function(el){ el.innerHTML='<div style="color:#dc2626;font-size:13px;">불러오기 실패</div>'; }); }
 }
 function renderCbTodayList(){
-  var el=document.getElementById('cb-today-list');
-  if(!el) return;
-  if(!cbTodayList.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">오늘 예약된 클리닉이 없습니다.</div>'; return; }
-  el.innerHTML=cbTodayList.map(function(b){
+  var els=cbTodayEls();
+  if(!els.length) return;
+  var html=renderCbTodayHtml();
+  els.forEach(function(el){ el.innerHTML=html; });
+}
+function renderCbTodayHtml(){
+  if(!cbTodayList.length) return '<div style="color:#94a3b8;font-size:13px;padding:10px 0;">오늘 예약된 클리닉이 없습니다.</div>';
+  return cbTodayList.map(function(b){
     var lastLog=(b.alimtalkLogs&&b.alimtalkLogs.length)?b.alimtalkLogs[b.alimtalkLogs.length-1]:null;
     var lastLogHtml=lastLog?('<div style="font-size:11px;color:#94a3b8;margin-top:2px;">🔔 마지막 알림톡: '+lastLog.type+' · '+lastLog.at+(lastLog.by?' · '+lastLog.by:'')+'</div>'):'';
     var nameEsc=escHtml(b.name).replace(/'/g,"\\'");
@@ -2942,7 +2964,7 @@ async function checkClinicHourReminders(){
         }
       }catch(e){ console.warn('[클리닉 1시간전 알림] 발송 실패:', e); }
     }
-    if(document.getElementById('page-clinic') && document.getElementById('page-clinic').classList.contains('active')) loadClinicBookingsToday();
+    if(['page-clinic','page-mclinic'].some(function(id){var p=document.getElementById(id);return p&&p.classList.contains('active');})) loadClinicBookingsToday();
   }catch(e){ console.warn('[클리닉 1시간전 알림] 확인 실패:', e); }
 }
 
