@@ -2000,7 +2000,7 @@ api.setMandatoryClinicTestScore = function(db, p){
   data['testScores.' + String(p.date)] = p.score || '';
   data['testReported.' + String(p.date)] = false;
   return db.collection('mandatory_clinic').doc(String(p.id)).update(data)
-    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+    .then(function(){ return { success:true }; }, function(e){ return { success:false, msg:(e&&e.message)||String(e) }; });
 };
 
 // 여러 의무클리닉 문서의 특정 날짜 테스트 점수를, 방금 알림톡으로 실제 보고했다고 표시 (다음 메시지에 중복으로 안 뜨게)
@@ -2109,7 +2109,7 @@ api.markClinicHourReminderSent = function(db, p){
 // 추가클리닉에서 본 테스트 점수 기록(예약 문서에 남김, 의무클리닉의 testScores와 같은 역할)
 api.setClinicTestScore = function(db, p){
   return db.collection('clinic_bookings').doc(String(p.id)).set({ testScore: p.score||'', testScoreAt: nowStr(), testScoreBy: p.by||'' },{merge:true})
-    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+    .then(function(){ return { success:true }; }, function(e){ return { success:false, msg:(e&&e.message)||String(e) }; });
 };
 
 // 클리닉(의무/추가)에서 본 테스트 점수를 그 학생의 "가장 최근 시험" 성적 기록(scores)에도 같이 남김 (2026-09-20).

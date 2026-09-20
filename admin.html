@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=47"></script>
+<script src="firebase-api.js?v=48"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -2741,7 +2741,8 @@ async function saveMcTestScore(id){
   var score=input.value.trim();
   if(!score){alert('점수를 입력해주세요.');return;}
   var today=mcTodayInfo();
-  await fetch(SU+'?action=setMandatoryClinicTestScore&id='+encodeURIComponent(id)+'&date='+encodeURIComponent(today.dateStr)+'&score='+encodeURIComponent(score));
+  var rr=await fetch(SU+'?action=setMandatoryClinicTestScore&id='+encodeURIComponent(id)+'&date='+encodeURIComponent(today.dateStr)+'&score='+encodeURIComponent(score)).then(function(r){return r.json();});
+  if(!rr.success){ alert('점수 저장이 안 됐어요.\n(이유: '+(rr.msg||'권한 거부 또는 알 수 없음')+')'); console.error('setMandatoryClinicTestScore 실패', rr); return; }
   var m=mcList.find(function(x){return x.id===id;});
   var examNote=m?await recordClinicScoreToRecentExam(m.studentId, score, '의무클리닉', today.dateStr):'';
   alert('저장했어요. 다음 수업 결과 알림톡을 보낼 때 이 학생 메시지에 자동으로 들어가요.'+examNote);
@@ -2762,7 +2763,7 @@ async function saveCbTestScore(id){
   var b=cbTodayList.find(function(x){return x.id===id;});
   if(!b) return;
   var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'setClinicTestScore',id:id,score:score,by:(cu&&(cu.name||cu.id))||''})}).then(function(r){return r.json();});
-  if(!r.success){ alert('점수 저장이 거부됐어요. 선생님께 알려주세요.'); return; }
+  if(!r.success){ alert('점수 저장이 안 됐어요.\n(이유: '+(r.msg||'권한 거부 또는 알 수 없음')+')'); console.error('setClinicTestScore 실패', r); return; }
   var examNote=await recordClinicScoreToRecentExam(b.studentId, score, '추가클리닉', localDateStrAdmin());
   alert('저장했어요.'+examNote);
   loadClinicBookingsToday();
