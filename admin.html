@@ -2756,8 +2756,10 @@ async function recordClinicScoreToRecentExam(studentId, score, source, dateStr){
     return '\n\n(최근 시험 기록은 안 됨: '+(r.msg||'시험을 찾지 못함')+')';
   }catch(e){ return '\n\n(최근 시험 기록 실패: '+e.message+')'; }
 }
-async function saveCbTestScore(id){
-  var input=document.getElementById('cb-score-'+id);
+async function saveCbTestScore(id, btn){
+  // 이 명단은 클리닉예약·의무클리닉 두 페이지에 똑같이 그려져서 id가 중복됨 → getElementById로 찾으면 안 보이는 쪽 빈 칸을 읽음.
+  // 그래서 누른 버튼 바로 옆의 입력칸을 씀(2026-09-20 버그 수정).
+  var input=(btn&&btn.parentNode)?btn.parentNode.querySelector('input'):document.getElementById('cb-score-'+id);
   var score=input.value.trim();
   if(!score){alert('점수를 입력해주세요.');return;}
   var b=cbTodayList.find(function(x){return x.id===id;});
@@ -2921,7 +2923,7 @@ function renderCbTodayHtml(){
       +(b.attend==='출석'?('<button onclick="cbSendGoHome(\''+b.id+'\',\''+nameEsc+'\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #1d4ed8;background:'+((lastLog&&lastLog.type==='귀가')?'#1d4ed8':'#eff6ff')+';color:'+((lastLog&&lastLog.type==='귀가')?'#fff':'#1d4ed8')+';font-size:13px;font-weight:700;cursor:pointer;">🚪 귀가'+((lastLog&&lastLog.type==='귀가')?' 완료':'')+'</button>'):'')
       +(b.attend==='출석'?('<span style="display:inline-flex;align-items:center;gap:6px;">'
         +'<input type="text" id="cb-score-'+b.id+'" placeholder="테스트 점수" value="'+escHtml(b.testScore||'')+'" autocomplete="off" style="width:110px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12.5px;outline:none;font-family:inherit;">'
-        +'<button onclick="saveCbTestScore(\''+b.id+'\')" style="padding:8px 12px;min-height:38px;border-radius:7px;border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700;cursor:pointer;">점수 저장</button>'
+        +'<button onclick="saveCbTestScore(\''+b.id+'\', this)" style="padding:8px 12px;min-height:38px;border-radius:7px;border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700;cursor:pointer;">점수 저장</button>'
         +'</span>'):'')
       +'</div>'
       +'</div>';
