@@ -864,7 +864,7 @@ function sendMcHourReminders() {
       var mins = mcParseTimeToMinutes(m.time);
       if (mins === null) return false;
       var diff = mins - today.nowMins;
-      return diff <= 60 && diff >= 50;
+      return diff <= 60 && diff >= 0; // 1시간 미만 남았을 때 등록된 건도 놓치지 않게(2026-09-20)
     });
     if (!candidates.length) return;
 
@@ -943,7 +943,9 @@ function sendClinicHourReminders() {
       var mins = mcParseTimeToMinutes(b.time);
       if (mins === null) return false;
       var diff = mins - today.nowMins;
-      return diff <= 60 && diff >= 50;
+      // 예전엔 50~60분 전 10분 창에서만 보내서, 1시간 미만 남았을 때 잡힌 예약은 창을 지나 영영 안 나갔음
+      // (2026-09-20 이현지 건). 이제 "시작 전 60분 안이면 아직 안 보낸 건 바로 한 번" 보냄(lastHourReminderDate로 1회 보장).
+      return diff <= 60 && diff >= 0;
     });
     if (!candidates.length) return;
 

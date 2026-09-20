@@ -2801,7 +2801,7 @@ async function checkMcHourReminders(){
       var now=new Date();
       var nowMins=now.getHours()*60+now.getMinutes();
       var diff=mins-nowMins; // 도착 시각까지 남은 분
-      return diff<=60 && diff>=50; // 1시간 전 근처(10분 폭, 1분마다 체크하니 놓치지 않음)
+      return diff<=60 && diff>=0; // 시작 전 60분 안이면 아직 안 보낸 건 보냄(1시간 미만 남았을 때 등록된 건도 포함, 2026-09-20)
     });
     if(!candidates.length) return;
     var sr=await fetch(SU+'?action=getStudents').then(function(r){return r.json();});
@@ -2986,7 +2986,8 @@ async function checkClinicHourReminders(){
       var now=new Date();
       var nowMins=now.getHours()*60+now.getMinutes();
       var diff=mins-nowMins;
-      return diff<=60 && diff>=50;
+      // 1시간 미만 남았을 때 잡힌 예약도 놓치지 않게 "시작 전 60분 안, 아직 안 보낸 것"이면 보냄(Code.gs와 동일, 2026-09-20)
+      return diff<=60 && diff>=0;
     });
     if(!candidates.length) return;
     for(var i=0;i<candidates.length;i++){
@@ -3000,11 +3001,14 @@ async function checkClinicHourReminders(){
         // '보냈음' 표시를 먼저 저장 — 저장이 거부되면(권한 등) 발송하지 않음(서버 5분 트리거가 처리)
         var mk=await fetch(SU+'?action=markClinicHourReminderSent&id='+encodeURIComponent(b.id)+'&date='+encodeURIComponent(today)).then(function(r){return r.json();});
         if(!mk || !mk.success){ console.warn('[클리닉 1시간전 알림] 발송 표시 저장 실패 → 발송 건너뜀:', b.name, mk); continue; }
-        var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();});
-        if(res.success){
+        var res=null;
+        try{ res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'sendAlimtalk',messages:msgs})}).then(function(r){return r.json();}); }catch(e){ res=null; }
+        if(res && res.success){
           await fetch(SU,{method:'POST',body:JSON.stringify({action:'logClinicAlimtalk',id:b.id,type:'1시간전 자동알림',studentName:b.name,by:(cu&&(cu.name||cu.id))||'',byRole:(cu&&cu.role)||''})});
         }else{
-          console.warn('[클리닉 1시간전 알림] 발송 실패:', b.name, res);
+          // 표시만 남고 발송이 실패하면 아무도 못 받고 서버도 "이미 보냄"으로 알고 건너뜀 → 표시를 되돌려서 서버 5분 트리거가 다시 시도하게
+          console.warn('[클리닉 1시간전 알림] 발송 실패 → 표시 되돌림:', b.name, res);
+          try{ await fetch(SU+'?action=markClinicHourReminderSent&id='+encodeURIComponent(b.id)+'&date='); }catch(e){}
         }
       }catch(e){ console.warn('[클리닉 1시간전 알림] 발송 실패:', e); }
     }
