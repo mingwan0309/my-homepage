@@ -831,7 +831,8 @@ api.getScores = function(db, p){
         return { sessionId:String(r.sessionId), studentId:String(r.studentId), examId:String(r.examId), score:r.score||'', pass:r.pass||'', feedback:r.feedback||'',
           rank:r.rank||null, grade:r.grade||null, cnt:r.cnt||null, avg:r.avg||null,
           examLeaveCount:Number(r.examLeaveCount||0), examLeaveLog:r.examLeaveLog||[],
-          objectiveScore:(r.objectiveScore!=null?r.objectiveScore:null), manualScores:r.manualScores||null, omrAnswers:r.omrAnswers||null };
+          objectiveScore:(r.objectiveScore!=null?r.objectiveScore:null), manualScores:r.manualScores||null, omrAnswers:r.omrAnswers||null,
+          clinicTestScore:r.clinicTestScore||'', clinicTestDate:r.clinicTestDate||'', clinicTestSource:r.clinicTestSource||'', clinicTestBy:r.clinicTestBy||'' };
       });
       return { scores: scores };
     });
@@ -2076,7 +2077,7 @@ api.getTodayClinicBookings = function(db){
         var s = stuMap[r.studentId]||{};
         return { id:r.id, clinicId:r.clinicId, clinicName:r.clinicName||'', studentId:r.studentId, name:r.studentName||s.name||r.studentId,
           date:r.date, time:r.time, status:r.status||'', studentPhone:r.studentId, parentPhone:s.parentPhone||'',
-          alimtalkLogs:r.alimtalkLogs||[], lastHourReminderDate:r.lastHourReminderDate||'', attend:r.attend||'' };
+          alimtalkLogs:r.alimtalkLogs||[], lastHourReminderDate:r.lastHourReminderDate||'', attend:r.attend||'', testScore:r.testScore||'' };
       }).sort(function(a,b){ return (a.time||'')<(b.time||'')?-1:1; });
       return { list: list };
     });
@@ -2104,6 +2105,51 @@ api.setClinicAttendance = function(db, p){
 api.markClinicHourReminderSent = function(db, p){
   return db.collection('clinic_bookings').doc(String(p.id)).update({ lastHourReminderDate: String(p.date) })
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+// 추가클리닉에서 본 테스트 점수 기록(예약 문서에 남김, 의무클리닉의 testScores와 같은 역할)
+api.setClinicTestScore = function(db, p){
+  return db.collection('clinic_bookings').doc(String(p.id)).set({ testScore: p.score||'', testScoreAt: nowStr(), testScoreBy: p.by||'' },{merge:true})
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
+// 클리닉(의무/추가)에서 본 테스트 점수를 그 학생의 "가장 최근 시험" 성적 기록(scores)에도 같이 남김 (2026-09-20).
+// 원래 점수(score/pass)는 건드리지 않고 clinicTestScore 등 별도 필드로 붙임 — 성적표(session.html)에서 🏥 배지로 보임.
+// "가장 최근 시험" = 학생 반의 차시 중 날짜가 오늘 이하인 것을 최신순으로 훑어 시험이 하나라도 등록된 첫 차시의 시험(여러 개면 가장 나중에 만든 것).
+api.recordClinicTestScoreToRecentExam = function(db, p){
+  var studentId = String(p.studentId||'');
+  var today = localDateStr();
+  return db.collection('students').doc(studentId).get().then(function(sd){
+    if (!sd.exists) return { success:false, msg:'학생 없음' };
+    var classId = String(sd.data().classId||'');
+    if (!classId) return { success:false, msg:'반 미배정' };
+    return Promise.all([
+      db.collection('sessions').where('classId','==',classId).get(),
+      db.collection('classes').doc(classId).get()
+    ]).then(function(res){
+      var sessions = docsToArr(res[0]).filter(function(x){ return (x.date||'') <= today; })
+        .sort(function(a,b){ if((a.date||'')!==(b.date||'')) return (a.date||'')<(b.date||'')?1:-1; return (Number(b.sessionNum)||0)-(Number(a.sessionNum)||0); });
+      var className = res[1].exists ? (res[1].data().name||'') : '';
+      var i = 0;
+      function next(){
+        if (i >= sessions.length) return { success:false, msg:'최근 시험 없음' };
+        var ses = sessions[i++];
+        return db.collection('exams').where('sessionId','==',String(ses.id)).get().then(function(esnap){
+          var exams = docsToArr(esnap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? 1 : -1; });
+          if (!exams.length) return next();
+          var ex = exams[0];
+          var key = String(ses.id)+'__'+studentId+'__'+String(ex.id);
+          return db.collection('scores').doc(key).set({
+            id:key, sessionId:String(ses.id), studentId:studentId, examId:String(ex.id),
+            clinicTestScore:String(p.score||''), clinicTestDate:String(p.date||today), clinicTestAt:nowStr(),
+            clinicTestBy:p.by||'', clinicTestSource:p.source||''
+          },{merge:true}).then(function(){
+            return { success:true, examName:ex.name||'', sessLabel: ses.label || (ses.sessionNum?ses.sessionNum+'차시':''), className:className, sessionDate:ses.date||'' };
+          });
+        });
+      }
+      return next();
+    });
+  }).catch(function(e){ return { success:false, msg:(e&&e.message)||'' }; });
 };
 
 api.bookClinic = function(db, p){

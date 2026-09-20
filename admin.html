@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=46"></script>
+<script src="firebase-api.js?v=47"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -2742,8 +2742,30 @@ async function saveMcTestScore(id){
   if(!score){alert('점수를 입력해주세요.');return;}
   var today=mcTodayInfo();
   await fetch(SU+'?action=setMandatoryClinicTestScore&id='+encodeURIComponent(id)+'&date='+encodeURIComponent(today.dateStr)+'&score='+encodeURIComponent(score));
-  alert('저장했어요. 다음 수업 결과 알림톡을 보낼 때 이 학생 메시지에 자동으로 들어가요.');
+  var m=mcList.find(function(x){return x.id===id;});
+  var examNote=m?await recordClinicScoreToRecentExam(m.studentId, score, '의무클리닉', today.dateStr):'';
+  alert('저장했어요. 다음 수업 결과 알림톡을 보낼 때 이 학생 메시지에 자동으로 들어가요.'+examNote);
   loadMclinic();
+}
+// 클리닉(의무/추가)에서 본 테스트 점수를 그 학생의 가장 최근 시험 성적 기록에도 같이 남김(성적표에 🏥 배지로 보임). 실패해도 클리닉 쪽 저장은 그대로.
+async function recordClinicScoreToRecentExam(studentId, score, source, dateStr){
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'recordClinicTestScoreToRecentExam',studentId:studentId,score:score,source:source,date:dateStr,by:(cu&&(cu.name||cu.id))||''})}).then(function(r){return r.json();});
+    if(r.success) return '\n\n📝 최근 시험에도 기록됨: '+(r.className?r.className+' ':'')+(r.sessLabel?r.sessLabel+' ':'')+r.examName;
+    return '\n\n(최근 시험 기록은 안 됨: '+(r.msg||'시험을 찾지 못함')+')';
+  }catch(e){ return '\n\n(최근 시험 기록 실패: '+e.message+')'; }
+}
+async function saveCbTestScore(id){
+  var input=document.getElementById('cb-score-'+id);
+  var score=input.value.trim();
+  if(!score){alert('점수를 입력해주세요.');return;}
+  var b=cbTodayList.find(function(x){return x.id===id;});
+  if(!b) return;
+  var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'setClinicTestScore',id:id,score:score,by:(cu&&(cu.name||cu.id))||''})}).then(function(r){return r.json();});
+  if(!r.success){ alert('점수 저장이 거부됐어요. 선생님께 알려주세요.'); return; }
+  var examNote=await recordClinicScoreToRecentExam(b.studentId, score, '추가클리닉', localDateStrAdmin());
+  alert('저장했어요.'+examNote);
+  loadClinicBookingsToday();
 }
 function mcStudentPhoneMsgs(studentId, name, dateStr, message, studentOnly){
   var student=mcStudents.find(function(s){return s.id===studentId;});
@@ -2896,6 +2918,10 @@ function renderCbTodayHtml(){
       +'<button onclick="markCbAttendance(\''+b.id+'\',\''+nameEsc+'\',\'결석\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid '+(b.attend==='결석'?'#dc2626':'#e2e8f0')+';background:'+(b.attend==='결석'?'#dc2626':'#fff')+';color:'+(b.attend==='결석'?'#fff':'#475569')+';font-size:13px;font-weight:700;cursor:pointer;">결석</button>'
       +'<button onclick="cbSendReminder(\''+b.id+'\',\''+b.studentId+'\',\''+nameEsc+'\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #fdba74;background:#fff7ed;color:#c2410c;font-size:13px;font-weight:700;cursor:pointer;">🔔 재촉</button>'
       +(b.attend==='출석'?('<button onclick="cbSendGoHome(\''+b.id+'\',\''+nameEsc+'\')" style="padding:10px 16px;min-height:44px;border-radius:7px;border:1.5px solid #1d4ed8;background:'+((lastLog&&lastLog.type==='귀가')?'#1d4ed8':'#eff6ff')+';color:'+((lastLog&&lastLog.type==='귀가')?'#fff':'#1d4ed8')+';font-size:13px;font-weight:700;cursor:pointer;">🚪 귀가'+((lastLog&&lastLog.type==='귀가')?' 완료':'')+'</button>'):'')
+      +(b.attend==='출석'?('<span style="display:inline-flex;align-items:center;gap:6px;">'
+        +'<input type="text" id="cb-score-'+b.id+'" placeholder="테스트 점수" value="'+escHtml(b.testScore||'')+'" autocomplete="off" style="width:110px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12.5px;outline:none;font-family:inherit;">'
+        +'<button onclick="saveCbTestScore(\''+b.id+'\')" style="padding:8px 12px;min-height:38px;border-radius:7px;border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700;cursor:pointer;">점수 저장</button>'
+        +'</span>'):'')
       +'</div>'
       +'</div>';
   }).join('');

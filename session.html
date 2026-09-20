@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>차시 — 김민관 수학</title>
-<script src="firebase-api.js?v=46"></script>
+<script src="firebase-api.js?v=47"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -406,6 +406,7 @@ tr:hover td{background:#fafbff;}
       <h3 id="panel-exam-name">시험명</h3>
       <div class="sub" id="panel-sub"></div>
       <div id="panel-leave-warn" style="display:none;background:#fef2f2;color:#dc2626;font-size:12px;font-weight:700;padding:8px 10px;border-radius:8px;margin-bottom:10px;"></div>
+      <div id="panel-clinic-score" style="display:none;background:#ecfeff;color:#0e7490;font-size:12px;font-weight:700;padding:8px 10px;border-radius:8px;margin-bottom:10px;"></div>
       <!-- 주관식(문자 정답) 문항은 자동채점 대상이 아니라서, 학생이 실제로 낸 답을 보고 직접 점수를 매기는 영역 -->
       <div id="panel-manual-area" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
         <div style="font-size:12px;font-weight:800;color:#1d4ed8;margin-bottom:6px;">✍️ 주관식 문항 직접 채점 (문자 정답이라 자동채점 안 됨)</div>
@@ -1320,7 +1321,7 @@ async function loadScores(){
   scoresMap={};
   (sr.scores||[]).forEach(function(s){
     if(!scoresMap[s.studentId])scoresMap[s.studentId]={};
-    scoresMap[s.studentId][s.examId]={score:s.score,pass:s.pass,feedback:s.feedback||'',examLeaveCount:s.examLeaveCount||0,examLeaveLog:s.examLeaveLog||[],objectiveScore:(s.objectiveScore!=null?s.objectiveScore:null),manualScores:s.manualScores||null,omrAnswers:s.omrAnswers||null};
+    scoresMap[s.studentId][s.examId]={score:s.score,pass:s.pass,feedback:s.feedback||'',examLeaveCount:s.examLeaveCount||0,examLeaveLog:s.examLeaveLog||[],objectiveScore:(s.objectiveScore!=null?s.objectiveScore:null),manualScores:s.manualScores||null,omrAnswers:s.omrAnswers||null,clinicTestScore:s.clinicTestScore||'',clinicTestDate:s.clinicTestDate||'',clinicTestSource:s.clinicTestSource||'',clinicTestBy:s.clinicTestBy||''};
   });
   renderScores();
 }
@@ -1348,8 +1349,10 @@ function renderScores(){
     var attBadge='<span class="status-badge s'+(att.status||'미정')+'">'+(att.status||'미정')+'</span>';
     var scoreCols=exams.map(function(ex){
       var sc=(scoresMap[st.id]||{})[ex.id];
+      // 클리닉(의무/추가)에서 본 테스트 점수가 이 시험에 기록돼 있으면 🏥 배지로 같이 표시(원래 점수와 별개, 2026-09-20)
+      var clinicBadge=(sc&&sc.clinicTestScore)?'<div style="margin-top:2px;"><span title="'+(sc.clinicTestSource||'클리닉')+' 테스트 '+(sc.clinicTestDate||'')+'" style="display:inline-block;font-size:10px;font-weight:700;color:#0e7490;background:#ecfeff;padding:1px 6px;border-radius:10px;white-space:nowrap;">🏥 '+escHtml(String(sc.clinicTestScore))+'</span></div>':'';
       if(sc&&sc.pass==='absent'&&sc.score===''){
-        return '<td class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')"><span style="color:#64748b;font-size:11px;font-weight:700;">미응시</span></td>';
+        return '<td class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')"><span style="color:#64748b;font-size:11px;font-weight:700;">미응시</span>'+clinicBadge+'</td>';
       }
       if(sc&&sc.score!==''){
         var pass=sc.pass;
@@ -1360,9 +1363,9 @@ function renderScores(){
         var passIcon=pass==='submit'?'<span style="color:#16a34a;font-size:10px;"> 통과</span>':pass==='nosub'?'<span style="color:#dc2626;font-size:10px;"> 미통과</span>':pass==='absent'?'<span style="color:#64748b;font-size:10px;"> 미응시</span>':'';
         var scoreUnit=(ex.scoreType||'score')==='count'?'개':'점';
         var scoreDisp=ex.totalQuestions&&ex.scoreType==='count'?sc.score+'/'+ex.totalQuestions+'개':sc.score+scoreUnit;
-        return '<td class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+scoreDisp+passIcon+'</td>';
+        return '<td class="score-cell has-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+scoreDisp+passIcon+clinicBadge+'</td>';
       }
-      return '<td class="score-cell no-score" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">—</td>';
+      return '<td class="score-cell '+(clinicBadge?'has-score':'no-score')+'" onclick="openPanel(\''+st.id+'\',\''+ex.id+'\')">'+(clinicBadge?clinicBadge:'—')+'</td>';
     }).join('');
     var HW_LABELS={complete:['#16a34a','제출'],partial:['#ca8a04','일부미이행'],incomplete:['#dc2626','미이행'],notsub:['#64748b','미제출'],na:['#94a3b8','해당없음']};
     var hwResultCols=homeworks.map(function(hw){
@@ -2045,6 +2048,11 @@ function openPanel(studentId, examId){
   } else {
     leaveWarn.style.display='none';
   }
+  var clinicBox=document.getElementById('panel-clinic-score');
+  if(sc&&sc.clinicTestScore){
+    clinicBox.style.display='';
+    clinicBox.textContent='🏥 '+(sc.clinicTestSource||'클리닉')+' 테스트 점수: '+sc.clinicTestScore+(sc.clinicTestDate?' ('+sc.clinicTestDate+(sc.clinicTestBy?', '+sc.clinicTestBy+' 기록':'')+')':'')+' — 원래 시험 점수와 별개로 기록된 값이에요.';
+  } else { clinicBox.style.display='none'; }
   document.getElementById('panel-score').value=sc&&sc.score!==''?sc.score:'';
   panelPass=sc?sc.pass||'':'';
   document.getElementById('panel-feedback').value=sc?sc.feedback||'':'';
