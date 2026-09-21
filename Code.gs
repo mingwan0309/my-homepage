@@ -12,6 +12,7 @@ function doPost(e) {
     if (data.action === 'sendAlimtalk') return sendAlimtalk(data);
     if (data.action === 'aiDraftAnswer') return json(aiDraftAnswer(data));
     if (data.action === 'aiNoteImage') return json(aiNoteImage(data));
+    if (data.action === 'aiReadAnswerKey') return json(aiReadAnswerKey(data));
     if (data.action === 'getFileBase64') {
       // 큰 파일(수 MB)을 한 번에 통째로 응답하면 Apps Script가 내부적으로
       // script.googleusercontent.com 으로 리다이렉트시키는데, 이 리다이렉트가
@@ -1710,4 +1711,84 @@ function aiDraftAnswer(data) {
     try { firestorePatchFields('qna_ai_drafts', qid, { questionId: qid, text: '', error: String(err), createdAt: nowKst, model: '' }); } catch (e) {}
     return { success: false, msg: String(err) };
   }
+}
+
+// ── 정답표 사진/PDF에서 문항별 정답 자동 읽기 (2026-09-21 추가) ──
+// session.html "답안 등록" 창의 "📷 정답표 사진/PDF로 채우기"가 호출. 문제집 정답표·해설지 첫 장 등
+// "정답이 인쇄된 것"을 올리면 Gemini가 읽어서 [{q, answer, points?}] JSON으로 돌려줌.
+// ⚠️ 문제 자체를 AI가 풀어서 답을 만드는 게 아님 — 반드시 정답이 적힌 자료여야 함(프롬프트에도 명시).
+//    AI가 ①/④ 같은 기호를 잘못 읽을 수 있으므로 화면에서는 "채워만 주고 선생님이 확인 후 저장"하는 구조.
+var AI_ANSWERKEY_SYSTEM = [
+  '너는 수학 시험 정답표를 읽어서 구조화하는 도우미다.',
+  '주어진 이미지/PDF에는 문항 번호와 정답이 인쇄되어 있다. 문제를 풀지 말고, 인쇄된 정답만 그대로 옮겨 적어라.',
+  '출력은 반드시 JSON 배열 하나만: [{"q":1,"answer":"3"},{"q":2,"answer":"12"}] 형태. 다른 설명·마크다운·코드펜스 금지.',
+  '객관식 정답은 ①②③④⑤ → "1".."5" 숫자 문자열로. 주관식(숫자·분수·식)은 보이는 그대로 문자열로(예: "12", "-3", "1/2", "√2").',
+  '한 문항에 정답이 여러 개면 "answer"를 배열로: {"q":7,"answer":["2","4"]}.',
+  '배점이 함께 인쇄되어 있으면 "points": 숫자 로 같이 넣어라. 없으면 생략.',
+  '읽을 수 없거나 확신이 없는 문항은 넣지 말고 건너뛰어라(추측 금지).',
+  '문항 번호는 1부터 시작하는 정수로만.'
+].join('\n');
+
+function aiReadAnswerKey(data) {
+  var props = PropertiesService.getScriptProperties();
+  var apiKey = props.getProperty('GEMINI_API_KEY');
+  if (!apiKey) return { success: false, msg: 'GEMINI_API_KEY가 Apps Script 스크립트 속성에 없어요.' };
+  var mime = String(data.mimeType || 'image/jpeg');
+  var b64  = String(data.fileData || '');
+  if (!b64) return { success: false, msg: '파일이 비어 있어요.' };
+  // 이미지/PDF 모두 inline_data로 그대로 전달 가능
+  var images = [{ mime: mime, data: b64 }];
+  var hint = data.qcount ? ('이 시험은 ' + Number(data.qcount) + '문항이다. ') : '';
+  var text = hint + '이 자료에 인쇄된 문항별 정답을 JSON 배열로만 출력해라.';
+
+  var override = props.getProperty('GEMINI_DRAFT_MODEL');
+  var models = override ? [override].concat(AI_DRAFT_GEMINI_MODELS) : AI_DRAFT_GEMINI_MODELS;
+  var parts = images.map(function(im){ return { inline_data: { mime_type: im.mime, data: im.data } }; });
+  parts.push({ text: text });
+  var lastErr = '';
+  for (var i = 0; i < models.length; i++) {
+    var model = models[i];
+    try {
+      var res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
+        method: 'POST',
+        headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+        payload: JSON.stringify({
+          system_instruction: { parts: [{ text: AI_ANSWERKEY_SYSTEM }] },
+          contents: [{ role: 'user', parts: parts }],
+          generationConfig: { maxOutputTokens: 4000, temperature: 0 }
+        }),
+        muteHttpExceptions: true
+      });
+      var code = res.getResponseCode();
+      var body = {};
+      try { body = JSON.parse(res.getContentText()); } catch (e) {}
+      if (code === 404) { lastErr = model + ': 모델 없음(404)'; continue; }
+      if (code !== 200) { lastErr = model + ': ' + ((body.error && body.error.message) || ('HTTP ' + code)); continue; }
+      var cand = (body.candidates || [])[0] || {};
+      var out = ((cand.content || {}).parts || [])
+        .filter(function(pt){ return pt.text && !pt.thought; })
+        .map(function(pt){ return pt.text; }).join('\n').trim();
+      if (!out) { lastErr = model + ': 응답 비어 있음'; continue; }
+      // 코드펜스나 앞뒤 설명이 섞여 와도 첫 [ ... ] 덩어리만 뽑아서 파싱
+      var m = out.match(/\[[\s\S]*\]/);
+      if (!m) { lastErr = model + ': JSON 배열을 못 찾음'; continue; }
+      var arr;
+      try { arr = JSON.parse(m[0]); } catch (e) { lastErr = model + ': JSON 파싱 실패'; continue; }
+      if (!Array.isArray(arr)) { lastErr = model + ': 배열 아님'; continue; }
+      var cleaned = arr.map(function(r){
+        var q = parseInt(r && r.q, 10);
+        if (!q || q < 1 || q > 100) return null;
+        var ans = r.answer;
+        if (ans == null) return null;
+        var arrAns = Array.isArray(ans) ? ans : [ans];
+        arrAns = arrAns.map(function(a){ return String(a).trim(); }).filter(function(a){ return a; });
+        if (!arrAns.length) return null;
+        var o = { q: q, answer: arrAns };
+        if (r.points != null && !isNaN(Number(r.points))) o.points = Number(r.points);
+        return o;
+      }).filter(function(x){ return x; });
+      return { success: true, answers: cleaned, model: model };
+    } catch (e) { lastErr = model + ': ' + e; }
+  }
+  return { success: false, msg: 'AI 읽기 실패 — ' + lastErr };
 }

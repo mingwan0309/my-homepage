@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>차시 — 김민관 수학</title>
-<script src="firebase-api.js?v=48"></script>
+<script src="firebase-api.js?v=49"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -566,6 +566,19 @@ tr:hover td{background:#fafbff;}
       <input type="number" id="ak-qcount" min="1" max="50" onchange="changeAkQCount(this.value)" style="width:80px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;text-align:center;">
       <span style="font-size:11.5px;color:#94a3b8;" id="ak-total-wrap">총 <span id="ak-total" style="font-weight:700;color:#1e293b;">0</span><span id="ak-total-unit">점</span></span>
     </div>
+    <!-- 한번에 넣기: 정답을 하나씩 안 누르고 붙여넣기 또는 정답표 사진/PDF로 채움 (2026-09-21 추가) -->
+    <details id="ak-quick" style="margin-bottom:12px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;">
+      <summary style="cursor:pointer;font-size:13px;font-weight:800;color:#1e293b;list-style:none;display:flex;align-items:center;gap:6px;">⚡ 한번에 넣기 <span style="font-size:11px;font-weight:600;color:#94a3b8;">(붙여넣기 · 정답표 사진/PDF)</span></summary>
+      <div style="margin-top:10px;">
+        <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:4px;">① 정답 붙여넣기</div>
+        <textarea id="ak-paste" rows="2" placeholder="예: ③ ① ④ ② ⑤ …  또는  3 1 4 2 5 …  또는  1.③ 2.① 3.④ …&#10;주관식은 '7. 12' '8. 1/2'처럼 번호와 함께 적으면 인식돼요" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
+        <button type="button" onclick="akApplyPaste()" style="margin-top:6px;width:100%;min-height:38px;background:#1e293b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">붙여넣은 정답으로 채우기</button>
+        <div style="font-size:12px;font-weight:700;color:#475569;margin:12px 0 4px;">② 정답표 사진/PDF로 채우기 <span style="font-weight:500;color:#94a3b8;">(AI가 읽어요 — 채워진 뒤 꼭 한번 확인)</span></div>
+        <input type="file" id="ak-file" accept="image/*,application/pdf" style="display:none;" onchange="akReadFromFile(this)">
+        <button type="button" id="ak-file-btn" onclick="document.getElementById('ak-file').click()" style="width:100%;min-height:38px;background:#fff;border:1.5px solid #3b6cf7;color:#3b6cf7;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">📷 정답표 사진/PDF 올리기</button>
+        <div id="ak-quick-msg" style="font-size:12px;color:#64748b;margin-top:6px;min-height:16px;"></div>
+      </div>
+    </details>
     <div id="answerkey-rows"></div>
     <div id="ak-keypad-panel" style="display:none;margin-top:10px;padding:12px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -3018,6 +3031,93 @@ function renderAnswerKeyRows(){
   updateAkTotal();
 }
 function escHtmlAk(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── 답안 "한번에 넣기" (2026-09-21 추가) ──
+// 붙여넣기 / 정답표 사진·PDF(AI) 두 경로가 모두 [{q, answer:[...], points?}] 형태로 만든 뒤
+// akApplyParsed()로 같은 방식으로 akRows에 채움. 이미 있던 배점은 안 건드리고 정답만 덮어씀.
+var AK_CIRCLED={'①':'1','②':'2','③':'3','④':'4','⑤':'5','⑥':'6','⑦':'7','⑧':'8','⑨':'9'};
+function akNormAns(s){
+  s=String(s||'').trim();
+  return AK_CIRCLED[s]||s;
+}
+// 붙여넣은 글에서 정답 뽑기.
+//  A) "1.③ 2.① 7. 12 …"처럼 번호가 붙어 있으면 번호 기준(주관식도 인식)
+//  B) 번호 없이 "③ ① ④ …" / "3 1 4 …"만 있으면 순서대로 객관식으로
+function akParsePaste(text){
+  text=String(text||'').replace(/\r/g,'');
+  var out={}, n=0;
+  // A: 번호 + 구분자(. ) : 번) + 답
+  var reA=/(\d{1,2})\s*[.)번:：]\s*([^\s,;/]+(?:\/[^\s,;]+)?)/g, m;
+  while((m=reA.exec(text))){
+    var q=parseInt(m[1],10), a=akNormAns(m[2]);
+    if(q>=1&&q<=100&&a){ out[q]=[a]; n++; }
+  }
+  if(n>=2) return Object.keys(out).map(function(q){ return {q:Number(q), answer:out[q]}; });
+  // B: 순서대로
+  var seq=[];
+  var tokens=text.split(/[\s,;]+/).filter(function(t){return t;});
+  tokens.forEach(function(t){
+    // "③④"처럼 붙어 있으면 한 글자씩
+    var chars=t.split('');
+    if(chars.every(function(c){return AK_CIRCLED[c];})){ chars.forEach(function(c){ seq.push(AK_CIRCLED[c]); }); return; }
+    if(/^[1-5]$/.test(t)) { seq.push(t); return; }
+    if(/^[1-5]+$/.test(t) && t.length>1) { t.split('').forEach(function(c){ seq.push(c); }); return; } // "31425"처럼 붙여 쓴 경우
+  });
+  return seq.map(function(a,i){ return {q:i+1, answer:[a]}; });
+}
+function akApplyParsed(list, sourceLabel){
+  if(!list||!list.length){ akQuickMsg('❌ 정답을 못 찾았어요. 형식을 확인해주세요.', true); return; }
+  var maxQ=Math.max.apply(null, list.map(function(r){return r.q;}));
+  // 문항 수보다 많이 들어오면 문항 수를 늘려서 받음(줄이진 않음)
+  if(maxQ>akRows.length){ changeAkQCount(maxQ); }
+  var filled=0, shortN=0;
+  list.forEach(function(r){
+    var row=akRows.find(function(x){return x.q===r.q;});
+    if(!row) return;
+    var ans=r.answer.map(akNormAns);
+    var allMc=ans.every(function(a){return /^[1-5]$/.test(a);});
+    if(allMc){ row.type='mc'; row.correct=ans.map(Number); }
+    else { row.type='short'; row.correct=ans; shortN++; }
+    if(r.points!=null && !akIsCount) row.points=Number(r.points);
+    filled++;
+  });
+  renderAnswerKeyRows();
+  akQuickMsg('✅ '+sourceLabel+' '+filled+'문항 채웠어요'+(shortN?' (주관식 '+shortN+'개 포함)':'')+'. 아래에서 확인하고 저장을 눌러주세요.');
+}
+function akQuickMsg(msg, isErr){
+  var el=document.getElementById('ak-quick-msg');
+  if(!el) return;
+  el.textContent=msg;
+  el.style.color=isErr?'#dc2626':'#16a34a';
+}
+function akApplyPaste(){
+  var t=(document.getElementById('ak-paste')||{}).value||'';
+  if(!t.trim()){ akQuickMsg('붙여넣을 내용이 없어요.', true); return; }
+  akApplyParsed(akParsePaste(t), '붙여넣기로');
+}
+async function akReadFromFile(input){
+  var f=input.files&&input.files[0];
+  if(!f) return;
+  input.value='';
+  if(f.size>8*1024*1024){ akQuickMsg('❌ 8MB 이하로 올려주세요(정답표 한 장이면 충분해요).', true); return; }
+  var btn=document.getElementById('ak-file-btn');
+  btn.disabled=true; btn.textContent='🤖 AI가 읽는 중… (10~30초)';
+  akQuickMsg('정답표를 읽고 있어요…');
+  try{
+    var b64=await new Promise(function(res,rej){
+      var fr=new FileReader();
+      fr.onload=function(){ res(String(fr.result).split(',')[1]||''); };
+      fr.onerror=rej;
+      fr.readAsDataURL(f);
+    });
+    var r=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'aiReadAnswerKey', fileData:b64, mimeType:f.type||'image/jpeg', qcount:akRows.length})
+    }).then(function(r){return r.json();});
+    if(!r||!r.success){ akQuickMsg('❌ '+((r&&r.msg)||'읽기 실패'), true); return; }
+    akApplyParsed(r.answers||[], 'AI가 읽어서');
+  }catch(e){ akQuickMsg('❌ 오류: '+e.message, true); }
+  finally{ btn.disabled=false; btn.textContent='📷 정답표 사진/PDF 올리기'; }
+}
 function setAkType(q,type){
   var r=akRows.find(function(x){return x.q===q;});
   if(!r || r.type===type) return;
