@@ -803,6 +803,8 @@ api.setScore = function(db, p){
   if (p.objectiveScore!==undefined && p.objectiveScore!=='') extra.objectiveScore = Number(p.objectiveScore);
   if (p.manualScores!==undefined) { try { extra.manualScores = (typeof p.manualScores==='string') ? JSON.parse(p.manualScores) : (p.manualScores||{}); } catch(e) {} }
   if (p.omrAnswers!==undefined) { try { extra.omrAnswers = (typeof p.omrAnswers==='string') ? JSON.parse(p.omrAnswers) : (p.omrAnswers||{}); } catch(e) {} }
+  // wrongQuestions=[틀린 문항 번호…] — 채점(폰 응시/OMR) 때 같이 넘겨서 "자주 틀리는 유형" 집계에 씀(2026-09-21)
+  if (p.wrongQuestions!==undefined) { try { var wq = (typeof p.wrongQuestions==='string') ? JSON.parse(p.wrongQuestions) : p.wrongQuestions; if (Array.isArray(wq)) extra.wrongQuestions = wq.map(Number); } catch(e) {} }
   return ref.get().then(function(doc){
     var prevLeaveCount = doc.exists ? (doc.data().examLeaveCount||0) : 0;
     var prevLeaveLog = doc.exists ? (doc.data().examLeaveLog||[]) : [];
@@ -905,7 +907,8 @@ api.setExamAnswerKey = function(db, p){
       // 예전에 exams 문서 안에 저장돼 있던 정답은 학생도 읽을 수 있으므로 같이 지움.
       // 문항 타입(객관식/주관식)은 정답이 아니라서 학생 화면(입력창 모양 결정용)에 그대로 내려줘도 안전함.
       // 이 단계가 실패해도 정답 저장 자체는 이미 끝났으므로 실패로 처리하지 않음.
-      return db.collection('exams').doc(String(p.examId)).update({ answerKey: null, questionCount: key.length, questionTypes: key.map(function(r){ return r.type||'mc'; }) })
+      // questionCategories: 문항별 유형 이름(정답 아님) — 학생 마이페이지 "자주 틀리는 유형"이 읽어야 해서 공개 문서에 둠
+      return db.collection('exams').doc(String(p.examId)).update({ answerKey: null, questionCount: key.length, questionTypes: key.map(function(r){ return r.type||'mc'; }), questionCategories: key.map(function(r){ return String(r.category||''); }) })
         .catch(function(e){ console.warn('[setExamAnswerKey] exams 정리 실패(무시):', e); });
     })
     .then(function(){ return { success:true }; }, function(e){
@@ -1600,6 +1603,81 @@ api.getTypingSentences = function(db){
 api.deleteTypingSentence = function(db, p){
   return db.collection('typing_sentences').doc(String(p.id)).delete()
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+
+// ── 문제 유형 (2026-09-21 추가) ──
+// 선생님이 등록해둔 유형 이름 목록(problem_types). 답안 등록 때 문항마다 유형을 붙이고(exam_keys.answerKey[].category),
+// 학생에게 보여줄 수 있게 정답이 아닌 유형 이름만 exams.questionCategories 배열로 공개함.
+api.getProblemTypes = function(db){
+  return db.collection('problem_types').get().then(function(snap){
+    var items = docsToArr(snap).sort(function(a,b){ return (a.order||0)-(b.order||0) || (a.createdAt||'')<(b.createdAt||'') ? -1 : 1; });
+    return { types: items.map(function(r){ return { id:r.id, name:r.name||'', group:r.group||'' }; }) };
+  });
+};
+api.addProblemType = function(db, p){
+  var name = String(p.name||'').trim();
+  if (!name) return Promise.resolve({ success:false, msg:'유형 이름을 입력해주세요.' });
+  var id = genId('pt');
+  return db.collection('problem_types').doc(id).set({ id:id, name:name, group:String(p.group||'').trim(), createdAt:nowStr() })
+    .then(function(){ return { success:true, id:id }; }, function(e){ return { success:false, msg:(e&&e.message)||String(e) }; });
+};
+api.updateProblemType = function(db, p){
+  var name = String(p.name||'').trim();
+  if (!name) return Promise.resolve({ success:false, msg:'유형 이름을 입력해주세요.' });
+  return db.collection('problem_types').doc(String(p.id)).update({ name:name, group:String(p.group||'').trim() })
+    .then(function(){ return { success:true }; }, function(e){ return { success:false, msg:(e&&e.message)||String(e) }; });
+};
+api.deleteProblemType = function(db, p){
+  return db.collection('problem_types').doc(String(p.id)).delete()
+    .then(function(){ return { success:true }; }, function(){ return { success:false }; });
+};
+// 학생별 "자주 틀리는 유형" 집계 — scores.wrongQuestions(채점 때 기록) + exams.questionCategories(공개)로 계산.
+// 학생 본인(마이페이지)과 선생님(학생 상세) 둘 다 씀. 유형이 안 붙은 시험은 집계에서 빠짐.
+api.getWeakTypes = function(db, p){
+  var sid = String(p.studentId||'');
+  if (!sid) return Promise.resolve({ types:[], exams:[] });
+  return Promise.all([
+    db.collection('scores').where('studentId','==',sid).get(),
+    db.collection('exam_submissions').where('studentId','==',sid).get().catch(function(){ return null; })
+  ]).then(function(res){
+    var scores = docsToArr(res[0]).filter(function(s){ return s.examId && s.pass!=='absent' && s.pass!=='' ; });
+    var subWrong = {};
+    if (res[1]) res[1].forEach(function(d){ var r=d.data(); if (Array.isArray(r.selfWrongQuestions)) subWrong[r.examId]=r.selfWrongQuestions; });
+    var examIds = [];
+    scores.forEach(function(s){ if (examIds.indexOf(s.examId)<0) examIds.push(s.examId); });
+    return Promise.all(examIds.map(function(id){ return db.collection('exams').doc(String(id)).get(); })).then(function(exDocs){
+      var exMap = {};
+      exDocs.forEach(function(d){ if (d.exists) exMap[d.id]=d.data(); });
+      var sessIds = [];
+      examIds.forEach(function(id){ var ex=exMap[id]; if (ex && ex.sessionId && sessIds.indexOf(ex.sessionId)<0) sessIds.push(ex.sessionId); });
+      return Promise.all(sessIds.map(function(id){ return db.collection('sessions').doc(String(id)).get(); })).then(function(sesDocs){
+        var sesMap = {};
+        sesDocs.forEach(function(d){ if (d.exists) sesMap[d.id]=d.data(); });
+        var tally = {}, examRows = [];
+        scores.forEach(function(s){
+          var ex = exMap[s.examId]; if (!ex) return;
+          var cats = Array.isArray(ex.questionCategories) ? ex.questionCategories : [];
+          if (!cats.some(function(c){ return c; })) return;
+          var wrong = Array.isArray(s.wrongQuestions) ? s.wrongQuestions : (subWrong[s.examId] || null);
+          if (!wrong) return; // 오답 기록이 없는 옛 채점은 집계 불가
+          var ses = sesMap[ex.sessionId] || {};
+          var wrongCats = [];
+          cats.forEach(function(c, i){
+            if (!c) return;
+            var q = i+1;
+            if (!tally[c]) tally[c] = { name:c, total:0, wrong:0 };
+            tally[c].total++;
+            if (wrong.indexOf(q)>=0) { tally[c].wrong++; wrongCats.push(c+'('+q+'번)'); }
+          });
+          examRows.push({ examId:s.examId, examName:ex.name||'시험', date:ses.date||'', sessLabel:ses.label||(ses.sessionNum?ses.sessionNum+'차시':''), score:s.score, wrongCount:wrong.length, wrongCats:wrongCats });
+        });
+        var types = Object.keys(tally).map(function(k){ var t=tally[k]; t.rate = t.total ? Math.round(t.wrong/t.total*100) : 0; return t; })
+          .sort(function(a,b){ return b.rate-a.rate || b.wrong-a.wrong; });
+        examRows.sort(function(a,b){ return (a.date||'')<(b.date||'') ? 1 : -1; });
+        return { types:types, exams:examRows };
+      });
+    });
+  });
 };
 
 api.getIncompleteHomeworks = function(db){
@@ -2794,7 +2872,7 @@ window.fetch = function(url, opts){
       var postAction = bodyObj.action || '';
       // 파일 업로드(uploadFile)와 알림톡 발송(sendAlimtalk)만 진짜 Apps Script로 통과
       // (외부에서 이 주소를 직접 호출해 알림톡을 무단 발송/파일을 무단 업로드하지 못하도록 앱 전용 토큰을 자동으로 붙여서 보냄)
-      if (postAction === 'uploadFile' || postAction === 'sendAlimtalk' || postAction === 'getFileBase64' || postAction === 'aiDraftAnswer' || postAction === 'aiNoteImage' || postAction === 'aiReadAnswerKey' || !postAction) {
+      if (postAction === 'uploadFile' || postAction === 'sendAlimtalk' || postAction === 'getFileBase64' || postAction === 'aiDraftAnswer' || postAction === 'aiNoteImage' || postAction === 'aiReadAnswerKey' || postAction === 'aiClassifyExam' || !postAction) {
         if (postAction) {
           bodyObj.appToken = APP_SHARED_TOKEN;
           opts = Object.assign({}, opts, { body: JSON.stringify(bodyObj) });

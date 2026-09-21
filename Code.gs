@@ -13,6 +13,7 @@ function doPost(e) {
     if (data.action === 'aiDraftAnswer') return json(aiDraftAnswer(data));
     if (data.action === 'aiNoteImage') return json(aiNoteImage(data));
     if (data.action === 'aiReadAnswerKey') return json(aiReadAnswerKey(data));
+    if (data.action === 'aiClassifyExam') return json(aiClassifyExam(data));
     if (data.action === 'getFileBase64') {
       // 큰 파일(수 MB)을 한 번에 통째로 응답하면 Apps Script가 내부적으로
       // script.googleusercontent.com 으로 리다이렉트시키는데, 이 리다이렉트가
@@ -1791,4 +1792,72 @@ function aiReadAnswerKey(data) {
     } catch (e) { lastErr = model + ': ' + e; }
   }
   return { success: false, msg: 'AI 읽기 실패 — ' + lastErr };
+}
+
+// ── 시험지 사진/PDF로 문항별 유형 분류 (2026-09-21 추가) ──
+// session.html 답안 등록 창의 "🏷 시험지 올려서 유형 붙이기"가 호출. 선생님이 관리 페이지에 등록한 유형 이름 목록(types)을
+// 그대로 넘겨주면 Gemini가 문항마다 그 목록 중 하나를 골라 [{q, category}]로 돌려줌. 목록에 없는 이름은 클라이언트가 버림.
+// 학생별 "자주 틀리는 유형" 집계용이라 정답을 만들거나 풀지 않음 — 유형만 붙임.
+var AI_CLASSIFY_SYSTEM = [
+  '너는 수학 시험지를 보고 각 문항이 어떤 유형인지 분류하는 도우미다.',
+  '문제를 풀지 마라. 각 문항이 주어진 유형 목록 중 어디에 가장 가까운지만 고른다.',
+  '반드시 주어진 유형 목록에 있는 이름을 글자 그대로 써라(줄이거나 바꾸지 말 것). 어느 것도 맞지 않으면 그 문항은 빼라.',
+  '출력은 반드시 JSON 배열 하나만: [{"q":1,"category":"이차함수 최대최소"},{"q":2,"category":"원의 방정식"}]. 다른 설명·마크다운·코드펜스 금지.',
+  '문항 번호는 시험지에 인쇄된 번호(1부터 시작하는 정수)를 그대로 쓴다.'
+].join('\n');
+
+function aiClassifyExam(data) {
+  var props = PropertiesService.getScriptProperties();
+  var apiKey = props.getProperty('GEMINI_API_KEY');
+  if (!apiKey) return { success: false, msg: 'GEMINI_API_KEY가 Apps Script 스크립트 속성에 없어요.' };
+  var mime = String(data.mimeType || 'image/jpeg');
+  var b64  = String(data.fileData || '');
+  if (!b64) return { success: false, msg: '파일이 비어 있어요.' };
+  var types = Array.isArray(data.types) ? data.types.map(function(t){ return String(t||'').trim(); }).filter(function(t){ return t; }) : [];
+  if (!types.length) return { success: false, msg: '유형 목록이 비어 있어요. 관리 페이지에서 유형을 먼저 등록해주세요.' };
+  var hint = data.qcount ? ('이 시험은 ' + Number(data.qcount) + '문항이다. ') : '';
+  var text = hint + '유형 목록(이 중에서만 고를 것):\n- ' + types.join('\n- ') + '\n\n이 시험지의 문항별 유형을 JSON 배열로만 출력해라.';
+
+  var override = props.getProperty('GEMINI_DRAFT_MODEL');
+  var models = override ? [override].concat(AI_DRAFT_GEMINI_MODELS) : AI_DRAFT_GEMINI_MODELS;
+  var parts = [{ inline_data: { mime_type: mime, data: b64 } }, { text: text }];
+  var lastErr = '';
+  for (var i = 0; i < models.length; i++) {
+    var model = models[i];
+    try {
+      var res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
+        method: 'POST',
+        headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+        payload: JSON.stringify({
+          system_instruction: { parts: [{ text: AI_CLASSIFY_SYSTEM }] },
+          contents: [{ role: 'user', parts: parts }],
+          generationConfig: { maxOutputTokens: 4000, temperature: 0 }
+        }),
+        muteHttpExceptions: true
+      });
+      var code = res.getResponseCode();
+      var body = {};
+      try { body = JSON.parse(res.getContentText()); } catch (e) {}
+      if (code === 404) { lastErr = model + ': 모델 없음(404)'; continue; }
+      if (code !== 200) { lastErr = model + ': ' + ((body.error && body.error.message) || ('HTTP ' + code)); continue; }
+      var cand = (body.candidates || [])[0] || {};
+      var out = ((cand.content || {}).parts || [])
+        .filter(function(pt){ return pt.text && !pt.thought; })
+        .map(function(pt){ return pt.text; }).join('\n').trim();
+      if (!out) { lastErr = model + ': 응답 비어 있음'; continue; }
+      var m = out.match(/\[[\s\S]*\]/);
+      if (!m) { lastErr = model + ': JSON 배열을 못 찾음'; continue; }
+      var arr;
+      try { arr = JSON.parse(m[0]); } catch (e) { lastErr = model + ': JSON 파싱 실패'; continue; }
+      if (!Array.isArray(arr)) { lastErr = model + ': 배열 아님'; continue; }
+      var items = arr.map(function(r){
+        var q = parseInt(r && r.q, 10);
+        var c = String((r && r.category) || '').trim();
+        if (!q || q < 1 || q > 100 || !c) return null;
+        return { q: q, category: c };
+      }).filter(function(x){ return x; });
+      return { success: true, items: items, model: model };
+    } catch (e) { lastErr = model + ': ' + e; }
+  }
+  return { success: false, msg: 'AI 분류 실패 — ' + lastErr };
 }

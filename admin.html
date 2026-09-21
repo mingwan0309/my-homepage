@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=49"></script>
+<script src="firebase-api.js?v=50"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -306,6 +306,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           <div class="nav-item" onclick="showPage('reviewmanage',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">⭐</span> 후기 관리</div>
           <div class="nav-item" onclick="showPage('assistants',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">👩‍🏫</span> 조교 관리</div>
           <div class="nav-item" onclick="showPage('activitylog',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🕓</span> 활동 로그</div>
+          <div class="nav-item" onclick="showPage('problemtypes',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🏷</span> 문제 유형</div>
         </div>
       </div>
       <div class="ast-clockbar-block" style="display:none;margin-top:auto;padding:16px 14px;border-top:1px solid #334155;">
@@ -374,6 +375,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           <div class="nav-item" onclick="showPage('reviewmanage',this)"><span class="ni">⭐</span> 후기 관리</div>
           <div class="nav-item" onclick="showPage('assistants',this)"><span class="ni">👩‍🏫</span> 조교 관리</div>
           <div class="nav-item" onclick="showPage('activitylog',this)"><span class="ni">🕓</span> 활동 로그</div>
+          <div class="nav-item" onclick="showPage('problemtypes',this)"><span class="ni">🏷</span> 문제 유형</div>
         </div>
       </div>
     </nav>
@@ -681,6 +683,24 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <style>#overdue-bulk-bar button:disabled{opacity:.4;cursor:not-allowed;}</style>
         <div id="overdue-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
+    </div>
+
+    <!-- 문제 유형 (2026-09-21 추가) -->
+    <div id="page-problemtypes" class="page">
+      <div class="page-header"><div class="page-title">문제 유형</div></div>
+      <p style="font-size:12px;color:#94a3b8;margin:-10px 0 14px;line-height:1.6;">여기 등록한 유형이 시험 답안 등록 창의 "유형" 선택칸과 "🏷 시험지 올려서 유형 붙이기"(AI)에 쓰여요. 유형을 붙여둔 시험은 채점 결과가 학생별 <b>"자주 틀리는 유형"</b>으로 누적돼요(마이페이지 + 학생 상세). 이름은 "이차함수 최대·최소"처럼 구체적일수록 AI가 잘 골라요.</p>
+      <div style="background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,.05);margin-bottom:16px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          <div style="flex:1;min-width:200px;"><div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:4px;">유형 이름</div><input id="pt-name" placeholder="예) 이차함수 최대·최소" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:16px;font-family:inherit;"></div>
+          <div style="width:160px;"><div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:4px;">단원(선택)</div><input id="pt-group" placeholder="예) 수학 상" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:16px;font-family:inherit;"></div>
+          <button type="button" onclick="addProblemType()" style="min-height:44px;background:#1e293b;color:#fff;border:none;padding:0 18px;border-radius:9px;font-size:13.5px;font-weight:800;cursor:pointer;">+ 추가</button>
+        </div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:8px;">여러 개를 한 번에 넣으려면 아래 칸에 한 줄에 하나씩 붙여넣고 "일괄 추가"를 누르세요.</div>
+        <textarea id="pt-bulk" rows="3" placeholder="이차함수 최대·최소&#10;원의 방정식&#10;삼각함수 그래프" style="width:100%;box-sizing:border-box;margin-top:6px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:16px;font-family:inherit;resize:vertical;"></textarea>
+        <button type="button" onclick="addProblemTypesBulk()" style="margin-top:6px;min-height:40px;background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:0 14px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;">일괄 추가</button>
+        <div id="pt-msg" style="font-size:12.5px;margin-top:8px;min-height:16px;"></div>
+      </div>
+      <div id="pt-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
     </div>
 
     <!-- 활동 로그 -->
@@ -1330,7 +1350,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','astguide','astcheck','asttask','gamerank'];
+    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','problemtypes','astguide','astcheck','asttask','gamerank'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
@@ -1398,6 +1418,7 @@ function showPage(page,el){
   if(page==='gamerank') loadGameRank();
   if(page==='gamesettings') loadGameSettings();
   if(page==='typinggame') loadTypingSentenceList();
+  if(page==='problemtypes') loadProblemTypes();
   location.hash = page;
 }
 
@@ -1971,6 +1992,30 @@ function switchSdTab(tab,el){
   el.classList.add('active');
   renderSdTabBody();
 }
+// 성적 이력 탭 위에 "자주 틀리는 유형" 표 (2026-09-21 추가) — 마이페이지 카드와 같은 API(getWeakTypes)
+async function loadSdWeakTypes(){
+  var el=document.getElementById('sd-weak-types');
+  if(!el||!sdCurrentStu) return;
+  el.innerHTML='<div style="font-size:12px;color:#94a3b8;margin-bottom:8px;">📉 자주 틀리는 유형 계산 중...</div>';
+  try{
+    var r=await fetch(SU+'?action=getWeakTypes&studentId='+encodeURIComponent(sdCurrentStu.id)).then(function(x){return x.json();});
+    var types=r.types||[];
+    if(!types.length){ el.innerHTML='<div style="font-size:12px;color:#94a3b8;margin-bottom:10px;">📉 유형이 붙은 시험 채점 결과가 아직 없어요. (답안 등록에서 문항 유형을 붙이면 여기 집계돼요)</div>'; return; }
+    el.innerHTML='<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:10px 12px;margin-bottom:12px;">'
+      +'<div style="font-size:13px;font-weight:800;color:#6d28d9;margin-bottom:6px;">📉 자주 틀리는 유형</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:12.5px;">'
+      +'<thead><tr style="color:#64748b;text-align:left;"><th style="padding:4px 6px;">유형</th><th style="padding:4px 6px;text-align:right;white-space:nowrap;">틀림/전체</th><th style="padding:4px 6px;text-align:right;">오답률</th></tr></thead><tbody>'
+      +types.map(function(t){
+          var color=t.rate>=60?'#dc2626':(t.rate>=35?'#f59e0b':'#3b6cf7');
+          return '<tr style="border-top:1px solid #ede9fe;"><td style="padding:5px 6px;font-weight:700;color:#1e293b;">'+escHtml(t.name)+'</td><td style="padding:5px 6px;text-align:right;white-space:nowrap;">'+t.wrong+'/'+t.total+'</td><td style="padding:5px 6px;text-align:right;font-weight:800;color:'+color+';">'+t.rate+'%</td></tr>';
+        }).join('')
+      +'</tbody></table>'
+      +(r.exams&&r.exams.length?'<details style="margin-top:8px;"><summary style="font-size:12px;color:#7c3aed;cursor:pointer;">시험별 틀린 유형 보기</summary>'
+        +r.exams.map(function(e){ return '<div style="font-size:12px;color:#475569;padding:4px 0;border-top:1px solid #f1f5f9;"><b>'+escHtml(e.examName)+'</b> <span style="color:#94a3b8;">'+escHtml(e.date||'')+(e.sessLabel?' · '+escHtml(e.sessLabel):'')+'</span><br>'+(e.wrongCats.length?escHtml(e.wrongCats.join(', ')):'<span style="color:#16a34a;">전부 맞음</span>')+'</div>'; }).join('')
+        +'</details>':'')
+      +'</div>';
+  }catch(e){ el.innerHTML=''; }
+}
 function renderSdTabBody(){
   var body=document.getElementById('sd-tab-body');
   if(!sdHistory){ body.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>'; return; }
@@ -1996,10 +2041,11 @@ function renderSdTabBody(){
     var sc=sdHistory.scores;
     var scBad=sc.filter(function(s){ return s.pass==='nosub'||s.pass==='absent'; }).length;
     var scSummary=scBad>0?('<div style="background:#fef2f2;color:#dc2626;font-size:12.5px;font-weight:700;padding:8px 12px;border-radius:8px;margin-bottom:10px;">⚠️ 미통과·미응시 누적 '+scBad+'건</div>'):'';
-    body.innerHTML = scSummary + (sc.length ? sc.map(function(s){
+    body.innerHTML = scSummary + '<div id="sd-weak-types"></div>' + (sc.length ? sc.map(function(s){
       return '<div class="sd-hist-row"><span class="sd-hist-title">'+escHtml(s.examName)+'</span> — '+(s.pass==='submit'?'통과':s.pass==='nosub'?'미통과':s.pass==='absent'?'미응시':'-')+(s.score!==''?' ('+s.score+'점)':'')
         +'<div class="sd-hist-sub">'+escHtml(s.className||'')+(s.sessionNum?' · '+s.sessionNum+'차시':'')+(s.feedback?' · '+escHtml(s.feedback):'')+'</div></div>';
     }).join('') : '<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">성적 이력이 없어요.</div>');
+    loadSdWeakTypes();
   } else if(sdCurrentTab==='hw'){
     var hw=sdHistory.homework;
     var HW_LABEL={complete:'이행함',partial:'일부미이행',incomplete:'미이행',notsub:'미제출',na:'해당없음'};
@@ -4261,6 +4307,66 @@ function deleteGameBonusItem(i){
 
 // ── 미니게임(문장 빨리 쓰기) 문제관리 ──
 var tgSentences=[];
+// ── 문제 유형 관리 (2026-09-21 추가) ──
+var ptList=[];
+async function loadProblemTypes(){
+  var el=document.getElementById('pt-list');
+  try{
+    var r=await fetch(SU+'?action=getProblemTypes').then(function(r){return r.json();});
+    ptList=r.types||[];
+  }catch(e){ ptList=[]; }
+  if(!ptList.length){ el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:20px 0;text-align:center;">아직 등록된 유형이 없어요. 위에서 추가해주세요.</div>'; return; }
+  var groups={}, order=[];
+  ptList.forEach(function(t){ var g=t.group||'(단원 없음)'; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(t); });
+  el.innerHTML='<div style="font-size:12.5px;color:#64748b;margin-bottom:8px;">총 '+ptList.length+'개</div>'+order.map(function(g){
+    return '<div style="background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,.05);margin-bottom:10px;">'
+      +'<div style="font-size:13px;font-weight:800;color:#475569;margin-bottom:6px;">📚 '+escHtml(g)+' <span style="font-weight:600;color:#94a3b8;">'+groups[g].length+'</span></div>'
+      +groups[g].map(function(t){
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #f1f5f9;flex-wrap:wrap;">'
+          +'<span style="flex:1;min-width:160px;font-size:14px;font-weight:700;color:#1e293b;">'+escHtml(t.name)+'</span>'
+          +'<button type="button" onclick="editProblemType(\''+t.id+'\')" style="background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;min-height:36px;">✏️ 수정</button>'
+          +'<button type="button" onclick="deleteProblemType(\''+t.id+'\')" style="background:#fff;border:1.5px solid #fecaca;color:#dc2626;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;min-height:36px;">삭제</button>'
+          +'</div>';
+      }).join('')
+      +'</div>';
+  }).join('');
+}
+function ptMsg(text,isErr){ var m=document.getElementById('pt-msg'); m.style.color=isErr?'#dc2626':'#16a34a'; m.textContent=text; }
+async function addProblemType(){
+  var name=document.getElementById('pt-name').value.trim(), group=document.getElementById('pt-group').value.trim();
+  if(!name){ ptMsg('유형 이름을 입력해주세요.',true); return; }
+  if(ptList.some(function(t){return t.name===name;})){ ptMsg('이미 있는 유형이에요.',true); return; }
+  var r=await fetch(SU+'?action=addProblemType&name='+encodeURIComponent(name)+'&group='+encodeURIComponent(group)).then(function(r){return r.json();});
+  if(r.success){ document.getElementById('pt-name').value=''; ptMsg('추가됐어요!'); loadProblemTypes(); }
+  else ptMsg(r.msg||'추가 실패했어요.',true);
+}
+async function addProblemTypesBulk(){
+  var lines=document.getElementById('pt-bulk').value.split('\n').map(function(s){return s.trim();}).filter(function(s){return s;});
+  var group=document.getElementById('pt-group').value.trim();
+  if(!lines.length){ ptMsg('붙여넣은 내용이 없어요.',true); return; }
+  var added=0, skipped=0;
+  for(var i=0;i<lines.length;i++){
+    if(ptList.some(function(t){return t.name===lines[i];})){ skipped++; continue; }
+    var r=await fetch(SU+'?action=addProblemType&name='+encodeURIComponent(lines[i])+'&group='+encodeURIComponent(group)).then(function(r){return r.json();});
+    if(r.success) added++;
+  }
+  document.getElementById('pt-bulk').value='';
+  ptMsg(added+'개 추가'+(skipped?' · 이미 있던 '+skipped+'개는 건너뜀':''));
+  loadProblemTypes();
+}
+async function editProblemType(id){
+  var t=ptList.find(function(x){return x.id===id;}); if(!t) return;
+  var name=prompt('유형 이름', t.name); if(name===null) return;
+  var group=prompt('단원(비워도 됨)', t.group||''); if(group===null) return;
+  var r=await fetch(SU+'?action=updateProblemType&id='+encodeURIComponent(id)+'&name='+encodeURIComponent(name.trim())+'&group='+encodeURIComponent(group.trim())).then(function(r){return r.json();});
+  if(r.success) loadProblemTypes(); else alert(r.msg||'수정 실패');
+}
+async function deleteProblemType(id){
+  var t=ptList.find(function(x){return x.id===id;}); if(!t) return;
+  if(!confirm('"'+t.name+'" 유형을 삭제할까요?\n(이미 시험에 붙여둔 유형 이름은 그대로 남아요)')) return;
+  await fetch(SU+'?action=deleteProblemType&id='+encodeURIComponent(id));
+  loadProblemTypes();
+}
 async function addTypingSentence(){
   var t=document.getElementById('tg-text').value.trim();
   var msg=document.getElementById('tg-msg');

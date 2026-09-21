@@ -134,6 +134,14 @@
 ## 질의응답 사진 크게 보기 (2026-09-18 추가)
 사이트 전체가 `user-scalable=no`라 학생이 답변의 풀이 노트 사진을 확대할 수 없다는 지적("풀이 확대가 안 된다") → qna.html 맨 아래에 `#img-lb` 라이트박스 추가. `#detail-content`(질문 본문)/`#answer-section`(답변)/`#ai-draft-box`(AI 초안) 안의 `<img>`를 누르면 전체화면으로 열리고(드라이브 썸네일이면 `sz=w2400`으로 더 큰 해상도 요청), 열려 있는 동안만 viewport meta를 확대 가능으로 바꿔 **핀치줌 허용**(영상 모달의 `setViewportZoomable`과 같은 패턴), 닫으면 원복. "🔍 확대" 버튼/사진 탭으로 2.2배 확대(스크롤로 이동) 토글, ✕/배경 클릭/ESC로 닫힘. 편집 중인 입력창(`contenteditable`) 안 사진은 제외. 다른 페이지(class/mypage 자료 사진 등)에는 아직 안 넣음 — 필요하면 이 블록을 그대로 복사해서 대상 컨테이너 id만 바꾸면 됨.
 
+## 문제 유형 + 학생별 "자주 틀리는 유형" (2026-09-21 추가)
+학생마다 어떤 유형을 자주 틀리는지 누적해서 보여주기 위한 기능. 사용자 목적: "학생들 개별 누적으로 틀리는 유형 정리하고 알려주려고".
+- **유형 목록**: `problem_types` 컬렉션(name, group(단원, 선택), createdAt). admin.html "관리자 → 🏷 문제 유형" 페이지(교사 전용)에서 추가/일괄 추가(한 줄에 하나)/수정/삭제. `api.getProblemTypes`/`addProblemType`/`updateProblemType`/`deleteProblemType`. **Firestore 규칙 필요:** `match /problem_types/{id} { allow read: if request.auth != null; allow write: if isTeacher(); }`.
+- **문항에 유형 붙이기**: session.html 답안 등록 창 각 문항 줄에 "유형" 드롭다운(`setAkCategory`, `akRows[].category` → `exam_keys.answerKey[].category`). "⚡ 한번에 넣기" 안 ③ **"🏷 시험지 사진/PDF 올려서 유형 붙이기"**(`akClassifyFromFile` → Code.gs `aiClassifyExam`, Gemini)가 등록된 유형 목록을 그대로 넘겨서 문항마다 목록 중 하나를 고르게 함 — **목록에 없는 이름은 버림**, 채워만 주고 선생님이 확인 후 저장. 저장 시 `api.setExamAnswerKey`가 정답이 아닌 유형 이름만 **`exams.questionCategories`(배열, 문항 순서)**로 공개해서 학생 화면도 읽을 수 있게 함.
+- **오답 기록**: `gradeWithAnswerKey`(session.html)가 `wrong`(틀린 문항 번호 배열, 주관식 직접채점 문항 제외)을 같이 돌려주고, 폰 응시 자동채점 2곳·OMR 저장이 `setScore`에 `wrongQuestions`로 넘김 → `scores.wrongQuestions`. 옛 폰 응시 기록은 `exam_submissions.selfWrongQuestions`로 대체 집계.
+- **집계/표시**: `api.getWeakTypes(db,{studentId})`가 학생 scores 전체 + 해당 exams의 questionCategories로 유형별 {total, wrong, rate} + 시험별 틀린 유형 목록을 계산(유형 안 붙은 시험·오답 기록 없는 채점은 제외). mypage.html 출결 카드 아래 **"📉 자주 틀리는 유형" 카드**(`loadWeakTypes`, 틀린 게 있을 때만 노출, 상위 6개 막대) / admin.html 학생 상세 패널 **성적 이력 탭 상단 표**(`loadSdWeakTypes`, 시험별 상세는 접힘). firebase-api v50.
+- 이전에 만든 시험은 유형이 없으니 집계에 안 잡힘 — 답안 등록 창에서 유형만 붙여 저장하면 그 시험의 기존 채점(wrongQuestions가 있는 것)도 바로 집계됨. 단 wrongQuestions는 이 기능 이후 채점분부터 저장되므로 옛 OMR 채점은 다시 저장해야 잡힘.
+
 ## 차시 이름 (2026-08-19 추가)
 `sessions` 문서에 `label`(선택) 필드 추가. 원래 차시는 항상 "N차시"로만 표시됐는데, class.html 차시 칩이나 session.html 상단 드롭다운의 연필(✏️) 아이콘으로 교사/조교가 직접 표시 이름을 지정할 수 있음(`api.updateSession`, 예: "2차시" → "2차시 개념정리"). **비워두면 다시 자동으로 "N차시"로 돌아감.** 이 이름은 목록뿐 아니라 화면 제목, document.title, 수업 결과 알림톡의 {차시} 토큰, 학생 상세 이력(출결/성적), 시험/과제 참고 목록 등 사람이 보는 곳 전부에 반영됨 — `sessLabel(s)` 헬퍼(`s.label || s.sessionNum+'차시'`)로 통일해서 처리. 단 `sessionNum`(숫자) 자체는 정렬·직전 차시 찾기 등 내부 로직용으로 그대로 유지되고 이름 설정과 무관.
 

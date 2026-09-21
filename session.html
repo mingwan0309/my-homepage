@@ -1,10 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>차시 — 김민관 수학</title>
-<script src="firebase-api.js?v=49"></script>
+<script src="firebase-api.js?v=50"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -576,6 +576,9 @@ tr:hover td{background:#fafbff;}
         <div style="font-size:12px;font-weight:700;color:#475569;margin:12px 0 4px;">② 정답표 사진/PDF로 채우기 <span style="font-weight:500;color:#94a3b8;">(AI가 읽어요 — 채워진 뒤 꼭 한번 확인)</span></div>
         <input type="file" id="ak-file" accept="image/*,application/pdf" style="display:none;" onchange="akReadFromFile(this)">
         <button type="button" id="ak-file-btn" onclick="document.getElementById('ak-file').click()" style="width:100%;min-height:38px;background:#fff;border:1.5px solid #3b6cf7;color:#3b6cf7;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">📷 정답표 사진/PDF 올리기</button>
+        <div style="font-size:12px;font-weight:700;color:#475569;margin:12px 0 4px;">③ 시험지로 문항별 유형 자동 분류 <span style="font-weight:500;color:#94a3b8;">(관리 페이지 "문제 유형"에 등록한 목록 중에서 AI가 골라요)</span></div>
+        <input type="file" id="ak-cat-file" accept="image/*,application/pdf" style="display:none;" onchange="akClassifyFromFile(this)">
+        <button type="button" id="ak-cat-btn" onclick="document.getElementById('ak-cat-file').click()" style="width:100%;min-height:38px;background:#fff;border:1.5px solid #7c3aed;color:#6d28d9;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">🏷 시험지 사진/PDF 올려서 유형 붙이기</button>
         <div id="ak-quick-msg" style="font-size:12px;color:#64748b;margin-top:6px;min-height:16px;"></div>
       </div>
     </details>
@@ -1012,7 +1015,7 @@ async function autoGradeSubmission(docId, s){
     var g=gradeWithAnswerKey(s.answers||{}, key, s.manualScores);
     var cutoff0=getEffectiveCutoff(ex);
     var pass=(cutoff0!=null)?(Number(g.score)>=cutoff0?'submit':'nosub'):'';
-    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(s.examId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=&examLeaveCount='+encodeURIComponent(s.leaveCount||0)+'&examLeaveLog='+encodeURIComponent(JSON.stringify(s.leaveLog||[]))).then(function(r){return r.json();});
+    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(s.examId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=&examLeaveCount='+encodeURIComponent(s.leaveCount||0)+'&examLeaveLog='+encodeURIComponent(JSON.stringify(s.leaveLog||[]))+'&wrongQuestions='+encodeURIComponent(JSON.stringify(g.wrong||[]))).then(function(r){return r.json();});
     await fetch(SU+'?action=markSubmissionGraded&id='+encodeURIComponent(docId));
     await loadScores();
     renderScores();
@@ -2920,7 +2923,7 @@ async function gradeSubmissions(showAlert){
       var g=gradeWithAnswerKey(s.answers||{}, key, s.manualScores);
       var cutoff5=getEffectiveCutoff(ex);
       var pass=(cutoff5!=null)?(Number(g.score)>=cutoff5?'submit':'nosub'):'';
-      await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId||sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=&examLeaveCount='+encodeURIComponent(s.leaveCount||0)+'&examLeaveLog='+encodeURIComponent(JSON.stringify(s.leaveLog||[]))).then(function(r){return r.json();});
+      await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(s.sessionId||sessionId)+'&studentId='+encodeURIComponent(s.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(g.score)+'&pass='+encodeURIComponent(pass)+'&feedback=&examLeaveCount='+encodeURIComponent(s.leaveCount||0)+'&examLeaveLog='+encodeURIComponent(JSON.stringify(s.leaveLog||[]))+'&wrongQuestions='+encodeURIComponent(JSON.stringify(g.wrong||[]))).then(function(r){return r.json();});
       await fetch(SU+'?action=markSubmissionGraded&id='+encodeURIComponent(s.id));
     }
     await loadScores();
@@ -2950,6 +2953,7 @@ async function openAnswerKeyModal(){
   // 새 시험인데 예전 답이 그대로 남아있는 것처럼 보이는 버그가 있었음(2026-09-06 신고).
   if(akRowsExamId!==currentExamId){ akRows=[]; }
   akRowsExamId=currentExamId;
+  await loadAkTypes();
   var saved=await fetchExamKey(currentExamId);
   // 저장을 안 누른 상태에서 열 수도 있으므로, 화면에 입력돼 있는 값을 우선으로 읽는다
   akIsCount=(currentScoreType==='count');
@@ -2977,7 +2981,7 @@ function buildAkRows(qcount, saved, ex){
   akRows=[];
   for(var q=1;q<=qcount;q++){
     var found=(saved&&saved.find(function(r){return r.q===q;})) || prev.find(function(r){return r.q===q;});
-    akRows.push({ q:q, type: found&&found.type?found.type:'mc', correct: found?found.correct:null, points: akIsCount?1:(found&&found.points!=null?found.points:defaultPt) });
+    akRows.push({ q:q, type: found&&found.type?found.type:'mc', correct: found?found.correct:null, points: akIsCount?1:(found&&found.points!=null?found.points:defaultPt), category: (found&&found.category)||'' });
   }
 }
 function changeAkQCount(val){
@@ -3017,11 +3021,18 @@ function renderAnswerKeyRows(){
     var ptCell = akIsCount ? ''
       : '<input type="number" step="0.1" value="'+r.points+'" onchange="setAkPoints('+r.q+',this.value)" style="width:60px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;text-align:center;">'
         +'<span style="font-size:12px;color:#94a3b8;">점</span>';
+    // 문항 유형(정답 아님) — 관리 페이지 "문제 유형"에 등록한 목록에서 고름. 학생별 "자주 틀리는 유형" 집계에 씀
+    var catCell='<select onchange="setAkCategory('+r.q+',this.value)" title="문항 유형" style="max-width:150px;padding:5px 6px;border:1.5px solid '+(r.category?'#c4b5fd':'#e2e8f0')+';border-radius:7px;font-size:11.5px;color:'+(r.category?'#5b21b6':'#94a3b8')+';background:'+(r.category?'#f5f3ff':'#fff')+';font-family:inherit;">'
+      +'<option value="">유형 없음</option>'
+      +akTypes.map(function(t){ return '<option value="'+escHtmlAk(t.name)+'"'+(t.name===r.category?' selected':'')+'>'+escHtmlAk(t.name)+'</option>'; }).join('')
+      +(r.category && !akTypes.some(function(t){return t.name===r.category;}) ? '<option value="'+escHtmlAk(r.category)+'" selected>'+escHtmlAk(r.category)+'</option>' : '')
+      +'</select>';
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;">'
       +'<span style="width:22px;font-size:13px;font-weight:700;color:#64748b;">'+r.q+'</span>'
       +typeToggle
       +answerCell
       +ptCell
+      +catCell
       +'<button type="button" onclick="setAkCorrect('+r.q+',null)" style="margin-left:auto;background:#f1f5f9;border:none;color:#94a3b8;font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;">제외</button>'
       +(isShort?('<div style="width:100%;font-size:11px;color:#f59e0b;">⚠ 주관식 문항은 OMR 스캔 채점 대상이 아니에요(폰 응시만 지원)'
         +(akIsManualQuestion(r)?' · 정답이 문자라 자동채점 안 되고, 성적 패널에서 직접 점수를 매겨야 해요(부분점수 가능)':'')
@@ -3119,6 +3130,56 @@ async function akReadFromFile(input){
     akApplyParsed(r.answers||[], 'AI가 읽어서');
   }catch(e){ akQuickMsg('❌ 오류: '+e.message, true); }
   finally{ btn.disabled=false; btn.textContent='📷 정답표 사진/PDF 올리기'; }
+}
+// ── 문항 유형 (2026-09-21 추가) ──
+var akTypes=[];
+async function loadAkTypes(){
+  try{
+    var r=await fetch(SU+'?action=getProblemTypes').then(function(r){return r.json();});
+    akTypes=r.types||[];
+  }catch(e){ akTypes=[]; }
+}
+function setAkCategory(q,val){
+  var r=akRows.find(function(x){return x.q===q;});
+  if(!r) return;
+  r.category=String(val||'');
+  renderAnswerKeyRows();
+}
+// 시험지 사진/PDF를 올리면 AI가 문항마다 등록된 유형 목록 중 하나를 골라줌 → 채워만 주고 선생님이 확인 후 저장
+async function akClassifyFromFile(input){
+  var f=input.files&&input.files[0];
+  if(!f) return;
+  input.value='';
+  if(!akTypes.length){ akQuickMsg('❌ 먼저 관리 페이지 → 문제 유형에서 유형을 등록해주세요.', true); return; }
+  if(f.size>8*1024*1024){ akQuickMsg('❌ 8MB 이하로 올려주세요.', true); return; }
+  var btn=document.getElementById('ak-cat-btn');
+  btn.disabled=true; btn.textContent='🤖 AI가 문항별 유형을 고르는 중… (20~60초)';
+  akQuickMsg('시험지를 읽고 있어요…');
+  try{
+    var b64=await new Promise(function(res,rej){
+      var fr=new FileReader();
+      fr.onload=function(){ res(String(fr.result).split(',')[1]||''); };
+      fr.onerror=rej;
+      fr.readAsDataURL(f);
+    });
+    var r=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'aiClassifyExam', fileData:b64, mimeType:f.type||'image/jpeg', qcount:akRows.length, types:akTypes.map(function(t){return t.name;})})
+    }).then(function(r){return r.json();});
+    if(!r||!r.success){ akQuickMsg('❌ '+((r&&r.msg)||'분류 실패'), true); return; }
+    var list=r.items||[], filled=0, unknown=0;
+    var maxQ=list.reduce(function(m,x){return Math.max(m,Number(x.q)||0);},0);
+    if(maxQ>akRows.length) changeAkQCount(maxQ);
+    list.forEach(function(it){
+      var row=akRows.find(function(x){return x.q===Number(it.q);});
+      if(!row) return;
+      var name=String(it.category||'').trim();
+      if(!name || !akTypes.some(function(t){return t.name===name;})){ unknown++; return; }
+      row.category=name; filled++;
+    });
+    renderAnswerKeyRows();
+    akQuickMsg('✅ '+filled+'문항에 유형을 붙였어요'+(unknown?' (목록에 없는 유형/불확실 '+unknown+'문항은 비워둠)':'')+'. 확인하고 저장을 눌러주세요.');
+  }catch(e){ akQuickMsg('❌ 오류: '+e.message, true); }
+  finally{ btn.disabled=false; btn.textContent='🏷 시험지 사진/PDF 올려서 유형 붙이기'; }
 }
 function setAkType(q,type){
   var r=akRows.find(function(x){return x.q===q;});
@@ -3607,15 +3668,17 @@ function akIsManualQuestion(r){
 }
 // manualScores: {q: 선생님이 직접 매긴 점수} — 아직 안 매겼으면 그 문항은 0점으로 반영(패널에서 나중에 더할 수 있음)
 function gradeWithAnswerKey(answers, answerKey, manualScores){
-  var score=0, total=0;
+  var score=0, total=0, wrong=[];
   manualScores=manualScores||{};
   (answerKey||[]).forEach(function(r){
     if(r.correct==null) return;
     total += Number(r.points)||0;
     if(akIsManualQuestion(r)){ score += Number(manualScores[r.q])||0; return; }
     if(akAnswerMatches(answers[r.q], r.correct, r.type)) score += Number(r.points)||0;
+    else wrong.push(r.q);
   });
-  return { score:Math.round(score*10)/10, total:Math.round(total*10)/10 };
+  // wrong: 자동채점에서 틀린 문항 번호(주관식 직접채점 문항은 제외) — "자주 틀리는 유형" 집계용으로 scores에 같이 저장
+  return { score:Math.round(score*10)/10, total:Math.round(total*10)/10, wrong:wrong };
 }
 
 var omrResultList=[];
@@ -3668,7 +3731,7 @@ async function handleOmrFiles(fileList){
         ok:true, fileName:files[fi2].name, pageNum:pi+1,
         phone:sheet.phone, answers:sheet.answers,
         studentId: student?student.id:null, studentName: student?student.name:null,
-        score:graded.score, total:graded.total
+        score:graded.score, total:graded.total, wrong:graded.wrong||[]
       });
     }
   }
@@ -3731,7 +3794,7 @@ async function saveOmrResults(){
     if(cutoff6!=null){
       pass = finalScore>=cutoff6 ? 'submit' : 'nosub';
     }
-    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(r.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(finalScore)+'&pass='+encodeURIComponent(pass)+'&objectiveScore='+encodeURIComponent(r.score)+'&omrAnswers='+encodeURIComponent(JSON.stringify(r.answers||{})));
+    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(r.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(finalScore)+'&pass='+encodeURIComponent(pass)+'&objectiveScore='+encodeURIComponent(r.score)+'&omrAnswers='+encodeURIComponent(JSON.stringify(r.answers||{}))+'&wrongQuestions='+encodeURIComponent(JSON.stringify(r.wrong||[])));
   }
   await loadScores();
   alert('저장 완료! '+toSave.length+'명 성적이 반영됐어요.'+(shortQs.length?'\n\n주관식/서술형 '+shortQs.length+'문항은 자동채점되지 않았어요. 성적 표에서 학생 칸을 눌러 "주관식/서술형 점수 입력"에 점수를 넣으면 합산돼요.':''));
