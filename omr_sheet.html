@@ -50,7 +50,8 @@ var L = {
   // 가운데 열: 객관식 1~20
   ans:{ hdY:38, hdH:5, qnX:74, qnW:6, col0:84, colStep:6.2, row0:46, rowStep:7.4, bub:3.8, boxX:72, boxW:40 },
   // 오른쪽: 서술형 6문항 (풀이 칸 + 점수입력 정수줄/소수줄)
-  essay:{ hdY:38, hdH:5, boxX:116, boxW:170, rowTop0:44, rowH:25, n:6, qnW:7, scoreX:236, scoreLblW:9, scol0:247, scolStep:3.8, sbub:3.2, intOff:8, decOff:17 }
+  // 점수입력: 정수 2줄(0~4 / 5~9) + 소수 2줄(0~4 / 5~9) — 칸을 좁게 해서 풀이 칸을 넓힘
+  essay:{ hdY:38, hdH:5, boxX:116, boxW:170, rowTop0:44, rowH:25, n:6, qnW:7, scoreX:258, scoreLblW:7, scol0:266.8, scolStep:4.0, sbub:3.3, lineOff:[4.2,9.2,15.6,20.6] }
 };
 var P=document.getElementById('page');
 function el(cls, style, html){ var d=document.createElement('div'); d.className=cls; d.style.cssText=style; if(html!=null) d.innerHTML=html; P.appendChild(d); return d; }
@@ -65,12 +66,12 @@ var mi=L.marker.inset, ms=L.marker.size, pw=L.page.w, ph=L.page.h;
 el('idbar','left:'+mm(L.idbar.x)+';top:'+mm(L.idbar.y)+';width:'+mm(L.idbar.w)+';height:'+mm(L.idbar.h)+';');
 
 // 상단: 로고 + 제목 + 안내
-el('abs','left:16mm;top:15mm;height:14mm;', '<img src="logo.png" style="height:14mm;display:block;">');
-el('abs','left:0;right:0;top:20mm;text-align:center;font-size:5.2mm;font-weight:900;letter-spacing:1.5mm;color:#111;', '답 안 지');
-el('txt','left:16mm;top:32mm;width:52mm;',
-  '1. 반드시 <b>검정색 사인펜</b>으로 표기해 주세요.<br>'
- +'2. 정답 마킹 이외의 공간에 낙서하지 마세요.<br>'
- +'3. 표기란에는 <b>●</b>와 같이 바르게 채워주세요.');
+el('abs','left:16mm;top:14mm;height:13mm;', '<img src="logo.png" style="height:13mm;display:block;">');
+el('txt','left:16mm;top:29mm;width:54mm;font-size:2.5mm;line-height:1.4;',
+  '1. 반드시 검정색 사인펜으로 표기해야 합니다.<br>'
+ +'2. 정답 마킹 이외의 공간에 낙서를 하시면 안됩니다.<br>'
+ +'3. 표기란에는 ● 와 같이 바르게 표기해야 합니다.<br>'
+ +'<span style="display:inline-block;margin-top:0.8mm;">※ 잘못된 표기 예시 &nbsp;◐ ◑ ◒ ◓ ⊘ ⊗ ◉</span>');
 
 // 학교 / 시험 / 성명
 ['학교','시험','성명'].forEach(function(t,i){
@@ -133,20 +134,22 @@ for(var i=1;i<=E.n;i++){
   var rowTop=E.rowTop0+(i-1)*E.rowH;
   if(i>1) el('thin','left:'+mm(E.boxX)+';top:'+mm(rowTop)+';width:'+mm(E.boxW)+';height:0.3mm;');
   el('qn','left:'+mm(E.boxX)+';top:'+mm(rowTop)+';width:'+mm(E.qnW)+';height:'+mm(E.rowH)+';font-size:3.4mm;', String(i));
-  // 점수입력: 정수 줄 / 소수 줄
-  var yInt=rowTop+E.intOff, yDec=rowTop+E.decOff;
-  el('lbl','left:'+mm(E.scoreX+1)+';top:'+mm(yInt-2.5)+';width:'+mm(E.scoreLblW)+';height:5mm;font-size:2.4mm;color:#444;', '정수');
-  el('lbl','left:'+mm(E.scoreX+1)+';top:'+mm(yDec-2.5)+';width:'+mm(E.scoreLblW)+';height:5mm;font-size:2.4mm;color:#444;', '소수 .');
-  for(var s=0;s<=9;s++){
-    var sx=E.scol0+s*E.scolStep;
-    el('bub','left:'+mm(sx-E.sbub/2)+';top:'+mm(yInt-E.sbub/2)+';width:'+mm(E.sbub)+';height:'+mm(E.sbub)+';font-size:1.9mm;', String(s));
-    el('bub','left:'+mm(sx-E.sbub/2)+';top:'+mm(yDec-E.sbub/2)+';width:'+mm(E.sbub)+';height:'+mm(E.sbub)+';font-size:1.9mm;', String(s));
+  // 점수입력: 정수(0~4 / 5~9 두 줄) + 소수(0~4 / 5~9 두 줄)
+  var lines=E.lineOff;
+  el('lbl','left:'+mm(E.scoreX+0.8)+';top:'+mm(rowTop+lines[0]-2.5)+';width:'+mm(E.scoreLblW)+';height:'+mm(lines[1]-lines[0]+5)+';font-size:2.3mm;color:#444;', '정수');
+  el('lbl','left:'+mm(E.scoreX+0.8)+';top:'+mm(rowTop+lines[2]-2.5)+';width:'+mm(E.scoreLblW)+';height:'+mm(lines[3]-lines[2]+5)+';font-size:2.3mm;color:#444;', '소수');
+  el('thin','left:'+mm(E.scoreX+1.5)+';top:'+mm(rowTop+(lines[1]+lines[2])/2)+';width:'+mm(E.boxX+E.boxW-E.scoreX-3)+';height:0.15mm;background:#bbb;');
+  for(var ln=0;ln<4;ln++){
+    var yl=rowTop+lines[ln], base=(ln%2)*5;
+    for(var s=0;s<5;s++){
+      var sx=E.scol0+s*E.scolStep;
+      el('bub','left:'+mm(sx-E.sbub/2)+';top:'+mm(yl-E.sbub/2)+';width:'+mm(E.sbub)+';height:'+mm(E.sbub)+';font-size:2mm;', String(base+s));
+    }
   }
 }
-el('txt','left:'+mm(E.scoreX)+';top:'+mm(E.rowTop0+essayH+1)+';width:'+mm(E.boxX+E.boxW-E.scoreX)+';font-size:2.2mm;color:#555;', '※ 점수입력은 채점자 기록용 · 예) 3.5점 → 정수 3, 소수 5');
+el('txt','left:'+mm(E.boxX)+';top:'+mm(E.rowTop0+essayH+1)+';width:120mm;font-size:2.2mm;color:#555;', '※ 점수입력은 채점자 기록용 · 예) 3.5점 → 정수 3, 소수 5');
 
 // 하단: 로고(왼쪽) + 문구(오른쪽)
-el('abs','left:16mm;top:200.5mm;height:7mm;', '<img src="logo.png" style="height:7mm;display:block;">');
 el('abs','right:16mm;top:202.5mm;font-size:3mm;font-weight:700;color:#222;', '못하는 건 키즈모델뿐');
 
 // ─── 인식용 좌표 계산 (마커 중심 사각형 기준 0~1 비율) ───
@@ -159,7 +162,7 @@ var CAL={
   acol0:u(A.col0), acolStep:du(A.colStep), arow0:v(A.row0), arowStep:dv(A.rowStep),
   pcolA0:u(Pn.gA+Pn.cellW/2), pcolAStep:du(Pn.cellW), pcolB0:u(Pn.gB+Pn.cellW/2), pcolBStep:du(Pn.cellW),
   prow0:v(Pn.row0), prowStep:dv(Pn.rowStep),
-  scol0:u(E.scol0), scolStep:du(E.scolStep), sIntRow0:v(E.rowTop0+E.intOff), sDecRow0:v(E.rowTop0+E.decOff), sRowStep:dv(E.rowH), sCount:E.n,
+  scol0:u(E.scol0), scolStep:du(E.scolStep), sLines:E.lineOff.map(function(o){ return v(E.rowTop0+o); }), sRowStep:dv(E.rowH), sCount:E.n,
   idBar:{ u:u(L.idbar.x+L.idbar.w/2), v:v(L.idbar.y+L.idbar.h/2), halfW:du(L.idbar.w/2) },
   sampleR:du(1.2)
 };
