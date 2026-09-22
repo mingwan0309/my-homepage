@@ -46,7 +46,7 @@ var L = {
   idbar:{ x:135, y:15.5, w:27, h:2.5 },    // 시트 종류 막대 (중심 148.5, 16.75)
   // 왼쪽 열: 정보 + 부모님 전화번호
   info:{ x:16, w:50, y:52, rowH:6 },       // 학교/시험/성명 3줄
-  phone:{ labelY:74, writeY:81, writeH:7, cellW:5.5, gA:17.5, gB:42.5, row0:92, rowStep:5.6, bub:3.6 },
+  phone:{ labelY:74, writeY:81, writeH:7, cellW:5.5, gA:16, gB:44, row0:92, rowStep:5.6, bub:3.6 },
   // 가운데 열: 객관식 1~20
   ans:{ hdY:38, hdH:5, qnX:74, qnW:6, col0:84, colStep:6.2, row0:46, rowStep:7.4, bub:3.8, boxX:72, boxW:40 },
   // 오른쪽: 서술형 6문항 (풀이 칸 + 점수입력 정수줄/소수줄)
@@ -89,14 +89,9 @@ el('hd','left:'+mm(L.info.x+0.3)+';top:'+mm(Pn.labelY+0.3)+';width:'+mm(L.info.w
 el('thin','left:'+mm(L.info.x)+';top:'+mm(Pn.labelY+6)+';width:'+mm(L.info.w)+';height:0.3mm;');
 el('thin','left:'+mm(L.info.x)+';top:'+mm(Pn.writeY+Pn.writeH)+';width:'+mm(L.info.w)+';height:0.3mm;');
 // 열 사이 점선(각 그룹 안 4칸) 
-for(var g0=0; g0<2; g0++){ for(var k0=1;k0<4;k0++){ var lx=(g0===0?Pn.gA:Pn.gB)+k0*Pn.cellW; el('thin','left:'+mm(lx)+';top:'+mm(Pn.writeY+Pn.writeH)+';width:0;height:'+mm(phoneBottom-(Pn.writeY+Pn.writeH))+';border-left:0.2mm dashed #aaa;background:none;'); } }
+for(var g0=0; g0<2; g0++){ for(var k0=1;k0<4;k0++){ var lx=(g0===0?Pn.gA:Pn.gB)+k0*Pn.cellW; el('thin','left:'+mm(lx)+';top:'+mm(Pn.labelY+6)+';width:0;height:'+mm(phoneBottom-(Pn.labelY+6))+';border-left:0.2mm dashed #888;background:none;'); } }
 // 숫자 적는 칸 8개
-for(var g=0; g<2; g++){
-  for(var k=0;k<4;k++){
-    var cx=(g===0?Pn.gA:Pn.gB)+k*Pn.cellW;
-    el('box','left:'+mm(cx)+';top:'+mm(Pn.writeY)+';width:'+mm(Pn.cellW)+';height:'+mm(Pn.writeH)+';border-width:0.2mm;');
-  }
-}
+// 쓰는 칸은 별도 상자 없이, 열 구분선이 제목 아래부터 끝까지 이어져서 칸을 만듦(원본과 동일)
 el('lbl','left:'+mm(Pn.gA+4*Pn.cellW)+';top:'+mm(Pn.writeY)+';width:'+mm(Pn.gB-(Pn.gA+4*Pn.cellW))+';height:'+mm(Pn.writeH)+';justify-content:center;font-size:3.5mm;', '-');
 // 마킹 0~9
 for(var g2=0; g2<2; g2++){
@@ -109,8 +104,8 @@ for(var g2=0; g2<2; g2++){
   }
 }
 // 앞 4자리 / 뒤 4자리 사이 실선 2개(가운데 '-' 칸을 만듦)
-el('thin','left:'+mm(Pn.gA+4*Pn.cellW)+';top:'+mm(Pn.writeY+Pn.writeH)+';width:0.25mm;height:'+mm(phoneBottom-(Pn.writeY+Pn.writeH))+';background:#555;');
-el('thin','left:'+mm(Pn.gB)+';top:'+mm(Pn.writeY+Pn.writeH)+';width:0.25mm;height:'+mm(phoneBottom-(Pn.writeY+Pn.writeH))+';background:#555;');
+el('thin','left:'+mm(Pn.gA+4*Pn.cellW)+';top:'+mm(Pn.labelY+6)+';width:0.25mm;height:'+mm(phoneBottom-(Pn.labelY+6))+';background:#555;');
+el('thin','left:'+mm(Pn.gB)+';top:'+mm(Pn.labelY+6)+';width:0.25mm;height:'+mm(phoneBottom-(Pn.labelY+6))+';background:#555;');
 el('lbl','left:'+mm(Pn.gA+4*Pn.cellW)+';top:'+mm(Pn.row0+4.5*Pn.rowStep-2.5)+';width:'+mm(Pn.gB-(Pn.gA+4*Pn.cellW))+';height:5mm;justify-content:center;font-size:3mm;', '-');
 
 // 객관식
