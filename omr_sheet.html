@@ -74,16 +74,22 @@ el('txt','left:16mm;top:29mm;width:54mm;font-size:2.5mm;line-height:1.4;',
  +'<span style="display:inline-block;margin-top:0.8mm;">※ 잘못된 표기 예시 &nbsp;◐ ◑ ◒ ◓ ⊘ ⊗ ◉</span>');
 
 // 학교 / 시험 / 성명
+el('box','left:'+mm(L.info.x)+';top:'+mm(L.info.y)+';width:'+mm(L.info.w)+';height:'+mm(3*L.info.rowH)+';border-radius:1.5mm;');
 ['학교','시험','성명'].forEach(function(t,i){
   var y=L.info.y+i*L.info.rowH;
-  el('box','left:'+mm(L.info.x)+';top:'+mm(y)+';width:'+mm(L.info.w)+';height:'+mm(L.info.rowH)+';');
-  el('hd','left:'+mm(L.info.x)+';top:'+mm(y)+';width:11mm;height:'+mm(L.info.rowH)+';font-size:2.9mm;', t);
+  if(i>0) el('thin','left:'+mm(L.info.x)+';top:'+mm(y)+';width:'+mm(L.info.w)+';height:0.3mm;');
+  el('hd','left:'+mm(L.info.x+0.3)+';top:'+mm(y+(i?0.3:0.3))+';width:10.7mm;height:'+mm(L.info.rowH-0.6)+';font-size:2.9mm;border:0;'+(i===0?'border-radius:1.2mm 0 0 0;':'')+(i===2?'border-radius:0 0 0 1.2mm;':''), t);
 });
 
 // 부모님 전화번호
 var Pn=L.phone;
-el('hd','left:'+mm(L.info.x)+';top:'+mm(Pn.labelY)+';width:'+mm(L.info.w)+';height:6mm;', '부모님 전화번호');
-el('box','left:'+mm(L.info.x)+';top:'+mm(Pn.labelY)+';width:'+mm(L.info.w)+';height:'+mm(Pn.writeY-Pn.labelY+Pn.writeH)+';');
+var phoneBottom=Pn.row0+9*Pn.rowStep+Pn.bub/2+2;
+el('box','left:'+mm(L.info.x)+';top:'+mm(Pn.labelY)+';width:'+mm(L.info.w)+';height:'+mm(phoneBottom-Pn.labelY)+';border-radius:1.5mm;');
+el('hd','left:'+mm(L.info.x+0.3)+';top:'+mm(Pn.labelY+0.3)+';width:'+mm(L.info.w-0.6)+';height:5.7mm;border:0;border-radius:1.2mm 1.2mm 0 0;', '부모님 전화번호');
+el('thin','left:'+mm(L.info.x)+';top:'+mm(Pn.labelY+6)+';width:'+mm(L.info.w)+';height:0.3mm;');
+el('thin','left:'+mm(L.info.x)+';top:'+mm(Pn.writeY+Pn.writeH)+';width:'+mm(L.info.w)+';height:0.3mm;');
+// 열 사이 점선(각 그룹 안 4칸) 
+for(var g0=0; g0<2; g0++){ for(var k0=1;k0<4;k0++){ var lx=(g0===0?Pn.gA:Pn.gB)+k0*Pn.cellW; el('thin','left:'+mm(lx)+';top:'+mm(Pn.writeY+Pn.writeH)+';width:0;height:'+mm(phoneBottom-(Pn.writeY+Pn.writeH))+';border-left:0.2mm dashed #aaa;background:none;'); } }
 // 숫자 적는 칸 8개
 for(var g=0; g<2; g++){
   for(var k=0;k<4;k++){
@@ -102,8 +108,10 @@ for(var g2=0; g2<2; g2++){
     }
   }
 }
-// 4자리 사이 구분 점선
-el('thin','left:'+mm(Pn.gA+4*Pn.cellW+ (Pn.gB-(Pn.gA+4*Pn.cellW))/2 )+';top:'+mm(Pn.row0-Pn.bub)+';width:0.2mm;height:'+mm(9*Pn.rowStep+Pn.bub*2)+';background:#bbb;');
+// 앞 4자리 / 뒤 4자리 사이 실선 2개(가운데 '-' 칸을 만듦)
+el('thin','left:'+mm(Pn.gA+4*Pn.cellW)+';top:'+mm(Pn.writeY+Pn.writeH)+';width:0.25mm;height:'+mm(phoneBottom-(Pn.writeY+Pn.writeH))+';background:#555;');
+el('thin','left:'+mm(Pn.gB)+';top:'+mm(Pn.writeY+Pn.writeH)+';width:0.25mm;height:'+mm(phoneBottom-(Pn.writeY+Pn.writeH))+';background:#555;');
+el('lbl','left:'+mm(Pn.gA+4*Pn.cellW)+';top:'+mm(Pn.row0+4.5*Pn.rowStep-2.5)+';width:'+mm(Pn.gB-(Pn.gA+4*Pn.cellW))+';height:5mm;justify-content:center;font-size:3mm;', '-');
 
 // 객관식
 var A=L.ans;
