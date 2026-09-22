@@ -539,7 +539,11 @@ tr:hover td{background:#fafbff;}
       <h3 style="margin:0;">OMR 업로드 · 자동채점</h3>
       <button onclick="document.getElementById('omr-modal').classList.remove('show')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">✕</button>
     </div>
-    <p style="font-size:12px;color:#94a3b8;margin:0 0 14px;">복사기로 스캔한 OMR 파일(PDF/JPG/PNG, 여러 장 가능)을 올려주세요. 자동으로 학부모 번호로 학생을 찾고 채점해요.</p>
+    <p style="font-size:12px;color:#94a3b8;margin:0 0 10px;">복사기로 스캔한 OMR 파일(PDF/JPG/PNG, 여러 장 가능)을 올려주세요. 자동으로 학부모 번호로 학생을 찾고 채점해요.</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#1e40af;">
+      <span>🆕 <b>새 답안지</b>(서술형 점수를 소수점까지 마킹 → 자동 입력)도 같이 읽혀요. 대치온 답안지도 그대로 됨.</span>
+      <a href="omr_sheet.html" target="_blank" rel="noopener" style="background:#1d4ed8;color:#fff;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;">🖨 새 답안지 인쇄</a>
+    </div>
     <div id="omr-drop-zone" style="border:2px dashed #cbd5e1;border-radius:12px;padding:24px;text-align:center;color:#94a3b8;font-size:14px;cursor:pointer;margin-bottom:14px;">
       🖼️ 여기를 눌러 선택하거나, 스캔 파일을 이 상자에 끌어다 놓으세요 (PDF/JPG/PNG)
       <input type="file" id="omr-file-input" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" multiple style="display:none;" onchange="handleOmrFiles(this.files);this.value='';">
@@ -3297,6 +3301,17 @@ var OMR_CAL = {
   pcolA0:250.9/4099.5, pcolAStep:87.77/4099.5, pcolB0:680.4/4099.5, pcolBStep:84.5/4099.5,
   prow0:1667.3/2798.0, prowStep:110.7/2798.0
 };
+// 우리 답안지(omr_sheet.html, 2026-09-22) 전용 좌표 — 마커 중심 사각형(277×190mm) 기준 비율.
+// omr_sheet.html 의 배치 상수(L)에서 자동 계산된 값이라, 시트 배치를 바꾸면 그 페이지 아래 #cal 에 나오는 값으로 여기도 갱신할 것.
+// 대치온과 다른 점: 위쪽 가운데 검은 막대(idBar)가 있어서 이걸로 "새 답안지"를 구분하고, 서술형 6문항의
+// 점수입력(정수 0~9 한 줄 + 소수 0~9 한 줄)을 읽어 0.0~9.9점을 바로 채움.
+var OMR_CAL_V2 = {
+  acol0:0.267148, acolStep:0.022383, arow0:0.189474, arowStep:0.038947,
+  pcolA0:0.037004, pcolAStep:0.019856, pcolB0:0.127256, pcolBStep:0.019856,
+  prow0:0.431579, prowStep:0.029474,
+  scol0:0.855596, scolStep:0.013718, sIntRow0:0.221053, sDecRow0:0.268421, sRowStep:0.131579, sCount:6,
+  idBar:{ u:0.5, v:0.035526, halfW:0.048736 }
+};
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 function openOmrUploadModal(){
@@ -3483,7 +3498,7 @@ function pickMarkerRectangle(blobs, W, H){
       if(i===j) continue;
       var a=blobs[i], b=blobs[j]; // a=좌상 후보, b=우상 후보
       if(b.x-a.x < longSide*0.25) continue;
-      var tol=Math.max(10,(b.x-a.x)*0.03);
+      var tol=Math.max(10,(b.x-a.x)*0.06); // 기울기 약 3.4°까지 허용 (2026-09-22: 0.03은 1.7°에서 실패)
       if(Math.abs(a.y-b.y)>tol) continue;
       if(a.size/b.size>2||b.size/a.size>2) continue;
       for(var k=0;k<blobs.length;k++){
@@ -3543,28 +3558,56 @@ function readOmrSheetWithCorners(canvas, corners){
   }
   var SW=Math.hypot(tr.x-tl.x, tr.y-tl.y);
   var r=SW*(18/4099.5);
+  // 새 답안지(omr_sheet.html)인지 판별: 위쪽 가운데 검은 막대 자리 3곳을 재서 전부 진하면 새 답안지.
+  // 대치온 답안지는 그 자리가 빈 종이라 밝게 나옴.
+  var isV2=false;
+  try{
+    var ib=OMR_CAL_V2.idBar;
+    var idDarks=[-0.5,0,0.5].map(function(k){ var p0=pt(ib.u+ib.halfW*k, ib.v); return sampleDarkness(ctx,p0.x,p0.y,r); });
+    isV2 = idDarks.every(function(v){ return v>100; });
+  }catch(e){ isV2=false; }
+  var CAL = isV2 ? OMR_CAL_V2 : OMR_CAL;
   var answers={};
   for(var q=1;q<=20;q++){
     var darks=[];
     for(var c=1;c<=5;c++){
-      var p=pt(OMR_CAL.acol0+OMR_CAL.acolStep*(c-1), OMR_CAL.arow0+OMR_CAL.arowStep*(q-1));
+      var p=pt(CAL.acol0+CAL.acolStep*(c-1), CAL.arow0+CAL.arowStep*(q-1));
       darks.push(sampleDarkness(ctx,p.x,p.y,r));
     }
     answers[q]= omrPickMark(darks);
   }
   var digits=[];
   for(var c2=1;c2<=8;c2++){
-    var colFrac=(c2<=4)?(OMR_CAL.pcolA0+OMR_CAL.pcolAStep*(c2-1)):(OMR_CAL.pcolB0+OMR_CAL.pcolBStep*(c2-5));
+    var colFrac=(c2<=4)?(CAL.pcolA0+CAL.pcolAStep*(c2-1)):(CAL.pcolB0+CAL.pcolBStep*(c2-5));
     var darks2=[];
     for(var d=0;d<=9;d++){
-      var p2=pt(colFrac, OMR_CAL.prow0+OMR_CAL.prowStep*d);
+      var p2=pt(colFrac, CAL.prow0+CAL.prowStep*d);
       darks2.push(sampleDarkness(ctx,p2.x,p2.y,r));
     }
     var pick=omrPickMark(darks2);
     digits.push(pick!=null ? String(pick-1) : '?');
   }
   var phone=digits.slice(0,4).join('')+'-'+digits.slice(4).join('');
-  return { phone:phone, answers:answers };
+  var out={ phone:phone, answers:answers, sheetVersion:(isV2?2:1) };
+  // 새 답안지: 서술형 점수입력(정수 줄 + 소수 줄) 읽기 → shortScores[행번호]=점수(0.0~9.9)
+  // 정수 줄만 마킹 → x.0 / 둘 다 안 마킹 → 미채점(null, 기존 값 유지) / 소수만 마킹 → 0.x
+  if(isV2){
+    var shortScores={};
+    for(var s=1;s<=CAL.sCount;s++){
+      var intDarks=[], decDarks=[];
+      for(var k=0;k<=9;k++){
+        var pi=pt(CAL.scol0+CAL.scolStep*k, CAL.sIntRow0+CAL.sRowStep*(s-1));
+        var pd=pt(CAL.scol0+CAL.scolStep*k, CAL.sDecRow0+CAL.sRowStep*(s-1));
+        intDarks.push(sampleDarkness(ctx,pi.x,pi.y,r));
+        decDarks.push(sampleDarkness(ctx,pd.x,pd.y,r));
+      }
+      var ip=omrPickMark(intDarks), dp=omrPickMark(decDarks);
+      if(ip==null && dp==null){ shortScores[s]=null; continue; }
+      shortScores[s]= (ip!=null?ip-1:0) + (dp!=null?(dp-1)/10:0);
+    }
+    out.shortScores=shortScores;
+  }
+  return out;
 }
 // 한 문항(또는 전화번호 한 자리)의 칸별 진하기 배열에서 마킹된 칸(1부터)을 고름, 없으면 null.
 // 예전엔 "진하기 100 초과"라는 절대 기준만 써서, 얇은 펜으로 작게 표시한 학생은 전부 미마킹으로 읽혔음(2026-09-19).
@@ -3731,7 +3774,8 @@ async function handleOmrFiles(fileList){
         ok:true, fileName:files[fi2].name, pageNum:pi+1,
         phone:sheet.phone, answers:sheet.answers,
         studentId: student?student.id:null, studentName: student?student.name:null,
-        score:graded.score, total:graded.total, wrong:graded.wrong||[]
+        score:graded.score, total:graded.total, wrong:graded.wrong||[],
+        sheetVersion:sheet.sheetVersion||1, shortScores:sheet.shortScores||null
       });
     }
   }
@@ -3753,6 +3797,12 @@ function renderOmrResults(){
         +'</div>';
     }
     var matched=!!r.studentId;
+    // 새 답안지면 점수입력 줄에서 읽은 서술형 점수를 같이 보여줌(행 번호 = 답안의 주관식/서술형 문항 순서)
+    var shortLine='';
+    if(r.sheetVersion===2 && r.shortScores){
+      var parts=[]; Object.keys(r.shortScores).forEach(function(k){ var v=r.shortScores[k]; parts.push(k+'번 '+(v==null?'—':v)); });
+      shortLine='<div style="font-size:12px;color:#334155;margin-top:6px;"><span style="background:#dbeafe;color:#1d4ed8;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:10px;margin-right:6px;">새 답안지</span>서술형 점수입력: '+parts.join(' · ')+'</div>';
+    }
     return '<div style="border:1.5px solid '+(matched?'#bbf7d0':'#fde68a')+';background:'+(matched?'#f0fdf4':'#fffbeb')+';border-radius:10px;padding:10px 14px;margin-bottom:8px;">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
       +'<div style="font-size:13px;">'
@@ -3761,6 +3811,7 @@ function renderOmrResults(){
       +'</div>'
       +'<div style="font-weight:800;font-size:14px;">'+r.score+' / '+r.total+'점</div>'
       +'</div>'
+      +shortLine
       +(matched?'':'<select onchange="setOmrMatch('+idx+',this.value)" style="margin-top:8px;width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;">'+stuOptions+'</select>')
       +'</div>';
   }).join('');
@@ -3781,12 +3832,25 @@ async function saveOmrResults(){
   if(!confirm(toSave.length+'명 성적을 저장할까요?'+(skipped?' (매칭 안 된 '+skipped+'명은 제외됨)':'')))return;
   var omrKey2=await fetchExamKey(currentExamId);
   var shortQs=(omrKey2||[]).filter(function(r){return r.correct!=null && r.type==='short';});
+  var clipNotes=[], readTotal=0;
   for(var i=0;i<toSave.length;i++){
     var r=toSave[i];
     // OMR은 객관식만 읽으므로 r.score = 객관식 점수. 주관식/서술형은 성적 패널에서 조교가 직접 입력하는데,
     // 이미 입력돼 있던 주관식 점수가 있으면(다시 스캔한 경우 등) 날리지 않고 합산해서 최종 점수로 저장(2026-09-19).
     var prev=(scoresMap[r.studentId]||{})[currentExamId]||{};
-    var prevManual=prev.manualScores||{};
+    var prevManual=Object.assign({}, prev.manualScores||{});
+    // 새 답안지(점수입력 마킹)에서 읽은 서술형 점수를 합침 — 답안지 행 i번 = 답안 등록의 i번째 주관식/서술형 문항.
+    // 마킹이 없는 행(null)은 기존 값을 그대로 둠. 배점보다 크게 마킹한 건 배점으로 자름.
+    var readCount=0, clipped=[];
+    if(r.sheetVersion===2 && r.shortScores){
+      shortQs.forEach(function(q,i){
+        var v=r.shortScores[i+1];
+        if(v==null) return;
+        var pts=Number(q.points)||0;
+        if(pts && v>pts){ clipped.push(q.q+'번('+v+'→'+pts+')'); v=pts; }
+        prevManual[q.q]=v; readCount++;
+      });
+    }
     var manualSum=0; shortQs.forEach(function(q){ manualSum+=Number(prevManual[q.q])||0; });
     var finalScore=Math.round((r.score+manualSum)*10)/10;
     var pass='';
@@ -3794,10 +3858,16 @@ async function saveOmrResults(){
     if(cutoff6!=null){
       pass = finalScore>=cutoff6 ? 'submit' : 'nosub';
     }
-    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(r.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(finalScore)+'&pass='+encodeURIComponent(pass)+'&objectiveScore='+encodeURIComponent(r.score)+'&omrAnswers='+encodeURIComponent(JSON.stringify(r.answers||{}))+'&wrongQuestions='+encodeURIComponent(JSON.stringify(r.wrong||[])));
+    if(clipped.length) clipNotes.push(r.studentName+': '+clipped.join(', '));
+    if(readCount) readTotal+=readCount;
+    await fetch(SU+'?action=setScore&sessionId='+encodeURIComponent(sessionId)+'&studentId='+encodeURIComponent(r.studentId)+'&examId='+encodeURIComponent(currentExamId)+'&score='+encodeURIComponent(finalScore)+'&pass='+encodeURIComponent(pass)+'&objectiveScore='+encodeURIComponent(r.score)+'&manualScores='+encodeURIComponent(JSON.stringify(prevManual))+'&omrAnswers='+encodeURIComponent(JSON.stringify(r.answers||{}))+'&wrongQuestions='+encodeURIComponent(JSON.stringify(r.wrong||[])));
   }
   await loadScores();
-  alert('저장 완료! '+toSave.length+'명 성적이 반영됐어요.'+(shortQs.length?'\n\n주관식/서술형 '+shortQs.length+'문항은 자동채점되지 않았어요. 성적 표에서 학생 칸을 눌러 "주관식/서술형 점수 입력"에 점수를 넣으면 합산돼요.':''));
+  var msg='저장 완료! '+toSave.length+'명 성적이 반영됐어요.';
+  if(readTotal) msg+='\n\n새 답안지 점수입력에서 서술형 점수 '+readTotal+'건을 읽어서 같이 넣었어요.';
+  else if(shortQs.length) msg+='\n\n주관식/서술형 '+shortQs.length+'문항은 자동채점되지 않았어요. 성적 표에서 학생 칸을 눌러 "주관식/서술형 점수 입력"에 점수를 넣으면 합산돼요.';
+  if(clipNotes.length) msg+='\n\n⚠️ 배점보다 크게 마킹된 게 있어서 배점으로 맞췄어요:\n'+clipNotes.join('\n');
+  alert(msg);
   document.getElementById('omr-modal').classList.remove('show');
   renderScores();
 }

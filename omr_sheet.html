@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>밍기적 수학연구소 답안지 (인쇄용)</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  /* A4 가로. 인쇄 시 여백 0 — 브라우저 인쇄 대화상자에서 "여백: 없음", "배경 그래픽 인쇄" 켤 것 */
+  @page { size: A4 landscape; margin: 0; }
+  html,body{ margin:0; padding:0; background:#e5e7eb; font-family:Pretendard,-apple-system,"Malgun Gothic",sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .page{ position:relative; width:297mm; height:210mm; background:#fff; margin:8mm auto; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.15); }
+  @media print { html,body{ background:#fff; } .page{ margin:0; box-shadow:none; } .noprint{ display:none !important; } }
+  .abs{ position:absolute; }
+  /* 모서리 마커: 8mm 정사각형에서 안쪽 4mm×4mm를 잘라낸 ㄱ자 (대치온과 같은 모양 — 인식기가 꽉 찬 사각형은 걸러내기 때문) */
+  .mk{ position:absolute; width:8mm; height:8mm; background:#000; }
+  .mk::after{ content:""; position:absolute; width:4mm; height:4mm; background:#fff; }
+  .mk.tl::after{ right:0; bottom:0; } .mk.tr::after{ left:0; bottom:0; }
+  .mk.bl::after{ right:0; top:0; }   .mk.br::after{ left:0; top:0; }
+  /* 시트 종류 표시 막대(위쪽 가운데) — 인식기가 이걸 보고 "새 답안지"로 판단 */
+  .idbar{ position:absolute; background:#000; }
+  .box{ position:absolute; border:0.3mm solid #222; box-sizing:border-box; }
+  .hd{ position:absolute; background:#e8e8e8; border:0.3mm solid #222; box-sizing:border-box; font-size:3.2mm; font-weight:800; display:flex; align-items:center; justify-content:center; color:#111; }
+  .lbl{ position:absolute; font-size:2.9mm; font-weight:700; color:#222; display:flex; align-items:center; }
+  .bub{ position:absolute; border:0.22mm solid #9a9a9a; border-radius:50%; box-sizing:border-box; display:flex; align-items:center; justify-content:center; font-size:2.1mm; color:#8a8a8a; line-height:1; font-family:Pretendard,sans-serif; }
+  .qn{ position:absolute; font-size:2.9mm; font-weight:700; color:#222; display:flex; align-items:center; justify-content:center; }
+  .txt{ position:absolute; font-size:2.6mm; color:#222; line-height:1.45; }
+  .thin{ position:absolute; background:#222; }
+  #cal{ white-space:pre; font:11px/1.4 monospace; background:#111; color:#9f9; padding:10px; margin:8mm auto; width:297mm; box-sizing:border-box; }
+</style>
+</head>
+<body>
+<div class="noprint" style="width:297mm;margin:8mm auto 0;font-size:13px;color:#334155;background:#fff;padding:12px 16px;border-radius:10px;">
+  <b>🖨 인쇄 방법:</b> Ctrl+P → 용지 <b>A4</b> · 방향 <b>가로</b> · 여백 <b>없음</b> · <b>배경 그래픽 인쇄</b> 켜기 → 인쇄. (복사기로 여러 장 뽑을 땐 원본 1장만 뽑아서 복사해도 돼요)
+</div>
+<div class="page" id="page"></div>
+<div class="noprint" id="cal"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────
+// 배치 상수(mm). 이 숫자로 시트를 그리고, 같은 숫자로 인식용 좌표(OMR_CAL_V2)를 계산해서 아래 #cal에 출력함.
+// ⚠️ 여기 숫자를 바꾸면 session.html의 OMR_CAL_V2도 같이 갱신해야 인식이 맞음.
+// ─────────────────────────────────────────────────────────────────────────
+var L = {
+  page:{ w:297, h:210 },
+  marker:{ size:8, inset:10 },             // 마커 중심이 (10,10),(287,10),(10,200),(287,200)
+  idbar:{ x:135, y:15.5, w:27, h:2.5 },    // 시트 종류 막대 (중심 148.5, 16.75)
+  // 왼쪽 열: 정보 + 부모님 전화번호
+  info:{ x:16, w:50, y:52, rowH:6 },       // 학교/시험/성명 3줄
+  phone:{ labelY:74, writeY:81, writeH:7, cellW:5.5, gA:17.5, gB:42.5, row0:92, rowStep:5.6, bub:3.6 },
+  // 가운데 열: 객관식 1~20
+  ans:{ hdY:38, hdH:5, qnX:74, qnW:6, col0:84, colStep:6.2, row0:46, rowStep:7.4, bub:3.8, boxX:72, boxW:40 },
+  // 오른쪽: 서술형 6문항 (풀이 칸 + 점수입력 정수줄/소수줄)
+  essay:{ hdY:38, hdH:5, boxX:116, boxW:170, rowTop0:44, rowH:25, n:6, qnW:7, scoreX:236, scoreLblW:9, scol0:247, scolStep:3.8, sbub:3.2, intOff:8, decOff:17 }
+};
+var P=document.getElementById('page');
+function el(cls, style, html){ var d=document.createElement('div'); d.className=cls; d.style.cssText=style; if(html!=null) d.innerHTML=html; P.appendChild(d); return d; }
+function mm(v){ return v+'mm'; }
+
+// 마커 4개
+var mi=L.marker.inset, ms=L.marker.size, pw=L.page.w, ph=L.page.h;
+[['tl',mi-ms/2,mi-ms/2],['tr',pw-mi-ms/2,mi-ms/2],['bl',mi-ms/2,ph-mi-ms/2],['br',pw-mi-ms/2,ph-mi-ms/2]].forEach(function(m){
+  var d=el('mk '+m[0],'left:'+mm(m[1])+';top:'+mm(m[2])+';');
+});
+// 시트 종류 막대
+el('idbar','left:'+mm(L.idbar.x)+';top:'+mm(L.idbar.y)+';width:'+mm(L.idbar.w)+';height:'+mm(L.idbar.h)+';');
+
+// 상단: 로고 + 제목 + 안내
+el('abs','left:16mm;top:15mm;height:14mm;', '<img src="logo.png" style="height:14mm;display:block;">');
+el('abs','left:0;right:0;top:20mm;text-align:center;font-size:5.2mm;font-weight:900;letter-spacing:1.5mm;color:#111;', '답 안 지');
+el('txt','left:16mm;top:32mm;width:52mm;',
+  '1. 반드시 <b>검정색 사인펜</b>으로 표기해 주세요.<br>'
+ +'2. 정답 마킹 이외의 공간에 낙서하지 마세요.<br>'
+ +'3. 표기란에는 <b>●</b>와 같이 바르게 채워주세요.');
+
+// 학교 / 시험 / 성명
+['학교','시험','성명'].forEach(function(t,i){
+  var y=L.info.y+i*L.info.rowH;
+  el('box','left:'+mm(L.info.x)+';top:'+mm(y)+';width:'+mm(L.info.w)+';height:'+mm(L.info.rowH)+';');
+  el('hd','left:'+mm(L.info.x)+';top:'+mm(y)+';width:11mm;height:'+mm(L.info.rowH)+';font-size:2.9mm;', t);
+});
+
+// 부모님 전화번호
+var Pn=L.phone;
+el('hd','left:'+mm(L.info.x)+';top:'+mm(Pn.labelY)+';width:'+mm(L.info.w)+';height:6mm;', '부모님 전화번호');
+el('box','left:'+mm(L.info.x)+';top:'+mm(Pn.labelY)+';width:'+mm(L.info.w)+';height:'+mm(Pn.writeY-Pn.labelY+Pn.writeH)+';');
+// 숫자 적는 칸 8개
+for(var g=0; g<2; g++){
+  for(var k=0;k<4;k++){
+    var cx=(g===0?Pn.gA:Pn.gB)+k*Pn.cellW;
+    el('box','left:'+mm(cx)+';top:'+mm(Pn.writeY)+';width:'+mm(Pn.cellW)+';height:'+mm(Pn.writeH)+';border-width:0.2mm;');
+  }
+}
+el('lbl','left:'+mm(Pn.gA+4*Pn.cellW)+';top:'+mm(Pn.writeY)+';width:'+mm(Pn.gB-(Pn.gA+4*Pn.cellW))+';height:'+mm(Pn.writeH)+';justify-content:center;font-size:3.5mm;', '-');
+// 마킹 0~9
+for(var g2=0; g2<2; g2++){
+  for(var k2=0;k2<4;k2++){
+    var cxc=(g2===0?Pn.gA:Pn.gB)+k2*Pn.cellW+Pn.cellW/2;
+    for(var d=0; d<=9; d++){
+      var cy=Pn.row0+d*Pn.rowStep;
+      el('bub','left:'+mm(cxc-Pn.bub/2)+';top:'+mm(cy-Pn.bub/2)+';width:'+mm(Pn.bub)+';height:'+mm(Pn.bub)+';', String(d));
+    }
+  }
+}
+// 4자리 사이 구분 점선
+el('thin','left:'+mm(Pn.gA+4*Pn.cellW+ (Pn.gB-(Pn.gA+4*Pn.cellW))/2 )+';top:'+mm(Pn.row0-Pn.bub)+';width:0.2mm;height:'+mm(9*Pn.rowStep+Pn.bub*2)+';background:#bbb;');
+
+// 객관식
+var A=L.ans;
+el('box','left:'+mm(A.boxX)+';top:'+mm(A.hdY)+';width:'+mm(A.boxW)+';height:'+mm(A.row0+19*A.rowStep+A.rowStep/2-A.hdY)+';border-radius:1.5mm;');
+el('hd','left:'+mm(A.boxX)+';top:'+mm(A.hdY)+';width:'+mm(A.qnX+A.qnW-A.boxX)+';height:'+mm(A.hdH)+';font-size:2.8mm;border-radius:1.5mm 0 0 0;', '문번');
+el('hd','left:'+mm(A.qnX+A.qnW)+';top:'+mm(A.hdY)+';width:'+mm(A.boxX+A.boxW-(A.qnX+A.qnW))+';height:'+mm(A.hdH)+';border-radius:0 1.5mm 0 0;', '답 란');
+for(var q=1;q<=20;q++){
+  var ry=A.row0+(q-1)*A.rowStep;
+  el('qn','left:'+mm(A.qnX)+';top:'+mm(ry-A.rowStep/2)+';width:'+mm(A.qnW)+';height:'+mm(A.rowStep)+';', String(q));
+  for(var c=0;c<5;c++){
+    var bx=A.col0+c*A.colStep;
+    el('bub','left:'+mm(bx-A.bub/2)+';top:'+mm(ry-A.bub/2)+';width:'+mm(A.bub)+';height:'+mm(A.bub)+';', String(c+1));
+  }
+  if(q%5===0 && q<20) el('thin','left:'+mm(A.boxX)+';top:'+mm(ry+A.rowStep/2)+';width:'+mm(A.boxW)+';height:0.15mm;background:#999;');
+}
+
+// 서술형
+var E=L.essay;
+var essayH=E.rowH*E.n;
+el('box','left:'+mm(E.boxX)+';top:'+mm(E.hdY)+';width:'+mm(E.boxW)+';height:'+mm(E.rowTop0+essayH-E.hdY)+';border-radius:1.5mm;');
+el('hd','left:'+mm(E.boxX)+';top:'+mm(E.hdY)+';width:'+mm(E.qnW)+';height:'+mm(E.hdH)+';font-size:2.8mm;border-radius:1.5mm 0 0 0;', '문번');
+el('hd','left:'+mm(E.boxX+E.qnW)+';top:'+mm(E.hdY)+';width:'+mm(E.scoreX-(E.boxX+E.qnW))+';height:'+mm(E.hdH)+';', '서답형 답란');
+el('hd','left:'+mm(E.scoreX)+';top:'+mm(E.hdY)+';width:'+mm(E.boxX+E.boxW-E.scoreX)+';height:'+mm(E.hdH)+';font-size:2.8mm;border-radius:0 1.5mm 0 0;', '점수입력');
+// 세로 구분선
+el('thin','left:'+mm(E.boxX+E.qnW)+';top:'+mm(E.hdY)+';width:0.3mm;height:'+mm(E.rowTop0+essayH-E.hdY)+';');
+el('thin','left:'+mm(E.scoreX)+';top:'+mm(E.hdY)+';width:0.3mm;height:'+mm(E.rowTop0+essayH-E.hdY)+';');
+for(var i=1;i<=E.n;i++){
+  var rowTop=E.rowTop0+(i-1)*E.rowH;
+  if(i>1) el('thin','left:'+mm(E.boxX)+';top:'+mm(rowTop)+';width:'+mm(E.boxW)+';height:0.3mm;');
+  el('qn','left:'+mm(E.boxX)+';top:'+mm(rowTop)+';width:'+mm(E.qnW)+';height:'+mm(E.rowH)+';font-size:3.4mm;', String(i));
+  // 점수입력: 정수 줄 / 소수 줄
+  var yInt=rowTop+E.intOff, yDec=rowTop+E.decOff;
+  el('lbl','left:'+mm(E.scoreX+1)+';top:'+mm(yInt-2.5)+';width:'+mm(E.scoreLblW)+';height:5mm;font-size:2.4mm;color:#444;', '정수');
+  el('lbl','left:'+mm(E.scoreX+1)+';top:'+mm(yDec-2.5)+';width:'+mm(E.scoreLblW)+';height:5mm;font-size:2.4mm;color:#444;', '소수 .');
+  for(var s=0;s<=9;s++){
+    var sx=E.scol0+s*E.scolStep;
+    el('bub','left:'+mm(sx-E.sbub/2)+';top:'+mm(yInt-E.sbub/2)+';width:'+mm(E.sbub)+';height:'+mm(E.sbub)+';font-size:1.9mm;', String(s));
+    el('bub','left:'+mm(sx-E.sbub/2)+';top:'+mm(yDec-E.sbub/2)+';width:'+mm(E.sbub)+';height:'+mm(E.sbub)+';font-size:1.9mm;', String(s));
+  }
+}
+el('txt','left:'+mm(E.scoreX)+';top:'+mm(E.rowTop0+essayH+1)+';width:'+mm(E.boxX+E.boxW-E.scoreX)+';font-size:2.2mm;color:#555;', '※ 점수입력은 채점자 기록용 · 예) 3.5점 → 정수 3, 소수 5');
+
+// 하단: 로고(왼쪽) + 문구(오른쪽)
+el('abs','left:16mm;top:200.5mm;height:7mm;', '<img src="logo.png" style="height:7mm;display:block;">');
+el('abs','right:16mm;top:202.5mm;font-size:3mm;font-weight:700;color:#222;', '못하는 건 키즈모델뿐');
+
+// ─── 인식용 좌표 계산 (마커 중심 사각형 기준 0~1 비율) ───
+var SU=pw-2*mi, SV=ph-2*mi;
+function u(x){ return +((x-mi)/SU).toFixed(6); }
+function v(y){ return +((y-mi)/SV).toFixed(6); }
+function du(d){ return +(d/SU).toFixed(6); }
+function dv(d){ return +(d/SV).toFixed(6); }
+var CAL={
+  acol0:u(A.col0), acolStep:du(A.colStep), arow0:v(A.row0), arowStep:dv(A.rowStep),
+  pcolA0:u(Pn.gA+Pn.cellW/2), pcolAStep:du(Pn.cellW), pcolB0:u(Pn.gB+Pn.cellW/2), pcolBStep:du(Pn.cellW),
+  prow0:v(Pn.row0), prowStep:dv(Pn.rowStep),
+  scol0:u(E.scol0), scolStep:du(E.scolStep), sIntRow0:v(E.rowTop0+E.intOff), sDecRow0:v(E.rowTop0+E.decOff), sRowStep:dv(E.rowH), sCount:E.n,
+  idBar:{ u:u(L.idbar.x+L.idbar.w/2), v:v(L.idbar.y+L.idbar.h/2), halfW:du(L.idbar.w/2) },
+  sampleR:du(1.2)
+};
+document.getElementById('cal').textContent='// session.html 에 넣을 OMR_CAL_V2 (마커 중심 간 거리 '+SU+'×'+SV+'mm 기준)\nvar OMR_CAL_V2 = '+JSON.stringify(CAL,null,2)+';';
+</script>
+</body>
+</html>
