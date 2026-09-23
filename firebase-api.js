@@ -775,15 +775,24 @@ function scoreCalcGrade(rank,total){
 function recomputeExamRanks(db, examId){
   return db.collection('scores').where('examId','==',String(examId)).get().then(function(snap){
     var docs = snap.docs.filter(function(d){ return d.data().score!==''&&d.data().score!==undefined&&d.data().score!==null; });
-    var list = docs.map(function(d){ return { ref:d.ref, score:Number(d.data().score) }; }).sort(function(a,b){ return b.score-a.score; });
-    var cnt = list.length;
-    if(!cnt) return;
-    var avg = Math.round(list.reduce(function(a,b){return a+b.score;},0)/cnt*10)/10;
+    if(!docs.length) return;
+    // 시험지 코드(A/B/C)가 있으면 같은 코드끼리만 비교해서 평균·등수·등급을 냄(2026-09-23).
+    // 같은 시간에 다른 시험지를 본 경우 난이도가 달라 한데 묶으면 등수가 의미가 없어지기 때문.
+    // 코드를 안 쓰는 시험은 전부 '' 한 묶음이라 예전과 동일하게 동작함.
+    var groups = {};
+    docs.forEach(function(d){
+      var g = String(d.data().paperCode||'');
+      (groups[g] = groups[g] || []).push({ ref:d.ref, score:Number(d.data().score) });
+    });
     var batch = db.batch();
-    list.forEach(function(item,idx){
-      var rank = list.filter(function(o){return o.score>item.score;}).length+1;
-      var grade = scoreCalcGrade(rank,cnt);
-      batch.update(item.ref,{ rank:rank, grade:grade, cnt:cnt, avg:avg });
+    Object.keys(groups).forEach(function(g){
+      var list = groups[g].sort(function(a,b){ return b.score-a.score; });
+      var cnt = list.length;
+      var avg = Math.round(list.reduce(function(a,b){return a+b.score;},0)/cnt*10)/10;
+      list.forEach(function(item){
+        var rank = list.filter(function(o){return o.score>item.score;}).length+1;
+        batch.update(item.ref,{ rank:rank, grade:scoreCalcGrade(rank,cnt), cnt:cnt, avg:avg });
+      });
     });
     return batch.commit();
   }).catch(function(){});
@@ -805,6 +814,8 @@ api.setScore = function(db, p){
   if (p.omrAnswers!==undefined) { try { extra.omrAnswers = (typeof p.omrAnswers==='string') ? JSON.parse(p.omrAnswers) : (p.omrAnswers||{}); } catch(e) {} }
   // wrongQuestions=[틀린 문항 번호…] — 채점(폰 응시/OMR) 때 같이 넘겨서 "자주 틀리는 유형" 집계에 씀(2026-09-21)
   if (p.wrongQuestions!==undefined) { try { var wq = (typeof p.wrongQuestions==='string') ? JSON.parse(p.wrongQuestions) : p.wrongQuestions; if (Array.isArray(wq)) extra.wrongQuestions = wq.map(Number); } catch(e) {} }
+  // 시험지 코드(A/B/C) — 같은 시험이라도 다른 시험지를 본 학생끼리는 평균·등수를 따로 계산하기 위해 저장(2026-09-23)
+  if (p.paperCode!==undefined) extra.paperCode = String(p.paperCode||'').trim().toUpperCase();
   return ref.get().then(function(doc){
     var prevLeaveCount = doc.exists ? (doc.data().examLeaveCount||0) : 0;
     var prevLeaveLog = doc.exists ? (doc.data().examLeaveLog||[]) : [];
@@ -902,7 +913,14 @@ api.updateExam = function(db, p){
 // exams 문서에는 문항 수(questionCount)만 남겨서 학생 응시 화면이 몇 문제인지 알 수 있게 함.
 api.setExamAnswerKey = function(db, p){
   var key = Array.isArray(p.answerKey) ? p.answerKey : [];
-  return db.collection('exam_keys').doc(String(p.examId)).set({ examId:String(p.examId), answerKey:key, updatedAt:nowStr() })
+  // 시험지 코드(A/B/C)가 오면 그 코드 전용 답안으로 저장(2026-09-23). 같은 시간에 다른 시험지를 본 경우,
+  // 시험은 하나만 만들고 코드별 답안을 따로 넣어두면 OMR이 학생이 마킹한 코드에 맞는 답안으로 채점함.
+  // 코드가 없으면(빈 값) 지금까지처럼 answerKey(=공통)에 저장 — 옛 데이터와 호환.
+  var code = String(p.paperCode||'').trim().toUpperCase();
+  var base = { examId:String(p.examId), updatedAt:nowStr() };
+  if (code) { base.codeKeys = {}; base.codeKeys[code] = key; }
+  else base.answerKey = key;
+  return db.collection('exam_keys').doc(String(p.examId)).set(base, {merge:true})
     .then(function(){
       // 예전에 exams 문서 안에 저장돼 있던 정답은 학생도 읽을 수 있으므로 같이 지움.
       // 문항 타입(객관식/주관식)은 정답이 아니라서 학생 화면(입력창 모양 결정용)에 그대로 내려줘도 안전함.
@@ -920,10 +938,15 @@ api.setExamAnswerKey = function(db, p){
 api.getExamKey = function(db, p){
   var eid = String(p.examId);
   return db.collection('exam_keys').doc(eid).get().then(function(doc){
-    if (doc.exists && Array.isArray(doc.data().answerKey)) return { answerKey: doc.data().answerKey };
+    var d = doc.exists ? doc.data() : {};
+    var codeKeys = (d.codeKeys && typeof d.codeKeys === 'object') ? d.codeKeys : {};
+    if (Array.isArray(d.answerKey) && d.answerKey.length) return { answerKey: d.answerKey, codeKeys: codeKeys };
+    // 공통 답안이 없고 코드별 답안만 있으면, 화면 기본값으로 첫 코드 답안을 answerKey 자리에 얹어줌
+    var firstCode = Object.keys(codeKeys).sort()[0];
+    if (firstCode) return { answerKey: codeKeys[firstCode] || [], codeKeys: codeKeys };
     return db.collection('exams').doc(eid).get().then(function(ex){
       var legacy = ex.exists ? ex.data().answerKey : null;
-      return { answerKey: Array.isArray(legacy) ? legacy : [] };
+      return { answerKey: Array.isArray(legacy) ? legacy : [], codeKeys: codeKeys };
     });
   });
 };
@@ -1060,8 +1083,16 @@ api.getMyOpenExams = function(db, p){
               return e.submitOpen || !e.submittedAtMs || e.submittedAtMs >= oneDayAgoMs;
             }
             e.submitted = false;
-            // 제출 안 한 시험은 지금 열려있을 때만 "응시하기" 대상으로 의미가 있음
-            return e.submitOpen;
+            // 제출 안 한 시험은 지금 열려있을 때만 "응시하기" 대상으로 의미가 있음.
+            // 단, 선생님이 "응시 마감"을 깜빡해서 submitOpen이 true로 남아있는 지난 차시 시험이
+            // 제출 안 한 학생에게만 몇 주째 계속 뜨는 문제가 있어서(2026-09-24, 김나경 8차시 건),
+            // 차시 날짜가 이틀 이상 지났으면 열려있어도 안 보여준다(다른 학생들과 화면 통일).
+            if (!e.submitOpen) return false;
+            if (e.date) {
+              var dms = Date.parse(String(e.date).replace(/\./g,'-'));
+              if (!isNaN(dms) && dms < Date.now() - 2*24*60*60*1000) return false;
+            }
+            return true;
           });
           return { exams: result };
         });

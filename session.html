@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>차시 — 김민관 수학</title>
-<script src="firebase-api.js?v=50"></script>
+<script src="firebase-api.js?v=51"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -569,6 +569,13 @@ tr:hover td{background:#fafbff;}
       <label style="font-size:12.5px;font-weight:700;color:#475569;white-space:nowrap;">문항 수</label>
       <input type="number" id="ak-qcount" min="1" max="50" onchange="changeAkQCount(this.value)" style="width:80px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;text-align:center;">
       <span style="font-size:11.5px;color:#94a3b8;" id="ak-total-wrap">총 <span id="ak-total" style="font-weight:700;color:#1e293b;">0</span><span id="ak-total-unit">점</span></span>
+    </div>
+    <!-- 시험지 코드 (2026-09-23): 같은 시간에 서로 다른 시험지를 본 경우, 시험은 하나만 만들고
+         코드(A/B/C)별로 답안을 따로 등록해두면 OMR이 학생이 마킹한 코드에 맞는 답안으로 채점함 -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 12px;">
+      <span style="font-size:12.5px;font-weight:800;color:#475569;white-space:nowrap;">시험지 코드</span>
+      <div id="ak-code-tabs" style="display:flex;gap:5px;"></div>
+      <span id="ak-code-hint" style="font-size:11.5px;color:#94a3b8;">시험지가 한 종류면 "공통" 그대로 두세요.</span>
     </div>
     <!-- 한번에 넣기: 정답을 하나씩 안 누르고 붙여넣기 또는 정답표 사진/PDF로 채움 (2026-09-21 추가) -->
     <details id="ak-quick" style="margin-bottom:12px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;">
@@ -2947,6 +2954,52 @@ async function fetchExamKey(examId){
     return r.answerKey||[];
   }catch(e){ return []; }
 }
+// 코드별 답안까지 같이 가져옴 → { answerKey:[공통], codeKeys:{A:[...],B:[...],C:[...]} }
+async function fetchExamKeyFull(examId){
+  try{
+    var r=await fetch(SU+'?action=getExamKey&examId='+encodeURIComponent(examId)).then(function(r){return r.json();});
+    return { answerKey:r.answerKey||[], codeKeys:(r.codeKeys&&typeof r.codeKeys==='object')?r.codeKeys:{} };
+  }catch(e){ return { answerKey:[], codeKeys:{} }; }
+}
+// 학생이 마킹한 시험지 코드에 맞는 답안을 고름 — 그 코드 답안이 없으면 공통 답안으로 채점
+function pickKeyForCode(full, code){
+  if(code && full.codeKeys && full.codeKeys[code] && full.codeKeys[code].length) return full.codeKeys[code];
+  return full.answerKey||[];
+}
+// ── 답안 등록 창의 시험지 코드 탭 (2026-09-23) ──
+var AK_CODES=['','A','B','C']; // ''=공통
+var akCurCode='';
+var akKeyFull={ answerKey:[], codeKeys:{} };
+function renderAkCodeTabs(){
+  var el=document.getElementById('ak-code-tabs');
+  if(!el) return;
+  el.innerHTML=AK_CODES.map(function(c){
+    var on=(c===akCurCode);
+    var has=(c==='') ? (akKeyFull.answerKey||[]).some(function(r){return r.correct!=null;})
+                     : ((akKeyFull.codeKeys||{})[c]||[]).some(function(r){return r.correct!=null;});
+    return '<button type="button" onclick="switchAkCode(\''+c+'\')" style="min-width:46px;padding:6px 10px;border-radius:7px;border:1.5px solid '+(on?'#3b6cf7':'#e2e8f0')+';background:'+(on?'#3b6cf7':'#fff')+';color:'+(on?'#fff':'#64748b')+';font-size:12.5px;font-weight:800;cursor:pointer;">'+(c===''?'공통':c+'형')+(has?' ✓':'')+'</button>';
+  }).join('');
+  var hint=document.getElementById('ak-code-hint');
+  if(hint) hint.textContent = akCurCode==='' ? '시험지가 한 종류면 "공통" 그대로 두세요.'
+    : akCurCode+'형 답안을 넣는 중이에요. 학생이 답안지에 '+akCurCode+'를 마킹하면 이 답안으로 채점돼요.';
+}
+// 코드 탭을 바꾸면 지금 화면의 답안을 그 코드 자리에 담아두고, 새 코드의 저장된 답안을 불러와 화면에 채움
+// (저장은 각 코드마다 따로 "저장" 버튼을 눌러야 실제로 반영됨)
+function switchAkCode(code){
+  if(code===akCurCode) return;
+  if(akCurCode==='') akKeyFull.answerKey=akRows.slice();
+  else { akKeyFull.codeKeys=akKeyFull.codeKeys||{}; akKeyFull.codeKeys[akCurCode]=akRows.slice(); }
+  akCurCode=code;
+  var next = (code==='') ? (akKeyFull.answerKey||[]) : ((akKeyFull.codeKeys||{})[code]||[]);
+  var ex=exams.find(function(e){return e.id===currentExamId;});
+  var liveTotal=Number((document.getElementById('exam-detail-total')||{}).value)||Number(ex&&ex.totalQuestions)||0;
+  var qcount = next.length ? next.length : akRows.length;
+  akRows=[];
+  buildAkRows(qcount, next, Object.assign({}, ex, { totalQuestions:liveTotal }));
+  document.getElementById('ak-qcount').value=qcount;
+  renderAkCodeTabs();
+  renderAnswerKeyRows();
+}
 var akIsCount=false; // 개수형 시험이면 배점 없이 1문제=1개로 채점
 var akRowsExamId=null; // 마지막으로 답안을 채워넣은 시험 id — 다른 시험으로 넘어가면 이전 시험 값이 새 시험에 섞여 들어가지 않도록 리셋 기준으로 씀
 async function openAnswerKeyModal(){
@@ -2958,7 +3011,10 @@ async function openAnswerKeyModal(){
   if(akRowsExamId!==currentExamId){ akRows=[]; }
   akRowsExamId=currentExamId;
   await loadAkTypes();
-  var saved=await fetchExamKey(currentExamId);
+  akKeyFull=await fetchExamKeyFull(currentExamId);
+  akCurCode='';
+  renderAkCodeTabs();
+  var saved=akKeyFull.answerKey||[];
   // 저장을 안 누른 상태에서 열 수도 있으므로, 화면에 입력돼 있는 값을 우선으로 읽는다
   akIsCount=(currentScoreType==='count');
   var liveTotal=Number((document.getElementById('exam-detail-total')||{}).value)||Number(ex.totalQuestions)||0;
@@ -3272,8 +3328,11 @@ function updateAkTotal(){
   document.getElementById('ak-total').textContent=Math.round(sum*10)/10;
 }
 async function saveAnswerKey(){
-  var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'setExamAnswerKey',examId:currentExamId,answerKey:akRows})}).then(function(r){return r.json();});
+  var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'setExamAnswerKey',examId:currentExamId,answerKey:akRows,paperCode:akCurCode})}).then(function(r){return r.json();});
   if(r.success){
+    // 방금 저장한 코드의 답안을 메모리에도 반영(탭 ✓ 표시·다른 코드로 갔다 와도 유지)
+    if(akCurCode==='') akKeyFull.answerKey=akRows.slice();
+    else { akKeyFull.codeKeys=akKeyFull.codeKeys||{}; akKeyFull.codeKeys[akCurCode]=akRows.slice(); }
     var ex=exams.find(function(e){return e.id===currentExamId;});
     if(ex){ ex.hasAnswerKey=true; ex.questionCount=akRows.length; }
     // 개수형 시험은 "총 문항 수"가 곧 문항 수 — 답안 등록에서 바꾼 문항 수를 위쪽 칸과 저장값에도 반영
@@ -3288,8 +3347,12 @@ async function saveAnswerKey(){
       renderExamList();
       renderScores();
     }
-    document.getElementById('answerkey-modal').classList.remove('show');
-    alert('답안이 저장됐어요.'+(akIsCount?'\n총 문항 수도 '+akRows.length+'개로 맞췄어요.':''));
+    // 코드별 답안을 넣는 중이면 창을 닫지 않고 다음 코드를 이어서 넣게 함(공통일 때만 닫음)
+    var codeLbl = akCurCode==='' ? '공통' : akCurCode+'형';
+    if(akCurCode===''){ document.getElementById('answerkey-modal').classList.remove('show'); }
+    else { renderAkCodeTabs(); }
+    alert(codeLbl+' 답안이 저장됐어요.'+(akIsCount?'\n총 문항 수도 '+akRows.length+'개로 맞췄어요.':'')
+      +(akCurCode!==''?'\n\n다른 시험지도 있으면 위에서 코드를 바꿔서 이어서 넣어주세요.':''));
   } else {
     alert('저장 실패했어요.\n\n'+((r&&r.msg)||'원인을 알 수 없어요.')+'\n\n(권한 오류라면 Firestore 규칙에 exam_keys 조항이 있는지 확인해주세요)');
   }
@@ -3310,6 +3373,8 @@ var OMR_CAL_V2 = {
   pcolA0:0.031588, pcolAStep:0.019856, pcolB0:0.132671, pcolBStep:0.019856,
   prow0:0.431579, prowStep:0.029474,
   scol0:0.927076, scolStep:0.01444, sLines:[0.201053,0.227368,0.261053,0.287368], sRowStep:0.131579, sCount:6,
+  // 시험지 코드 A/B/C (2026-09-23) — 같은 시간에 다른 시험지를 볼 때 학생이 마킹, 코드별 답안으로 자동 채점
+  codeCol0:0.274368, codeColStep:0.022383, codeRow:0.116842, codeLabels:['A','B','C'],
   idBar:{ u:0.5, v:0.035526, halfW:0.048736 }
 };
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -3592,6 +3657,16 @@ function readOmrSheetWithCorners(canvas, corners){
   // 새 답안지: 서술형 점수입력(정수 줄 + 소수 줄) 읽기 → shortScores[행번호]=점수(0.0~9.9)
   // 정수 줄만 마킹 → x.0 / 둘 다 안 마킹 → 미채점(null, 기존 값 유지) / 소수만 마킹 → 0.x
   if(isV2){
+    // 시험지 코드 A/B/C — 안 찍었으면 null(그땐 지금 열어둔 시험 답안으로 채점)
+    try{
+      var codeDarks=[];
+      for(var cc=0; cc<CAL.codeLabels.length; cc++){
+        var pc=pt(CAL.codeCol0+CAL.codeColStep*cc, CAL.codeRow);
+        codeDarks.push(sampleDarkness(ctx,pc.x,pc.y,r));
+      }
+      var cpick=omrPickMark(codeDarks);
+      out.paperCode = cpick!=null ? CAL.codeLabels[cpick-1] : null;
+    }catch(e){ out.paperCode=null; }
     var shortScores={};
     for(var s=1;s<=CAL.sCount;s++){
       // 정수: sLines[0](0~4)+sLines[1](5~9) / 소수: sLines[2](0~4)+sLines[3](5~9) — 각 줄 5칸
@@ -3730,8 +3805,11 @@ async function handleOmrFiles(fileList){
   var files=Array.from(fileList);
   if(!files.length) return;
   var ex=exams.find(function(e){return e.id===currentExamId;});
-  var omrKey=ex?await fetchExamKey(currentExamId):[];
-  if(!ex||!omrKey.some(function(r){return r.correct!=null;})){
+  var omrFull=ex?await fetchExamKeyFull(currentExamId):{answerKey:[],codeKeys:{}};
+  var omrKey=omrFull.answerKey||[];
+  var hasAnyKey=omrKey.some(function(r){return r.correct!=null;})
+    || Object.keys(omrFull.codeKeys||{}).some(function(c){ return (omrFull.codeKeys[c]||[]).some(function(r){return r.correct!=null;}); });
+  if(!ex||!hasAnyKey){
     alert('먼저 "답안 등록"으로 정답을 입력해주세요.');
     return;
   }
@@ -3770,10 +3848,11 @@ async function handleOmrFiles(fileList){
         continue;
       }
       var student=findStudentByPhone(sheet.phone);
-      var graded=gradeWithAnswerKey(sheet.answers, omrKey);
+      // 학생이 마킹한 시험지 코드(A/B/C)가 있으면 그 코드 답안으로 채점 — 없으면 공통 답안
+      var graded=gradeWithAnswerKey(sheet.answers, pickKeyForCode(omrFull, sheet.paperCode));
       omrResultList.push({
         ok:true, fileName:files[fi2].name, pageNum:pi+1,
-        phone:sheet.phone, answers:sheet.answers,
+        phone:sheet.phone, answers:sheet.answers, paperCode:sheet.paperCode||'',
         studentId: student?student.id:null, studentName: student?student.name:null,
         score:graded.score, total:graded.total, wrong:graded.wrong||[],
         sheetVersion:sheet.sheetVersion||1, shortScores:sheet.shortScores||null
@@ -3831,11 +3910,12 @@ async function saveOmrResults(){
   var skipped=omrResultList.filter(function(r){return r.ok && !r.studentId;}).length;
   if(!toSave.length){ alert('저장할 채점 결과가 없어요(학생 매칭이 안 됐어요).'); return; }
   if(!confirm(toSave.length+'명 성적을 저장할까요?'+(skipped?' (매칭 안 된 '+skipped+'명은 제외됨)':'')))return;
-  var omrKey2=await fetchExamKey(currentExamId);
-  var shortQs=(omrKey2||[]).filter(function(r){return r.correct!=null && r.type==='short';});
+  var omrFull2=await fetchExamKeyFull(currentExamId);
   var clipNotes=[], readTotal=0;
   for(var i=0;i<toSave.length;i++){
     var r=toSave[i];
+    // 서술형 문항 목록도 그 학생이 본 시험지 코드의 답안 기준으로 잡아야 배점·문항번호가 맞음
+    var shortQs=(pickKeyForCode(omrFull2, r.paperCode)||[]).filter(function(x){return x.correct!=null && x.type==='short';});
     // OMR은 객관식만 읽으므로 r.score = 객관식 점수. 주관식/서술형은 성적 패널에서 조교가 직접 입력하는데,
     // 이미 입력돼 있던 주관식 점수가 있으면(다시 스캔한 경우 등) 날리지 않고 합산해서 최종 점수로 저장(2026-09-19).
     var prev=(scoresMap[r.studentId]||{})[currentExamId]||{};

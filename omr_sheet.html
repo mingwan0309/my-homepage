@@ -47,6 +47,9 @@ var L = {
   // 왼쪽 열: 정보 + 부모님 전화번호
   info:{ x:16, w:50, y:52, rowH:6 },       // 학교/시험/성명 3줄
   phone:{ labelY:74, writeY:81, writeH:7, cellW:5.5, gA:16, gB:44, row0:92, rowStep:5.6, bub:3.6 },
+  // 시험지 코드 A/B/C — 같은 시간에 서로 다른 시험지를 볼 때, 학생이 자기 시험지 코드를 마킹하면
+  // 스캔할 때 그 코드의 답안으로 자동 채점됨(2026-09-23 추가). 객관식 상자 바로 위, 같은 폭으로 배치.
+  code:{ x:72, y:24.5, w:40, hdH:4.5, col0:86, colStep:6.2, rowY:32.2, bub:3.8, labels:['A','B','C'] },
   // 가운데 열: 객관식 1~20
   ans:{ hdY:38, hdH:5, qnX:74, qnW:6, col0:84, colStep:6.2, row0:46, rowStep:7.4, bub:3.8, boxX:72, boxW:40 },
   // 오른쪽: 서술형 6문항 (풀이 칸 + 점수입력 정수줄/소수줄)
@@ -108,6 +111,16 @@ el('thin','left:'+mm(Pn.gA+4*Pn.cellW)+';top:'+mm(Pn.labelY+6)+';width:0.25mm;he
 el('thin','left:'+mm(Pn.gB)+';top:'+mm(Pn.labelY+6)+';width:0.25mm;height:'+mm(phoneBottom-(Pn.labelY+6))+';background:#555;');
 el('lbl','left:'+mm(Pn.gA+4*Pn.cellW)+';top:'+mm(Pn.row0+4.5*Pn.rowStep-2.5)+';width:'+mm(Pn.gB-(Pn.gA+4*Pn.cellW))+';height:5mm;justify-content:center;font-size:3mm;', '-');
 
+// 시험지 코드 A/B/C
+var C=L.code;
+el('box','left:'+mm(C.x)+';top:'+mm(C.y)+';width:'+mm(C.w)+';height:'+mm(C.rowY+C.bub/2+2-C.y)+';border-radius:1.5mm;');
+el('hd','left:'+mm(C.x)+';top:'+mm(C.y)+';width:'+mm(C.w)+';height:'+mm(C.hdH)+';font-size:2.8mm;border-radius:1.5mm 1.5mm 0 0;', '시험지 코드');
+C.labels.forEach(function(lb,ci){
+  var cx=C.col0+ci*C.colStep;
+  el('bub','left:'+mm(cx-C.bub/2)+';top:'+mm(C.rowY-C.bub/2)+';width:'+mm(C.bub)+';height:'+mm(C.bub)+';', lb);
+});
+el('txt','left:'+mm(C.x+1.5)+';top:'+mm(C.rowY-1.6)+';width:12mm;font-size:2.2mm;color:#555;', '한 개만');
+
 // 객관식
 var A=L.ans;
 el('box','left:'+mm(A.boxX)+';top:'+mm(A.hdY)+';width:'+mm(A.boxW)+';height:'+mm(A.row0+19*A.rowStep+A.rowStep/2-A.hdY)+';border-radius:1.5mm;');
@@ -166,6 +179,7 @@ var CAL={
   pcolA0:u(Pn.gA+Pn.cellW/2), pcolAStep:du(Pn.cellW), pcolB0:u(Pn.gB+Pn.cellW/2), pcolBStep:du(Pn.cellW),
   prow0:v(Pn.row0), prowStep:dv(Pn.rowStep),
   scol0:u(E.scol0), scolStep:du(E.scolStep), sLines:E.lineOff.map(function(o){ return v(E.rowTop0+o); }), sRowStep:dv(E.rowH), sCount:E.n,
+  codeCol0:u(C.col0), codeColStep:du(C.colStep), codeRow:v(C.rowY), codeLabels:C.labels,
   idBar:{ u:u(L.idbar.x+L.idbar.w/2), v:v(L.idbar.y+L.idbar.h/2), halfW:du(L.idbar.w/2) },
   sampleR:du(1.2)
 };
