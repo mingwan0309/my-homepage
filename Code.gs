@@ -1466,6 +1466,39 @@ function sendProofOverdueNotices() {
 //    - 스크립트 속성 GEMINI_DRAFT_MODEL 로 모델 이름을 바꿀 수 있음(없으면 아래 후보를 순서대로 시도, 404면 다음 후보).
 var AI_DRAFT_MODEL = 'claude-sonnet-5';               // Claude 예비용 모델
 var AI_DRAFT_GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3-pro-preview', 'gemini-2.5-pro']; // 앞에서부터 시도
+// 위 후보가 전부 404(모델 없음)로 실패할 때를 대비해, 키로 실제 쓸 수 있는 모델 목록을 Gemini에 물어봐서 뒤에 붙임.
+// (2026-09-23 추가 — 구글이 모델 이름을 바꾸면 위 목록이 통째로 404가 나서 모든 AI 기능이 멈추던 문제.
+//  결과는 6시간 캐시. generateContent를 지원하는 모델만, pro→flash 순으로 정렬해서 씀.)
+function aiGeminiListModels(apiKey) {
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('geminiModels');
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  try {
+    var res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
+      method: 'GET', headers: { 'x-goog-api-key': apiKey }, muteHttpExceptions: true
+    });
+    if (res.getResponseCode() !== 200) { Logger.log('[aiGeminiListModels] HTTP ' + res.getResponseCode() + ' ' + res.getContentText().slice(0, 300)); return []; }
+    var body = JSON.parse(res.getContentText());
+    var names = (body.models || []).filter(function(m){
+      return (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0;
+    }).map(function(m){ return String(m.name || '').replace(/^models\//, ''); })
+      .filter(function(n){ return n && n.indexOf('embedding') < 0 && n.indexOf('imagen') < 0 && n.indexOf('-image') < 0; });
+    // pro를 먼저, 그 다음 flash, 나머지 순
+    var rank = function(n){ return n.indexOf('pro') >= 0 ? 0 : (n.indexOf('flash') >= 0 ? 1 : 2); };
+    names.sort(function(a, b){ return rank(a) - rank(b); });
+    cache.put('geminiModels', JSON.stringify(names), 21600);
+    Logger.log('[aiGeminiListModels] 사용 가능: ' + names.join(', '));
+    return names;
+  } catch (e) { Logger.log('[aiGeminiListModels] 오류: ' + e); return []; }
+}
+// 시도할 모델 목록 = (스크립트 속성 지정) + 기본 후보 + (키로 실제 쓸 수 있는 목록)
+function aiGeminiModelCandidates(apiKey) {
+  var override = PropertiesService.getScriptProperties().getProperty('GEMINI_DRAFT_MODEL');
+  var list = (override ? [override] : []).concat(AI_DRAFT_GEMINI_MODELS, aiGeminiListModels(apiKey));
+  var seen = {}, out = [];
+  list.forEach(function(m){ m = String(m || '').trim(); if (m && !seen[m]) { seen[m] = 1; out.push(m); } });
+  return out;
+}
 var AI_DRAFT_MAX_IMAGES = 4;
 var AI_DRAFT_SYSTEM = '당신은 한국 고등학교 수학 학원의 보조 선생님입니다. 학생이 올린 수학 질문(글과 사진)을 읽고 풀이 초안을 작성하세요.\n'
   + '규칙:\n'
@@ -1596,8 +1629,7 @@ function aiFindImageBlock(node) {
 
 // Gemini(generateContent) 호출 — 성공하면 {ok:true, text, model}, 실패하면 {ok:false, err}
 function aiDraftCallGemini(apiKey, images, text) {
-  var override = PropertiesService.getScriptProperties().getProperty('GEMINI_DRAFT_MODEL');
-  var models = override ? [override].concat(AI_DRAFT_GEMINI_MODELS) : AI_DRAFT_GEMINI_MODELS;
+  var models = aiGeminiModelCandidates(apiKey);
   var parts = images.map(function(im){ return { inline_data: { mime_type: im.mime, data: im.data } }; });
   parts.push({ text: text });
   var lastErr = '';
@@ -1742,8 +1774,7 @@ function aiReadAnswerKey(data) {
   var hint = data.qcount ? ('이 시험은 ' + Number(data.qcount) + '문항이다. ') : '';
   var text = hint + '이 자료에 인쇄된 문항별 정답을 JSON 배열로만 출력해라.';
 
-  var override = props.getProperty('GEMINI_DRAFT_MODEL');
-  var models = override ? [override].concat(AI_DRAFT_GEMINI_MODELS) : AI_DRAFT_GEMINI_MODELS;
+  var models = aiGeminiModelCandidates(apiKey);
   var parts = images.map(function(im){ return { inline_data: { mime_type: im.mime, data: im.data } }; });
   parts.push({ text: text });
   var lastErr = '';
@@ -1791,7 +1822,7 @@ function aiReadAnswerKey(data) {
       return { success: true, answers: cleaned, model: model };
     } catch (e) { lastErr = model + ': ' + e; }
   }
-  return { success: false, msg: 'AI 읽기 실패 — ' + lastErr };
+  return { success: false, msg: 'AI 읽기 실패 — ' + lastErr + ' (시도한 모델: ' + models.join(', ') + ')' };
 }
 
 // ── 시험지 사진/PDF로 문항별 유형 분류 (2026-09-21 추가) ──
@@ -1818,8 +1849,7 @@ function aiClassifyExam(data) {
   var hint = data.qcount ? ('이 시험은 ' + Number(data.qcount) + '문항이다. ') : '';
   var text = hint + '유형 목록(이 중에서만 고를 것):\n- ' + types.join('\n- ') + '\n\n이 시험지의 문항별 유형을 JSON 배열로만 출력해라.';
 
-  var override = props.getProperty('GEMINI_DRAFT_MODEL');
-  var models = override ? [override].concat(AI_DRAFT_GEMINI_MODELS) : AI_DRAFT_GEMINI_MODELS;
+  var models = aiGeminiModelCandidates(apiKey);
   var parts = [{ inline_data: { mime_type: mime, data: b64 } }, { text: text }];
   var lastErr = '';
   for (var i = 0; i < models.length; i++) {
@@ -1859,5 +1889,5 @@ function aiClassifyExam(data) {
       return { success: true, items: items, model: model };
     } catch (e) { lastErr = model + ': ' + e; }
   }
-  return { success: false, msg: 'AI 분류 실패 — ' + lastErr };
+  return { success: false, msg: 'AI 분류 실패 — ' + lastErr + ' (시도한 모델: ' + models.join(', ') + ')' };
 }
