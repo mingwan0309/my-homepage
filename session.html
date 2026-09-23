@@ -3513,6 +3513,22 @@ function sampleDarkness(ctx, cx, cy, r){
   return 255-(sum/n);
 }
 
+// 한 줄(선택지 5칸 등)의 마킹을 고를 때, 가운데 작은 영역으로 먼저 판단하고 못 고르면 넓은 영역으로 다시 본다. (2026-09-24 추가)
+// 정중앙만 보면, 칸을 꽉 칠하지 않고 "칸보다 크게 동그라미만 그린" 학생(속이 빈 원)은 가운데가 하얘서
+// 전부 미마킹으로 읽혀 0점 처리됐음(진결 학생 사례).
+// ⚠️ 반드시 "좁게 먼저 → 안 되면 넓게" 순서를 지킬 것 — 처음부터 넓게 보면 주변 기준값이 같이 올라가서
+// 희미하게 칠한 학생을 놓치고, 방향 판정도 틀어짐(실제 스캔 7장으로 확인).
+// 넓은 쪽 크기는 칸 간격의 45%를 넘지 않게 자동 제한 — 간격이 좁은 점수입력 칸(4.0mm)에서 옆 칸을 같이 읽지 않도록.
+function pickMarkAt(ctx, pts, r, allowWide){
+  var near = pts.map(function(p){ return sampleDarkness(ctx,p.x,p.y,r); });
+  var pick = omrPickMark(near);
+  if (pick != null || !allowWide || pts.length<2) return pick;
+  var gap = Math.sqrt(Math.pow(pts[1].x-pts[0].x,2)+Math.pow(pts[1].y-pts[0].y,2));
+  var rw = Math.min(r*2.4, gap*0.45);
+  if (rw <= r*1.05) return null;
+  return omrPickMark(pts.map(function(p){ return sampleDarkness(ctx,p.x,p.y,rw); }));
+}
+
 // ── 마커를 페이지 어디서든 찾기 (2026-09-19 추가) ──
 // 예전 방식(findCorners)은 답안지가 페이지를 꽉 채운 스캔만 전제해서 네 귀퉁이 32% 영역만 봤는데,
 // 복사기가 A4 가로로 크게 스캔해서 답안지가 페이지 일부만 차지하거나 방향이 돌아간 경우 전부 실패했음.
@@ -3611,7 +3627,7 @@ function rotateCorners(c, deg, W, H){
   return { x0:Math.min.apply(null,xs), y0:Math.min.apply(null,ys), x1:Math.max.apply(null,xs), y1:Math.max.apply(null,ys), tl:top[0], tr:top[1], bl:bot[0], br:bot[1] };
 }
 // 마커 사각형이 정해진 상태에서 실제 마킹 읽기 (기존 readOmrSheet의 본문)
-function readOmrSheetWithCorners(canvas, corners){
+function readOmrSheetWithCorners(canvas, corners, allowWide){
   var ctx=canvas.getContext('2d');
   // 네 마커 점을 그대로 써서(좌상→우상 방향을 u축, 좌상→좌하 방향을 v축) 위치를 계산하면
   // 답안지가 몇 도 기울어져 스캔돼도 마킹 칸 위치가 어긋나지 않음(예전엔 네 점의 최소/최대 사각형만 써서 기울면 밀렸음)
@@ -3634,22 +3650,16 @@ function readOmrSheetWithCorners(canvas, corners){
   var CAL = isV2 ? OMR_CAL_V2 : OMR_CAL;
   var answers={};
   for(var q=1;q<=20;q++){
-    var darks=[];
-    for(var c=1;c<=5;c++){
-      var p=pt(CAL.acol0+CAL.acolStep*(c-1), CAL.arow0+CAL.arowStep*(q-1));
-      darks.push(sampleDarkness(ctx,p.x,p.y,r));
-    }
-    answers[q]= omrPickMark(darks);
+    var pts=[];
+    for(var c=1;c<=5;c++) pts.push(pt(CAL.acol0+CAL.acolStep*(c-1), CAL.arow0+CAL.arowStep*(q-1)));
+    answers[q]= pickMarkAt(ctx,pts,r,allowWide);
   }
   var digits=[];
   for(var c2=1;c2<=8;c2++){
     var colFrac=(c2<=4)?(CAL.pcolA0+CAL.pcolAStep*(c2-1)):(CAL.pcolB0+CAL.pcolBStep*(c2-5));
-    var darks2=[];
-    for(var d=0;d<=9;d++){
-      var p2=pt(colFrac, CAL.prow0+CAL.prowStep*d);
-      darks2.push(sampleDarkness(ctx,p2.x,p2.y,r));
-    }
-    var pick=omrPickMark(darks2);
+    var pts2=[];
+    for(var d=0;d<=9;d++) pts2.push(pt(colFrac, CAL.prow0+CAL.prowStep*d));
+    var pick=pickMarkAt(ctx,pts2,r,allowWide);
     digits.push(pick!=null ? String(pick-1) : '?');
   }
   var phone=digits.slice(0,4).join('')+'-'+digits.slice(4).join('');
@@ -3659,25 +3669,22 @@ function readOmrSheetWithCorners(canvas, corners){
   if(isV2){
     // 시험지 코드 A/B/C — 안 찍었으면 null(그땐 지금 열어둔 시험 답안으로 채점)
     try{
-      var codeDarks=[];
-      for(var cc=0; cc<CAL.codeLabels.length; cc++){
-        var pc=pt(CAL.codeCol0+CAL.codeColStep*cc, CAL.codeRow);
-        codeDarks.push(sampleDarkness(ctx,pc.x,pc.y,r));
-      }
-      var cpick=omrPickMark(codeDarks);
+      var codePts=[];
+      for(var cc=0; cc<CAL.codeLabels.length; cc++) codePts.push(pt(CAL.codeCol0+CAL.codeColStep*cc, CAL.codeRow));
+      var cpick=pickMarkAt(ctx,codePts,r,allowWide);
       out.paperCode = cpick!=null ? CAL.codeLabels[cpick-1] : null;
     }catch(e){ out.paperCode=null; }
     var shortScores={};
     for(var s=1;s<=CAL.sCount;s++){
       // 정수: sLines[0](0~4)+sLines[1](5~9) / 소수: sLines[2](0~4)+sLines[3](5~9) — 각 줄 5칸
-      var intDarks=[], decDarks=[];
+      var intPts=[], decPts=[];
       for(var ln=0;ln<4;ln++){
         for(var k=0;k<5;k++){
           var pk=pt(CAL.scol0+CAL.scolStep*k, CAL.sLines[ln]+CAL.sRowStep*(s-1));
-          (ln<2?intDarks:decDarks).push(sampleDarkness(ctx,pk.x,pk.y,r));
+          (ln<2?intPts:decPts).push(pk);
         }
       }
-      var ip=omrPickMark(intDarks), dp=omrPickMark(decDarks);
+      var ip=pickMarkAt(ctx,intPts,r,allowWide), dp=pickMarkAt(ctx,decPts,r,allowWide);
       if(ip==null && dp==null){ shortScores[s]=null; continue; }
       shortScores[s]= (ip!=null?ip-1:0) + (dp!=null?(dp-1)/10:0);
     }
@@ -3696,6 +3703,13 @@ function omrPickMark(darks){
   var median=rest[Math.floor(rest.length/2)];
   if(maxV>=45 && maxV>=median*2+15) return idx+1;
   return null;
+}
+// 실제로 읽힌 마킹 개수(전화번호 자릿수 + 답한 문항 수) — 방향 판정이 되긴 했는지 확인용
+function omrMarkCount(res){
+  if(!res) return 0;
+  var n=(res.phone.match(/[0-9]/g)||[]).length;
+  for(var q=1;q<=20;q++){ if(res.answers[q]!=null) n++; }
+  return n;
 }
 // 읽은 결과가 "말이 되는지" 점수화 — 방향(0/90/180/270) 후보 중 고르는 데 씀
 function omrPlausibility(res){
@@ -3719,16 +3733,37 @@ function readOmrSheet(canvas){
   // 보정값 기준 답안지는 가로가 더 긴 사각형(4099.5×2798). 찾은 사각형이 세로로 길면 90도 돌아간 것.
   var rectLandscape=(corners.x1-corners.x0) >= (corners.y1-corners.y0);
   var degs = rectLandscape ? [0,180] : [90,270];
-  var best=null, bestScore=-2;
+  // ⚠️ 방향(0/90/180/270) 고르기는 반드시 "좁은 기준"만으로 한다. 넓은 기준까지 켜고 후보를 비교하면
+  // 엉뚱한 방향에서도 마킹이 잡혀서 그럴듯해 보이는 바람에 방향 선택이 틀어짐(2026-09-24 실제 스캔에서 확인).
+  // 방향을 정한 다음, 그 방향에서만 "크게 동그라미 친" 마킹을 살리는 넓은 기준 보조 판독을 켜서 다시 읽는다.
+  var best=null, bestScore=-2, bestDeg=0;
   for(var i=0;i<degs.length;i++){
     var deg=degs[i];
     var cv=rotateCanvas(canvas,deg);
     var cc=rotateCorners(corners,deg,W,H);
     var res;
-    try{ res=readOmrSheetWithCorners(cv,cc); }catch(e){ res=null; }
+    try{ res=readOmrSheetWithCorners(cv,cc,false); }catch(e){ res=null; }
     var sc=omrPlausibility(res);
-    if(sc>bestScore){ bestScore=sc; best=res; }
+    if(sc>bestScore){ bestScore=sc; best=res; bestDeg=deg; }
   }
+  // 좁은 기준으로 거의 아무것도 못 읽었으면(전부 "큰 동그라미"만 친 답안지) 방향 자체를 못 고른 상태이므로,
+  // 그때만 넓은 기준으로 후보를 다시 비교한다. 좁은 기준으로 읽힌 게 있으면 그 방향을 그대로 믿는다.
+  var wideBest=null, wideScore=-2, wideDeg=bestDeg;
+  for(var j=0;j<degs.length;j++){
+    var deg2=degs[j], res2=null;
+    try{ res2=readOmrSheetWithCorners(rotateCanvas(canvas,deg2), rotateCorners(corners,deg2,W,H), true); }catch(e){ res2=null; }
+    var sc2=omrPlausibility(res2);
+    if(sc2>wideScore){ wideScore=sc2; wideBest=res2; wideDeg=deg2; }
+  }
+  // 넓은 기준 결과가 "확실히" 더 그럴듯할 때만(+8점 이상) 그쪽을 택한다. 근소한 차이로 방향을 바꾸면
+  // 빈 답안지의 잡티 때문에 엉뚱한 방향으로 뒤집힘(실제 스캔 p6에서 확인).
+  if(wideBest && wideScore > bestScore + 8) return wideBest;
+  // 방향은 좁은 기준으로 정하고, 그 방향의 넓은 기준 판독 결과를 쓴다(크게 동그라미 친 문항 살리기).
+  if(wideBest && wideDeg===bestDeg) return wideBest;
+  try{
+    var wide=readOmrSheetWithCorners(rotateCanvas(canvas,bestDeg), rotateCorners(corners,bestDeg,W,H), true);
+    if(wide) best=wide;
+  }catch(e){}
   return best;
 }
 
