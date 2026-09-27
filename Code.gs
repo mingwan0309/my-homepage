@@ -927,6 +927,28 @@ function sendMcHourReminders() {
   } catch (err) {
     Logger.log('[sendProofOverdueNotices 호출] 오류: ' + err);
   }
+
+  // 증빙 사진 자동완료도 여기서 같이 돌린다 (2026-09-27 추가).
+  // 원래는 autoCompleteOldSubmissions 전용 "1시간마다" 트리거에만 의존했는데, 그 트리거가 빠져 있어서
+  // 6일이 지나도 자동완료가 안 된 사례가 있었음(양지우 학생 재시험 사진 건). 5분 트리거는 알림톡이 실제로
+  // 나가고 있으니 확실히 도는 게 검증됨 → 여기에 얹되, 무거운 조회(scores/hw_status 전체)라
+  // 실제 검사는 "한 시간에 한 번"만 하도록 ScriptProperties로 막아둠.
+  try {
+    runAutoCompleteHourly();
+  } catch (err) {
+    Logger.log('[runAutoCompleteHourly 호출] 오류: ' + err);
+  }
+}
+
+// 한 시간에 한 번만 autoCompleteOldSubmissions를 실행 (5분 트리거 위에서 돌기 때문에 필요한 제한).
+// 전용 1시간 트리거가 따로 등록돼 있어도 같은 문서를 두 번 처리할 뿐 결과는 같으므로(이미 완료된 건은 대상에서 제외됨) 겹쳐도 안전함.
+function runAutoCompleteHourly() {
+  var props = PropertiesService.getScriptProperties();
+  var kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  var hourKey = mcTodayInfoSeoul().dateStr + ' ' + kstNow.getUTCHours();
+  if (props.getProperty('autoCompleteLastHour') === hourKey) return;
+  props.setProperty('autoCompleteLastHour', hourKey);
+  autoCompleteOldSubmissions();
 }
 
 // 클리닉(추가클리닉 등, clinic_bookings) "오기 1시간 전" 자동 알림 — 의무클리닉과 동일한 패턴.
