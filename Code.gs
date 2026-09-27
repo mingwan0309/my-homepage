@@ -938,6 +938,28 @@ function sendMcHourReminders() {
   } catch (err) {
     Logger.log('[runAutoCompleteHourly 호출] 오류: ' + err);
   }
+
+  // 주간 요약 알림톡(화요일 낮)도 같은 5분 트리거에 얹음 (2026-09-27 추가).
+  // 원래 "주 단위 화요일" 전용 트리거에만 의존했는데 그 트리거도 등록돼 있지 않아서 한 번도 안 나갔음.
+  try {
+    runWeeklySummaryIfDue();
+  } catch (err) {
+    Logger.log('[runWeeklySummaryIfDue 호출] 오류: ' + err);
+  }
+}
+
+// 화요일 낮 12시대에 주간 요약을 딱 한 번 보냄. 날짜를 ScriptProperties에 남겨 그날 두 번 나가지 않게 막음.
+// (발송 대상은 sendWeeklySummary 안에서 선생님 번호 1명으로 고정 — 여기서 대상을 늘리지 말 것.)
+function runWeeklySummaryIfDue() {
+  var today = mcTodayInfoSeoul();
+  if (today.dayName !== '화') return;
+  var kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  var hour = kstNow.getUTCHours();
+  if (hour < WEEKLY_SUMMARY_HOUR || hour >= WEEKLY_SUMMARY_HOUR + 1) return;
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('weeklySummaryDate') === today.dateStr) return;
+  props.setProperty('weeklySummaryDate', today.dateStr);
+  sendWeeklySummary();
 }
 
 // 한 시간에 한 번만 autoCompleteOldSubmissions를 실행 (5분 트리거 위에서 돌기 때문에 필요한 제한).
@@ -1002,6 +1024,7 @@ function sendClinicHourReminders() {
 // 학생이 숙제 증빙(hw_status) 또는 재시험 증빙(scores) 사진을 올렸는데 선생님/조교가
 // 6시간 안에 확인해서 완료 처리를 안 하면, 자동으로 완료 처리해줌 — 트리거에 등록해서
 // 1시간마다 실행시키는 함수(의무클리닉 1시간 전 알림 트리거와는 별개로 새로 등록 필요).
+var WEEKLY_SUMMARY_HOUR = 12; // 주간 요약을 보낼 시각(한국시간 12시대). 화요일 낮 = 사용자 쉬는 날
 var HW_AUTO_COMPLETE_HOURS = 6;
 function autoCompleteOldSubmissions() {
   try { autoCompleteOldHwProofs(); } catch (err) { Logger.log('[autoCompleteOldHwProofs] 오류: ' + err); }

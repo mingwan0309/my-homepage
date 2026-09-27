@@ -322,7 +322,7 @@
 
 ## 주간 요약 알림톡 (2026-09-16 추가)
 매주 **화요일 낮**(사용자 쉬는 날이라 이때가 제일 좋다고 지정함)에 선생님 번호로만 한 주 상황 요약 알림톡 **1통**이 자동 발송됨. 관리 페이지의 여러 탭(숙제관리/테스트 관리/질의응답)을 일일이 돌지 않아도 밀린 게 뭔지 폰에서 바로 보이게 하는 게 목적.
-- Code.gs `sendWeeklySummary()` — Apps Script 트리거(주 단위, 화요일)로 실행. **의무클리닉 알림(`sendMcHourReminders`, 5분마다)·자동완료(`autoCompleteOldSubmissions`, 1시간마다)와는 별개인 세 번째 트리거**라 사용자가 직접 등록해야 함.
+- Code.gs `sendWeeklySummary()` — **2026-09-27부터 별도 트리거 불필요.** 5분 트리거(`sendMcHourReminders`) 안의 `runWeeklySummaryIfDue()`가 화요일 `WEEKLY_SUMMARY_HOUR`(=12)시대에 하루 한 번만 실행함(`ScriptProperties`의 `weeklySummaryDate`로 중복 방지). 예전엔 "주 단위 화요일" 전용 트리거를 사용자가 등록해야 했는데 **실제로는 등록돼 있지 않아서 한 번도 안 나갔음**(2026-09-27에 트리거 목록 확인해서 발견 — 자동완료 트리거도 같이 빠져 있었고, 대신 `doPost`가 시간 트리거로 2개 잘못 등록돼 있었음). 보낼 시각을 바꾸려면 `WEEKLY_SUMMARY_HOUR` 숫자만 고치면 됨.
 - 내용 두 덩어리: **[지난 7일]** 결석 건수(이름 5명까지 나열)·클리닉 신청 건수·증빙 자동완료 건수 / **[지금 밀려있는 것]** 숙제 미이행·미제출 건수·재시험 미해결 인원·미답변 질문 개수. 밀린 게 하나도 없으면 "밀린 것 없이 다 처리됐어요!" 한 줄이 붙음.
 - 기간 판단은 `kstDateStrOffset(-7)`~오늘(한국 날짜 문자열 비교). **`attendance`에는 날짜 필드가 없어서** `sessions`의 `date`로 기간 내 차시를 먼저 추린 뒤 그 차시의 출결만 셈 — 이 구조를 모르고 attendance만 보면 기간 필터가 안 먹으니 주의.
 - 집계에 쓰는 실제 저장값(2026-09-16에 코드에서 직접 확인함, 추측 금지): 출결은 한글 `'결석'`, 질문 미답변은 `qna.status === 'open'`, 클리닉 취소는 `clinic_bookings.status === '취소'`, 숙제는 `pass`가 `incomplete`/`partial`/`notsub`, 재시험은 `pass`가 `nosub`/`absent`이면서 `alertResolved`가 아직 아닌 것.
