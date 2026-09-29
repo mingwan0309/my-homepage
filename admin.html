@@ -1349,7 +1349,11 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="fg"><label>시작일</label><input type="date" id="cal-date" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
       <div class="fg"><label>종료일 <span style="color:#94a3b8;font-weight:400;">(하루면 비워두세요)</span></label><input type="date" id="cal-enddate" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
     </div>
-    <div class="fg"><label>대상 반 <span style="color:#94a3b8;font-weight:400;">(아무것도 안 고르면 전체)</span></label>
+    <div class="fg" id="cal-class-row"><label>대상 반 <span style="color:#94a3b8;font-weight:400;">(아무것도 안 고르면 전체)</span></label>
+      <div id="cal-class-auto" style="display:none;align-items:center;gap:8px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:9px;padding:10px 12px;">
+        <span id="cal-class-auto-text" style="font-size:13.5px;font-weight:700;color:#1e293b;"></span>
+        <button type="button" class="btn" onclick="schExpandClassPick()" style="margin-left:auto;padding:6px 10px;font-size:12px;">다른 반 고르기</button>
+      </div>
       <div id="cal-class-checks" style="display:flex;flex-wrap:wrap;gap:6px;max-height:140px;overflow-y:auto;border:1.5px solid #e2e8f0;border-radius:9px;padding:8px;"></div>
     </div>
     <div class="fg"><label>메모 <span style="color:#94a3b8;font-weight:400;">(선택)</span></label><input type="text" id="cal-memo" placeholder="예: 시험범위 1~3단원"></div>
@@ -5796,12 +5800,30 @@ function openSchModal(id, dateStr){
   document.getElementById('cal-enddate').value = ev ? (ev.endDate||'') : '';
   document.getElementById('cal-memo').value = ev ? ev.memo : '';
   setSchType(ev ? ev.type : 'exam');
+  // 달력 위 드롭다운에서 반을 골라둔 상태면, 새 일정은 그 반 일정으로 자동 지정(모달에서 또 고를 필요 없음)
+  var picked = (document.getElementById('cal-class-filter')||{}).value || '';
   document.querySelectorAll('.cal-cls').forEach(function(c){
-    c.checked = !!(ev && ev.classIds.indexOf(c.value) >= 0);
+    c.checked = ev ? (ev.classIds.indexOf(c.value) >= 0) : (picked ? c.value===picked : false);
   });
+  schRenderClassPick(!ev && picked ? picked : '');
   document.getElementById('cal-del-btn').style.display = ev ? '' : 'none';
   document.getElementById('cal-modal').classList.add('show');
 }
+// 위 드롭다운에서 고른 반이 있으면 체크박스 목록 대신 "○○ 반 일정으로 등록돼요" 한 줄로 보여줌
+function schRenderClassPick(pickedId){
+  var auto = document.getElementById('cal-class-auto');
+  var checks = document.getElementById('cal-class-checks');
+  if(!auto || !checks) return;
+  if(pickedId){
+    auto.style.display = 'flex';
+    checks.style.display = 'none';
+    document.getElementById('cal-class-auto-text').textContent = '📌 ' + schClassName(pickedId) + ' 일정으로 등록돼요';
+  } else {
+    auto.style.display = 'none';
+    checks.style.display = 'flex';
+  }
+}
+function schExpandClassPick(){ schRenderClassPick(''); }
 function closeSchModal(){ document.getElementById('cal-modal').classList.remove('show'); schEditId=null; }
 function saveSchEvent(){
   var title = document.getElementById('cal-title-input').value.trim();
