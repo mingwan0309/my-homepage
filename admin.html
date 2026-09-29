@@ -239,6 +239,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 .cal-cell{min-height:58px;border:1px solid #eef2f7;border-radius:7px;padding:3px 4px;cursor:pointer;background:#fff;overflow:hidden;}
 .cal-cell:hover{background:#f8fafc;border-color:#cbd5e1;}
 .cal-cell.other{background:#fafafa;color:#cbd5e1;}
+.cal-cell.picked{background:#dbeafe;border-color:#3b82f6;}
+.cal-grid{user-select:none;-webkit-user-select:none;}
 .cal-cell.today{border-color:#2563eb;box-shadow:0 0 0 1px #2563eb inset;}
 .cal-day{font-size:11px;font-weight:700;color:#475569;}
 .cal-cell.other .cal-day{color:#cbd5e1;}
@@ -479,9 +481,14 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           <span><span class="cal-dot" style="background:#ef4444;"></span> 시험기간</span>
           <span><span class="cal-dot" style="background:#2563eb;"></span> 등원일</span>
           <span><span class="cal-dot" style="background:#10b981;"></span> 기타</span>
-          <span style="margin-left:auto;color:#94a3b8;">날짜를 누르면 일정을 추가할 수 있어요</span>
+          <span style="margin-left:auto;color:#94a3b8;">날짜를 누르거나 쭉 끌어서 선택하세요</span>
         </div>
         <div id="cal-grid" class="cal-grid"></div>
+        <div id="cal-selbar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 12px;">
+          <span id="cal-sel-text" style="font-size:13px;font-weight:700;color:#1e40af;"></span>
+          <button class="btn-ok" onclick="openCalModalForSelection()" style="margin-left:auto;padding:9px 14px;">이 날짜로 일정 추가</button>
+          <button class="btn" onclick="clearCalSelection()" style="padding:8px 12px;font-size:13px;">선택 해제</button>
+        </div>
       </div>
       <div class="card" style="max-width:720px;">
         <div class="card-title">이 달 일정</div>
@@ -1337,7 +1344,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       </div>
     </div>
     <div class="fg"><label>제목</label><input type="text" id="cal-title-input" placeholder="예: 중간고사 / 연합반 등원"></div>
-    <div class="fr">
+    <div id="cal-picked-box" style="display:none;background:#eff6ff;border-radius:9px;padding:9px 12px;margin-bottom:10px;font-size:13px;color:#1e40af;font-weight:700;"></div>
+    <div class="fr" id="cal-date-row">
       <div class="fg"><label>시작일</label><input type="date" id="cal-date" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
       <div class="fg"><label>종료일 <span style="color:#94a3b8;font-weight:400;">(하루면 비워두세요)</span></label><input type="date" id="cal-enddate" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
     </div>
@@ -5571,6 +5579,7 @@ var calCur = new Date();            // 지금 보고 있는 달
 var calEvents = [];                 // 전체 일정 캐시
 var calEditId = null;               // 수정 중인 일정 id (없으면 새로 추가)
 var calPickType = 'exam';
+var calPendingRanges = null;   // 달력에서 여러 날을 골라 한 번에 등록할 때 쓰는 목록
 var CAL_TYPE = {
   exam:   { name:'시험기간', color:'#ef4444' },
   attend: { name:'등원일',   color:'#2563eb' },
@@ -5606,6 +5615,7 @@ function loadCalendar(){
   return calApi({action:'getCalendarEvents'}).then(function(r){
     calEvents = (r && r.events) || [];
     renderCalendar();
+    initCalGridEvents();
   });
 }
 // 그 날짜에 걸리는 일정 (기간 일정이면 시작~종료 사이 전부)
@@ -5640,10 +5650,11 @@ function renderCalendar(){
       return '<div class="cal-ev" style="background:'+t.color+';" title="'+escHtml(e.title)+'">'+escHtml(e.title)+'</div>';
     }).join('');
     if(evs.length>2) chips += '<div class="cal-more">+'+(evs.length-2)+'</div>';
-    html += '<div class="cal-cell'+(other?' other':'')+(ds===todayStr?' today':'')+'" onclick="openCalModal(null,&quot;'+ds+'&quot;)">'
+    html += '<div class="cal-cell'+(other?' other':'')+(ds===todayStr?' today':'')+(calSel[ds]?' picked':'')+'" data-date="'+ds+'">'
       + '<div class="cal-day '+(dow===0?'sun':dow===6?'sat':'')+'">'+d.getDate()+'</div>' + chips + '</div>';
   }
   grid.innerHTML = html;
+  renderCalSelBar();
   renderCalList();
 }
 function renderCalList(){
@@ -5671,6 +5682,86 @@ function renderCalList(){
       + '</div><span style="color:#cbd5e1;">›</span></div>';
   }).join('');
 }
+// ── 달력에서 날짜를 눌러(또는 끌어서) 여러 날을 한 번에 고르고 바로 등록 (2026-09-29 추가) ──
+// 시험기간처럼 이어진 날은 자동으로 "기간 일정 1건"으로, 띄엄띄엄 고른 날(연합반 등원일 등)은 각각 1건씩 저장됨.
+var calSel = {};          // 고른 날짜 { '2026-10-05': true }
+var calDragging = false, calDragAdd = true;
+function calSelectedDates(){
+  return Object.keys(calSel).filter(function(k){ return calSel[k]; }).sort();
+}
+// 이어진 날짜끼리 묶기 → [{start,end}, ...]
+function calSelectedRanges(){
+  var ds = calSelectedDates(), out = [];
+  ds.forEach(function(d){
+    var last = out[out.length-1];
+    if(last){
+      var next = new Date(last.end+'T00:00:00');
+      next.setDate(next.getDate()+1);
+      if(calDateStr(next) === d){ last.end = d; return; }
+    }
+    out.push({ start:d, end:d });
+  });
+  return out;
+}
+function calRangeLabel(){
+  return calSelectedRanges().map(function(r){
+    var f = function(x){ return x.slice(5).replace('-','/'); };
+    return r.start===r.end ? f(r.start) : (f(r.start)+'~'+f(r.end));
+  }).join(', ');
+}
+function renderCalSelBar(){
+  var bar = document.getElementById('cal-selbar');
+  if(!bar) return;
+  var n = calSelectedDates().length;
+  bar.style.display = n ? 'flex' : 'none';
+  if(n) document.getElementById('cal-sel-text').textContent = n+'일 선택됨 · '+calRangeLabel();
+}
+function clearCalSelection(){ calSel = {}; renderCalendar(); }
+function calToggleDate(ds, force){
+  if(force===undefined) calSel[ds] = !calSel[ds];
+  else calSel[ds] = force;
+  if(!calSel[ds]) delete calSel[ds];
+  var cell = document.querySelector('.cal-cell[data-date="'+ds+'"]');
+  if(cell) cell.classList.toggle('picked', !!calSel[ds]);
+  renderCalSelBar();
+}
+// 그리드 전체에 이벤트를 한 번만 걸어둠(셀은 매번 다시 그려지므로 위임 방식)
+function initCalGridEvents(){
+  var grid = document.getElementById('cal-grid');
+  if(!grid || grid.dataset.bound) return;
+  grid.dataset.bound = '1';
+  var cellOf = function(e){ return e.target.closest('.cal-cell'); };
+  grid.addEventListener('mousedown', function(e){
+    var c = cellOf(e); if(!c) return;
+    e.preventDefault();
+    calDragging = true;
+    calDragAdd = !calSel[c.dataset.date];   // 이미 골라둔 칸에서 시작하면 지우는 드래그
+    calToggleDate(c.dataset.date, calDragAdd);
+  });
+  grid.addEventListener('mouseover', function(e){
+    if(!calDragging) return;
+    var c = cellOf(e); if(!c) return;
+    calToggleDate(c.dataset.date, calDragAdd);
+  });
+  document.addEventListener('mouseup', function(){ calDragging = false; });
+  // 폰: 길게 끌 필요 없이 탭으로 하나씩 고르면 됨
+  grid.addEventListener('touchstart', function(e){
+    var c = cellOf(e); if(!c) return;
+    e.preventDefault();
+    calToggleDate(c.dataset.date);
+  }, {passive:false});
+}
+function openCalModalForSelection(){
+  var ranges = calSelectedRanges();
+  if(!ranges.length) return;
+  openCalModal(null, ranges[0].start);
+  calPendingRanges = ranges;
+  document.getElementById('cal-date-row').style.display = 'none';
+  var box = document.getElementById('cal-picked-box');
+  box.style.display = '';
+  box.textContent = '📅 선택한 날짜: ' + calRangeLabel()
+    + (ranges.length>1 ? ' (따로 떨어진 날짜는 각각 등록돼요)' : '');
+}
 function calClassName(id){
   var sel = document.getElementById('cal-class-filter');
   if(sel) for(var i=0;i<sel.options.length;i++) if(sel.options[i].value===String(id)) return sel.options[i].textContent;
@@ -5692,6 +5783,9 @@ function setCalType(t){
 }
 function openCalModal(id, dateStr){
   calEditId = id || null;
+  calPendingRanges = null;
+  document.getElementById('cal-date-row').style.display = '';
+  document.getElementById('cal-picked-box').style.display = 'none';
   var ev = id ? calEvents.filter(function(e){ return e.id===id; })[0] : null;
   document.getElementById('cal-modal-title').textContent = ev ? '일정 수정' : '일정 추가';
   document.getElementById('cal-title-input').value = ev ? ev.title : '';
@@ -5711,12 +5805,27 @@ function saveCalEvent(){
   var date = document.getElementById('cal-date').value;
   var endDate = document.getElementById('cal-enddate').value;
   if(!title){ alert('제목을 입력해주세요.'); return; }
-  if(!date){ alert('시작일을 골라주세요.'); return; }
-  if(endDate && endDate < date){ alert('종료일이 시작일보다 빠를 수 없어요.'); return; }
+  if(!calPendingRanges){
+    if(!date){ alert('시작일을 골라주세요.'); return; }
+    if(endDate && endDate < date){ alert('종료일이 시작일보다 빠를 수 없어요.'); return; }
+  }
   var ids = [];
   document.querySelectorAll('.cal-cls').forEach(function(c){ if(c.checked) ids.push(c.value); });
-  var p = { action:'saveCalendarEvent', title:title, date:date, endDate:endDate,
-    type:calPickType, classIds:JSON.stringify(ids), memo:document.getElementById('cal-memo').value.trim() };
+  var base = { action:'saveCalendarEvent', title:title, type:calPickType,
+    classIds:JSON.stringify(ids), memo:document.getElementById('cal-memo').value.trim() };
+  // 달력에서 여러 날을 골라온 경우: 이어진 날은 기간 1건, 떨어진 날은 각각 1건으로 한꺼번에 저장
+  if(calPendingRanges && calPendingRanges.length){
+    Promise.all(calPendingRanges.map(function(r){
+      var q = Object.assign({}, base, { date:r.start, endDate:(r.end!==r.start? r.end : '') });
+      return calApi(q);
+    })).then(function(res){
+      var bad = res.filter(function(r){ return !r || !r.success; }).length;
+      if(bad) alert(bad+'건 저장에 실패했어요. 다시 시도해주세요.');
+      calSel = {}; closeCalModal(); loadCalendar();
+    });
+    return;
+  }
+  var p = Object.assign({}, base, { date:date, endDate:endDate });
   if(calEditId) p.id = calEditId;
   calApi(p).then(function(r){
     if(!r || !r.success){ alert('저장 실패: '+((r&&r.error)||'알 수 없는 오류')); return; }
