@@ -469,11 +469,11 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="page-header"><div class="page-title">일정 달력</div></div>
       <div class="card" style="max-width:720px;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-          <button class="btn" onclick="calMove(-1)" style="padding:6px 12px;">‹</button>
+          <button class="btn" onclick="schMove(-1)" style="padding:6px 12px;">‹</button>
           <div id="cal-title" style="font-size:16px;font-weight:800;min-width:120px;text-align:center;">—</div>
-          <button class="btn" onclick="calMove(1)" style="padding:6px 12px;">›</button>
-          <button class="btn" onclick="calMove(0)" style="padding:6px 12px;font-size:12px;">오늘</button>
-          <select id="cal-class-filter" onchange="renderCalendar()" style="margin-left:auto;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;">
+          <button class="btn" onclick="schMove(1)" style="padding:6px 12px;">›</button>
+          <button class="btn" onclick="schMove(0)" style="padding:6px 12px;font-size:12px;">오늘</button>
+          <select id="cal-class-filter" onchange="renderSchendar()" style="margin-left:auto;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;">
             <option value="">전체 반</option>
           </select>
         </div>
@@ -486,8 +486,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div id="cal-grid" class="cal-grid"></div>
         <div id="cal-selbar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 12px;">
           <span id="cal-sel-text" style="font-size:13px;font-weight:700;color:#1e40af;"></span>
-          <button class="btn-ok" onclick="openCalModalForSelection()" style="margin-left:auto;padding:9px 14px;">이 날짜로 일정 추가</button>
-          <button class="btn" onclick="clearCalSelection()" style="padding:8px 12px;font-size:13px;">선택 해제</button>
+          <button class="btn-ok" onclick="openSchModalForSelection()" style="margin-left:auto;padding:9px 14px;">이 날짜로 일정 추가</button>
+          <button class="btn" onclick="clearSchSelection()" style="padding:8px 12px;font-size:13px;">선택 해제</button>
         </div>
       </div>
       <div class="card" style="max-width:720px;">
@@ -1333,14 +1333,14 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
 </div>
 
 <!-- 일정 추가/수정 (일정 달력) -->
-<div id="cal-modal" class="modal-bg" onclick="if(event.target===this)closeCalModal()">
+<div id="cal-modal" class="modal-bg" onclick="if(event.target===this)closeSchModal()">
   <div class="modal" style="max-width:480px;max-height:90vh;overflow-y:auto;">
     <h3 id="cal-modal-title">일정 추가</h3>
     <div class="fg"><label>종류</label>
       <div id="cal-type-btns" style="display:flex;gap:6px;">
-        <button type="button" class="btn" data-type="exam" onclick="setCalType('exam')" style="flex:1;">시험기간</button>
-        <button type="button" class="btn" data-type="attend" onclick="setCalType('attend')" style="flex:1;">등원일</button>
-        <button type="button" class="btn" data-type="etc" onclick="setCalType('etc')" style="flex:1;">기타</button>
+        <button type="button" class="btn" data-type="exam" onclick="setSchType('exam')" style="flex:1;">시험기간</button>
+        <button type="button" class="btn" data-type="attend" onclick="setSchType('attend')" style="flex:1;">등원일</button>
+        <button type="button" class="btn" data-type="etc" onclick="setSchType('etc')" style="flex:1;">기타</button>
       </div>
     </div>
     <div class="fg"><label>제목</label><input type="text" id="cal-title-input" placeholder="예: 중간고사 / 연합반 등원"></div>
@@ -1354,9 +1354,9 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     </div>
     <div class="fg"><label>메모 <span style="color:#94a3b8;font-weight:400;">(선택)</span></label><input type="text" id="cal-memo" placeholder="예: 시험범위 1~3단원"></div>
     <div class="modal-btns">
-      <button class="btn-cl" id="cal-del-btn" onclick="deleteCalEvent()" style="margin-right:auto;background:#fee2e2;color:#dc2626;display:none;">삭제</button>
-      <button class="btn-cl" onclick="closeCalModal()">취소</button>
-      <button class="btn-ok" onclick="saveCalEvent()">저장</button>
+      <button class="btn-cl" id="cal-del-btn" onclick="deleteSchEvent()" style="margin-right:auto;background:#fee2e2;color:#dc2626;display:none;">삭제</button>
+      <button class="btn-cl" onclick="closeSchModal()">취소</button>
+      <button class="btn-ok" onclick="saveSchEvent()">저장</button>
     </div>
   </div>
 </div>
@@ -1467,7 +1467,7 @@ function showPage(page,el){
   if(page==='classes') loadClasses();
   if(page==='signals') loadSignalBoard();
   if(page==='students') loadStu();
-  if(page==='calendar') loadCalendar();
+  if(page==='calendar') loadSchedule();
   if(page==='reviewmanage') loadRv();
   if(page==='notice') loadNotices();
   if(page==='clinic'){
@@ -5575,26 +5575,26 @@ function exportAstExcel(){
 
 // ══════════ 일정 달력 (2026-09-29 추가) ══════════
 // 시험기간·등원일을 반별로 표시. 연합반처럼 반마다 일정이 다른 경우를 위해 일정마다 대상 반을 고를 수 있음.
-var calCur = new Date();            // 지금 보고 있는 달
-var calEvents = [];                 // 전체 일정 캐시
-var calEditId = null;               // 수정 중인 일정 id (없으면 새로 추가)
-var calPickType = 'exam';
-var calPendingRanges = null;   // 달력에서 여러 날을 골라 한 번에 등록할 때 쓰는 목록
-var CAL_TYPE = {
+var schCur = new Date();            // 지금 보고 있는 달
+var schEvents = [];                 // 전체 일정 캐시
+var schEditId = null;               // 수정 중인 일정 id (없으면 새로 추가)
+var schPickType = 'exam';
+var schPendingRanges = null;   // 달력에서 여러 날을 골라 한 번에 등록할 때 쓰는 목록
+var SCH_TYPE = {
   exam:   { name:'시험기간', color:'#ef4444' },
   attend: { name:'등원일',   color:'#2563eb' },
   etc:    { name:'기타',     color:'#10b981' }
 };
-function calDateStr(d){
+function schDateStr(d){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 // 이 페이지의 다른 기능들과 동일하게 SU(가로채기 대상 주소)로 호출 — firebase-api.js가 받아서 Firestore로 처리함
-function calApi(params){
+function schApi(params){
   return fetch(SU,{method:'POST',body:JSON.stringify(params)}).then(function(r){ return r.json(); }).catch(function(){ return null; });
 }
-function loadCalendar(){
+function loadSchedule(){
   // 반 목록을 먼저 채워야 필터·체크박스가 그려짐
-  calApi({action:'getClasses'}).then(function(r){
+  schApi({action:'getClasses'}).then(function(r){
     var list = (r && r.classes) || [];
     var sel = document.getElementById('cal-class-filter');
     if(sel){
@@ -5612,58 +5612,58 @@ function loadCalendar(){
       }).join('') : '<span style="color:#94a3b8;font-size:13px;">등록된 반이 없어요</span>';
     }
   });
-  return calApi({action:'getCalendarEvents'}).then(function(r){
-    calEvents = (r && r.events) || [];
-    renderCalendar();
-    initCalGridEvents();
+  return schApi({action:'getCalendarEvents'}).then(function(r){
+    schEvents = (r && r.events) || [];
+    renderSchendar();
+    initSchGridEvents();
   });
 }
 // 그 날짜에 걸리는 일정 (기간 일정이면 시작~종료 사이 전부)
-function calEventsOn(dateStr){
+function schEventsOn(dateStr){
   var filter = (document.getElementById('cal-class-filter')||{}).value || '';
-  return calEvents.filter(function(e){
+  return schEvents.filter(function(e){
     var end = e.endDate || e.date;
     if(!(dateStr >= e.date && dateStr <= end)) return false;
     if(filter && e.classIds.length && e.classIds.indexOf(filter) < 0) return false;
     return true;
   });
 }
-function renderCalendar(){
+function renderSchendar(){
   var grid = document.getElementById('cal-grid');
   if(!grid) return;
-  var y = calCur.getFullYear(), m = calCur.getMonth();
+  var y = schCur.getFullYear(), m = schCur.getMonth();
   document.getElementById('cal-title').textContent = y+'년 '+(m+1)+'월';
   var first = new Date(y, m, 1);
   var start = new Date(y, m, 1 - first.getDay());   // 그 주 일요일부터
-  var todayStr = calDateStr(new Date());
+  var todayStr = schDateStr(new Date());
   var names = ['일','월','화','수','목','금','토'];
   var html = names.map(function(n,i){
     return '<div class="cal-head '+(i===0?'sun':i===6?'sat':'')+'">'+n+'</div>';
   }).join('');
   for(var i=0;i<42;i++){
     var d = new Date(start.getFullYear(), start.getMonth(), start.getDate()+i);
-    var ds = calDateStr(d), other = (d.getMonth()!==m), dow = d.getDay();
+    var ds = schDateStr(d), other = (d.getMonth()!==m), dow = d.getDay();
     if(i>=35 && other) continue;                     // 마지막 줄이 통째로 다음 달이면 생략(높이 절약)
-    var evs = calEventsOn(ds);
+    var evs = schEventsOn(ds);
     var chips = evs.slice(0,2).map(function(e){
-      var t = CAL_TYPE[e.type] || CAL_TYPE.etc;
+      var t = SCH_TYPE[e.type] || SCH_TYPE.etc;
       return '<div class="cal-ev" style="background:'+t.color+';" title="'+escHtml(e.title)+'">'+escHtml(e.title)+'</div>';
     }).join('');
     if(evs.length>2) chips += '<div class="cal-more">+'+(evs.length-2)+'</div>';
-    html += '<div class="cal-cell'+(other?' other':'')+(ds===todayStr?' today':'')+(calSel[ds]?' picked':'')+'" data-date="'+ds+'">'
+    html += '<div class="cal-cell'+(other?' other':'')+(ds===todayStr?' today':'')+(schSel[ds]?' picked':'')+'" data-date="'+ds+'">'
       + '<div class="cal-day '+(dow===0?'sun':dow===6?'sat':'')+'">'+d.getDate()+'</div>' + chips + '</div>';
   }
   grid.innerHTML = html;
-  renderCalSelBar();
-  renderCalList();
+  renderSchSelBar();
+  renderSchList();
 }
-function renderCalList(){
+function renderSchList(){
   var box = document.getElementById('cal-list');
   if(!box) return;
-  var y = calCur.getFullYear(), m = calCur.getMonth();
-  var mStart = calDateStr(new Date(y,m,1)), mEnd = calDateStr(new Date(y,m+1,0));
+  var y = schCur.getFullYear(), m = schCur.getMonth();
+  var mStart = schDateStr(new Date(y,m,1)), mEnd = schDateStr(new Date(y,m+1,0));
   var filter = (document.getElementById('cal-class-filter')||{}).value || '';
-  var list = calEvents.filter(function(e){
+  var list = schEvents.filter(function(e){
     var end = e.endDate || e.date;
     if(end < mStart || e.date > mEnd) return false;   // 이 달과 하루라도 겹치면 표시
     if(filter && e.classIds.length && e.classIds.indexOf(filter) < 0) return false;
@@ -5671,10 +5671,10 @@ function renderCalList(){
   });
   if(!list.length){ box.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:6px 0;">이 달에 등록된 일정이 없어요.</div>'; return; }
   box.innerHTML = list.map(function(e){
-    var t = CAL_TYPE[e.type] || CAL_TYPE.etc;
+    var t = SCH_TYPE[e.type] || SCH_TYPE.etc;
     var period = e.endDate && e.endDate !== e.date ? (e.date+' ~ '+e.endDate) : e.date;
-    var cls = e.classIds.length ? e.classIds.map(function(id){ return escHtml(calClassName(id)); }).join(', ') : '전체';
-    return '<div onclick="openCalModal(&quot;'+e.id+'&quot;)" style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #f1f5f9;cursor:pointer;min-height:44px;">'
+    var cls = e.classIds.length ? e.classIds.map(function(id){ return escHtml(schClassName(id)); }).join(', ') : '전체';
+    return '<div onclick="openSchModal(&quot;'+e.id+'&quot;)" style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #f1f5f9;cursor:pointer;min-height:44px;">'
       + '<span style="background:'+t.color+';color:#fff;font-size:11px;font-weight:700;border-radius:5px;padding:3px 7px;white-space:nowrap;">'+t.name+'</span>'
       + '<div style="flex:1;min-width:0;">'
       +   '<div style="font-size:14px;font-weight:700;color:#1e293b;">'+escHtml(e.title)+'</div>'
@@ -5684,49 +5684,49 @@ function renderCalList(){
 }
 // ── 달력에서 날짜를 눌러(또는 끌어서) 여러 날을 한 번에 고르고 바로 등록 (2026-09-29 추가) ──
 // 시험기간처럼 이어진 날은 자동으로 "기간 일정 1건"으로, 띄엄띄엄 고른 날(연합반 등원일 등)은 각각 1건씩 저장됨.
-var calSel = {};          // 고른 날짜 { '2026-10-05': true }
-var calDragging = false, calDragAdd = true;
-function calSelectedDates(){
-  return Object.keys(calSel).filter(function(k){ return calSel[k]; }).sort();
+var schSel = {};          // 고른 날짜 { '2026-10-05': true }
+var schDragging = false, schDragAdd = true;
+function schSelectedDates(){
+  return Object.keys(schSel).filter(function(k){ return schSel[k]; }).sort();
 }
 // 이어진 날짜끼리 묶기 → [{start,end}, ...]
-function calSelectedRanges(){
-  var ds = calSelectedDates(), out = [];
+function schSelectedRanges(){
+  var ds = schSelectedDates(), out = [];
   ds.forEach(function(d){
     var last = out[out.length-1];
     if(last){
       var next = new Date(last.end+'T00:00:00');
       next.setDate(next.getDate()+1);
-      if(calDateStr(next) === d){ last.end = d; return; }
+      if(schDateStr(next) === d){ last.end = d; return; }
     }
     out.push({ start:d, end:d });
   });
   return out;
 }
-function calRangeLabel(){
-  return calSelectedRanges().map(function(r){
+function schRangeLabel(){
+  return schSelectedRanges().map(function(r){
     var f = function(x){ return x.slice(5).replace('-','/'); };
     return r.start===r.end ? f(r.start) : (f(r.start)+'~'+f(r.end));
   }).join(', ');
 }
-function renderCalSelBar(){
+function renderSchSelBar(){
   var bar = document.getElementById('cal-selbar');
   if(!bar) return;
-  var n = calSelectedDates().length;
+  var n = schSelectedDates().length;
   bar.style.display = n ? 'flex' : 'none';
-  if(n) document.getElementById('cal-sel-text').textContent = n+'일 선택됨 · '+calRangeLabel();
+  if(n) document.getElementById('cal-sel-text').textContent = n+'일 선택됨 · '+schRangeLabel();
 }
-function clearCalSelection(){ calSel = {}; renderCalendar(); }
-function calToggleDate(ds, force){
-  if(force===undefined) calSel[ds] = !calSel[ds];
-  else calSel[ds] = force;
-  if(!calSel[ds]) delete calSel[ds];
+function clearSchSelection(){ schSel = {}; renderSchendar(); }
+function schToggleDate(ds, force){
+  if(force===undefined) schSel[ds] = !schSel[ds];
+  else schSel[ds] = force;
+  if(!schSel[ds]) delete schSel[ds];
   var cell = document.querySelector('.cal-cell[data-date="'+ds+'"]');
-  if(cell) cell.classList.toggle('picked', !!calSel[ds]);
-  renderCalSelBar();
+  if(cell) cell.classList.toggle('picked', !!schSel[ds]);
+  renderSchSelBar();
 }
 // 그리드 전체에 이벤트를 한 번만 걸어둠(셀은 매번 다시 그려지므로 위임 방식)
-function initCalGridEvents(){
+function initSchGridEvents(){
   var grid = document.getElementById('cal-grid');
   if(!grid || grid.dataset.bound) return;
   grid.dataset.bound = '1';
@@ -5734,110 +5734,110 @@ function initCalGridEvents(){
   grid.addEventListener('mousedown', function(e){
     var c = cellOf(e); if(!c) return;
     e.preventDefault();
-    calDragging = true;
-    calDragAdd = !calSel[c.dataset.date];   // 이미 골라둔 칸에서 시작하면 지우는 드래그
-    calToggleDate(c.dataset.date, calDragAdd);
+    schDragging = true;
+    schDragAdd = !schSel[c.dataset.date];   // 이미 골라둔 칸에서 시작하면 지우는 드래그
+    schToggleDate(c.dataset.date, schDragAdd);
   });
   grid.addEventListener('mouseover', function(e){
-    if(!calDragging) return;
+    if(!schDragging) return;
     var c = cellOf(e); if(!c) return;
-    calToggleDate(c.dataset.date, calDragAdd);
+    schToggleDate(c.dataset.date, schDragAdd);
   });
-  document.addEventListener('mouseup', function(){ calDragging = false; });
+  document.addEventListener('mouseup', function(){ schDragging = false; });
   // 폰: 길게 끌 필요 없이 탭으로 하나씩 고르면 됨
   grid.addEventListener('touchstart', function(e){
     var c = cellOf(e); if(!c) return;
     e.preventDefault();
-    calToggleDate(c.dataset.date);
+    schToggleDate(c.dataset.date);
   }, {passive:false});
 }
-function openCalModalForSelection(){
-  var ranges = calSelectedRanges();
+function openSchModalForSelection(){
+  var ranges = schSelectedRanges();
   if(!ranges.length) return;
-  openCalModal(null, ranges[0].start);
-  calPendingRanges = ranges;
+  openSchModal(null, ranges[0].start);
+  schPendingRanges = ranges;
   document.getElementById('cal-date-row').style.display = 'none';
   var box = document.getElementById('cal-picked-box');
   box.style.display = '';
-  box.textContent = '📅 선택한 날짜: ' + calRangeLabel()
+  box.textContent = '📅 선택한 날짜: ' + schRangeLabel()
     + (ranges.length>1 ? ' (따로 떨어진 날짜는 각각 등록돼요)' : '');
 }
-function calClassName(id){
+function schClassName(id){
   var sel = document.getElementById('cal-class-filter');
   if(sel) for(var i=0;i<sel.options.length;i++) if(sel.options[i].value===String(id)) return sel.options[i].textContent;
   return id;
 }
-function calMove(delta){
-  if(delta===0) calCur = new Date();
-  else calCur = new Date(calCur.getFullYear(), calCur.getMonth()+delta, 1);
-  renderCalendar();
+function schMove(delta){
+  if(delta===0) schCur = new Date();
+  else schCur = new Date(schCur.getFullYear(), schCur.getMonth()+delta, 1);
+  renderSchendar();
 }
-function setCalType(t){
-  calPickType = t;
+function setSchType(t){
+  schPickType = t;
   document.querySelectorAll('#cal-type-btns button').forEach(function(b){
     var on = b.getAttribute('data-type')===t;
-    b.style.background = on ? (CAL_TYPE[t]||CAL_TYPE.etc).color : '';
+    b.style.background = on ? (SCH_TYPE[t]||SCH_TYPE.etc).color : '';
     b.style.color = on ? '#fff' : '';
     b.style.borderColor = on ? 'transparent' : '';
   });
 }
-function openCalModal(id, dateStr){
-  calEditId = id || null;
-  calPendingRanges = null;
+function openSchModal(id, dateStr){
+  schEditId = id || null;
+  schPendingRanges = null;
   document.getElementById('cal-date-row').style.display = '';
   document.getElementById('cal-picked-box').style.display = 'none';
-  var ev = id ? calEvents.filter(function(e){ return e.id===id; })[0] : null;
+  var ev = id ? schEvents.filter(function(e){ return e.id===id; })[0] : null;
   document.getElementById('cal-modal-title').textContent = ev ? '일정 수정' : '일정 추가';
   document.getElementById('cal-title-input').value = ev ? ev.title : '';
-  document.getElementById('cal-date').value = ev ? ev.date : (dateStr||calDateStr(new Date()));
+  document.getElementById('cal-date').value = ev ? ev.date : (dateStr||schDateStr(new Date()));
   document.getElementById('cal-enddate').value = ev ? (ev.endDate||'') : '';
   document.getElementById('cal-memo').value = ev ? ev.memo : '';
-  setCalType(ev ? ev.type : 'exam');
+  setSchType(ev ? ev.type : 'exam');
   document.querySelectorAll('.cal-cls').forEach(function(c){
     c.checked = !!(ev && ev.classIds.indexOf(c.value) >= 0);
   });
   document.getElementById('cal-del-btn').style.display = ev ? '' : 'none';
   document.getElementById('cal-modal').classList.add('show');
 }
-function closeCalModal(){ document.getElementById('cal-modal').classList.remove('show'); calEditId=null; }
-function saveCalEvent(){
+function closeSchModal(){ document.getElementById('cal-modal').classList.remove('show'); schEditId=null; }
+function saveSchEvent(){
   var title = document.getElementById('cal-title-input').value.trim();
   var date = document.getElementById('cal-date').value;
   var endDate = document.getElementById('cal-enddate').value;
   if(!title){ alert('제목을 입력해주세요.'); return; }
-  if(!calPendingRanges){
+  if(!schPendingRanges){
     if(!date){ alert('시작일을 골라주세요.'); return; }
     if(endDate && endDate < date){ alert('종료일이 시작일보다 빠를 수 없어요.'); return; }
   }
   var ids = [];
   document.querySelectorAll('.cal-cls').forEach(function(c){ if(c.checked) ids.push(c.value); });
-  var base = { action:'saveCalendarEvent', title:title, type:calPickType,
+  var base = { action:'saveCalendarEvent', title:title, type:schPickType,
     classIds:JSON.stringify(ids), memo:document.getElementById('cal-memo').value.trim() };
   // 달력에서 여러 날을 골라온 경우: 이어진 날은 기간 1건, 떨어진 날은 각각 1건으로 한꺼번에 저장
-  if(calPendingRanges && calPendingRanges.length){
-    Promise.all(calPendingRanges.map(function(r){
+  if(schPendingRanges && schPendingRanges.length){
+    Promise.all(schPendingRanges.map(function(r){
       var q = Object.assign({}, base, { date:r.start, endDate:(r.end!==r.start? r.end : '') });
-      return calApi(q);
+      return schApi(q);
     })).then(function(res){
       var bad = res.filter(function(r){ return !r || !r.success; }).length;
       if(bad) alert(bad+'건 저장에 실패했어요. 다시 시도해주세요.');
-      calSel = {}; closeCalModal(); loadCalendar();
+      schSel = {}; closeSchModal(); loadSchedule();
     });
     return;
   }
   var p = Object.assign({}, base, { date:date, endDate:endDate });
-  if(calEditId) p.id = calEditId;
-  calApi(p).then(function(r){
+  if(schEditId) p.id = schEditId;
+  schApi(p).then(function(r){
     if(!r || !r.success){ alert('저장 실패: '+((r&&r.error)||'알 수 없는 오류')); return; }
-    closeCalModal(); loadCalendar();
+    closeSchModal(); loadSchedule();
   });
 }
-function deleteCalEvent(){
-  if(!calEditId) return;
+function deleteSchEvent(){
+  if(!schEditId) return;
   if(!confirm('이 일정을 삭제할까요?')) return;
-  calApi({action:'deleteCalendarEvent', id:calEditId}).then(function(r){
+  schApi({action:'deleteCalendarEvent', id:schEditId}).then(function(r){
     if(!r || !r.success){ alert('삭제 실패'); return; }
-    closeCalModal(); loadCalendar();
+    closeSchModal(); loadSchedule();
   });
 }
 
