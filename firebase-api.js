@@ -1414,6 +1414,38 @@ api.setSignalDismissed = function(db, p){
   },{merge:true}).then(function(){ return { success:true }; });
 };
 
+// ── 일정 달력 (2026-09-29 추가) ──
+// 시험기간·등원일처럼 "반마다 날짜가 다른" 일정을 달력에 표시하기 위한 컬렉션.
+// date~endDate로 여러 날 걸친 기간도 한 건으로 저장(시험기간). classIds가 빈 배열이면 전체 대상.
+api.getCalendarEvents = function(db){
+  return db.collection('calendar_events').get().then(function(snap){
+    var list = docsToArr(snap);
+    list.sort(function(a,b){ return String(a.date||'').localeCompare(String(b.date||'')); });
+    return { events: list.map(function(e){
+      return { id:String(e.id), date:e.date||'', endDate:e.endDate||'', title:e.title||'',
+        type:e.type||'etc', classIds:Array.isArray(e.classIds)?e.classIds:[], memo:e.memo||'' };
+    }) };
+  });
+};
+api.saveCalendarEvent = function(db, p){
+  var classIds=[];
+  try{ classIds = JSON.parse(p.classIds||'[]'); }catch(e){ classIds=[]; }
+  if(!Array.isArray(classIds)) classIds=[];
+  var data = {
+    date:String(p.date||''), endDate:String(p.endDate||''), title:String(p.title||'').trim(),
+    type:String(p.type||'etc'), classIds:classIds, memo:String(p.memo||'').trim(), updatedAt:nowStr()
+  };
+  if(!data.date || !data.title) return Promise.resolve({ success:false, error:'날짜와 제목은 필수입니다.' });
+  if(p.id){
+    return db.collection('calendar_events').doc(String(p.id)).set(data,{merge:true}).then(function(){ return { success:true }; });
+  }
+  data.createdAt = nowStr();
+  return db.collection('calendar_events').add(data).then(function(ref){ return { success:true, id:ref.id }; });
+};
+api.deleteCalendarEvent = function(db, p){
+  return db.collection('calendar_events').doc(String(p.id)).delete().then(function(){ return { success:true }; });
+};
+
 // ── 공지사항 (Firestore 공유, 전 기기에서 동일하게 보임) ──
 api.getNotices = function(db){
   return db.collection('notices').get().then(function(snap){

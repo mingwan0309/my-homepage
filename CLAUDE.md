@@ -370,6 +370,15 @@
 - **수정 ②(재발 방지) — mypage.html**: `submitHwProofUrls`/`submitExamProofUrls`가 응답의 `success`를 확인해서 `false`면 throw하도록 바꿈. **firebase-api.js의 fetch 가로채기는 Firestore 권한 거부 같은 에러를 throw하지 않고 `{success:false}`로 감싸서 정상 응답처럼 돌려주기 때문에**, 결과를 안 보면 실패를 성공으로 착각함 — 저장 결과가 중요한 호출은 반드시 `success`를 확인할 것. 실패 시 학생에게 "사진은 올라갔는데 제출 기록 저장이 거부됐어요. 선생님께 알려주세요." 안내가 뜸.
 - **후속 조치 필요(사용자에게 안내함):** 규칙 v7 게시 전에 학생들이 "제출했다"고 생각한 재시험 사진들은 실제로는 기록이 없으므로, 그 학생들에게 다시 올려달라고 해야 함. 드라이브에는 파일이 남아있지만 어느 시험 건지 연결이 안 돼 있어서 코드로 복구는 불가.
 
+## 일정 달력 (2026-09-29 추가)
+admin.html 사이드바 "🗓 일정 달력" 메뉴(교사 전용, `mcAllowedPages`에 없어서 조교는 접근 불가). **시험기간·등원일처럼 반마다 날짜가 다른 일정**을 한 달력에 모아 보기 위한 화면 — 사용자 표현: "연합반은 등원하는 날짜가 다르거든 시험범위가 달라서".
+- `calendar_events` 컬렉션: id, date(YYYY-MM-DD, 시작일), endDate(선택 — 비우면 하루짜리), title, type(`exam`=시험기간/`attend`=등원일/`etc`=기타), classIds(배열, **빈 배열이면 전체 반 대상**), memo, createdAt/updatedAt. API는 `api.getCalendarEvents`/`saveCalendarEvent`(id 있으면 수정, 없으면 추가)/`deleteCalendarEvent` (firebase-api v52).
+- **화면이 크지 않아야 한다는 요청**이 있어서 카드 폭을 `max-width:720px`로 제한하고 셀 높이도 58px(모바일 50px)로 낮게 잡음 — 한 칸에 일정은 2개까지 색 막대로 보여주고 나머지는 "+N"으로 줄임. 마지막 주가 통째로 다음 달이면 그 줄은 아예 안 그림(높이 절약). **이 컴팩트함이 요구사항이니 셀을 크게 키우지 말 것.**
+- 조작: 날짜 칸을 누르면 그 날짜로 추가 모달, 아래 "이 달 일정" 목록에서 항목을 누르면 수정/삭제. 상단 드롭다운으로 **반 필터**(그 반 대상 + 전체 대상 일정만 표시). 색: 시험기간 빨강 / 등원일 파랑 / 기타 초록(`CAL_TYPE`).
+- 주요 함수(admin.html): `loadCalendar`(반 목록 + 일정 조회) / `renderCalendar` / `renderCalList` / `calEventsOn`(기간 일정도 그 사이 날짜 전부에 표시) / `openCalModal`·`saveCalEvent`·`deleteCalEvent` / `calApi`(이 페이지는 `SU`로 POST하는 기존 패턴 사용 — admin.html엔 `callApi` 같은 공통 헬퍼가 없고 `fetch(SU,...)`를 직접 쓰는 방식임, 새 기능 만들 때 주의).
+- **Firestore 규칙 필요:** `match /calendar_events/{id} { allow read: if signedIn(); allow write: if isTeacher(); }` — 읽기를 로그인 전체에 열어둔 건 **나중에 학생 마이페이지에도 같은 일정을 보여줄 수 있게** 하기 위함(현재 학생 화면에는 아직 안 붙임).
+- 전체 규칙 파일은 저장소 `firestore_rules_v8.txt` (v7 + calendar_events + 그동안 규칙 파일에 빠져 있던 problem_types·hw_tracks·qna_ai_drafts).
+
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
 - Apps Script 재배포 시 "새 버전" 안내 빼먹기
