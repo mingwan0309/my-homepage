@@ -1343,7 +1343,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <button type="button" class="btn" data-type="etc" onclick="setSchType('etc')" style="flex:1;">기타</button>
       </div>
     </div>
-    <div class="fg"><label>제목</label><input type="text" id="cal-title-input" placeholder="예: 중간고사 / 연합반 등원"></div>
+    <div class="fg" id="cal-title-row"><label>제목</label><input type="text" id="cal-title-input" placeholder="예: 중간고사"></div>
     <div id="cal-picked-box" style="display:none;background:#eff6ff;border-radius:9px;padding:9px 12px;margin-bottom:10px;font-size:13px;color:#1e40af;font-weight:700;"></div>
     <div class="fr" id="cal-date-row">
       <div class="fg"><label>시작일</label><input type="date" id="cal-date" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
@@ -5780,6 +5780,9 @@ function setSchType(t){
     b.style.color = on ? '#fff' : '';
     b.style.borderColor = on ? 'transparent' : '';
   });
+  // 등원일은 제목을 매번 쓰기 번거로워서 아예 안 받음 — 저장할 때 고른 반 이름으로 자동으로 채움
+  var row = document.getElementById('cal-title-row');
+  if(row) row.style.display = (t==='attend') ? 'none' : '';
 }
 function openSchModal(id, dateStr){
   schEditId = id || null;
@@ -5804,6 +5807,12 @@ function saveSchEvent(){
   var title = document.getElementById('cal-title-input').value.trim();
   var date = document.getElementById('cal-date').value;
   var endDate = document.getElementById('cal-enddate').value;
+  if(schPickType==='attend'){
+    // 등원일은 제목을 안 받으므로 고른 반 이름으로 자동으로 채움(안 고르면 그냥 '등원일')
+    var ids0 = [];
+    document.querySelectorAll('.cal-cls').forEach(function(c){ if(c.checked) ids0.push(c.value); });
+    title = ids0.length ? ids0.map(function(id){ return schClassName(id); }).join(', ') : '등원일';
+  }
   if(!title){ alert('제목을 입력해주세요.'); return; }
   if(!schPendingRanges){
     if(!date){ alert('시작일을 골라주세요.'); return; }
