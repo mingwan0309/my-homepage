@@ -384,12 +384,12 @@ admin.html 사이드바 "🗓 일정 달력" 메뉴(교사 전용, `mcAllowedPag
 - 전체 규칙 파일은 저장소 `firestore_rules_v8.txt` (v7 + calendar_events + 그동안 규칙 파일에 빠져 있던 problem_types·hw_tracks·qna_ai_drafts).
 
 ## 반별 팝업 (2026-10-01 추가)
-관리 페이지에 들어왔을 때 **반별 안내를 팝업으로** 띄움(사용자 요청: "각반에 따라서 관리페이지 들어갔을 때 팝업뜨게 하는 메뉴를 따로 만들어줘"). **선생님·조교 모두 대상**(대상은 사용자가 "상관없다"고 해서 둘 다로 정함).
+관리 페이지에 들어왔을 때 **반별 안내를 팝업으로** 띄움(사용자 요청: "각반에 따라서 관리페이지 들어갔을 때 팝업뜨게 하는 메뉴를 따로 만들어줘"). **선생님 화면에만 뜸** — 처음엔 조교에게도 띄웠는데 같은 날 사용자가 "조교한테는 안뜨게해도돼"라고 해서 교사 전용으로 바꿈(`showClassPopups` 맨 앞의 `cu.role!=='teacher'` 가드). 조교에게 다시 띄우려면 그 가드를 풀고 조교 로그인 쪽(`setupAssistantSession`)에서도 호출해야 함.
 - `class_popups` 컬렉션: id, title, content, classIds(배열, **빈 배열이면 전체**), active(불리언 — 끄기/켜기), startDate/endDate(선택, 비우면 기간 제한 없음), createdAt/updatedAt. API `api.getClassPopups`/`saveClassPopup`(id 있으면 수정)/`deleteClassPopup` (firebase-api v53).
 - 관리 화면: admin.html 사이드바 "🔔 반별 팝업"(공지 바로 아래, **교사 전용** — `mcAllowedPages`에 없음). 제목/내용/대상 반/기간을 넣어 저장하고, 목록에서 끄기·켜기·수정·삭제. 맨 아래 "내 설정" 카드에 **이 기기에서 팝업 아예 안 띄우기** 토글.
-- 노출 규칙(`cpPickToShow`): active이고, 오늘이 기간 안이며, "오늘 하루 보지 않기"로 숨기지 않았고, **조교면 자기 담당 학생이 속한 반의 팝업 + 전체 대상 팝업만**(`cpMyClassIds` — 담당 학생이 지정 안 된 조교는 전체를 봄). 선생님은 전부 봄.
+- 노출 규칙(`cpPickToShow`): active이고, 오늘이 기간 안이며, "오늘 하루 보지 않기"로 숨기지 않은 것 전부(선생님은 반 구분 없이 다 봄 — 대상 반은 팝업 안에 라벨로만 표시됨).
 - 숨기기 2단계(사용자 지정): 팝업 안의 **"오늘 하루 보지 않기"**(localStorage `mkmath_classpopup_hide`에 `{팝업id:날짜}` 기록) / **"앞으로 이 기기에서 팝업 안 보기"**(localStorage `mkmath_classpopup_off`, 관리 화면 "내 설정"에서 다시 끌 수 있음). **둘 다 이 브라우저에만 적용되는 개인 설정**이라 Firestore에 안 올라감.
-- 띄우는 지점: 교사 로그인 직후(`showClassPopups()`), 조교는 의무클리닉 팝업과 겹치지 않게 `setTimeout(...,400)`으로 그 다음에. **조교 화면 미리보기(`astIsPreviewMode`)에서는 안 띄움.**
+- 띄우는 지점: 교사 로그인 직후(`showClassPopups()`) 한 곳뿐. **조교 화면 미리보기(`astIsPreviewMode`)에서도 안 띄움.**
 - JS 이름은 전부 `cp*` 접두사(admin.html은 전역 이름 충돌이 잦아서 — 일정 달력 때 `cal*` 충돌 사고 참고).
 - **Firestore 규칙 필요:** `match /class_popups/{id} { allow read: if signedIn(); allow write: if isTeacher(); }` — 조교도 읽어야 하므로 읽기는 로그인 전체. 전체 규칙 파일은 저장소 `firestore_rules_v9.txt`.
 

@@ -503,7 +503,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="page-header"><div class="page-title">반별 팝업</div></div>
       <div class="card" style="max-width:760px;">
         <div class="card-title">새 팝업 만들기</div>
-        <div style="font-size:12.5px;color:#94a3b8;margin-bottom:12px;">관리 페이지에 들어오면 이 안내가 팝업으로 떠요. 선생님과 조교 모두에게 보입니다.</div>
+        <div style="font-size:12.5px;color:#94a3b8;margin-bottom:12px;">관리 페이지에 들어오면 이 안내가 팝업으로 떠요. 선생님 화면에만 보입니다(조교에게는 안 뜸).</div>
         <div class="fg"><label>제목</label><input type="text" id="cp-title" placeholder="예: 명덕여고 시험기간 안내" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
         <div class="fg"><label>내용</label><textarea id="cp-content" rows="3" placeholder="예: 이번 주는 등원 시간이 1시간 당겨집니다" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;resize:vertical;"></textarea></div>
         <div class="fg"><label>대상 반 <span style="color:#94a3b8;font-weight:400;">(아무것도 안 고르면 전체)</span></label>
@@ -1603,7 +1603,6 @@ function setupAssistantSession(sessObj, isPreview){
   }
   showPage('mclinic');
   refreshHwNavBadge();
-  if(!isPreview) setTimeout(showClassPopups, 400);
   var regCard=document.getElementById('mc-register-card'); if(regCard) regCard.style.display='none';
   var mc=document.getElementById('page-mclinic');
   var todayStr=new Date().toISOString().slice(0,10);
@@ -6036,28 +6035,21 @@ function cpDelete(id){
 
 // ── 로그인 직후 팝업 띄우기 ──
 // 조교는 자기 담당 학생이 속한 반의 팝업만, 선생님은 전체를 봄(대상 반이 지정 안 된 팝업은 모두에게).
-function cpMyClassIds(){
-  if(!cu || cu.role!=='assistant') return null;              // 선생님 = 제한 없음
-  var ids = cu.studentIds || [];
-  if(!ids.length) return null;                               // 담당 학생 지정 안 된 조교도 전체
-  var set = {};
-  (allStudents||[]).forEach(function(s){ if(ids.indexOf(s.id)>=0 && s.classId) set[String(s.classId)]=true; });
-  return Object.keys(set);
-}
 function cpPickToShow(popups){
-  var today=cpTodayStr(), hide=cpHideMap(), mine=cpMyClassIds();
+  var today=cpTodayStr(), hide=cpHideMap();
   return popups.filter(function(p){
     if(!p.active) return false;
     if(p.startDate && today < p.startDate) return false;
     if(p.endDate && today > p.endDate) return false;
     if(hide[p.id]===today) return false;
-    if(p.classIds.length && mine && !p.classIds.some(function(id){ return mine.indexOf(String(id))>=0; })) return false;
     return true;
   });
 }
 function showClassPopups(){
+  // 선생님에게만 띄움 (2026-10-01 사용자 요청: "조교한테는 안뜨게해도돼")
+  if(!cu || cu.role!=='teacher') return;
   if(cpIsOff()) return;
-  if(window.astIsPreviewMode) return;                        // 조교 화면 미리보기에서는 안 띄움
+  if(window.astIsPreviewMode) return;
   cpApi({action:'getClassPopups'}).then(function(r){
     var list=cpPickToShow((r&&r.popups)||[]);
     if(!list.length) return;
