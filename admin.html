@@ -519,7 +519,8 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         </div>
       </div>
       <div class="card" style="max-width:760px;">
-        <div class="card-title">등록된 팝업</div>
+        <div class="card-title">등록된 팝업 <button class="btn" onclick="cpDiagnose()" style="float:right;padding:6px 12px;font-size:12px;">🔎 학생에게 보이는지 점검</button></div>
+        <div id="cp-diag" style="display:none;background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;"></div>
         <div id="cp-list"></div>
       </div>
       <div class="card" style="max-width:760px;">
@@ -6087,6 +6088,54 @@ function cpCloseModal(){
     (bg.dataset.ids||'').split(',').filter(Boolean).forEach(cpHideToday);
   }
   bg.remove();
+}
+
+
+
+// 팝업이 왜 학생에게 안 보이는지 한 번에 확인 (2026-10-02 추가)
+// "등록은 했는데 학생 화면에 안 뜬다"는 신고가 들어왔을 때 데이터 문제인지 바로 가리려고 만듦.
+function cpDiagnose(){
+  var box = document.getElementById('cp-diag');
+  box.style.display = '';
+  box.textContent = '확인 중...';
+  Promise.all([
+    cpApi({action:'getClassPopups'}),
+    cpApi({action:'getStudents'}),
+    cpApi({action:'getClasses'})
+  ]).then(function(res){
+    var popups = (res[0] && res[0].popups) || [];
+    var studs  = (res[1] && (res[1].students || res[1].items)) || [];
+    var classes= (res[2] && res[2].classes) || [];
+    var today  = cpTodayStr();
+    var lines  = [];
+    lines.push('등록된 팝업: ' + popups.length + '개 / 학생: ' + studs.length + '명');
+    if(!popups.length){
+      lines.push('');
+      lines.push('❗ 저장된 팝업이 하나도 없어요. 위에서 만들고 저장을 눌러주세요.');
+      box.textContent = lines.join('\n');
+      return;
+    }
+    popups.forEach(function(p){
+      var why = [];
+      if(!p.active) why.push('꺼둠 (목록에서 "켜기")');
+      if(p.startDate && today < p.startDate) why.push('시작일(' + p.startDate + ') 전');
+      if(p.endDate && today > p.endDate) why.push('종료일(' + p.endDate + ') 지남');
+      var targets = p.classIds || [];
+      var bad = targets.filter(function(id){
+        return !classes.some(function(c){ return String(c.id) === String(id); });
+      });
+      if(bad.length) why.push('없는 반을 가리킴');
+      var n = targets.length
+        ? studs.filter(function(s){ return targets.map(String).indexOf(String(s.classId||'')) >= 0; }).length
+        : studs.length;
+      if(!why.length && n === 0) why.push('그 반에 배정된 학생이 0명 (학생 탭에서 반 배정 확인)');
+      lines.push('');
+      lines.push('• ' + (p.title || '(제목 없음)') + ' → ' + (why.length ? '❌ 안 보임: ' + why.join(', ') : '✅ ' + n + '명에게 보임'));
+    });
+    lines.push('');
+    lines.push('여기서 ✅인데도 학생 화면에 안 뜨면, 학생 폰에서 새로고침(Ctrl+Shift+R 또는 앱 완전히 껐다 켜기)을 해주세요.');
+    box.textContent = lines.join('\n');
+  }).catch(function(e){ box.textContent = '점검 실패: ' + e; });
 }
 
 </script>

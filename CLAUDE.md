@@ -391,6 +391,7 @@ admin.html 사이드바 "🗓 일정 달력" 메뉴(교사 전용, `mcAllowedPag
 - 숨기기 2단계(사용자 지정): 팝업 안의 **"오늘 하루 보지 않기"**(localStorage `mkmath_classpopup_hide`에 `{팝업id:날짜}` 기록) / **"앞으로 이 기기에서 팝업 안 보기"**(localStorage `mkmath_classpopup_off`, 관리 화면 "내 설정"에서 다시 끌 수 있음). **둘 다 이 브라우저에만 적용되는 개인 설정**이라 Firestore에 안 올라감.
 - 띄우는 지점 ①**선생님 관리 페이지** 로그인 직후(`showClassPopups()`, admin.html) — 조교에겐 안 뜸, 조교 화면 미리보기(`astIsPreviewMode`)에서도 안 뜸.
 - 띄우는 지점 ②**학생 마이페이지** (2026-10-02 추가 — 사용자가 "학생화면 들어갔는데 팝업 안뜨는데?"라고 해서, 원래 의도가 학생에게 보여주는 것이었음이 드러남). mypage.html `loadClassPopupsForStudent()`가 자기 `session.classId`와 대상 반을 비교해서 **자기 반 팝업 + 전체 대상 팝업만** 띄움. 함수 이름은 `cps*` 접두사(admin의 `cp*`와 구분). 팝업 안에는 **"오늘 하루 보지 않기"만** 있고(학생이 아예 끌 수는 없게 일부러 "앞으로 안 보기"는 뺌), 선생님 미리보기(`isPreviewMode`)에서는 안 뜸. 모바일 375px 확인 완료.
+- **"등록했는데 학생 화면에 안 뜬다" 점검 버튼 (2026-10-02 추가).** 관리 화면 "등록된 팝업" 카드 오른쪽 **🔎 학생에게 보이는지 점검**(`cpDiagnose`) — 팝업마다 ①꺼둠 ②시작일 전 ③종료일 지남 ④없는 반을 가리킴 ⑤그 반에 배정된 학생 0명 중 어디에 걸렸는지, 아니면 "✅ N명에게 보임"인지 바로 알려줌. 여기서 ✅인데도 안 뜨면 학생 기기 캐시 또는 Firestore 규칙(`class_popups`) 문제. 학생 화면(mypage)에도 콘솔 로그(`[반별 팝업] ...`)를 남겨서 권한 거부/매칭 실패를 구분할 수 있음.
 - JS 이름은 전부 `cp*` 접두사(admin.html은 전역 이름 충돌이 잦아서 — 일정 달력 때 `cal*` 충돌 사고 참고).
 - **Firestore 규칙 필요:** `match /class_popups/{id} { allow read: if signedIn(); allow write: if isTeacher(); }` — 조교도 읽어야 하므로 읽기는 로그인 전체. 전체 규칙 파일은 저장소 `firestore_rules_v9.txt`.
 
