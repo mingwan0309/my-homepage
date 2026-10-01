@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=53"></script>
+<script src="firebase-api.js?v=54"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -716,6 +716,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         </div>
         <input type="search" id="mc-name-search" name="mc-student-name-filter" autocomplete="off" placeholder="🔍 학생 이름으로 찾기" oninput="renderMcList()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:16px;margin-bottom:12px;font-family:inherit;">
         <style>@media(min-width:769px){#mc-name-search{font-size:14px!important;}}</style>
+        <div id="mc-pause-bar" style="display:none;"></div>
         <div id="mc-list"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
       </div>
       <!-- 오늘 추가클리닉(clinic_bookings) 명단 — 클리닉예약 페이지의 카드와 같은 데이터·버튼을 여기서도 보여줌(조교가 한 화면에서 둘 다 보게, 2026-09-19) -->
@@ -1366,6 +1367,22 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     <div class="modal-btns">
       <button class="btn-cl" onclick="closeNoticeModal()">취소</button>
       <button class="btn-ok" onclick="saveNotice()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 의무클리닉 전체 쉬기 (시험기간) -->
+<div id="mcp-modal" class="modal-bg" onclick="if(event.target===this)mcpCloseModal()">
+  <div class="modal" style="max-width:420px;">
+    <h3>⏸ 의무클리닉 전체 쉬기</h3>
+    <p style="font-size:13px;color:#64748b;margin:-4px 0 14px;">시험기간처럼 의무클리닉을 안 하는 동안 명단과 알림톡을 멈춰요. <b>등록은 지워지지 않아요.</b></p>
+    <div class="fr">
+      <div class="fg"><label>쉬기 시작</label><input type="date" id="mcp-start" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
+      <div class="fg"><label>다시 시작 전날까지 <span style="color:#94a3b8;font-weight:400;">(비우면 직접 해제할 때까지)</span></label><input type="date" id="mcp-end" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cl" onclick="mcpCloseModal()">취소</button>
+      <button class="btn-ok" onclick="mcpSave()">쉬기 시작</button>
     </div>
   </div>
 </div>
@@ -2800,6 +2817,7 @@ function toggleMcTypeFields(){
 }
 async function loadMclinic(){
   document.getElementById('mc-today-label').textContent=mcTodayInfo().dayName+'요일';
+  loadMcPause();
   var showAllWrap=document.getElementById('mc-showall-wrap');
   if(showAllWrap) showAllWrap.style.display=(cu&&cu.role==='teacher')?'flex':'none';
   var mineWrap=document.getElementById('mc-mine-wrap');
@@ -2862,6 +2880,12 @@ async function delMclinic(id){
 }
 function renderMcList(){
   var el=document.getElementById('mc-list');
+  renderMcPauseBar();
+  if(mcpActiveNow()){
+    // 쉬는 기간엔 출결 체크를 아예 못 하게 명단을 안 그림(실수로 결석 처리되는 것 방지)
+    el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:14px 0;">지금은 의무클리닉을 쉬는 기간이라 명단을 표시하지 않아요.</div>';
+    return;
+  }
   var today=mcTodayInfo();
   var list=mcShowAll?mcList:mcList.filter(function(m){
     // 실제로 오늘 오는 학생(day===오늘) + 원래 오늘 몫인데 다른 요일로 옮겨간 학생(targetDay===오늘, 참고용으로 같이 보여줌)
@@ -6136,6 +6160,79 @@ function cpDiagnose(){
     lines.push('여기서 ✅인데도 학생 화면에 안 뜨면, 학생 폰에서 새로고침(Ctrl+Shift+R 또는 앱 완전히 껐다 켜기)을 해주세요.');
     box.textContent = lines.join('\n');
   }).catch(function(e){ box.textContent = '점검 실패: ' + e; });
+}
+
+
+// ── 의무클리닉 전체 일시중지 (2026-10-02 추가) ──
+// 시험기간엔 의무클리닉을 안 하므로, 등록을 하나씩 지우지 않고 통째로 멈춤.
+// 멈춘 동안: 오늘 명단이 가려지고(등록은 그대로), Apps Script의 "오기 1시간 전 알림톡"도 안 나감.
+var mcPause = { paused:false, startDate:'', endDate:'', memo:'' };
+function mcpApi(params){
+  return fetch(SU,{method:'POST',body:JSON.stringify(params)}).then(function(r){ return r.json(); }).catch(function(){ return null; });
+}
+function mcpTodayStr(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+// 지금 실제로 멈춰 있는 상태인지 (기간을 넣었으면 그 기간 안일 때만)
+function mcpActiveNow(){
+  if(!mcPause.paused) return false;
+  var today = mcpTodayStr();
+  if(mcPause.startDate && today < mcPause.startDate) return false;
+  if(mcPause.endDate && today > mcPause.endDate) return false;
+  return true;
+}
+function loadMcPause(){
+  return mcpApi({action:'getMclinicPause'}).then(function(r){
+    if(r) mcPause = { paused:r.paused===true, startDate:r.startDate||'', endDate:r.endDate||'', memo:r.memo||'' };
+    renderMcPauseBar();
+    return mcPause;
+  });
+}
+function renderMcPauseBar(){
+  var bar = document.getElementById('mc-pause-bar');
+  if(!bar) return;
+  var isTeacher = cu && cu.role==='teacher';
+  var on = mcpActiveNow();
+  var period = (mcPause.startDate || mcPause.endDate)
+    ? ' (' + (mcPause.startDate||'지금부터') + ' ~ ' + (mcPause.endDate||'해제할 때까지') + ')'
+    : '';
+  if(on){
+    bar.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px 14px;margin-bottom:12px;';
+    bar.innerHTML = '<span style="font-size:13.5px;font-weight:700;color:#9a3412;">⏸ 지금 의무클리닉을 쉬는 중이에요' + escHtml(period) + '</span>'
+      + '<span style="font-size:12px;color:#c2410c;">명단·알림톡이 모두 멈춰 있어요 (등록은 그대로 남아있음)</span>'
+      + (isTeacher ? '<button class="btn" onclick="mcpResume()" style="margin-left:auto;padding:7px 12px;font-size:12.5px;">▶ 다시 시작하기</button>' : '');
+  } else if(isTeacher){
+    bar.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;';
+    bar.innerHTML = '<button class="btn" onclick="mcpOpenModal()" style="padding:7px 12px;font-size:12.5px;">⏸ 시험기간 — 의무클리닉 전체 쉬기</button>'
+      + '<span style="font-size:12px;color:#94a3b8;">등록을 지우지 않고 명단·알림톡만 잠시 멈춰요</span>';
+  } else {
+    bar.style.cssText = 'display:none;';
+    bar.innerHTML = '';
+  }
+}
+function mcpOpenModal(){
+  document.getElementById('mcp-start').value = mcpTodayStr();
+  document.getElementById('mcp-end').value = '';
+  document.getElementById('mcp-modal').classList.add('show');
+}
+function mcpCloseModal(){ document.getElementById('mcp-modal').classList.remove('show'); }
+function mcpSave(){
+  var start = document.getElementById('mcp-start').value;
+  var end = document.getElementById('mcp-end').value;
+  if(start && end && end < start){ alert('끝나는 날이 시작하는 날보다 빠를 수 없어요.'); return; }
+  mcpApi({ action:'setMclinicPause', paused:'true', startDate:start, endDate:end, by:(cu&&cu.name)||'' }).then(function(r){
+    if(!r || !r.success){ alert('저장 실패. 다시 시도해주세요.'); return; }
+    mcpCloseModal();
+    loadMcPause().then(function(){ renderMcList(); });
+  });
+}
+function mcpResume(){
+  if(!confirm('의무클리닉을 다시 시작할까요? 오늘 명단과 알림톡이 평소대로 돌아와요.')) return;
+  mcpApi({ action:'setMclinicPause', paused:'false', startDate:'', endDate:'', by:(cu&&cu.name)||'' }).then(function(r){
+    if(!r || !r.success){ alert('저장 실패. 다시 시도해주세요.'); return; }
+    loadMcPause().then(function(){ renderMcList(); });
+  });
 }
 
 </script>

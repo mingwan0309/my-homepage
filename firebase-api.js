@@ -1446,6 +1446,23 @@ api.deleteCalendarEvent = function(db, p){
   return db.collection('calendar_events').doc(String(p.id)).delete().then(function(){ return { success:true }; });
 };
 
+// ── 의무클리닉 전체 일시중지 (2026-10-02 추가) ──
+// 시험기간처럼 의무클리닉을 아예 안 하는 기간에, 등록을 지우지 않고 통째로 멈추기 위한 설정.
+// 멈춰 있는 동안 관리 화면 명단이 가려지고, Apps Script의 "오기 1시간 전 알림톡"도 발송되지 않음.
+api.getMclinicPause = function(db){
+  return db.collection('app_settings').doc('mclinic').get().then(function(doc){
+    var d = doc.exists ? doc.data() : {};
+    return { paused: d.paused===true, startDate:d.startDate||'', endDate:d.endDate||'', memo:d.memo||'', updatedAt:d.updatedAt||'' };
+  });
+};
+api.setMclinicPause = function(db, p){
+  return db.collection('app_settings').doc('mclinic').set({
+    paused: String(p.paused)==='true',
+    startDate: String(p.startDate||''), endDate: String(p.endDate||''),
+    memo: String(p.memo||''), updatedAt: nowStr(), updatedBy: String(p.by||'')
+  },{merge:true}).then(function(){ return { success:true }; });
+};
+
 // ── 반별 팝업 (2026-10-01 추가) ──
 // 관리 페이지에 들어왔을 때 반별로 띄우는 안내 팝업. 선생님·조교 모두에게 보임.
 api.getClassPopups = function(db){

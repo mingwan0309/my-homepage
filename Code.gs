@@ -852,9 +852,29 @@ function mcTodayInfoSeoul() {
 
 // 트리거에 등록해서 5~10분마다 실행시키는 함수. 오늘 실제로 오는(시간대가 바뀐) 학생 중
 // 도착 50~60분 전인 학생에게 자동으로 알림톡을 보내고, 같은 날 중복 발송을 막기 위해 표시해둠.
+// 의무클리닉을 통째로 쉬는 기간인지 확인 (2026-10-02 추가)
+// 관리 페이지 "⏸ 시험기간 — 의무클리닉 전체 쉬기"로 켜두면 app_settings/mclinic.paused = true가 되고,
+// 그동안 "오기 1시간 전" 알림톡이 나가지 않음. 기간(startDate~endDate)을 넣었으면 그 기간에만 멈춤.
+function isMclinicPaused() {
+  try {
+    var d = firestoreGetDoc('app_settings', 'mclinic');
+    if (!d || d.paused !== true) return false;
+    var today = mcTodayInfoSeoul().dateStr;
+    if (d.startDate && today < d.startDate) return false;
+    if (d.endDate && today > d.endDate) return false;
+    return true;
+  } catch (err) {
+    Logger.log('[isMclinicPaused] 오류(멈추지 않은 것으로 처리): ' + err);
+    return false;   // 설정을 못 읽으면 평소대로 보냄 — 알림이 조용히 사라지는 쪽보다 안전
+  }
+}
 function sendMcHourReminders() {
   try {
     var today = mcTodayInfoSeoul();
+    if (isMclinicPaused()) {
+      // 쉬는 기간이면 의무클리닉 알림만 건너뛰고, 아래의 다른 자동 작업들은 그대로 진행
+      throw { __skipMclinic: true };
+    }
     var list = firestoreListAll('mandatory_clinic');
     var todays = list.filter(function(m){
       return m.type === 'temp' ? m.date === today.dateStr : m.day === today.dayName;
@@ -896,7 +916,8 @@ function sendMcHourReminders() {
       if (!result.success) Logger.log('[sendMcHourReminders] ' + m.name + ' 발송 실패: ' + result.msg);
     });
   } catch (err) {
-    Logger.log('[sendMcHourReminders] 오류: ' + err);
+    if (err && err.__skipMclinic) Logger.log('[sendMcHourReminders] 의무클리닉 쉬는 기간 — 알림 건너뜀');
+    else Logger.log('[sendMcHourReminders] 오류: ' + err);
   }
 
   // 클리닉(추가클리닉 등) "오기 1시간 전" 자동 알림도 같은 트리거(5분마다)에 얹어서 같이 실행 —
