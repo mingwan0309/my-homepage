@@ -1446,6 +1446,35 @@ api.deleteCalendarEvent = function(db, p){
   return db.collection('calendar_events').doc(String(p.id)).delete().then(function(){ return { success:true }; });
 };
 
+// ── 반별 팝업 (2026-10-01 추가) ──
+// 관리 페이지에 들어왔을 때 반별로 띄우는 안내 팝업. 선생님·조교 모두에게 보임.
+api.getClassPopups = function(db){
+  return db.collection('class_popups').get().then(function(snap){
+    var list = docsToArr(snap);
+    list.sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); });
+    return { popups: list.map(function(p){
+      return { id:String(p.id), title:p.title||'', content:p.content||'',
+        classIds:Array.isArray(p.classIds)?p.classIds:[], active:p.active!==false,
+        startDate:p.startDate||'', endDate:p.endDate||'', createdAt:p.createdAt||'' };
+    }) };
+  });
+};
+api.saveClassPopup = function(db, p){
+  var classIds=[];
+  try{ classIds = JSON.parse(p.classIds||'[]'); }catch(e){ classIds=[]; }
+  if(!Array.isArray(classIds)) classIds=[];
+  var data = { title:String(p.title||'').trim(), content:String(p.content||'').trim(),
+    classIds:classIds, active:String(p.active)!=='false',
+    startDate:String(p.startDate||''), endDate:String(p.endDate||''), updatedAt:nowStr() };
+  if(!data.title && !data.content) return Promise.resolve({ success:false, error:'제목이나 내용을 입력해주세요.' });
+  if(p.id) return db.collection('class_popups').doc(String(p.id)).set(data,{merge:true}).then(function(){ return { success:true }; });
+  data.createdAt = nowStr();
+  return db.collection('class_popups').add(data).then(function(ref){ return { success:true, id:ref.id }; });
+};
+api.deleteClassPopup = function(db, p){
+  return db.collection('class_popups').doc(String(p.id)).delete().then(function(){ return { success:true }; });
+};
+
 // ── 공지사항 (Firestore 공유, 전 기기에서 동일하게 보임) ──
 api.getNotices = function(db){
   return db.collection('notices').get().then(function(snap){

@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=52"></script>
+<script src="firebase-api.js?v=53"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -295,6 +295,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         </div>
       </div>
       <div class="nav-item" onclick="showPage('notice',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📢</span> 공지</div>
+      <div class="nav-item" onclick="showPage('classpopup',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🔔</span> 반별 팝업</div>
       <div class="nav-item" onclick="showPage('survey',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('chat',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🗨️</span> 1:1 문의 <span id="chat-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
@@ -365,6 +366,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         </div>
       </div>
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
+      <div class="nav-item" onclick="showPage('classpopup',this)"><span class="ni">🔔</span> 반별 팝업</div>
       <div class="nav-item" onclick="showPage('survey',this)"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('chat',this)"><span class="ni">🗨️</span> 1:1 문의 <span id="chat-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
@@ -493,6 +495,40 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       <div class="card" style="max-width:720px;">
         <div class="card-title">이 달 일정</div>
         <div id="cal-list"></div>
+      </div>
+    </div>
+
+    <!-- 반별 팝업 (2026-10-01 추가) — 관리 페이지에 들어왔을 때 반별로 뜨는 안내 -->
+    <div id="page-classpopup" class="page">
+      <div class="page-header"><div class="page-title">반별 팝업</div></div>
+      <div class="card" style="max-width:760px;">
+        <div class="card-title">새 팝업 만들기</div>
+        <div style="font-size:12.5px;color:#94a3b8;margin-bottom:12px;">관리 페이지에 들어오면 이 안내가 팝업으로 떠요. 선생님과 조교 모두에게 보입니다.</div>
+        <div class="fg"><label>제목</label><input type="text" id="cp-title" placeholder="예: 명덕여고 시험기간 안내" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
+        <div class="fg"><label>내용</label><textarea id="cp-content" rows="3" placeholder="예: 이번 주는 등원 시간이 1시간 당겨집니다" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;resize:vertical;"></textarea></div>
+        <div class="fg"><label>대상 반 <span style="color:#94a3b8;font-weight:400;">(아무것도 안 고르면 전체)</span></label>
+          <div id="cp-class-checks" style="display:flex;flex-wrap:wrap;gap:6px;max-height:140px;overflow-y:auto;border:1.5px solid #e2e8f0;border-radius:9px;padding:8px;"></div>
+        </div>
+        <div class="fr">
+          <div class="fg"><label>시작일 <span style="color:#94a3b8;font-weight:400;">(선택)</span></label><input type="date" id="cp-start" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
+          <div class="fg"><label>종료일 <span style="color:#94a3b8;font-weight:400;">(선택)</span></label><input type="date" id="cp-end" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn" id="cp-cancel-btn" onclick="cpResetForm()" style="display:none;padding:10px 16px;">수정 취소</button>
+          <button class="btn-ok" onclick="cpSave()" style="padding:10px 18px;">저장</button>
+        </div>
+      </div>
+      <div class="card" style="max-width:760px;">
+        <div class="card-title">등록된 팝업</div>
+        <div id="cp-list"></div>
+      </div>
+      <div class="card" style="max-width:760px;">
+        <div class="card-title">내 설정</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;min-height:44px;">
+          <input type="checkbox" id="cp-off-toggle" onchange="cpSetOff(this.checked)">
+          <span>이 기기에서는 팝업을 아예 안 띄우기</span>
+        </label>
+        <div style="font-size:12.5px;color:#94a3b8;">이 설정은 지금 쓰는 브라우저에만 적용돼요(다른 사람 화면에는 영향 없음).</div>
       </div>
     </div>
 
@@ -1439,12 +1475,13 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','problemtypes','astguide','astcheck','asttask','gamerank'];
+    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','problemtypes','astguide','astcheck','asttask','gamerank','calendar','classpopup'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
     refreshHwNavBadge();
     initActiveAstWidget();
+    showClassPopups();
     startMcHourReminderTimer();
     startClinicHourReminderTimer();
   }
@@ -1473,6 +1510,7 @@ function showPage(page,el){
   if(page==='signals') loadSignalBoard();
   if(page==='students') loadStu();
   if(page==='calendar') loadSchedule();
+  if(page==='classpopup') loadClassPopups();
   if(page==='reviewmanage') loadRv();
   if(page==='notice') loadNotices();
   if(page==='clinic'){
@@ -1565,6 +1603,7 @@ function setupAssistantSession(sessObj, isPreview){
   }
   showPage('mclinic');
   refreshHwNavBadge();
+  if(!isPreview) setTimeout(showClassPopups, 400);
   var regCard=document.getElementById('mc-register-card'); if(regCard) regCard.style.display='none';
   var mc=document.getElementById('page-mclinic');
   var todayStr=new Date().toISOString().slice(0,10);
@@ -5881,6 +5920,181 @@ function deleteSchEvent(){
     if(!r || !r.success){ alert('삭제 실패'); return; }
     closeSchModal(); loadSchedule();
   });
+}
+
+
+// ══════════ 반별 팝업 (2026-10-01 추가) ══════════
+// 관리 페이지에 들어왔을 때 반별 안내를 팝업으로 띄움. 선생님·조교 모두 대상.
+// 숨기기는 두 단계: ①"오늘 하루 안 보기"(팝업별 날짜 기억) ②"내 설정"에서 아예 끄기(이 기기 전체).
+var cpList = [], cpEditId = null;
+var CP_OFF_KEY = 'mkmath_classpopup_off';          // 'on'이면 이 기기에서 팝업 전체를 안 띄움
+var CP_HIDE_KEY = 'mkmath_classpopup_hide';        // {팝업id: 'YYYY-MM-DD'} — 그날 하루 안 보기
+function cpApi(params){
+  return fetch(SU,{method:'POST',body:JSON.stringify(params)}).then(function(r){ return r.json(); }).catch(function(){ return null; });
+}
+function cpTodayStr(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function cpIsOff(){ try{ return localStorage.getItem(CP_OFF_KEY)==='on'; }catch(e){ return false; } }
+function cpSetOff(on){
+  try{ localStorage.setItem(CP_OFF_KEY, on?'on':'off'); }catch(e){}
+  if(on) alert('이제 이 기기에서는 팝업이 안 떠요. 다시 보려면 이 체크를 풀면 됩니다.');
+}
+function cpHideMap(){
+  try{ return JSON.parse(localStorage.getItem(CP_HIDE_KEY)||'{}'); }catch(e){ return {}; }
+}
+function cpHideToday(id){
+  var m = cpHideMap(); m[id] = cpTodayStr();
+  try{ localStorage.setItem(CP_HIDE_KEY, JSON.stringify(m)); }catch(e){}
+}
+
+// ── 관리 화면(팝업 만들기/목록) ──
+function loadClassPopups(){
+  var off=document.getElementById('cp-off-toggle'); if(off) off.checked = cpIsOff();
+  cpApi({action:'getClasses'}).then(function(r){
+    var list=(r&&r.classes)||[];
+    var box=document.getElementById('cp-class-checks');
+    if(box) box.innerHTML = list.length ? list.map(function(c){
+      return '<label style="display:flex;align-items:center;gap:4px;font-size:13px;background:#f8fafc;border-radius:6px;padding:5px 9px;cursor:pointer;">'
+        +'<input type="checkbox" class="cp-cls" value="'+c.id+'"> '+escHtml(c.name||c.id)+'</label>';
+    }).join('') : '<span style="color:#94a3b8;font-size:13px;">등록된 반이 없어요</span>';
+  });
+  return cpApi({action:'getClassPopups'}).then(function(r){
+    cpList=(r&&r.popups)||[];
+    cpRenderList();
+  });
+}
+function cpClassLabel(ids){
+  if(!ids||!ids.length) return '전체';
+  return ids.map(function(id){
+    var c=(allClasses||[]).find(function(x){ return String(x.id)===String(id); });
+    return escHtml(c? (c.name||c.id) : id);
+  }).join(', ');
+}
+function cpRenderList(){
+  var box=document.getElementById('cp-list'); if(!box) return;
+  if(!cpList.length){ box.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:6px 0;">등록된 팝업이 없어요.</div>'; return; }
+  box.innerHTML = cpList.map(function(p){
+    var period = (p.startDate||p.endDate) ? ((p.startDate||'처음')+' ~ '+(p.endDate||'계속')) : '기간 제한 없음';
+    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:11px 4px;border-bottom:1px solid #f1f5f9;">'
+      + '<div style="flex:1;min-width:0;'+(p.active?'':'opacity:.45;')+'">'
+      +   '<div style="font-size:14px;font-weight:700;color:#1e293b;">'+escHtml(p.title||'(제목 없음)')+(p.active?'':' <span style="font-size:11px;color:#94a3b8;">(꺼둠)</span>')+'</div>'
+      +   (p.content?'<div style="font-size:13px;color:#475569;margin-top:2px;white-space:pre-wrap;">'+escHtml(p.content)+'</div>':'')
+      +   '<div style="font-size:12px;color:#94a3b8;margin-top:3px;">'+cpClassLabel(p.classIds)+' · '+period+'</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:6px;flex-shrink:0;">'
+      +   '<button class="btn" onclick="cpToggleActive(&quot;'+p.id+'&quot;)" style="padding:6px 10px;font-size:12px;min-height:38px;">'+(p.active?'끄기':'켜기')+'</button>'
+      +   '<button class="btn" onclick="cpEdit(&quot;'+p.id+'&quot;)" style="padding:6px 10px;font-size:12px;min-height:38px;">수정</button>'
+      +   '<button class="btn" onclick="cpDelete(&quot;'+p.id+'&quot;)" style="padding:6px 10px;font-size:12px;min-height:38px;color:#dc2626;border-color:#fecaca;">삭제</button>'
+      + '</div></div>';
+  }).join('');
+}
+function cpResetForm(){
+  cpEditId=null;
+  document.getElementById('cp-title').value='';
+  document.getElementById('cp-content').value='';
+  document.getElementById('cp-start').value='';
+  document.getElementById('cp-end').value='';
+  document.querySelectorAll('.cp-cls').forEach(function(c){ c.checked=false; });
+  document.getElementById('cp-cancel-btn').style.display='none';
+}
+function cpEdit(id){
+  var p=cpList.find(function(x){ return x.id===id; }); if(!p) return;
+  cpEditId=id;
+  document.getElementById('cp-title').value=p.title||'';
+  document.getElementById('cp-content').value=p.content||'';
+  document.getElementById('cp-start').value=p.startDate||'';
+  document.getElementById('cp-end').value=p.endDate||'';
+  document.querySelectorAll('.cp-cls').forEach(function(c){ c.checked = p.classIds.indexOf(c.value)>=0; });
+  document.getElementById('cp-cancel-btn').style.display='';
+  document.getElementById('cp-title').scrollIntoView({block:'center'});
+}
+function cpSave(){
+  var title=document.getElementById('cp-title').value.trim();
+  var content=document.getElementById('cp-content').value.trim();
+  if(!title && !content){ alert('제목이나 내용을 입력해주세요.'); return; }
+  var ids=[]; document.querySelectorAll('.cp-cls').forEach(function(c){ if(c.checked) ids.push(c.value); });
+  var p={ action:'saveClassPopup', title:title, content:content, classIds:JSON.stringify(ids),
+    startDate:document.getElementById('cp-start').value, endDate:document.getElementById('cp-end').value, active:'true' };
+  if(cpEditId) p.id=cpEditId;
+  cpApi(p).then(function(r){
+    if(!r||!r.success){ alert('저장 실패: '+((r&&r.error)||'알 수 없는 오류')); return; }
+    cpResetForm(); loadClassPopups();
+  });
+}
+function cpToggleActive(id){
+  var p=cpList.find(function(x){ return x.id===id; }); if(!p) return;
+  cpApi({ action:'saveClassPopup', id:id, title:p.title, content:p.content,
+    classIds:JSON.stringify(p.classIds), startDate:p.startDate, endDate:p.endDate,
+    active: p.active ? 'false' : 'true' }).then(function(){ loadClassPopups(); });
+}
+function cpDelete(id){
+  if(!confirm('이 팝업을 삭제할까요?')) return;
+  cpApi({action:'deleteClassPopup', id:id}).then(function(){ loadClassPopups(); });
+}
+
+// ── 로그인 직후 팝업 띄우기 ──
+// 조교는 자기 담당 학생이 속한 반의 팝업만, 선생님은 전체를 봄(대상 반이 지정 안 된 팝업은 모두에게).
+function cpMyClassIds(){
+  if(!cu || cu.role!=='assistant') return null;              // 선생님 = 제한 없음
+  var ids = cu.studentIds || [];
+  if(!ids.length) return null;                               // 담당 학생 지정 안 된 조교도 전체
+  var set = {};
+  (allStudents||[]).forEach(function(s){ if(ids.indexOf(s.id)>=0 && s.classId) set[String(s.classId)]=true; });
+  return Object.keys(set);
+}
+function cpPickToShow(popups){
+  var today=cpTodayStr(), hide=cpHideMap(), mine=cpMyClassIds();
+  return popups.filter(function(p){
+    if(!p.active) return false;
+    if(p.startDate && today < p.startDate) return false;
+    if(p.endDate && today > p.endDate) return false;
+    if(hide[p.id]===today) return false;
+    if(p.classIds.length && mine && !p.classIds.some(function(id){ return mine.indexOf(String(id))>=0; })) return false;
+    return true;
+  });
+}
+function showClassPopups(){
+  if(cpIsOff()) return;
+  if(window.astIsPreviewMode) return;                        // 조교 화면 미리보기에서는 안 띄움
+  cpApi({action:'getClassPopups'}).then(function(r){
+    var list=cpPickToShow((r&&r.popups)||[]);
+    if(!list.length) return;
+    cpOpenModal(list);
+  });
+}
+function cpOpenModal(list){
+  var old=document.getElementById('cp-popup-bg'); if(old) old.remove();
+  var bg=document.createElement('div');
+  bg.id='cp-popup-bg';
+  bg.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:960;display:flex;align-items:center;justify-content:center;padding:16px;';
+  var items=list.map(function(p){
+    return '<div style="background:#f8fafc;border-radius:11px;padding:14px 16px;margin-bottom:10px;">'
+      + '<div style="font-size:12px;color:#2563eb;font-weight:700;margin-bottom:4px;">'+cpClassLabel(p.classIds)+'</div>'
+      + (p.title?'<div style="font-size:16px;font-weight:800;color:#1e293b;margin-bottom:5px;">'+escHtml(p.title)+'</div>':'')
+      + (p.content?'<div style="font-size:14px;color:#334155;line-height:1.6;white-space:pre-wrap;">'+escHtml(p.content)+'</div>':'')
+      + '</div>';
+  }).join('');
+  bg.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:86vh;overflow-y:auto;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.35);">'
+    + '<div style="font-size:17px;font-weight:800;color:#1e293b;margin-bottom:14px;">🔔 오늘의 안내</div>'
+    + items
+    + '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:#64748b;cursor:pointer;margin:14px 0 6px;min-height:44px;"><input type="checkbox" id="cp-hide-today"> 오늘 하루 보지 않기</label>'
+    + '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:#94a3b8;cursor:pointer;margin-bottom:12px;min-height:44px;"><input type="checkbox" id="cp-hide-forever"> 앞으로 이 기기에서 팝업 안 보기</label>'
+    + '<button class="btn-ok" onclick="cpCloseModal()" style="width:100%;padding:13px;font-size:15px;">확인</button>'
+    + '</div>';
+  document.body.appendChild(bg);
+  bg.dataset.ids = list.map(function(p){ return p.id; }).join(',');
+}
+function cpCloseModal(){
+  var bg=document.getElementById('cp-popup-bg'); if(!bg) return;
+  var hideToday=document.getElementById('cp-hide-today');
+  var forever=document.getElementById('cp-hide-forever');
+  if(forever && forever.checked) cpSetOff(true);
+  else if(hideToday && hideToday.checked){
+    (bg.dataset.ids||'').split(',').filter(Boolean).forEach(cpHideToday);
+  }
+  bg.remove();
 }
 
 </script>
