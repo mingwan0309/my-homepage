@@ -570,9 +570,10 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
               </th>
               <th style="padding:8px 10px;">등록일자</th>
               <th style="padding:8px 10px;">계정상태</th>
+              <th style="padding:8px 6px;"></th>
             </tr>
           </thead>
-          <tbody id="stu-list"><tr><td colspan="10" style="padding:20px;color:#94a3b8;">불러오는 중...</td></tr></tbody>
+          <tbody id="stu-list"><tr><td colspan="11" style="padding:20px;color:#94a3b8;">불러오는 중...</td></tr></tbody>
         </table>
         </div>
       </div>
@@ -1973,7 +1974,7 @@ function renderStu(){
   var a=document.getElementById('stu-list');
   var list=getFilteredStudents();
   document.getElementById('stu-count').textContent='('+list.length+'명)';
-  if(!list.length){a.innerHTML='<tr><td colspan="10" style="padding:20px;color:#94a3b8;">등록된 학생이 없습니다</td></tr>';updateStuBulkBar();return;}
+  if(!list.length){a.innerHTML='<tr><td colspan="11" style="padding:20px;color:#94a3b8;">등록된 학생이 없습니다</td></tr>';updateStuBulkBar();return;}
   a.innerHTML=list.map(function(s){
     var selOpts='<option value=""'+(!s.classId?' selected':'')+'>— 반 미배정 —</option>'
       +allClasses.map(function(c){return '<option value="'+c.id+'"'+(String(s.classId||'')===String(c.id)?' selected':'')+'>'+escHtml(c.name)+'</option>';}).join('');
@@ -1992,6 +1993,7 @@ function renderStu(){
       +'<td style="padding:8px 10px;"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">'
         +'<input type="checkbox" '+(active?'checked':'')+' onchange="toggleStuActive(\''+s.id+'\',this.checked)">'
         +'<span style="font-size:12px;color:'+(active?'#16a34a':'#94a3b8')+';font-weight:700;">'+(active?'활성화':'비활성화')+'</span></label></td>'
+      +'<td style="padding:8px 6px;"><button onclick="deleteOneStu(&quot;'+s.id+'&quot;)" title="이 학생 삭제" style="background:none;border:none;cursor:pointer;color:#cbd5e1;font-size:15px;padding:4px 8px;min-height:38px;">🗑</button></td>'
       +'</tr>';
   }).join('');
   updateStuBulkBar();
@@ -2222,6 +2224,15 @@ function dlSelectedXl(){
   ws['!cols']=[{wch:10},{wch:16},{wch:16},{wch:14},{wch:6},{wch:6},{wch:16},{wch:10}];
   XLSX.utils.book_append_sheet(wb,ws,'학생목록');
   XLSX.writeFile(wb,'학생목록_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+// 목록에서 한 명만 바로 삭제 (체크박스를 켜지 않아도 되게, 2026-10-01 추가)
+async function deleteOneStu(id){
+  var st = allStudents.find(function(x){ return x.id===id; });
+  var name = (st && st.name) || id;
+  if(!confirm(name + ' 학생을 삭제할까요? 되돌릴 수 없어요.')) return;
+  await fetch(SU+'?action=deleteStudentAccount&id='+encodeURIComponent(id));
+  delete stuSelected[id];
+  loadStu();
 }
 async function deleteSelectedStu(){
   var ids=Object.keys(stuSelected);
