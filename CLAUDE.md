@@ -389,7 +389,8 @@ admin.html 사이드바 "🗓 일정 달력" 메뉴(교사 전용, `mcAllowedPag
 - 관리 화면: admin.html 사이드바 "🔔 반별 팝업"(공지 바로 아래, **교사 전용** — `mcAllowedPages`에 없음). 제목/내용/대상 반/기간을 넣어 저장하고, 목록에서 끄기·켜기·수정·삭제. 맨 아래 "내 설정" 카드에 **이 기기에서 팝업 아예 안 띄우기** 토글.
 - 노출 규칙(`cpPickToShow`): active이고, 오늘이 기간 안이며, "오늘 하루 보지 않기"로 숨기지 않은 것 전부(선생님은 반 구분 없이 다 봄 — 대상 반은 팝업 안에 라벨로만 표시됨).
 - 숨기기 2단계(사용자 지정): 팝업 안의 **"오늘 하루 보지 않기"**(localStorage `mkmath_classpopup_hide`에 `{팝업id:날짜}` 기록) / **"앞으로 이 기기에서 팝업 안 보기"**(localStorage `mkmath_classpopup_off`, 관리 화면 "내 설정"에서 다시 끌 수 있음). **둘 다 이 브라우저에만 적용되는 개인 설정**이라 Firestore에 안 올라감.
-- 띄우는 지점: 교사 로그인 직후(`showClassPopups()`) 한 곳뿐. **조교 화면 미리보기(`astIsPreviewMode`)에서도 안 띄움.**
+- 띄우는 지점 ①**선생님 관리 페이지** 로그인 직후(`showClassPopups()`, admin.html) — 조교에겐 안 뜸, 조교 화면 미리보기(`astIsPreviewMode`)에서도 안 뜸.
+- 띄우는 지점 ②**학생 마이페이지** (2026-10-02 추가 — 사용자가 "학생화면 들어갔는데 팝업 안뜨는데?"라고 해서, 원래 의도가 학생에게 보여주는 것이었음이 드러남). mypage.html `loadClassPopupsForStudent()`가 자기 `session.classId`와 대상 반을 비교해서 **자기 반 팝업 + 전체 대상 팝업만** 띄움. 함수 이름은 `cps*` 접두사(admin의 `cp*`와 구분). 팝업 안에는 **"오늘 하루 보지 않기"만** 있고(학생이 아예 끌 수는 없게 일부러 "앞으로 안 보기"는 뺌), 선생님 미리보기(`isPreviewMode`)에서는 안 뜸. 모바일 375px 확인 완료.
 - JS 이름은 전부 `cp*` 접두사(admin.html은 전역 이름 충돌이 잦아서 — 일정 달력 때 `cal*` 충돌 사고 참고).
 - **Firestore 규칙 필요:** `match /class_popups/{id} { allow read: if signedIn(); allow write: if isTeacher(); }` — 조교도 읽어야 하므로 읽기는 로그인 전체. 전체 규칙 파일은 저장소 `firestore_rules_v9.txt`.
 
