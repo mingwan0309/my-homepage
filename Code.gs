@@ -977,120 +977,279 @@ function sendMcHourReminders() {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// 강사 월별 할 일 알림톡 (2026-10-02 추가)
-// 선생님이 정리해둔 구글 시트 "강사" → "해야할것들" 탭의 1월~12월 칸을 읽어서
-//  · 매달 1일 오전 9시대: "이번 달 할 일"
-//  · 매달 25일 오전 9시대: "다음 달 미리보기"(시험대비·홍보는 미리 준비해야 해서) + 월말 안내카톡 확인
-// 을 선생님 번호로만 1통씩 보냄. 시트만 고치면 알림 내용도 같이 바뀜(코드 수정 불필요).
-// 시트 구조: 맨 위 "[1월]~[12월]" 줄 → 그 아래 시즌 줄([시험]/[홍보]/[방학]…) → 그 아래 할 일들,
-// A열이 "[특강]"처럼 대괄호로 시작하는 줄부터는 상시 체크리스트라 월별 알림에서 제외.
+// 강사 할 일 알림톡 (2026-10-02 추가, 같은 날 특강·홍보·시험 주차 추가)
+// 선생님이 정리해둔 구글 시트 "강사" → "해야할것들" 탭을 읽어서 선생님 번호로만 보냄.
+//  · 매달 1일 9시대: "이번 달 할 일" (6월 1일엔 [특강] 1·2학년 여름, 12월 1일엔 1·2학년 겨울을 같이 붙임)
+//  · 매달 25일 9시대: "다음 달 미리보기" + 월말 안내카톡 확인
+//  · 3·5·8·10월 첫 화요일부터 8주 동안 매주 화요일 9시대: [시험] 주차별 전체 계획 +
+//    "전체 8주 중 N주차이므로 이번 주에는 ○○" 안내
+//  · 위 세 알림 모두 맨 아래에 [홍보] 목록을 붙임
+// 시트만 고치면 알림 내용도 같이 바뀜(코드 수정 불필요).
+// 시트 구조: 맨 위 "[1월]~[12월]" 줄 → 시즌 줄 → 그 달 할 일들 / A열이 "[특강]"처럼 대괄호로
+// 시작하는 줄부터는 아래쪽 블록([특강]/[홍보]/[시험]/[클리닉]/[수업전]/[수업후]).
 // 별도 트리거 불필요 — sendMcHourReminders(5분마다) 안에서 호출됨.
 // ⚠️ 발송 대상은 선생님 본인(TEACHER_NOTIFY_PHONE) 1명뿐 — 늘리지 말 것.
 // ══════════════════════════════════════════════════════════════════
 var SEASON_TODO_SHEET_ID = '1GcAawj41v3iM3i6wGN-fbf7sm9srh3DVYKgFgx-4jF8';
 var SEASON_TODO_TAB = '해야할것들';
-var SEASON_TODO_HOUR = 9;        // 보낼 시각(한국시간 9시대)
-var SEASON_TODO_PREVIEW_DAY = 25; // 다음 달 미리보기를 보낼 날짜
+var SEASON_TODO_HOUR = 9;               // 보낼 시각(한국시간 9시대)
+var SEASON_TODO_PREVIEW_DAY = 25;       // 다음 달 미리보기를 보낼 날짜
+var EXAM_PREP_START_MONTHS = [3, 5, 8, 10]; // 이 달의 첫 화요일 = 시험대비 1주차
+var EXAM_PREP_WEEKS = 8;
+var SEASON_TODO_MAX_LEN = 900;          // 알림톡 길이 제한(템플릿 고정 문구 포함 1000자) 여유분
 
-// month: 1~12 → { month, season, items[] } (못 찾으면 null)
-function readSeasonTodo(month) {
+function stClean(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
+
+// 시트 전체를 읽되, 합쳐진 칸은 그 안의 모든 칸에 같은 값을 채워서 돌려줌
+// (1~2주차처럼 칸을 합쳐 적은 내용이 두 주차 모두에 잡히게)
+function readSeasonGrid() {
   var sheet = SpreadsheetApp.openById(SEASON_TODO_SHEET_ID).getSheetByName(SEASON_TODO_TAB);
   if (!sheet) throw new Error('시트 탭 "' + SEASON_TODO_TAB + '"을 찾을 수 없음');
-  var rows = sheet.getDataRange().getDisplayValues();
-  var clean = function(v){ return String(v || '').replace(/\s+/g, ' ').trim(); };
-  var monthOf = function(v){ var m = clean(v).match(/^\[?\s*(\d{1,2})\s*월\s*\]?$/); return m ? Number(m[1]) : 0; };
+  var range = sheet.getDataRange();
+  var rows = range.getDisplayValues();
+  range.getMergedRanges().forEach(function(mr){
+    var r0 = mr.getRow() - 1, c0 = mr.getColumn() - 1;
+    var v = rows[r0] && rows[r0][c0];
+    for (var r = r0; r < r0 + mr.getNumRows() && r < rows.length; r++)
+      for (var c = c0; c < c0 + mr.getNumColumns() && c < rows[r].length; c++) rows[r][c] = v;
+  });
+  return rows;
+}
 
-  // 1) "1월~12월"이 적힌 머리 줄 찾기
-  var headRow = -1;
-  for (var r = 0; r < rows.length && headRow < 0; r++) {
-    var cnt = rows[r].filter(function(v){ return monthOf(v) > 0; }).length;
-    if (cnt >= 6) headRow = r;
+// 아래쪽 블록이 시작하는 줄(A열이 "["로 시작하는 첫 줄, 월 머리 줄 이후)
+function stBlockRow(rows, after) {
+  for (var r = after; r < rows.length; r++) if (/^\[/.test(stClean(rows[r][0]))) return r;
+  return rows.length;
+}
+function stMonthOf(v) { var m = stClean(v).match(/^\[?\s*(\d{1,2})\s*월\s*\]?$/); return m ? Number(m[1]) : 0; }
+function stHeadRow(rows) {
+  for (var r = 0; r < rows.length; r++) {
+    if (rows[r].filter(function(v){ return stMonthOf(v) > 0; }).length >= 6) return r;
   }
-  if (headRow < 0) throw new Error('월 머리 줄([1월]~[12월])을 찾을 수 없음');
+  throw new Error('월 머리 줄([1월]~[12월])을 찾을 수 없음');
+}
+// 한 열에서 fromRow부터 끝까지 비어있지 않은 칸(중복 제외)
+function stColItems(rows, col, fromRow) {
+  var seen = {}, out = [];
+  for (var r = fromRow; r < rows.length; r++) {
+    var t = stClean(rows[r][col]);
+    if (t && !seen[t]) { seen[t] = true; out.push(t); }
+  }
+  return out;
+}
 
-  // 2) 이 달이 차지하는 칸 범위(합쳐진 칸 대비: 다음 달 머리가 나올 때까지)
+// month: 1~12 → { season, items[] } (못 찾으면 null)
+function readSeasonTodo(rows, month) {
+  var headRow = stHeadRow(rows);
   var head = rows[headRow];
   var startCol = -1, endCol = head.length - 1;
   for (var c = 0; c < head.length; c++) {
-    if (monthOf(head[c]) === month) startCol = c;
-    else if (startCol >= 0 && monthOf(head[c]) > 0) { endCol = c - 1; break; }
+    var mo = stMonthOf(head[c]);
+    if (mo === month) { if (startCol < 0) startCol = c; }
+    else if (startCol >= 0 && mo > 0) { endCol = c - 1; break; }
   }
   if (startCol < 0) return null;
-
-  // 3) 월별 구간의 끝(A열이 "[특강]"처럼 대괄호로 시작하는 줄 전까지)
-  var endRow = rows.length;
-  for (var r2 = headRow + 2; r2 < rows.length; r2++) {
-    if (/^\[/.test(clean(rows[r2][0]))) { endRow = r2; break; }
-  }
-
-  var season = clean(rows[headRow + 1] && rows[headRow + 1][startCol]).replace(/^\[|\]$/g, '');
+  var endRow = stBlockRow(rows, headRow + 2);
+  var season = stClean(rows[headRow + 1] && rows[headRow + 1][startCol]).replace(/^\[|\]$/g, '');
   var seen = {}, items = [];
-  for (var r3 = headRow + 2; r3 < endRow; r3++) {
+  for (var r = headRow + 2; r < endRow; r++) {
     for (var c2 = startCol; c2 <= endCol; c2++) {
-      var t = clean(rows[r3][c2]);
+      var t = stClean(rows[r][c2]);
       if (!t || /^\[[^\]]*\]$/.test(t) || seen[t]) continue; // "[시험]" 같은 소제목만 있는 칸은 건너뜀
       seen[t] = true; items.push(t);
     }
   }
-  return { month: month, season: season, items: items };
+  return { season: season, items: items };
 }
 
-function buildSeasonTodoMessage(kind, month) {
-  var info = readSeasonTodo(month);
+// [특강] 블록: "1학년여름" 같은 소제목 열 아래 내용. season: '여름' | '겨울' → [{label, items}]
+function readSpecialLectures(rows, season) {
+  var b = stBlockRow(rows, stHeadRow(rows) + 2);
+  var sub = rows[b + 1] || [];
+  var out = [];
+  for (var c = 0; c < sub.length; c++) {
+    var m = stClean(sub[c]).match(/^(\d)\s*학년\s*(여름|겨울)$/);
+    if (!m || m[2] !== season) continue;
+    out.push({ label: m[1] + '학년 ' + m[2], items: stColItems(rows, c, b + 2) });
+  }
+  return out;
+}
+
+// [홍보] 블록: 블록 머리가 "[홍보]"인 열의 소제목 줄부터 끝까지
+function readPromoItems(rows) {
+  var b = stBlockRow(rows, stHeadRow(rows) + 2);
+  var head = rows[b] || [];
+  for (var c = 0; c < head.length; c++) {
+    if (stClean(head[c]) === '[홍보]') return stColItems(rows, c, b + 1);
+  }
+  return [];
+}
+
+// [시험] 블록: "1주차"~"8주차"가 적힌 열의 바로 오른쪽 칸이 그 주 할 일,
+// "추가로 해야 할 것들" 아래는 추가 목록 → { weeks: {1:'…',…}, extras: [] }
+function readExamPlan(rows) {
+  var b = stBlockRow(rows, stHeadRow(rows) + 2);
+  var weeks = {}, weekCol = -1, lastWeekRow = -1;
+  for (var r = b; r < rows.length; r++) {
+    for (var c = 0; c < rows[r].length - 1; c++) {
+      var m = stClean(rows[r][c]).match(/^(\d+)\s*주차$/);
+      if (!m) continue;
+      weekCol = c; lastWeekRow = r;
+      weeks[Number(m[1])] = String(rows[r][c + 1] || '').split(/\n/).map(stClean).filter(Boolean).join(' / ');
+    }
+  }
+  var extras = [];
+  if (weekCol >= 0) {
+    var contentCol = weekCol + 1, started = false;
+    for (var r2 = lastWeekRow + 1; r2 < rows.length; r2++) {
+      var t = stClean(rows[r2][contentCol]);
+      if (!t) continue;
+      if (/추가로\s*해야/.test(t)) { started = true; continue; }
+      if (started && extras.indexOf(t) < 0) extras.push(t);
+    }
+  }
+  return { weeks: weeks, extras: extras };
+}
+
+// 홍보는 항상 맨 아래. 길이가 넘치면 홍보 바로 위 부분(body)을 잘라서 홍보는 지킴
+function stFinish(bodyLines, rows) {
+  var promo = readPromoItems(rows);
+  var tail = promo.length ? '\n\n[홍보 체크]\n' + promo.join(', ') : '';
+  var body = bodyLines.join('\n');
+  if (body.length + tail.length > SEASON_TODO_MAX_LEN) {
+    body = body.slice(0, Math.max(0, SEASON_TODO_MAX_LEN - tail.length - 15)) + '\n…(시트에서 확인)';
+  }
+  return body + tail;
+}
+
+function buildSeasonTodoMessage(kind, month, rows) {
+  rows = rows || readSeasonGrid();
+  var info = readSeasonTodo(rows, month);
   var lines = [];
   var title = month + '월' + (info && info.season ? ' · ' + info.season + ' 시즌' : '');
   lines.push(kind === 'preview' ? '[다음 달 미리보기] ' + title : '[이번 달 할 일] ' + title);
   if (!info || !info.items.length) lines.push('· 시트에 적힌 할 일이 없어요');
   else info.items.forEach(function(t){ lines.push('· ' + t); });
+
+  // 6월 초엔 여름 특강, 12월 초엔 겨울 특강 준비 목록을 같이
+  if (kind === 'month' && (month === 6 || month === 12)) {
+    var sp = readSpecialLectures(rows, month === 6 ? '여름' : '겨울');
+    if (sp.length) {
+      lines.push('');
+      lines.push('[' + (month === 6 ? '여름' : '겨울') + ' 특강 준비]');
+      sp.forEach(function(g){ lines.push('· ' + g.label + ': ' + (g.items.length ? g.items.join(', ') : '(비어있음)')); });
+    }
+  }
   if (kind === 'preview') {
     lines.push('');
     lines.push('미리 준비할 게 있는지 확인해보세요.');
     lines.push('이번 달 학부모 월말 안내카톡도 잊지 마세요!');
   }
-  var text = lines.join('\n');
-  if (text.length > 900) text = text.slice(0, 890) + '\n…(시트에서 확인)';
-  return text;
+  return stFinish(lines, rows);
 }
 
-function sendSeasonTodo(kind, month) {
-  var text = buildSeasonTodoMessage(kind, month);
+// 시험대비 주차 계산: 오늘(한국 날짜)이 3·5·8·10월 첫 화요일부터 몇 주차인지 → { startMonth, week } 또는 null
+function examPrepWeekOf(kstDate) {
+  var y = kstDate.getUTCFullYear();
+  var todayUtc = Date.UTC(y, kstDate.getUTCMonth(), kstDate.getUTCDate());
+  for (var i = 0; i < EXAM_PREP_START_MONTHS.length; i++) {
+    var m = EXAM_PREP_START_MONTHS[i];
+    var first = new Date(Date.UTC(y, m - 1, 1));
+    var firstTue = Date.UTC(y, m - 1, 1 + ((2 - first.getUTCDay() + 7) % 7));
+    var diffDays = Math.round((todayUtc - firstTue) / 86400000);
+    if (diffDays < 0) continue;
+    var week = Math.floor(diffDays / 7) + 1;
+    if (week <= EXAM_PREP_WEEKS) return { startMonth: m, week: week, firstTue: new Date(firstTue) };
+  }
+  return null;
+}
+
+function buildExamPrepMessage(week, startMonth, rows) {
+  rows = rows || readSeasonGrid();
+  var plan = readExamPlan(rows);
+  var lines = [];
+  var thisWeek = plan.weeks[week] || '';
+  lines.push('[시험 대비 ' + week + '주차] ' + startMonth + '월 시작');
+  lines.push('전체 ' + EXAM_PREP_WEEKS + '주 중 ' + week + '주차이므로 이번 주에는');
+  lines.push(thisWeek ? '→ ' + thisWeek + ' 을(를) 해야 합니다.' : '→ 정해진 할 일이 없어요. 지난 주차 마무리와 아래 추가 할 일을 챙겨주세요.');
+  lines.push('');
+  lines.push('[전체 ' + EXAM_PREP_WEEKS + '주 계획]');
+  for (var w = 1; w <= EXAM_PREP_WEEKS; w++) {
+    lines.push((w === week ? '▶ ' : '· ') + w + '주차: ' + (plan.weeks[w] || '-'));
+  }
+  if (plan.extras.length) {
+    lines.push('');
+    lines.push('[추가로 해야 할 것들]');
+    lines.push(plan.extras.join(', '));
+  }
+  return stFinish(lines, rows);
+}
+
+function sendTeacherTodo(className, label, text) {
   var result = sendAlimtalkMessages([{
     phone: TEACHER_NOTIFY_PHONE,
     name: '김민관 선생님',
-    className: kind === 'preview' ? '다음 달 미리보기' : '이번 달 할 일',
-    sessionNum: month + '월',
+    className: className,
+    sessionNum: label,
     message: text
   }]);
-  if (!result.success) Logger.log('[sendSeasonTodo] 발송 실패: ' + result.msg);
+  if (!result.success) Logger.log('[sendTeacherTodo] ' + className + ' 발송 실패: ' + result.msg);
   return result;
 }
+function sendSeasonTodo(kind, month) {
+  return sendTeacherTodo(kind === 'preview' ? '다음 달 미리보기' : '이번 달 할 일', month + '월', buildSeasonTodoMessage(kind, month));
+}
+function sendExamPrep(week, startMonth) {
+  return sendTeacherTodo('시험 대비 할 일', week + '주차', buildExamPrepMessage(week, startMonth));
+}
 
-// 5분 트리거에서 호출 — 1일·25일 9시대에 하루 한 번만 실제 발송(ScriptProperties로 중복 방지)
+// 5분 트리거에서 호출 — 9시대에 하루 한 번만 확인(ScriptProperties로 중복 방지)
+// 표시 먼저 → 발송 (실패해도 5분마다 반복 발송되지 않게)
 function runSeasonTodoIfDue() {
   var kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
   if (kstNow.getUTCHours() !== SEASON_TODO_HOUR) return;
-  var day = kstNow.getUTCDate();
-  if (day !== 1 && day !== SEASON_TODO_PREVIEW_DAY) return;
   var today = mcTodayInfoSeoul().dateStr;
   var props = PropertiesService.getScriptProperties();
   if (props.getProperty('seasonTodoDate') === today) return;
-  props.setProperty('seasonTodoDate', today); // 표시 먼저 → 발송(실패해도 5분마다 반복 발송되지 않게)
+  props.setProperty('seasonTodoDate', today);
+
+  var day = kstNow.getUTCDate();
   var month = kstNow.getUTCMonth() + 1;
   if (day === 1) sendSeasonTodo('month', month);
-  else sendSeasonTodo('preview', month === 12 ? 1 : month + 1);
+  if (day === SEASON_TODO_PREVIEW_DAY) sendSeasonTodo('preview', month === 12 ? 1 : month + 1);
+  if (kstNow.getUTCDay() === 2) {
+    var ep = examPrepWeekOf(kstNow);
+    if (ep) sendExamPrep(ep.week, ep.startMonth);
+  }
 }
 
 // 편집기에서 직접 실행해서 확인하는 용도 — 알림톡은 안 보내고 "실행 로그"에 내용만 보여줌
 function previewSeasonTodo() {
+  var rows = readSeasonGrid();
   var m = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1;
-  Logger.log(buildSeasonTodoMessage('month', m));
+  Logger.log(buildSeasonTodoMessage('month', m, rows));
   Logger.log('---------');
-  Logger.log(buildSeasonTodoMessage('preview', m === 12 ? 1 : m + 1));
+  Logger.log(buildSeasonTodoMessage('preview', m === 12 ? 1 : m + 1, rows));
+  Logger.log('--------- (6월 1일 예시)');
+  Logger.log(buildSeasonTodoMessage('month', 6, rows));
+  Logger.log('--------- (12월 1일 예시)');
+  Logger.log(buildSeasonTodoMessage('month', 12, rows));
+  Logger.log('--------- (시험 대비 3주차 예시)');
+  var msg = buildExamPrepMessage(3, 10, rows);
+  Logger.log(msg);
+  Logger.log('(글자 수: ' + msg.length + ')');
+  var ep = examPrepWeekOf(new Date(Date.now() + 9 * 60 * 60 * 1000));
+  Logger.log(ep ? '오늘은 ' + ep.startMonth + '월 시작 시험대비 ' + ep.week + '주차 기간' : '오늘은 시험대비 8주 기간이 아님');
 }
 // 편집기에서 직접 실행하면 이번 달 할 일 알림톡 1통을 지금 바로 보냄(테스트용)
 function sendSeasonTodoNow() {
   var m = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1;
   return sendSeasonTodo('month', m);
+}
+// 편집기에서 직접 실행하면 시험 대비 알림톡 1통을 지금 바로 보냄(테스트용 — 기간이 아니면 1주차 예시로)
+function sendExamPrepNow() {
+  var ep = examPrepWeekOf(new Date(Date.now() + 9 * 60 * 60 * 1000));
+  return ep ? sendExamPrep(ep.week, ep.startMonth) : sendExamPrep(1, 10);
 }
 
 // 화요일 낮 12시대에 주간 요약을 딱 한 번 보냄. 날짜를 ScriptProperties에 남겨 그날 두 번 나가지 않게 막음.
