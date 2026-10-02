@@ -967,6 +967,130 @@ function sendMcHourReminders() {
   } catch (err) {
     Logger.log('[runWeeklySummaryIfDue 호출] 오류: ' + err);
   }
+
+  // 강사 "월별 할 일"(구글 시트) 알림 — 매달 1일·25일 오전 (2026-10-02 추가)
+  try {
+    runSeasonTodoIfDue();
+  } catch (err) {
+    Logger.log('[runSeasonTodoIfDue 호출] 오류: ' + err);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 강사 월별 할 일 알림톡 (2026-10-02 추가)
+// 선생님이 정리해둔 구글 시트 "강사" → "해야할것들" 탭의 1월~12월 칸을 읽어서
+//  · 매달 1일 오전 9시대: "이번 달 할 일"
+//  · 매달 25일 오전 9시대: "다음 달 미리보기"(시험대비·홍보는 미리 준비해야 해서) + 월말 안내카톡 확인
+// 을 선생님 번호로만 1통씩 보냄. 시트만 고치면 알림 내용도 같이 바뀜(코드 수정 불필요).
+// 시트 구조: 맨 위 "[1월]~[12월]" 줄 → 그 아래 시즌 줄([시험]/[홍보]/[방학]…) → 그 아래 할 일들,
+// A열이 "[특강]"처럼 대괄호로 시작하는 줄부터는 상시 체크리스트라 월별 알림에서 제외.
+// 별도 트리거 불필요 — sendMcHourReminders(5분마다) 안에서 호출됨.
+// ⚠️ 발송 대상은 선생님 본인(TEACHER_NOTIFY_PHONE) 1명뿐 — 늘리지 말 것.
+// ══════════════════════════════════════════════════════════════════
+var SEASON_TODO_SHEET_ID = '1GcAawj41v3iM3i6wGN-fbf7sm9srh3DVYKgFgx-4jF8';
+var SEASON_TODO_TAB = '해야할것들';
+var SEASON_TODO_HOUR = 9;        // 보낼 시각(한국시간 9시대)
+var SEASON_TODO_PREVIEW_DAY = 25; // 다음 달 미리보기를 보낼 날짜
+
+// month: 1~12 → { month, season, items[] } (못 찾으면 null)
+function readSeasonTodo(month) {
+  var sheet = SpreadsheetApp.openById(SEASON_TODO_SHEET_ID).getSheetByName(SEASON_TODO_TAB);
+  if (!sheet) throw new Error('시트 탭 "' + SEASON_TODO_TAB + '"을 찾을 수 없음');
+  var rows = sheet.getDataRange().getDisplayValues();
+  var clean = function(v){ return String(v || '').replace(/\s+/g, ' ').trim(); };
+  var monthOf = function(v){ var m = clean(v).match(/^\[?\s*(\d{1,2})\s*월\s*\]?$/); return m ? Number(m[1]) : 0; };
+
+  // 1) "1월~12월"이 적힌 머리 줄 찾기
+  var headRow = -1;
+  for (var r = 0; r < rows.length && headRow < 0; r++) {
+    var cnt = rows[r].filter(function(v){ return monthOf(v) > 0; }).length;
+    if (cnt >= 6) headRow = r;
+  }
+  if (headRow < 0) throw new Error('월 머리 줄([1월]~[12월])을 찾을 수 없음');
+
+  // 2) 이 달이 차지하는 칸 범위(합쳐진 칸 대비: 다음 달 머리가 나올 때까지)
+  var head = rows[headRow];
+  var startCol = -1, endCol = head.length - 1;
+  for (var c = 0; c < head.length; c++) {
+    if (monthOf(head[c]) === month) startCol = c;
+    else if (startCol >= 0 && monthOf(head[c]) > 0) { endCol = c - 1; break; }
+  }
+  if (startCol < 0) return null;
+
+  // 3) 월별 구간의 끝(A열이 "[특강]"처럼 대괄호로 시작하는 줄 전까지)
+  var endRow = rows.length;
+  for (var r2 = headRow + 2; r2 < rows.length; r2++) {
+    if (/^\[/.test(clean(rows[r2][0]))) { endRow = r2; break; }
+  }
+
+  var season = clean(rows[headRow + 1] && rows[headRow + 1][startCol]).replace(/^\[|\]$/g, '');
+  var seen = {}, items = [];
+  for (var r3 = headRow + 2; r3 < endRow; r3++) {
+    for (var c2 = startCol; c2 <= endCol; c2++) {
+      var t = clean(rows[r3][c2]);
+      if (!t || /^\[[^\]]*\]$/.test(t) || seen[t]) continue; // "[시험]" 같은 소제목만 있는 칸은 건너뜀
+      seen[t] = true; items.push(t);
+    }
+  }
+  return { month: month, season: season, items: items };
+}
+
+function buildSeasonTodoMessage(kind, month) {
+  var info = readSeasonTodo(month);
+  var lines = [];
+  var title = month + '월' + (info && info.season ? ' · ' + info.season + ' 시즌' : '');
+  lines.push(kind === 'preview' ? '[다음 달 미리보기] ' + title : '[이번 달 할 일] ' + title);
+  if (!info || !info.items.length) lines.push('· 시트에 적힌 할 일이 없어요');
+  else info.items.forEach(function(t){ lines.push('· ' + t); });
+  if (kind === 'preview') {
+    lines.push('');
+    lines.push('미리 준비할 게 있는지 확인해보세요.');
+    lines.push('이번 달 학부모 월말 안내카톡도 잊지 마세요!');
+  }
+  var text = lines.join('\n');
+  if (text.length > 900) text = text.slice(0, 890) + '\n…(시트에서 확인)';
+  return text;
+}
+
+function sendSeasonTodo(kind, month) {
+  var text = buildSeasonTodoMessage(kind, month);
+  var result = sendAlimtalkMessages([{
+    phone: TEACHER_NOTIFY_PHONE,
+    name: '김민관 선생님',
+    className: kind === 'preview' ? '다음 달 미리보기' : '이번 달 할 일',
+    sessionNum: month + '월',
+    message: text
+  }]);
+  if (!result.success) Logger.log('[sendSeasonTodo] 발송 실패: ' + result.msg);
+  return result;
+}
+
+// 5분 트리거에서 호출 — 1일·25일 9시대에 하루 한 번만 실제 발송(ScriptProperties로 중복 방지)
+function runSeasonTodoIfDue() {
+  var kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  if (kstNow.getUTCHours() !== SEASON_TODO_HOUR) return;
+  var day = kstNow.getUTCDate();
+  if (day !== 1 && day !== SEASON_TODO_PREVIEW_DAY) return;
+  var today = mcTodayInfoSeoul().dateStr;
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('seasonTodoDate') === today) return;
+  props.setProperty('seasonTodoDate', today); // 표시 먼저 → 발송(실패해도 5분마다 반복 발송되지 않게)
+  var month = kstNow.getUTCMonth() + 1;
+  if (day === 1) sendSeasonTodo('month', month);
+  else sendSeasonTodo('preview', month === 12 ? 1 : month + 1);
+}
+
+// 편집기에서 직접 실행해서 확인하는 용도 — 알림톡은 안 보내고 "실행 로그"에 내용만 보여줌
+function previewSeasonTodo() {
+  var m = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1;
+  Logger.log(buildSeasonTodoMessage('month', m));
+  Logger.log('---------');
+  Logger.log(buildSeasonTodoMessage('preview', m === 12 ? 1 : m + 1));
+}
+// 편집기에서 직접 실행하면 이번 달 할 일 알림톡 1통을 지금 바로 보냄(테스트용)
+function sendSeasonTodoNow() {
+  var m = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1;
+  return sendSeasonTodo('month', m);
 }
 
 // 화요일 낮 12시대에 주간 요약을 딱 한 번 보냄. 날짜를 ScriptProperties에 남겨 그날 두 번 나가지 않게 막음.
