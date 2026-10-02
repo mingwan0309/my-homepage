@@ -981,7 +981,7 @@ function sendMcHourReminders() {
 // 선생님이 정리해둔 구글 시트 "강사" → "해야할것들" 탭을 읽어서 선생님 번호로만 보냄.
 //  · 매달 1일 9시대: "이번 달 할 일" (6월 1일엔 [특강] 1·2학년 여름, 12월 1일엔 1·2학년 겨울을 같이 붙임)
 //  · 매달 25일 9시대: "다음 달 미리보기" + 월말 안내카톡 확인
-//  · 3·5·8·10월 첫 화요일부터 8주 동안 매주 화요일 9시대: [시험] 주차별 전체 계획 +
+//  · 3·5·8월 첫 화요일 / 10월 셋째 화요일부터 8주 동안 매주 화요일 9시대: [시험] 주차별 전체 계획 +
 //    "전체 8주 중 N주차이므로 이번 주에는 ○○" 안내
 //  · 위 세 알림 모두 맨 아래에 [홍보] 목록을 붙임
 // 시트만 고치면 알림 내용도 같이 바뀜(코드 수정 불필요).
@@ -994,7 +994,8 @@ var SEASON_TODO_SHEET_ID = '1GcAawj41v3iM3i6wGN-fbf7sm9srh3DVYKgFgx-4jF8';
 var SEASON_TODO_TAB = '해야할것들';
 var SEASON_TODO_HOUR = 9;               // 보낼 시각(한국시간 9시대)
 var SEASON_TODO_PREVIEW_DAY = 25;       // 다음 달 미리보기를 보낼 날짜
-var EXAM_PREP_START_MONTHS = [3, 5, 8, 10]; // 이 달의 첫 화요일 = 시험대비 1주차
+// 시험대비 1주차가 시작하는 달과 "몇째 주 화요일"인지 — 10월만 셋째 화요일(사용자 지정, 2026-10-02)
+var EXAM_PREP_STARTS = [{ month: 3, nthTue: 1 }, { month: 5, nthTue: 1 }, { month: 8, nthTue: 1 }, { month: 10, nthTue: 3 }];
 var EXAM_PREP_WEEKS = 8;
 var SEASON_TODO_MAX_LEN = 900;          // 알림톡 길이 제한(템플릿 고정 문구 포함 1000자) 여유분
 
@@ -1152,10 +1153,10 @@ function buildSeasonTodoMessage(kind, month, rows) {
 function examPrepWeekOf(kstDate) {
   var y = kstDate.getUTCFullYear();
   var todayUtc = Date.UTC(y, kstDate.getUTCMonth(), kstDate.getUTCDate());
-  for (var i = 0; i < EXAM_PREP_START_MONTHS.length; i++) {
-    var m = EXAM_PREP_START_MONTHS[i];
+  for (var i = 0; i < EXAM_PREP_STARTS.length; i++) {
+    var m = EXAM_PREP_STARTS[i].month;
     var first = new Date(Date.UTC(y, m - 1, 1));
-    var firstTue = Date.UTC(y, m - 1, 1 + ((2 - first.getUTCDay() + 7) % 7));
+    var firstTue = Date.UTC(y, m - 1, 1 + ((2 - first.getUTCDay() + 7) % 7) + 7 * ((EXAM_PREP_STARTS[i].nthTue || 1) - 1));
     var diffDays = Math.round((todayUtc - firstTue) / 86400000);
     if (diffDays < 0) continue;
     var week = Math.floor(diffDays / 7) + 1;
