@@ -408,6 +408,14 @@ admin.html 사이드바 "🗓 일정 달력" 메뉴(교사 전용, `mcAllowedPag
 - JS 이름은 전부 `cp*` 접두사(admin.html은 전역 이름 충돌이 잦아서 — 일정 달력 때 `cal*` 충돌 사고 참고).
 - **Firestore 규칙 필요:** `match /class_popups/{id} { allow read: if signedIn(); allow write: if isTeacher(); }` — 조교도 읽어야 하므로 읽기는 로그인 전체. 전체 규칙 파일은 저장소 `firestore_rules_v9.txt`.
 
+## 청첩장 모임 일정 정하기 (2026-10-07 추가)
+학원 업무와 별개로, 사용자가 서울 동쪽·서쪽에 흩어진 강사들과 청첩장 모임 날짜·장소를 정하려고 만든 페이지 `meetup.html` (https://mingwan0309.github.io/my-homepage/meetup.html).
+- **강사들은 로그인 없이** 링크만 열고 이름 + 되는 날짜(여러 개) + 동쪽/서쪽/상관없음 + 메모를 내면 됨. 같은 기기에서 다시 열면 자기 응답을 고칠 수 있음(localStorage `mkmeetup_id`가 문서 ID).
+- **후보 날짜는 선생님만 정함** — 같은 브라우저에서 선생님 계정(mingwan0309)으로 로그인돼 있으면 맨 위에 "⚙ 주최자 설정" 카드(모임 이름/안내 문구/후보 날짜 추가·삭제)가 보임. 선생님은 응답 표에서 응답 삭제도 가능.
+- 결과: 날짜별 가능 인원 막대(동/서/상관없음 색 구분, 이름 나열) + "🏆 가장 많이 되는 날 → 장소는 동쪽/서쪽 추천" + 전체 장소 선호 집계. Firestore 실시간 구독이라 바로바로 갱신.
+- firebase-api.js를 안 쓰고 Firebase SDK를 직접 불러옴(학원 기능과 분리). 컬렉션 `meetup_config/main`(title, desc, dates[]), `meetup_responses/{임의ID}`(name, dates[], area('east'/'west'/'any'), memo, updatedAt).
+- **Firestore 규칙 필요(v11):** 두 컬렉션 모두 읽기 공개, config 쓰기는 교사만, 응답은 누구나 쓰기(필드·길이 검사), 삭제는 교사만. 전체 규칙 파일 `firestore_rules_v11.txt`.
+
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
 - Apps Script 재배포 시 "새 버전" 안내 빼먹기

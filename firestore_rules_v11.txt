@@ -1,0 +1,234 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function loginId() { return request.auth.token.email.split('@')[0]; }
+    function isTeacher() { return signedIn() && request.auth.token.email == 'mingwan0309@mkmath.local'; }
+    function isOwner(sid) { return signedIn() && loginId() == sid; }
+    function isParentOf(sid) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/students/$(sid))
+        && get(/databases/$(database)/documents/students/$(sid)).data.parentPhone == loginId();
+    }
+    function isAssistant() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/assistants/$(loginId()))
+        && get(/databases/$(database)/documents/assistants/$(loginId())).data.active != false;
+    }
+    // 학생이 이미 그 시험에 답을 제출한 뒤에만(부정행위 방지) 자기 채점을 위해 정답을 읽을 수 있게 허용
+    function hasSubmittedExam(examId) {
+      return signedIn() && exists(/databases/$(database)/documents/exam_submissions/$(examId + '__' + loginId()));
+    }
+
+    match /students/{id} {
+      allow read: if isTeacher() || isOwner(id) || (signedIn() && resource.data.parentPhone == loginId()) || isAssistant();
+      allow create: if isTeacher();
+      allow update, delete: if isTeacher() || isOwner(id);
+    }
+    match /classes/{id} { allow read: if signedIn(); allow write: if isTeacher(); }
+    match /sessions/{id} { allow read: if signedIn(); allow write: if isTeacher() || isAssistant(); }
+    match /exams/{id} { allow read: if signedIn(); allow write: if isTeacher() || isAssistant(); }
+    match /homeworks/{id} { allow read: if signedIn(); allow write: if isTeacher() || isAssistant(); }
+    match /materials/{id} {
+      allow read: if signedIn();
+      allow create, delete: if isTeacher() || isAssistant();
+      allow update: if signedIn();
+    }
+    match /video_library/{id} { allow read: if signedIn(); allow write: if isTeacher(); }
+    match /textbook_videos/{id} { allow read: if signedIn(); allow write: if isTeacher(); }
+    match /problems/{id} { allow read: if signedIn(); allow write: if isTeacher(); }
+    match /clinics/{id} { allow read: if signedIn(); allow write: if isTeacher(); }
+    match /mandatory_clinic/{id} {
+      allow read: if isTeacher() || isAssistant() || isOwner(resource.data.studentId) || isParentOf(resource.data.studentId);
+      allow write: if isTeacher() || isAssistant();
+    }
+
+    match /attendance/{id} {
+      allow read: if isTeacher() || isAssistant() || isOwner(resource.data.studentId) || isParentOf(resource.data.studentId);
+      allow write: if isTeacher() || isAssistant();
+    }
+    match /scores/{id} {
+      allow read: if isTeacher() || isAssistant() || isOwner(resource.data.studentId);
+      allow write: if isTeacher() || isAssistant();
+      // 학생 본인은 재시험 증빙 사진 항목(examSubmissionUrl/examSubmittedAt)만 갱신 가능 (hw_status와 동일한 예외)
+      allow update: if isOwner(resource.data.studentId)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['examSubmissionUrl','examSubmittedAt']);
+    }
+    match /hw_status/{id} {
+      allow read: if isTeacher() || isAssistant() || isOwner(resource.data.studentId) || isParentOf(resource.data.studentId);
+      allow write: if isTeacher() || isAssistant();
+      allow update: if isOwner(resource.data.studentId)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['submissionUrl','submittedAt']);
+    }
+    match /quiz_scores/{id} {
+      allow read: if isTeacher();
+      allow create: if signedIn() && request.resource.data.id == loginId();
+      allow update, delete: if isTeacher();
+    }
+    match /material_views/{id} {
+      allow read: if isTeacher() || isOwner(resource.data.studentId) || isParentOf(resource.data.studentId);
+      allow create, update: if isTeacher() || (signedIn() && request.resource.data.studentId == loginId());
+    }
+    match /clinic_bookings/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.studentId == loginId();
+      allow update: if isTeacher() || isOwner(resource.data.studentId);
+      allow delete: if isTeacher();
+    }
+    match /qna/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if isTeacher() || isOwner(resource.data.studentId);
+    }
+    match /qna_answers/{id} { allow read: if signedIn(); allow write: if isTeacher(); }
+    match /reviews/{id} {
+      allow read: if true;
+      allow create: if signedIn();
+      allow update, delete: if isTeacher();
+    }
+
+    match /chat_messages/{id} {
+      allow read: if isTeacher() || isOwner(resource.data.studentId);
+      allow create: if isTeacher() || (signedIn() && request.resource.data.studentId == loginId());
+      allow update, delete: if isTeacher();
+    }
+    match /chat_threads/{id} {
+      allow read: if isTeacher() || isOwner(id);
+      allow write: if isTeacher() || isOwner(id);
+    }
+
+    match /surveys/{id} {
+      allow read: if signedIn();
+      allow write: if isTeacher();
+    }
+    match /survey_responses/{id} {
+      allow read: if isTeacher() || isOwner(resource.data.studentId);
+      allow create, update: if isTeacher() || (signedIn() && request.resource.data.studentId == loginId());
+    }
+
+    match /assistants/{id} { allow read: if isTeacher() || isOwner(id); allow write: if isTeacher(); }
+    match /work_types/{id} { allow read: if isTeacher() || isAssistant(); allow write: if isTeacher(); }
+    match /work_logs/{id} {
+      allow read: if isTeacher() || (isAssistant() && resource.data.assistantId==loginId());
+      allow create: if isTeacher() || (isAssistant() && request.resource.data.assistantId==loginId());
+      allow update: if isTeacher() || (isAssistant() && resource.data.assistantId==loginId());
+      allow delete: if isTeacher();
+    }
+    match /expense_logs/{id} { allow read, write: if isTeacher(); }
+    match /student_signals/{id} { allow read, write: if isTeacher(); }
+    match /notices/{id} { allow read: if signedIn(); allow write: if isTeacher(); }
+
+    match /class_posts/{id} {
+      allow read: if signedIn();
+      allow write: if isTeacher() || isAssistant();
+    }
+    match /class_post_reads/{id} {
+      allow read: if isTeacher() || isAssistant() || isOwner(resource.data.studentId);
+      allow create, update: if isTeacher() || isAssistant() || (signedIn() && request.resource.data.studentId == loginId());
+    }
+
+    match /msg_send_logs/{id} {
+      allow read: if isTeacher() || isAssistant();
+      allow write: if isTeacher() || isAssistant();
+    }
+
+    match /activity_logs/{id} {
+      allow read: if isTeacher();
+      allow create: if signedIn();
+    }
+
+    match /class_hw_leaderboard/{id} {
+      allow read: if signedIn();
+      allow write: if isTeacher() || isAssistant();
+    }
+
+    match /video_folders/{id} {
+      allow read: if signedIn();
+      allow write: if isTeacher() || isAssistant();
+    }
+
+    match /exam_submissions/{id} {
+      allow read: if isTeacher() || isAssistant() || isOwner(resource.data.studentId);
+      allow create: if signedIn() && request.resource.data.studentId == loginId();
+      allow update: if isTeacher() || isAssistant()
+                    || (isOwner(resource.data.studentId)
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['selfScore','selfTotal','selfWrongQuestions']));
+      allow delete: if isTeacher();
+    }
+    match /exam_keys/{id} {
+      allow read: if isTeacher() || isAssistant() || hasSubmittedExam(id);
+      allow write: if isTeacher() || isAssistant();
+    }
+
+    match /game_scores/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.studentId == loginId();
+      allow update, delete: if false;
+    }
+
+    match /typing_sentences/{id} {
+      allow read: if signedIn();
+      allow write: if isTeacher();
+    }
+
+    match /game_settings/{id} {
+      allow read: if signedIn();
+      allow write: if isTeacher();
+    }
+
+    match /ast_task_items/{id} {
+      allow read, write: if isTeacher();
+    }
+
+    // 일정 달력 (2026-09-29) — 시험기간·등원일. 나중에 학생 화면에도 보여줄 수 있게 읽기는 로그인만 하면 허용.
+    match /calendar_events/{id} {
+      allow read: if signedIn();
+      allow write: if isTeacher();
+    }
+
+    // 문제 유형 목록 (2026-09-21)
+    match /problem_types/{id} {
+      allow read: if signedIn();
+      allow write: if isTeacher();
+    }
+
+    // 과제 누적 그룹 목록 (2026-09-03)
+    match /hw_tracks/{id} {
+      allow read: if signedIn();
+      allow write: if isTeacher();
+    }
+
+    // 질의응답 AI 풀이 초안 — 학생이 읽으면 안 되므로 교사/조교 전용 (2026-09-17)
+    match /qna_ai_drafts/{id} {
+      allow read, write: if isTeacher() || isAssistant();
+    }
+
+    // 반별 팝업 (2026-10-01) — 관리 페이지 진입 시 뜨는 안내. 조교도 읽어야 하므로 읽기는 로그인 전체.
+    match /class_popups/{id} {
+      allow read: if signedIn();
+      allow write: if isTeacher();
+    }
+
+    // 앱 전체 설정 (2026-10-02) — 지금은 의무클리닉 일시중지(app_settings/mclinic)에만 씀
+    match /app_settings/{id} {
+      allow read: if signedIn();
+      allow write: if isTeacher();
+    }
+
+    // 청첩장 모임 일정 (2026-10-07) — 강사들은 로그인 없이 응답하므로 응답은 누구나 쓰기 가능(형식만 검사).
+    match /meetup_config/{id} {
+      allow read: if true;
+      allow write: if isTeacher();
+    }
+    match /meetup_responses/{id} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['name','dates','area','memo','updatedAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 20
+        && request.resource.data.dates is list && request.resource.data.dates.size() <= 60
+        && request.resource.data.area in ['east','west','any']
+        && (!('memo' in request.resource.data) || (request.resource.data.memo is string && request.resource.data.memo.size() <= 80));
+      allow delete: if isTeacher();
+    }
+  }
+}

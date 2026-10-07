@@ -855,10 +855,6 @@ function mcTodayInfoSeoul() {
 // 의무클리닉을 통째로 쉬는 기간인지 확인 (2026-10-02 추가)
 // 관리 페이지 "⏸ 시험기간 — 의무클리닉 전체 쉬기"로 켜두면 app_settings/mclinic.paused = true가 되고,
 // 그동안 "오기 1시간 전" 알림톡이 나가지 않음. 기간(startDate~endDate)을 넣었으면 그 기간에만 멈춤.
-// ⛔ 의무클리닉(시간대 변경 클리닉) "오기 1시간 전" 알림톡 강제 중지 스위치 (2026-10-05)
-// 선생님이 "내가 명령하기 전까지 꺼둬라"고 해서, 관리 페이지 버튼이나 기간 설정과 상관없이 무조건 멈춤.
-// 다시 켜려면 이 값을 false로 바꾸고 Code.gs를 재배포하면 됨(관리 페이지의 "시험기간 전체 쉬기" 설정은 그대로 살아있음).
-var MCLINIC_ALERT_OFF = true;
 function isMclinicPaused() {
   try {
     var d = firestoreGetDoc('app_settings', 'mclinic');
@@ -874,23 +870,10 @@ function isMclinicPaused() {
 }
 function sendMcHourReminders() {
   try {
-    runMcHourRemindersOnly();
-  } catch (err) {
-    Logger.log('[sendMcHourReminders] 오류: ' + err);
-  }
-  runMcTailTasks();
-}
-// 의무클리닉 "오기 1시간 전" 알림만 담당하는 부분.
-// 🚨 예전엔 이 내용이 sendMcHourReminders 안에 그대로 들어 있어서, 보낼 의무클리닉이 없으면
-//    (= 5분 실행의 대부분) 아래 `return` 한 번에 함수가 통째로 끝나버려서 추가클리닉 알림·조교 알림·
-//    결석자 안내·증빙 기한 안내·자동완료·주간 요약·강사 할 일까지 전부 같이 건너뛰어졌음.
-//    "자동으로 돼야 하는데 안 된다"던 사고들의 진짜 원인. 별도 함수로 떼어내서 여기서 return해도
-//    뒤쪽 작업은 계속 돌게 고침(2026-10-05). **이 구조를 다시 한 함수로 합치지 말 것.**
-function runMcHourRemindersOnly() {
     var today = mcTodayInfoSeoul();
-    if (MCLINIC_ALERT_OFF || isMclinicPaused()) {
-      Logger.log('[의무클리닉] 중지 상태 — 1시간 전 알림 건너뜀');
-      return;
+    if (isMclinicPaused()) {
+      // 쉬는 기간이면 의무클리닉 알림만 건너뛰고, 아래의 다른 자동 작업들은 그대로 진행
+      throw { __skipMclinic: true };
     }
     var list = firestoreListAll('mandatory_clinic');
     var todays = list.filter(function(m){
@@ -932,9 +915,10 @@ function runMcHourRemindersOnly() {
       var result = sendAlimtalkMessages(msgs);
       if (!result.success) Logger.log('[sendMcHourReminders] ' + m.name + ' 발송 실패: ' + result.msg);
     });
-}
-// 5분 트리거에 같이 얹혀 도는 나머지 자동 작업들 — 의무클리닉 알림이 있든 없든, 꺼져 있든 항상 실행됨.
-function runMcTailTasks() {
+  } catch (err) {
+    if (err && err.__skipMclinic) Logger.log('[sendMcHourReminders] 의무클리닉 쉬는 기간 — 알림 건너뜀');
+    else Logger.log('[sendMcHourReminders] 오류: ' + err);
+  }
 
   // 클리닉(추가클리닉 등) "오기 1시간 전" 자동 알림도 같은 트리거(5분마다)에 얹어서 같이 실행 —
   // 별도 트리거를 새로 등록할 필요 없이 여기 이 함수 안에서 이어서 돈다.
