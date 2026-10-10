@@ -6,7 +6,7 @@
 <style>html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;}</style>
 <script>['gesturestart','gesturechange','gestureend'].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();},{passive:false});});</script>
 <title>반 정보 — 김민관 수학</title>
-<script src="firebase-api.js?v=55"></script>
+<script src="firebase-api.js?v=56"></script>
 <script src="chat-widget.js" defer></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
@@ -827,10 +827,9 @@ function renderSessions(){
 async function delSessionChip(id){
   var s=sessions.find(function(x){return x.id===id;});
   var nm=s?(s.label||(s.sessionNum+'차시')):'이 차시';
-  if(!confirm(nm+'를 삭제할까요? 되돌릴 수 없습니다.'))return;
-  var keep = !confirm('이 차시의 출석/성적/시험/과제 기록도 함께 지울까요?\n\n[확인] = 기록까지 모두 삭제\n[취소] = 기록은 남기고 차시만 삭제');
+  if(!confirm(nm+'를 삭제할까요? 되돌릴 수 없습니다.\n\n출석/성적/시험/과제 기록은 그대로 남습니다(누적성적표에서 계속 보임).'))return;
   try{
-    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'deleteSession',id:id,keepData:keep?'1':''})}).then(function(r){return r.json();});
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'deleteSession',id:id,keepData:'1'})}).then(function(r){return r.json();});
     if(!r||!r.success){alert('삭제 실패. 다시 시도해주세요.');return;}
     sessions=sessions.filter(function(x){return x.id!==id;});
     renderSessions();

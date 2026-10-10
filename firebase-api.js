@@ -81,6 +81,13 @@ function docsToArr(snap){
   return arr;
 }
 
+// 차시 삭제는 문서를 실제로 지우지 않고 deleted:true 표시만 남김(= 그 차시의 성적/출결 기록이
+// 누적성적표·학생 상세 이력에서 차시 이름·날짜와 함께 계속 보이게 하려고). 그래서 "차시 목록"을
+// 만드는 조회는 전부 이 함수로 걸러야 함 — 안 거르면 지운 차시가 화면·자동알림에 계속 등장함.
+function liveSessions(arr){
+  return arr.filter(function(s){ return s && s.deleted !== true; });
+}
+
 // 활동 로그 (핵심 활동만 기록 — 페이지뷰 전체가 아니라 로그인/제출/신청 등 의미있는 행동만)
 function logActivity(db, actorId, actorName, actorRole, message, code){
   var id = genId('log');
@@ -609,7 +616,7 @@ api.getClassStudents = function(db, p){
 /* === 차시 === */
 api.getSessions = function(db, p){
   return db.collection('sessions').where('classId','==',String(p.classId)).get().then(function(snap){
-    var sessions = docsToArr(snap).map(function(r){
+    var sessions = liveSessions(docsToArr(snap)).map(function(r){
       return { id:String(r.id), classId:String(r.classId), sessionNum:Number(r.sessionNum), date:r.date||'', label:r.label||'' };
     }).sort(function(a,b){ return b.sessionNum - a.sessionNum; });
     return { sessions: sessions };
@@ -639,7 +646,10 @@ api.addSession = function(db, p){
 api.deleteSession = function(db, p){
   var sid = String(p.id);
   if (p.keepData === true || p.keepData === '1' || p.keepData === 1) {
-    return db.collection('sessions').doc(sid).delete()
+    // 문서를 지우지 않고 '지운 것으로 표시'만 함 — 이러면 누적성적표·학생 상세 성적 이력에서
+    // 그 차시의 점수가 차시 이름·날짜와 함께 그대로 보임(문서를 지우면 이름을 못 찾아 "-"로 떴음).
+    // 화면·자동알림의 차시 목록은 liveSessions()가 걸러주므로 지운 차시는 안 나타남.
+    return db.collection('sessions').doc(sid).set({ deleted:true, deletedAt:nowStr() }, { merge:true })
       .then(function(){ return { success:true, kept:true }; }, function(){ return { success:false }; });
   }
   return Promise.all([
@@ -660,6 +670,7 @@ api.getSession = function(db, p){
   return db.collection('sessions').doc(String(p.id)).get().then(function(doc){
     if (!doc.exists) return { success:false };
     var r = doc.data();
+    if (r.deleted === true) return { success:false }; // 지운 차시 — 옛 주소로 들어와도 열리지 않게
     return { success:true, session:{ id:String(r.id), classId:String(r.classId), sessionNum:Number(r.sessionNum), date:r.date||'', label:r.label||'' } };
   });
 };
@@ -692,7 +703,7 @@ api.getAttendanceHistory = function(db, p){
     db.collection('attendance').where('studentId','==',String(p.studentId)).get()
   ];
   return Promise.all(tasks).then(function(res){
-    var sessions = docsToArr(res[0]).sort(function(a,b){ return Number(b.sessionNum) - Number(a.sessionNum); }).slice(0,20);
+    var sessions = liveSessions(docsToArr(res[0])).sort(function(a,b){ return Number(b.sessionNum) - Number(a.sessionNum); }).slice(0,20);
     var attMap = {};
     res[1].forEach(function(doc){ var d = doc.data(); attMap[String(d.sessionId)] = d.status || '미정'; });
     var history = sessions.map(function(s){
@@ -1017,7 +1028,7 @@ api.getMyOpenExams = function(db, p){
   var sid = String(p.studentId), classId = String(p.classId||'');
   if (!classId) return Promise.resolve({ exams: [] });
   return db.collection('sessions').where('classId','==',classId).get().then(function(sesSnap){
-    var sessions = docsToArr(sesSnap);
+    var sessions = liveSessions(docsToArr(sesSnap));
     if (!sessions.length) return { exams: [] };
     return Promise.all(sessions.map(function(s){
       return db.collection('exams').where('sessionId','==',String(s.id)).get().then(function(exSnap){
@@ -1212,7 +1223,7 @@ api.updateHwItem = function(db, p){
 function recomputeClassHwLeaderboard(db, classId){
   if(!classId) return Promise.resolve();
   return db.collection('sessions').where('classId','==',String(classId)).get().then(function(snap){
-    var sessionIds = snap.docs.map(function(d){ return d.id; });
+    var sessionIds = snap.docs.filter(function(d){ return d.data().deleted !== true; }).map(function(d){ return d.id; });
     if(!sessionIds.length) return null;
     return Promise.all(sessionIds.map(function(sid){ return db.collection('hw_status').where('sessionId','==',sid).get(); }));
   }).then(function(snaps){
@@ -1357,7 +1368,7 @@ api.getSignalBoard = function(db){
     db.collection('student_signals').get()
   ]).then(function(res){
     var students = docsToArr(res[0]).filter(function(s){ return s.active!==false; });
-    var sessions = docsToArr(res[1]);
+    var sessions = liveSessions(docsToArr(res[1]));
     var attendance = docsToArr(res[2]);
     var hwIncomplete = docsToArr(res[3]);
     var signalDocs = docsToArr(res[4]);
@@ -2318,7 +2329,7 @@ api.recordClinicTestScoreToRecentExam = function(db, p){
       db.collection('sessions').where('classId','==',classId).get(),
       db.collection('classes').doc(classId).get()
     ]).then(function(res){
-      var sessions = docsToArr(res[0]).filter(function(x){ return (x.date||'') <= today; })
+      var sessions = liveSessions(docsToArr(res[0])).filter(function(x){ return (x.date||'') <= today; })
         .sort(function(a,b){ if((a.date||'')!==(b.date||'')) return (a.date||'')<(b.date||'')?1:-1; return (Number(b.sessionNum)||0)-(Number(a.sessionNum)||0); });
       var className = res[1].exists ? (res[1].data().name||'') : '';
       var i = 0;

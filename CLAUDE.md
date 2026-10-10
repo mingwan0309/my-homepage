@@ -151,8 +151,14 @@
 ## 차시 이름 (2026-08-19 추가)
 `sessions` 문서에 `label`(선택) 필드 추가. 원래 차시는 항상 "N차시"로만 표시됐는데, class.html 차시 칩이나 session.html 상단 드롭다운의 연필(✏️) 아이콘으로 교사/조교가 직접 표시 이름을 지정할 수 있음(`api.updateSession`, 예: "2차시" → "2차시 개념정리"). **비워두면 다시 자동으로 "N차시"로 돌아감.** 이 이름은 목록뿐 아니라 화면 제목, document.title, 수업 결과 알림톡의 {차시} 토큰, 학생 상세 이력(출결/성적), 시험/과제 참고 목록 등 사람이 보는 곳 전부에 반영됨 — `sessLabel(s)` 헬퍼(`s.label || s.sessionNum+'차시'`)로 통일해서 처리. 단 `sessionNum`(숫자) 자체는 정렬·직전 차시 찾기 등 내부 로직용으로 그대로 유지되고 이름 설정과 무관.
 
-## 차시 삭제 (2026-10-10 추가)
-**교사만** 차시를 지울 수 있음. 두 곳에 버튼이 있음: ①class.html 차시 칩 오른쪽 위 🗑(`delSessionChip`) ②session.html 상단 차시 드롭다운의 🗑(`deleteThisSession`). 둘 다 `api.deleteSession`(firebase-api.js)을 호출. **확인창이 2단계**로, 2번째 창에서 기록을 같이 지울지 고름(확인=기록까지 삭제 / 취소=기록 남기고 차시만 삭제 → `keepData:'1'`). 기록까지 삭제를 고르면 그 차시의 `attendance`/`scores`/`exams`/`homeworks`/`hw_status`가 같이 지워짐(고아 데이터 방지). **기록을 남기면** 차시 문서만 없어지고 `scores`/`attendance` 등은 `sessionId`만 남은 채 보존됨 — 누적성적표·학생 상세 성적 이력처럼 scores를 직접 읽는 화면에는 계속 보이지만 차시 이름을 못 찾아 "-"로 뜰 수 있음(차시를 다시 만들어도 id가 달라서 연결은 안 되살아남). 조교에게는 🗑이 안 보임(이름 수정 ✏️는 조교도 가능). session.html에서 지금 보고 있는 차시를 지우면 남은 최신 차시로, 없으면 class.html로 이동함. `exam_keys`/`exam_submissions`는 아직 같이 안 지움(시험 문서만 지워지고 남음 — 학생에게 노출되는 경로가 없어 무해하지만 정리하려면 `api.deleteSession`에 추가).
+## 차시 삭제 (2026-10-10 추가, 같은 날 "기록은 항상 남김"으로 변경)
+**교사만** 차시를 지울 수 있음. 두 곳에 버튼이 있음: ①class.html 차시 칩 오른쪽 위 🗑(`delSessionChip`) ②session.html 상단 차시 드롭다운의 🗑(`deleteThisSession`). 둘 다 `api.deleteSession`을 호출.
+- **확인창은 1개뿐이고, 출석/성적/시험/과제 기록은 항상 그대로 남음**(사용자 지시: "기록 남기겠냐고 묻지 말고 그냥 남겨줘"). 즉 화면에서는 늘 `keepData:'1'`로 호출됨. **다시 "기록까지 지울까요?" 2단계 확인창을 만들지 말 것.** (`api.deleteSession`에 기록까지 지우는 분기는 코드로는 남아있지만 화면에서 쓰이지 않음.)
+- **기록이 누적성적표에서 계속 보이게 하려고, 차시 문서를 실제로 지우지 않고 `sessions.{id}.deleted = true`(+`deletedAt`) 표시만 남김.** 예전엔 문서를 지워서 `getMyScoreHistory`가 차시 이름·날짜를 못 찾아 그 점수가 아예 빠지거나 "-"로 떴음 — 이제 차시 이름·날짜·반까지 그대로 보임.
+- 그래서 **"차시 목록"을 만드는 조회는 전부 `liveSessions()`(firebase-api.js)로 걸러야 함** — 안 거르면 지운 차시가 화면·자동알림에 계속 나타남. 적용된 곳: `getSessions`/`getAttendanceHistory`/`getMyOpenExams`/`recomputeClassHwLeaderboard`/`getSignalBoard`/`recordClinicTestScoreToRecentExam`, 그리고 Code.gs의 `buildTodayUncheckedBlocks`/`sendAbsentVideoNotices`/`sendWeeklySummary`/`sendProofOverdueNotices`(`s.deleted !== true`). **sessions를 목록으로 읽는 코드를 새로 만들면 반드시 이 필터를 넣을 것.** 반대로 `doc(id).get()`으로 하나씩 읽어 이름을 붙이는 이력 화면(누적성적표, 학생 상세 성적 이력)은 **일부러 안 걸러서** 지운 차시의 기록도 이름과 함께 보이게 함.
+- `api.getSession`은 `deleted`면 `success:false`를 돌려줘서 옛 주소로 들어와도 안 열림. session.html에서 지금 보고 있는 차시를 지우면 남은 최신 차시로, 없으면 class.html로 이동함.
+- 조교에게는 🗑이 안 보임(이름 수정 ✏️는 조교도 가능).
+- firebase-api v56.
 
 ## 성적/시험 관리 (session.html, 하드 룰)
 - 학생 접근 완전 차단(교사 전용). 시험은 반의 각 차시(session) 아래에 등록.
