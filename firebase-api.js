@@ -635,8 +635,13 @@ api.addSession = function(db, p){
 };
 
 // 차시를 지우면 그 차시에 딸린 출석/성적/시험/과제/과제이행 기록도 같이 정리(고아 데이터 방지)
+// keepData가 '1'/true면 차시 문서만 지우고 출석/성적/시험/과제 기록은 그대로 남김(선생님이 선택)
 api.deleteSession = function(db, p){
   var sid = String(p.id);
+  if (p.keepData === true || p.keepData === '1' || p.keepData === 1) {
+    return db.collection('sessions').doc(sid).delete()
+      .then(function(){ return { success:true, kept:true }; }, function(){ return { success:false }; });
+  }
   return Promise.all([
     db.collection('attendance').where('sessionId','==',sid).get(),
     db.collection('scores').where('sessionId','==',sid).get(),
