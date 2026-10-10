@@ -43,7 +43,9 @@ body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);min
 .sessions-wrap{background:#fff;border-bottom:1px solid #e2e8f0;padding:10px 20px;display:flex;align-items:center;gap:8px;}
 .sessions-scroll{display:flex;gap:8px;overflow-x:auto;flex:1;padding-bottom:2px;scrollbar-width:none;}
 .sessions-scroll::-webkit-scrollbar{display:none;}
-.session-chip{flex-shrink:0;padding:8px 14px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;cursor:pointer;text-align:center;transition:.15s;}
+.session-chip{position:relative;flex-shrink:0;padding:8px 14px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;cursor:pointer;text-align:center;transition:.15s;}
+.sess-del{position:absolute;top:1px;right:1px;width:20px;height:20px;line-height:18px;text-align:center;border-radius:50%;background:#fff;border:1.5px solid #fecaca;color:#dc2626;font-size:11px;cursor:pointer;z-index:2;}
+.sess-del:hover{background:#fee2e2;}
 .session-chip:hover{border-color:#3b6cf7;background:#eff4ff;}
 .session-chip .snum{font-size:13px;font-weight:700;color:#1e293b;}
 .session-chip .sdate{font-size:11px;color:#94a3b8;margin-top:1px;}
@@ -220,6 +222,7 @@ tr:hover td{background:#fafbff;}
   /* 차시 칩 */
   .sessions-scroll{padding:10px 12px;}
   .session-chip{padding:11px 15px;min-height:52px;}
+  .sess-del{width:26px;height:26px;line-height:24px;font-size:12px;top:1px;right:1px;}
   .snum{font-size:14px;}
   /* 탭바 */
   .tabs-bar{overflow-x:auto;-webkit-overflow-scrolling:touch;}
@@ -813,9 +816,25 @@ function renderSessions(){
   scroll.innerHTML=sessions.map(function(s){
     var dateLabel=s.date?formatDate(s.date):'';
     var titleText=s.label?escHtml(s.label):(s.sessionNum+'차시');
-    return '<div class="session-chip" onclick="goSession(\''+s.id+'\')">'
+    var delBtn = (session.role==='teacher') ? '<span class="sess-del" title="이 차시 삭제" onclick="event.stopPropagation();delSessionChip(\''+s.id+'\')">🗑</span>' : '';
+    return '<div class="session-chip" onclick="goSession(\''+s.id+'\')" style="'+(session.role==='teacher'?'padding-right:28px;':'')+'">'
+      +delBtn
       +'<div class="snum">'+titleText+'</div>'+(dateLabel?'<div class="sdate">'+dateLabel+'</div>':'')+'</div>';
   }).join('');
+}
+
+// 차시 삭제 (교사만) — 그 차시의 출석/성적/시험/과제 기록도 같이 지워짐(firebase-api api.deleteSession)
+async function delSessionChip(id){
+  var s=sessions.find(function(x){return x.id===id;});
+  var nm=s?(s.label||(s.sessionNum+'차시')):'이 차시';
+  if(!confirm(nm+'를 삭제할까요?\n\n이 차시의 출석/성적/시험/과제 기록이 모두 함께 삭제되며, 되돌릴 수 없습니다.'))return;
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'deleteSession',id:id})}).then(function(r){return r.json();});
+    if(!r||!r.success){alert('삭제 실패. 다시 시도해주세요.');return;}
+    sessions=sessions.filter(function(x){return x.id!==id;});
+    renderSessions();
+    if(typeof loadAttendanceAsync==='function') loadAttendanceAsync();
+  }catch(e){alert('오류가 발생했습니다.');}
 }
 
 function formatDate(d){
