@@ -151,6 +151,9 @@
 ## 차시 이름 (2026-08-19 추가)
 `sessions` 문서에 `label`(선택) 필드 추가. 원래 차시는 항상 "N차시"로만 표시됐는데, class.html 차시 칩이나 session.html 상단 드롭다운의 연필(✏️) 아이콘으로 교사/조교가 직접 표시 이름을 지정할 수 있음(`api.updateSession`, 예: "2차시" → "2차시 개념정리"). **비워두면 다시 자동으로 "N차시"로 돌아감.** 이 이름은 목록뿐 아니라 화면 제목, document.title, 수업 결과 알림톡의 {차시} 토큰, 학생 상세 이력(출결/성적), 시험/과제 참고 목록 등 사람이 보는 곳 전부에 반영됨 — `sessLabel(s)` 헬퍼(`s.label || s.sessionNum+'차시'`)로 통일해서 처리. 단 `sessionNum`(숫자) 자체는 정렬·직전 차시 찾기 등 내부 로직용으로 그대로 유지되고 이름 설정과 무관.
 
+## 차시 삭제 (2026-10-10 추가)
+**교사만** 차시를 지울 수 있음. 두 곳에 버튼이 있음: ①class.html 차시 칩 오른쪽 위 🗑(`delSessionChip`) ②session.html 상단 차시 드롭다운의 🗑(`deleteThisSession`). 둘 다 `api.deleteSession`(firebase-api.js)을 호출하는데, 이 API는 그 차시의 **`attendance`/`scores`/`exams`/`homeworks`/`hw_status` 기록을 같이 지움**(고아 데이터 방지) — 되돌릴 수 없으니 확인창 문구에 그 사실을 명시해둠. 조교에게는 🗑이 안 보임(이름 수정 ✏️는 조교도 가능). session.html에서 지금 보고 있는 차시를 지우면 남은 최신 차시로, 없으면 class.html로 이동함. `exam_keys`/`exam_submissions`는 아직 같이 안 지움(시험 문서만 지워지고 남음 — 학생에게 노출되는 경로가 없어 무해하지만 정리하려면 `api.deleteSession`에 추가).
+
 ## 성적/시험 관리 (session.html, 하드 룰)
 - 학생 접근 완전 차단(교사 전용). 시험은 반의 각 차시(session) 아래에 등록.
 - 채점 방식은 시험마다 **점수형/개수형(scoreType: score/count)** 중 선택. 개수형은 표에 "N/M개"로 표시.
