@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=58"></script>
+<script src="firebase-api.js?v=59"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -6030,12 +6030,19 @@ function hpRenderList(){
       + '</div>'
       + (hpOpenReplies[p.id] ? hpRepliesHtml(p) : '')
       + '</div>';
-  }).join('');
+  }).join('')
+  // 지워졌거나 예전 버그(팝업 번호가 'undefined'로 저장됨, 2026-10-12 수정)로 짝을 못 찾는 글도 버리지 않고 모아 보여줌
+  + (function(){
+    var ids = hpList.map(function(p){ return p.id; });
+    var orphan = hpReplies.filter(function(x){ return ids.indexOf(x.popupId) < 0; });
+    if(!orphan.length) return '';
+    return '<div style="margin-top:12px;">' + hpRepliesHtml({ id:'__orphan__', title:'기타 받은 글' }, orphan) + '</div>';
+  })();
 }
 function hpReplyCount(id){ return hpReplies.filter(function(x){ return x.popupId===id; }).length; }
 function hpToggleReplies(id){ hpOpenReplies[id]=!hpOpenReplies[id]; hpRenderList(); }
-function hpRepliesHtml(p){
-  var rows=hpReplies.filter(function(x){ return x.popupId===p.id; });
+function hpRepliesHtml(p, rowsOverride){
+  var rows=rowsOverride || hpReplies.filter(function(x){ return x.popupId===p.id; });
   var body = rows.length ? rows.map(function(x){
     return '<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid #e2e8f0;">'
       + '<div style="flex:1;min-width:0;">'
@@ -6046,8 +6053,8 @@ function hpRepliesHtml(p){
       + '</div>';
   }).join('') : '<div style="font-size:13px;color:#94a3b8;padding:8px 0;">아직 받은 글이 없어요.</div>';
   return '<div style="flex-basis:100%;background:#f8fafc;border-radius:10px;padding:10px 14px;margin-top:4px;">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><b style="font-size:13px;">💬 받은 글 '+rows.length+'개</b>'
-    + (rows.length?'<button class="btn" onclick="hpDownloadReplies(&quot;'+p.id+'&quot;)" style="padding:5px 10px;font-size:12px;min-height:34px;">📥 엑셀로 받기</button>':'')+'</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><b style="font-size:13px;">💬 '+(rowsOverride?escHtml(p.title)+' ':'받은 글 ')+rows.length+'개</b>'
+    + (rows.length && !rowsOverride?'<button class="btn" onclick="hpDownloadReplies(&quot;'+p.id+'&quot;)" style="padding:5px 10px;font-size:12px;min-height:34px;">📥 엑셀로 받기</button>':'')+'</div>'
     + body + '</div>';
 }
 function hpDeleteReply(id){

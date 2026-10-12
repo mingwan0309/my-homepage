@@ -1486,7 +1486,7 @@ api.getClassPopups = function(db){
     var list = docsToArr(snap);
     list.sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); });
     return { popups: list.map(function(p){
-      return { id:String(p.id), title:p.title||'', content:p.content||'',
+      return { id:String(p._docId||p.id), title:p.title||'', content:p.content||'',
         classIds:Array.isArray(p.classIds)?p.classIds:[], active:p.active!==false,
         startDate:p.startDate||'', endDate:p.endDate||'', createdAt:p.createdAt||'' };
     }) };
@@ -1515,7 +1515,7 @@ api.getHomePopups = function(db){
     var list = docsToArr(snap);
     list.sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); });
     return { popups: list.map(function(p){
-      return { id:String(p.id), title:p.title||'', content:p.content||'', color:p.color||'blue',
+      return { id:String(p._docId||p.id), title:p.title||'', content:p.content||'', color:p.color||'blue',
         allowReply:p.allowReply===true, replyPrompt:p.replyPrompt||'',
         active:p.active!==false, startDate:p.startDate||'', endDate:p.endDate||'', createdAt:p.createdAt||'' };
     }) };
@@ -1545,7 +1545,7 @@ api.getHomePopupReplies = function(db){
   return db.collection('home_popup_replies').get().then(function(snap){
     var list = docsToArr(snap);
     list.sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); });
-    return { success:true, replies: list };
+    return { success:true, replies: list.map(function(x){ x.id = x._docId || x.id; return x; }) };
   });
 };
 api.deleteHomePopupReply = function(db, p){
