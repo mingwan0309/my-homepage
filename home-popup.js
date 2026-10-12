@@ -13,11 +13,12 @@
 
   window.mkShowHomePopups = function(opt){
     opt = opt || {};
-    var url = opt.url, sess = opt.session || null;
+    var url = opt.url, sess = opt.session || null, preview = !!opt.preview;
     fetch(url + '?action=getHomePopups').then(function(r){ return r.json(); }).then(function(r){
       var t = today(), hide = getMap(HIDE_KEY);
       var list = ((r && r.popups) || []).filter(function(p){
         if (!p.active) return false;
+        if (preview) return !(p.startDate && t < p.startDate) && !(p.endDate && t > p.endDate); // 미리보기는 "오늘 안 보기"와 무관하게 보여줌
         if (p.startDate && t < p.startDate) return false;
         if (p.endDate && t > p.endDate) return false;
         return hide[p.id] !== t;
@@ -50,6 +51,7 @@
         if (canReply) {
           var sent = getMap(SENT_KEY)[p.id];
           html += '<div class="hp-reply" style="padding:10px 20px 4px;cursor:default;">'
+            + (preview ? '<div style="font-size:12.5px;color:#b45309;background:#fef3c7;border-radius:8px;padding:7px 10px;margin-bottom:8px;">👀 선생님 미리보기예요. 학생은 여기서 글을 써서 보낼 수 있어요(미리보기에서는 안 보내져요).</div>' : '')
             + (sent ? '<div style="font-size:13px;color:#059669;font-weight:700;margin-bottom:8px;">✅ 이미 글을 보냈어요. 더 보내도 돼요.</div>' : '')
             + (sess && sess.name ? '' : '<input class="hp-name" type="text" maxlength="20" placeholder="이름" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:16px;font-family:inherit;margin-bottom:8px;">')
             + '<textarea class="hp-text" rows="3" maxlength="1000" placeholder="' + esc(p.replyPrompt || '여기에 글을 써주세요') + '" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:16px;font-family:inherit;resize:vertical;"></textarea>'
@@ -73,6 +75,7 @@
           card.querySelector('.hp-send').onclick = function(e){
             e.stopPropagation();
             var btn = this, msg = card.querySelector('.hp-msg');
+            if (preview) { msg.style.color = '#b45309'; msg.textContent = '미리보기라서 보내지 않았어요.'; return; }
             var text = card.querySelector('.hp-text').value.trim();
             var nameEl = card.querySelector('.hp-name');
             var name = sess && sess.name ? (sess.name + (sess.authId && sess.authId !== sess.id ? ' 학부모' : '')) : (nameEl ? nameEl.value.trim() : '');
