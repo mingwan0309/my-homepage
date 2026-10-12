@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=56"></script>
+<script src="firebase-api.js?v=57"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -296,6 +296,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       </div>
       <div class="nav-item" onclick="showPage('notice',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('classpopup',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🔔</span> 반별 팝업</div>
+      <div class="nav-item" onclick="showPage('homepopup',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🏠</span> 홈페이지 팝업</div>
       <div class="nav-item" onclick="showPage('survey',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('chat',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🗨️</span> 1:1 문의 <span id="chat-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('qna',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💬</span> 질의응답</div>
@@ -367,6 +368,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
       </div>
       <div class="nav-item" onclick="showPage('notice',this)"><span class="ni">📢</span> 공지</div>
       <div class="nav-item" onclick="showPage('classpopup',this)"><span class="ni">🔔</span> 반별 팝업</div>
+      <div class="nav-item" onclick="showPage('homepopup',this)"><span class="ni">🏠</span> 홈페이지 팝업</div>
       <div class="nav-item" onclick="showPage('survey',this)"><span class="ni">📋</span> 설문조사</div>
       <div class="nav-item" onclick="showPage('chat',this)"><span class="ni">🗨️</span> 1:1 문의 <span id="chat-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:auto;"></span></div>
       <div class="nav-item" onclick="showPage('qna',this)"><span class="ni">💬</span> 질의응답</div>
@@ -530,6 +532,33 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           <span>이 기기에서는 팝업을 아예 안 띄우기</span>
         </label>
         <div style="font-size:12.5px;color:#94a3b8;">이 설정은 지금 쓰는 브라우저에만 적용돼요(다른 사람 화면에는 영향 없음).</div>
+      </div>
+    </div>
+
+    <!-- 홈페이지 팝업 (2026-10-12 추가) — 홈페이지(index.html) 첫 화면에 방문자 누구에게나 뜨는 팝업. 누르면 사라짐 -->
+    <div id="page-homepopup" class="page">
+      <div class="page-header"><div class="page-title">홈페이지 팝업</div></div>
+      <div class="card" style="max-width:760px;">
+        <div class="card-title" id="hp-form-title">새 팝업 만들기</div>
+        <div style="font-size:12.5px;color:#94a3b8;margin-bottom:12px;">홈페이지 첫 화면에 들어온 사람 누구에게나(로그인 안 해도) 팝업으로 떠요. 팝업을 <b>누르면 바로 사라져요.</b></div>
+        <div class="fg"><label>제목</label><input type="text" id="hp-title" placeholder="예: 겨울방학 특강 모집" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
+        <div class="fg"><label>내용</label><textarea id="hp-content" rows="5" placeholder="예: 12월 22일 개강 · 고1/고2 선착순 모집" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;resize:vertical;"></textarea></div>
+        <div class="fg"><label>색상</label>
+          <div id="hp-colors" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+        </div>
+        <div class="fr">
+          <div class="fg"><label>시작일 <span style="color:#94a3b8;font-weight:400;">(선택)</span></label><input type="date" id="hp-start" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
+          <div class="fg"><label>종료일 <span style="color:#94a3b8;font-weight:400;">(선택)</span></label><input type="date" id="hp-end" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+          <button class="btn" onclick="hpPreview()" style="padding:10px 16px;">👀 미리보기</button>
+          <button class="btn" id="hp-cancel-btn" onclick="hpResetForm()" style="display:none;padding:10px 16px;">수정 취소</button>
+          <button class="btn-ok" onclick="hpSave()" style="padding:10px 18px;">저장</button>
+        </div>
+      </div>
+      <div class="card" style="max-width:760px;">
+        <div class="card-title">등록된 팝업</div>
+        <div id="hp-list"></div>
       </div>
     </div>
 
@@ -1493,7 +1522,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','problemtypes','astguide','astcheck','asttask','gamerank','calendar','classpopup'];
+    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','problemtypes','astguide','astcheck','asttask','gamerank','calendar','classpopup','homepopup'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
@@ -1529,6 +1558,7 @@ function showPage(page,el){
   if(page==='students') loadStu();
   if(page==='calendar') loadSchedule();
   if(page==='classpopup') loadClassPopups();
+  if(page==='homepopup') loadHomePopups();
   if(page==='reviewmanage') loadRv();
   if(page==='notice') loadNotices();
   if(page==='clinic'){
@@ -5944,6 +5974,115 @@ function deleteSchEvent(){
     if(!r || !r.success){ alert('삭제 실패'); return; }
     closeSchModal(); loadSchedule();
   });
+}
+
+
+// ══════════ 홈페이지 팝업 (2026-10-12 추가) ══════════
+// 홈페이지(index.html) 첫 화면에 방문자 누구에게나 뜨는 팝업. 팝업은 누르면 사라짐.
+// 이름은 hp* 접두사 (admin.html 전역 이름 충돌 방지 — 일정 달력 cal* 사고 참고)
+var hpList = [], hpEditId = null, hpColor = 'blue';
+var HP_COLORS = { blue:{name:'파랑',bg:'#2563eb'}, red:{name:'빨강',bg:'#dc2626'}, green:{name:'초록',bg:'#059669'}, orange:{name:'주황',bg:'#ea580c'}, purple:{name:'보라',bg:'#7c3aed'}, dark:{name:'검정',bg:'#1e293b'} };
+function hpApi(params){
+  return fetch(SU,{method:'POST',body:JSON.stringify(params)}).then(function(r){ return r.json(); }).catch(function(){ return null; });
+}
+function hpRenderColors(){
+  var box=document.getElementById('hp-colors'); if(!box) return;
+  box.innerHTML = Object.keys(HP_COLORS).map(function(k){
+    var on = k===hpColor;
+    return '<button type="button" onclick="hpPickColor(&quot;'+k+'&quot;)" style="min-height:40px;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;'
+      +'border:2px solid '+HP_COLORS[k].bg+';background:'+(on?HP_COLORS[k].bg:'#fff')+';color:'+(on?'#fff':HP_COLORS[k].bg)+';">'+HP_COLORS[k].name+'</button>';
+  }).join('');
+}
+function hpPickColor(k){ hpColor = HP_COLORS[k]?k:'blue'; hpRenderColors(); }
+function loadHomePopups(){
+  hpRenderColors();
+  return hpApi({action:'getHomePopups'}).then(function(r){
+    hpList=(r&&r.popups)||[];
+    hpRenderList();
+  });
+}
+function hpRenderList(){
+  var box=document.getElementById('hp-list'); if(!box) return;
+  if(!hpList.length){ box.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:6px 0;">등록된 팝업이 없어요.</div>'; return; }
+  box.innerHTML = hpList.map(function(p){
+    var c = (HP_COLORS[p.color]||HP_COLORS.blue).bg;
+    var period = (p.startDate||p.endDate) ? ((p.startDate||'처음')+' ~ '+(p.endDate||'계속')) : '기간 제한 없음';
+    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:11px 4px;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;">'
+      + '<div style="width:6px;align-self:stretch;border-radius:3px;background:'+c+';"></div>'
+      + '<div style="flex:1;min-width:180px;'+(p.active?'':'opacity:.45;')+'">'
+      +   '<div style="font-size:14px;font-weight:700;color:#1e293b;">'+escHtml(p.title||'(제목 없음)')+(p.active?'':' <span style="font-size:11px;color:#94a3b8;">(꺼둠)</span>')+'</div>'
+      +   (p.content?'<div style="font-size:13px;color:#475569;margin-top:2px;white-space:pre-wrap;">'+escHtml(p.content)+'</div>':'')
+      +   '<div style="font-size:12px;color:#94a3b8;margin-top:3px;">'+period+'</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:6px;flex-shrink:0;">'
+      +   '<button class="btn" onclick="hpToggleActive(&quot;'+p.id+'&quot;)" style="padding:6px 10px;font-size:12px;min-height:38px;">'+(p.active?'끄기':'켜기')+'</button>'
+      +   '<button class="btn" onclick="hpEdit(&quot;'+p.id+'&quot;)" style="padding:6px 10px;font-size:12px;min-height:38px;">수정</button>'
+      +   '<button class="btn" onclick="hpDelete(&quot;'+p.id+'&quot;)" style="padding:6px 10px;font-size:12px;min-height:38px;color:#dc2626;border-color:#fecaca;">삭제</button>'
+      + '</div></div>';
+  }).join('');
+}
+function hpResetForm(){
+  hpEditId=null;
+  document.getElementById('hp-title').value='';
+  document.getElementById('hp-content').value='';
+  document.getElementById('hp-start').value='';
+  document.getElementById('hp-end').value='';
+  hpPickColor('blue');
+  document.getElementById('hp-cancel-btn').style.display='none';
+  document.getElementById('hp-form-title').textContent='새 팝업 만들기';
+}
+function hpEdit(id){
+  var p=hpList.find(function(x){ return x.id===id; }); if(!p) return;
+  hpEditId=id;
+  document.getElementById('hp-title').value=p.title||'';
+  document.getElementById('hp-content').value=p.content||'';
+  document.getElementById('hp-start').value=p.startDate||'';
+  document.getElementById('hp-end').value=p.endDate||'';
+  hpPickColor(p.color||'blue');
+  document.getElementById('hp-cancel-btn').style.display='';
+  document.getElementById('hp-form-title').textContent='팝업 수정';
+  document.getElementById('hp-title').scrollIntoView({block:'center'});
+}
+function hpSave(){
+  var title=document.getElementById('hp-title').value.trim();
+  var content=document.getElementById('hp-content').value.trim();
+  if(!title && !content){ alert('제목이나 내용을 입력해주세요.'); return; }
+  var p={ action:'saveHomePopup', title:title, content:content, color:hpColor,
+    startDate:document.getElementById('hp-start').value, endDate:document.getElementById('hp-end').value, active:'true' };
+  if(hpEditId){
+    p.id=hpEditId;
+    var old=hpList.find(function(x){ return x.id===hpEditId; });
+    if(old && !old.active) p.active='false';
+  }
+  hpApi(p).then(function(r){
+    if(!r||!r.success){ alert('저장 실패: '+((r&&r.error)||'알 수 없는 오류')); return; }
+    hpResetForm(); loadHomePopups();
+    alert('저장했어요. 홈페이지 첫 화면에 팝업으로 떠요.');
+  });
+}
+function hpToggleActive(id){
+  var p=hpList.find(function(x){ return x.id===id; }); if(!p) return;
+  hpApi({ action:'saveHomePopup', id:id, title:p.title, content:p.content, color:p.color,
+    startDate:p.startDate, endDate:p.endDate, active: p.active ? 'false' : 'true' }).then(function(){ loadHomePopups(); });
+}
+function hpDelete(id){
+  if(!confirm('이 팝업을 삭제할까요?')) return;
+  hpApi({action:'deleteHomePopup', id:id}).then(function(){ loadHomePopups(); });
+}
+// 홈페이지에서 보이는 모양 그대로 미리보기 (누르면 사라짐)
+function hpPreview(){
+  var title=document.getElementById('hp-title').value.trim();
+  var content=document.getElementById('hp-content').value.trim();
+  if(!title && !content){ alert('제목이나 내용을 먼저 입력해주세요.'); return; }
+  var c=(HP_COLORS[hpColor]||HP_COLORS.blue).bg;
+  var bg=document.createElement('div');
+  bg.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:990;display:flex;align-items:center;justify-content:center;padding:16px;cursor:pointer;';
+  bg.innerHTML='<div style="background:#fff;border-radius:18px;width:100%;max-width:420px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35);">'
+    +'<div style="background:'+c+';color:#fff;padding:18px 20px;font-size:19px;font-weight:800;line-height:1.4;">'+escHtml(title||'안내')+'</div>'
+    +(content?'<div style="padding:18px 20px;font-size:15px;color:#334155;line-height:1.7;white-space:pre-wrap;">'+escHtml(content)+'</div>':'')
+    +'<div style="padding:0 20px 16px;font-size:12px;color:#94a3b8;text-align:center;">눌러서 닫기</div></div>';
+  bg.onclick=function(){ bg.remove(); };
+  document.body.appendChild(bg);
 }
 
 

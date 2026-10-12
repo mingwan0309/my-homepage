@@ -8,7 +8,7 @@
 <style>html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;}</style>
 <script>['gesturestart','gesturechange','gestureend'].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();},{passive:false});});</script>
 <title>김민관 수학</title>
-<script src="firebase-api.js?v=56"></script>
+<script src="firebase-api.js?v=57"></script>
 <script>
   // 폰에서 이미 로그인한 학생은 홍보 홈페이지 대신 바로 마이페이지로 (깜빡임 최소화 위해 head에서 즉시 실행)
   (function(){
@@ -1340,6 +1340,63 @@
     }
     document.getElementById('schedule-popup').style.display = 'none';
   }
+
+  // ── 홈페이지 팝업 (2026-10-12 추가) — 관리 페이지 "🏠 홈페이지 팝업"에서 쓴 내용. 누르면 사라짐 ──
+  // 여러 개면 카드가 겹쳐 쌓이고, 누를 때마다 맨 위 한 장씩 사라짐. 바깥(어두운 곳)을 누르면 전부 닫힘.
+  (function(){
+    var COLORS = { blue:'#2563eb', red:'#dc2626', green:'#059669', orange:'#ea580c', purple:'#7c3aed', dark:'#1e293b' };
+    var HIDE_KEY = 'mkmath_homepopup_hide';
+    function esc(t){ return String(t||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    function today(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+    function hideMap(){ try{ return JSON.parse(localStorage.getItem(HIDE_KEY)||'{}'); }catch(e){ return {}; } }
+    fetch(SCRIPT_URL + '?action=getHomePopups').then(function(r){ return r.json(); }).then(function(r){
+      var t = today(), hide = hideMap();
+      var list = ((r && r.popups) || []).filter(function(p){
+        if (!p.active) return false;
+        if (p.startDate && t < p.startDate) return false;
+        if (p.endDate && t > p.endDate) return false;
+        return hide[p.id] !== t;
+      });
+      if (!list.length) return;
+      var bg = document.createElement('div');
+      bg.id = 'home-popup-bg';
+      bg.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;';
+      var stack = document.createElement('div');
+      stack.style.cssText = 'position:relative;width:100%;max-width:420px;';
+      list.slice().reverse().forEach(function(p, i){
+        var card = document.createElement('div');
+        var c = COLORS[p.color] || COLORS.blue;
+        var depth = list.length - 1 - i; // 0 = 맨 위
+        card.style.cssText = 'background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35);cursor:pointer;max-height:70vh;overflow-y:auto;'
+          + (depth === 0 ? 'position:relative;' : 'position:absolute;left:0;right:0;top:0;transform:translateY(' + (-8*depth) + 'px) scale(' + (1-0.03*depth) + ');');
+        card.innerHTML = '<div style="background:' + c + ';color:#fff;padding:18px 20px;font-size:19px;font-weight:800;line-height:1.4;">' + esc(p.title || '안내') + '</div>'
+          + (p.content ? '<div style="padding:18px 20px;font-size:15px;color:#334155;line-height:1.7;white-space:pre-wrap;word-break:keep-all;">' + esc(p.content) + '</div>' : '')
+          + '<div style="padding:0 20px 16px;font-size:12px;color:#94a3b8;text-align:center;">눌러서 닫기' + (list.length > 1 ? ' (' + (depth + 1) + '/' + list.length + ')' : '') + '</div>';
+        card.dataset.id = p.id;
+        card.onclick = function(e){
+          e.stopPropagation();
+          card.remove();
+          var left = stack.children;
+          if (!left.length) { bg.remove(); return; }
+          var top = left[left.length - 1];
+          top.style.position = 'relative'; top.style.transform = '';
+        };
+        stack.appendChild(card);
+      });
+      var noToday = document.createElement('button');
+      noToday.textContent = '오늘 하루 보지 않기';
+      noToday.style.cssText = 'margin-top:14px;min-height:44px;padding:10px 18px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:22px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;';
+      noToday.onclick = function(e){
+        e.stopPropagation();
+        var m = hideMap(); list.forEach(function(p){ m[p.id] = t; });
+        try{ localStorage.setItem(HIDE_KEY, JSON.stringify(m)); }catch(err){}
+        bg.remove();
+      };
+      bg.onclick = function(){ bg.remove(); };
+      bg.appendChild(stack); bg.appendChild(noToday);
+      document.body.appendChild(bg);
+    }).catch(function(){});
+  })();
 
   // 팝업 시간표를 본문 시간표(#schedule)에서 그대로 복사 (매번 두 곳 수정할 필요 없게)
   function syncSchedulePopup() {

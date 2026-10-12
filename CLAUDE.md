@@ -417,6 +417,13 @@ admin.html 사이드바 "🗓 일정 달력" 메뉴(교사 전용, `mcAllowedPag
 - JS 이름은 전부 `cp*` 접두사(admin.html은 전역 이름 충돌이 잦아서 — 일정 달력 때 `cal*` 충돌 사고 참고).
 - **Firestore 규칙 필요:** `match /class_popups/{id} { allow read: if signedIn(); allow write: if isTeacher(); }` — 조교도 읽어야 하므로 읽기는 로그인 전체. 전체 규칙 파일은 저장소 `firestore_rules_v9.txt`.
 
+## 홈페이지 팝업 (2026-10-12 추가)
+홈페이지(index.html) 첫 화면에 **로그인 안 한 방문자 포함 누구에게나** 뜨는 팝업(사용자: "홈페이지에서 팝업에 쓸 내용 만드는 메뉴 써줘 누르면 지워지게"). 반별 팝업(관리 페이지·마이페이지용)과는 별개.
+- 관리: admin.html 사이드바 **"🏠 홈페이지 팝업"**(반별 팝업 바로 아래, 교사 전용). 제목/내용/색상(파랑·빨강·초록·주황·보라·검정)/기간(선택) 입력, 👀 미리보기, 목록에서 끄기·켜기·수정·삭제. JS 이름은 `hp*` 접두사.
+- `home_popups` 컬렉션(title, content, color, active, startDate, endDate, createdAt/updatedAt). API `api.getHomePopups`/`saveHomePopup`/`deleteHomePopup` (firebase-api v57).
+- index.html: 켜져 있고 기간 안인 팝업을 카드로 겹쳐 띄움 — **카드를 누르면 그 카드가 사라지고** 다음 카드가 보임, 어두운 바깥을 누르면 전부 닫힘, "오늘 하루 보지 않기"(localStorage `mkmath_homepopup_hide`). 기존 시간표 팝업 위에 뜸(모바일 입장 화면보다는 아래).
+- **Firestore 규칙 필요:** `match /home_popups/{id} { allow read: if true; allow write: if isTeacher(); }` — 비로그인 방문자가 읽어야 하므로 읽기 공개. 전체 규칙 파일은 저장소 `firestore_rules_v11.txt`.
+
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
 - Apps Script 재배포 시 "새 버전" 안내 빼먹기

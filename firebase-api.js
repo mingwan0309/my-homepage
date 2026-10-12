@@ -1508,6 +1508,30 @@ api.deleteClassPopup = function(db, p){
   return db.collection('class_popups').doc(String(p.id)).delete().then(function(){ return { success:true }; });
 };
 
+// ── 홈페이지 팝업 (2026-10-12 추가) ──
+// index.html 첫 화면에 방문자(비로그인 포함) 누구에게나 뜨는 팝업. 읽기는 공개(규칙: read if true).
+api.getHomePopups = function(db){
+  return db.collection('home_popups').get().then(function(snap){
+    var list = docsToArr(snap);
+    list.sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); });
+    return { popups: list.map(function(p){
+      return { id:String(p.id), title:p.title||'', content:p.content||'', color:p.color||'blue',
+        active:p.active!==false, startDate:p.startDate||'', endDate:p.endDate||'', createdAt:p.createdAt||'' };
+    }) };
+  });
+};
+api.saveHomePopup = function(db, p){
+  var data = { title:String(p.title||'').trim(), content:String(p.content||'').trim(), color:String(p.color||'blue'),
+    active:String(p.active)!=='false', startDate:String(p.startDate||''), endDate:String(p.endDate||''), updatedAt:nowStr() };
+  if(!data.title && !data.content) return Promise.resolve({ success:false, error:'제목이나 내용을 입력해주세요.' });
+  if(p.id) return db.collection('home_popups').doc(String(p.id)).set(data,{merge:true}).then(function(){ return { success:true }; });
+  data.createdAt = nowStr();
+  return db.collection('home_popups').add(data).then(function(ref){ return { success:true, id:ref.id }; });
+};
+api.deleteHomePopup = function(db, p){
+  return db.collection('home_popups').doc(String(p.id)).delete().then(function(){ return { success:true }; });
+};
+
 // ── 공지사항 (Firestore 공유, 전 기기에서 동일하게 보임) ──
 api.getNotices = function(db){
   return db.collection('notices').get().then(function(snap){
