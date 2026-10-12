@@ -9,7 +9,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>마이페이지 — 김민관 수학</title>
-<script src="firebase-api.js?v=57"></script>
+<script src="firebase-api.js?v=58"></script>
+<script src="home-popup.js?v=1"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="chat-widget.js" defer></script>
 <script src="faq-data.js"></script>
@@ -785,6 +786,8 @@ loadInfo();
   runProofDeadlineFlow();
   loadMySurveys();
   loadClassPopupsForStudent();
+  // 홈페이지 팝업도 마이페이지에서 띄움 — 폰에서 로그인한 학생은 홈페이지를 거치지 않고 바로 여기로 오기 때문 (2026-10-12)
+  if(!isPreviewMode && window.mkShowHomePopups) mkShowHomePopups({ url: SU, session: session });
   loadAssignmentCard();
   loadGameCard();
   loadLiveExams();

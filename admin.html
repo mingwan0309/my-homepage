@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=57"></script>
+<script src="firebase-api.js?v=58"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -543,6 +543,13 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div style="font-size:12.5px;color:#94a3b8;margin-bottom:12px;">홈페이지 첫 화면에 들어온 사람 누구에게나(로그인 안 해도) 팝업으로 떠요. 팝업을 <b>누르면 바로 사라져요.</b></div>
         <div class="fg"><label>제목</label><input type="text" id="hp-title" placeholder="예: 겨울방학 특강 모집" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;"></div>
         <div class="fg"><label>내용</label><textarea id="hp-content" rows="5" placeholder="예: 12월 22일 개강 · 고1/고2 선착순 모집" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;resize:vertical;"></textarea></div>
+        <div class="fg">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;min-height:44px;font-weight:700;"><input type="checkbox" id="hp-allow-reply" onchange="document.getElementById('hp-prompt-row').style.display=this.checked?'':'none'" style="width:20px;height:20px;"> ✍️ 학생이 이 팝업에 글을 쓸 수 있게 하기</label>
+          <div id="hp-prompt-row" style="display:none;margin-top:6px;">
+            <input type="text" id="hp-prompt" placeholder="글쓰기 칸 안내 문구 (예: 듣고 싶은 특강 주제를 적어주세요)" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;">
+            <div style="font-size:12px;color:#94a3b8;margin-top:4px;">보낸 글은 아래 "등록된 팝업"의 💬 버튼에서 볼 수 있어요. 로그인한 학생은 이름이 자동으로 붙고, 로그인 안 한 방문자는 이름을 직접 써요.</div>
+          </div>
+        </div>
         <div class="fg"><label>색상</label>
           <div id="hp-colors" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
         </div>
@@ -5980,7 +5987,7 @@ function deleteSchEvent(){
 // ══════════ 홈페이지 팝업 (2026-10-12 추가) ══════════
 // 홈페이지(index.html) 첫 화면에 방문자 누구에게나 뜨는 팝업. 팝업은 누르면 사라짐.
 // 이름은 hp* 접두사 (admin.html 전역 이름 충돌 방지 — 일정 달력 cal* 사고 참고)
-var hpList = [], hpEditId = null, hpColor = 'blue';
+var hpList = [], hpEditId = null, hpColor = 'blue', hpReplies = [], hpOpenReplies = {};
 var HP_COLORS = { blue:{name:'파랑',bg:'#2563eb'}, red:{name:'빨강',bg:'#dc2626'}, green:{name:'초록',bg:'#059669'}, orange:{name:'주황',bg:'#ea580c'}, purple:{name:'보라',bg:'#7c3aed'}, dark:{name:'검정',bg:'#1e293b'} };
 function hpApi(params){
   return fetch(SU,{method:'POST',body:JSON.stringify(params)}).then(function(r){ return r.json(); }).catch(function(){ return null; });
@@ -5996,8 +6003,9 @@ function hpRenderColors(){
 function hpPickColor(k){ hpColor = HP_COLORS[k]?k:'blue'; hpRenderColors(); }
 function loadHomePopups(){
   hpRenderColors();
-  return hpApi({action:'getHomePopups'}).then(function(r){
-    hpList=(r&&r.popups)||[];
+  return Promise.all([hpApi({action:'getHomePopups'}), hpApi({action:'getHomePopupReplies'})]).then(function(res){
+    hpList=(res[0]&&res[0].popups)||[];
+    hpReplies=(res[1]&&res[1].replies)||[];
     hpRenderList();
   });
 }
@@ -6012,14 +6020,49 @@ function hpRenderList(){
       + '<div style="flex:1;min-width:180px;'+(p.active?'':'opacity:.45;')+'">'
       +   '<div style="font-size:14px;font-weight:700;color:#1e293b;">'+escHtml(p.title||'(제목 없음)')+(p.active?'':' <span style="font-size:11px;color:#94a3b8;">(꺼둠)</span>')+'</div>'
       +   (p.content?'<div style="font-size:13px;color:#475569;margin-top:2px;white-space:pre-wrap;">'+escHtml(p.content)+'</div>':'')
-      +   '<div style="font-size:12px;color:#94a3b8;margin-top:3px;">'+period+'</div>'
+      +   '<div style="font-size:12px;color:#94a3b8;margin-top:3px;">'+period+(p.allowReply?' · ✍️ 글쓰기 받는 중':'')+'</div>'
       + '</div>'
-      + '<div style="display:flex;gap:6px;flex-shrink:0;">'
+      + '<div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">'
+      +   (hpReplyCount(p.id)||p.allowReply ? '<button class="btn" onclick="hpToggleReplies(&quot;'+p.id+'&quot;)" style="padding:6px 10px;font-size:12px;min-height:38px;color:#2563eb;border-color:#bfdbfe;">💬 받은 글 '+hpReplyCount(p.id)+'</button>' : '')
       +   '<button class="btn" onclick="hpToggleActive(&quot;'+p.id+'&quot;)" style="padding:6px 10px;font-size:12px;min-height:38px;">'+(p.active?'끄기':'켜기')+'</button>'
       +   '<button class="btn" onclick="hpEdit(&quot;'+p.id+'&quot;)" style="padding:6px 10px;font-size:12px;min-height:38px;">수정</button>'
       +   '<button class="btn" onclick="hpDelete(&quot;'+p.id+'&quot;)" style="padding:6px 10px;font-size:12px;min-height:38px;color:#dc2626;border-color:#fecaca;">삭제</button>'
-      + '</div></div>';
+      + '</div>'
+      + (hpOpenReplies[p.id] ? hpRepliesHtml(p) : '')
+      + '</div>';
   }).join('');
+}
+function hpReplyCount(id){ return hpReplies.filter(function(x){ return x.popupId===id; }).length; }
+function hpToggleReplies(id){ hpOpenReplies[id]=!hpOpenReplies[id]; hpRenderList(); }
+function hpRepliesHtml(p){
+  var rows=hpReplies.filter(function(x){ return x.popupId===p.id; });
+  var body = rows.length ? rows.map(function(x){
+    return '<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid #e2e8f0;">'
+      + '<div style="flex:1;min-width:0;">'
+      +   '<div style="font-size:13px;font-weight:700;color:#1e293b;">'+escHtml(x.name||'(이름 없음)')+(x.studentId?'':' <span style="font-size:11px;color:#94a3b8;font-weight:400;">(비로그인)</span>')+' <span style="font-size:11px;color:#94a3b8;font-weight:400;">'+escHtml(x.createdAt||'')+'</span></div>'
+      +   '<div style="font-size:13px;color:#334155;margin-top:2px;white-space:pre-wrap;word-break:break-all;">'+escHtml(x.text||'')+'</div>'
+      + '</div>'
+      + '<button class="btn" onclick="hpDeleteReply(&quot;'+x.id+'&quot;)" style="padding:4px 9px;font-size:12px;min-height:34px;color:#dc2626;border-color:#fecaca;">🗑</button>'
+      + '</div>';
+  }).join('') : '<div style="font-size:13px;color:#94a3b8;padding:8px 0;">아직 받은 글이 없어요.</div>';
+  return '<div style="flex-basis:100%;background:#f8fafc;border-radius:10px;padding:10px 14px;margin-top:4px;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><b style="font-size:13px;">💬 받은 글 '+rows.length+'개</b>'
+    + (rows.length?'<button class="btn" onclick="hpDownloadReplies(&quot;'+p.id+'&quot;)" style="padding:5px 10px;font-size:12px;min-height:34px;">📥 엑셀로 받기</button>':'')+'</div>'
+    + body + '</div>';
+}
+function hpDeleteReply(id){
+  if(!confirm('이 글을 삭제할까요?')) return;
+  hpApi({action:'deleteHomePopupReply', id:id}).then(function(){ loadHomePopups(); });
+}
+function hpDownloadReplies(id){
+  var p=hpList.find(function(x){ return x.id===id; })||{};
+  var rows=hpReplies.filter(function(x){ return x.popupId===id; });
+  var q=function(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; };
+  var csv='\ufeff'+['작성시각,이름,로그인아이디,내용'].concat(rows.map(function(x){ return [q(x.createdAt),q(x.name),q(x.studentId),q(x.text)].join(','); })).join('\r\n');
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download='팝업글_'+(p.title||'팝업').replace(/[\\/:*?"<>|]/g,'')+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
 }
 function hpResetForm(){
   hpEditId=null;
@@ -6027,6 +6070,9 @@ function hpResetForm(){
   document.getElementById('hp-content').value='';
   document.getElementById('hp-start').value='';
   document.getElementById('hp-end').value='';
+  document.getElementById('hp-allow-reply').checked=false;
+  document.getElementById('hp-prompt').value='';
+  document.getElementById('hp-prompt-row').style.display='none';
   hpPickColor('blue');
   document.getElementById('hp-cancel-btn').style.display='none';
   document.getElementById('hp-form-title').textContent='새 팝업 만들기';
@@ -6038,6 +6084,9 @@ function hpEdit(id){
   document.getElementById('hp-content').value=p.content||'';
   document.getElementById('hp-start').value=p.startDate||'';
   document.getElementById('hp-end').value=p.endDate||'';
+  document.getElementById('hp-allow-reply').checked=!!p.allowReply;
+  document.getElementById('hp-prompt').value=p.replyPrompt||'';
+  document.getElementById('hp-prompt-row').style.display=p.allowReply?'':'none';
   hpPickColor(p.color||'blue');
   document.getElementById('hp-cancel-btn').style.display='';
   document.getElementById('hp-form-title').textContent='팝업 수정';
@@ -6048,6 +6097,8 @@ function hpSave(){
   var content=document.getElementById('hp-content').value.trim();
   if(!title && !content){ alert('제목이나 내용을 입력해주세요.'); return; }
   var p={ action:'saveHomePopup', title:title, content:content, color:hpColor,
+    allowReply: document.getElementById('hp-allow-reply').checked ? 'true' : 'false',
+    replyPrompt: document.getElementById('hp-prompt').value.trim(),
     startDate:document.getElementById('hp-start').value, endDate:document.getElementById('hp-end').value, active:'true' };
   if(hpEditId){
     p.id=hpEditId;
@@ -6063,6 +6114,7 @@ function hpSave(){
 function hpToggleActive(id){
   var p=hpList.find(function(x){ return x.id===id; }); if(!p) return;
   hpApi({ action:'saveHomePopup', id:id, title:p.title, content:p.content, color:p.color,
+    allowReply: p.allowReply ? 'true' : 'false', replyPrompt: p.replyPrompt||'',
     startDate:p.startDate, endDate:p.endDate, active: p.active ? 'false' : 'true' }).then(function(){ loadHomePopups(); });
 }
 function hpDelete(id){

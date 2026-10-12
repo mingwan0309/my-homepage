@@ -1516,12 +1516,14 @@ api.getHomePopups = function(db){
     list.sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); });
     return { popups: list.map(function(p){
       return { id:String(p.id), title:p.title||'', content:p.content||'', color:p.color||'blue',
+        allowReply:p.allowReply===true, replyPrompt:p.replyPrompt||'',
         active:p.active!==false, startDate:p.startDate||'', endDate:p.endDate||'', createdAt:p.createdAt||'' };
     }) };
   });
 };
 api.saveHomePopup = function(db, p){
   var data = { title:String(p.title||'').trim(), content:String(p.content||'').trim(), color:String(p.color||'blue'),
+    allowReply:String(p.allowReply)==='true', replyPrompt:String(p.replyPrompt||'').trim(),
     active:String(p.active)!=='false', startDate:String(p.startDate||''), endDate:String(p.endDate||''), updatedAt:nowStr() };
   if(!data.title && !data.content) return Promise.resolve({ success:false, error:'제목이나 내용을 입력해주세요.' });
   if(p.id) return db.collection('home_popups').doc(String(p.id)).set(data,{merge:true}).then(function(){ return { success:true }; });
@@ -1530,6 +1532,24 @@ api.saveHomePopup = function(db, p){
 };
 api.deleteHomePopup = function(db, p){
   return db.collection('home_popups').doc(String(p.id)).delete().then(function(){ return { success:true }; });
+};
+// 팝업에 학생(방문자)이 쓴 글 — 비로그인도 쓸 수 있음(규칙에서 길이·필드 제한). 읽기·삭제는 선생님만.
+api.submitHomePopupReply = function(db, p){
+  var data = { popupId:String(p.popupId||''), popupTitle:String(p.popupTitle||'').slice(0,100),
+    name:String(p.name||'').trim().slice(0,30), text:String(p.text||'').trim().slice(0,1000),
+    studentId:String(p.studentId||''), createdAt:nowStr() };
+  if(!data.popupId || !data.name || !data.text) return Promise.resolve({ success:false, error:'이름과 내용을 써주세요.' });
+  return db.collection('home_popup_replies').add(data).then(function(){ return { success:true }; });
+};
+api.getHomePopupReplies = function(db){
+  return db.collection('home_popup_replies').get().then(function(snap){
+    var list = docsToArr(snap);
+    list.sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); });
+    return { success:true, replies: list };
+  });
+};
+api.deleteHomePopupReply = function(db, p){
+  return db.collection('home_popup_replies').doc(String(p.id)).delete().then(function(){ return { success:true }; });
 };
 
 // ── 공지사항 (Firestore 공유, 전 기기에서 동일하게 보임) ──
