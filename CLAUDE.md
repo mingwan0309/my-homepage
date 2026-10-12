@@ -422,7 +422,10 @@ admin.html 사이드바 "🗓 일정 달력" 메뉴(교사 전용, `mcAllowedPag
 - 관리: admin.html 사이드바 **"🏠 홈페이지 팝업"**(반별 팝업 바로 아래, 교사 전용). 제목/내용/색상(파랑·빨강·초록·주황·보라·검정)/기간(선택) 입력, 👀 미리보기, 목록에서 끄기·켜기·수정·삭제. JS 이름은 `hp*` 접두사.
 - `home_popups` 컬렉션(title, content, color, active, startDate, endDate, createdAt/updatedAt). API `api.getHomePopups`/`saveHomePopup`/`deleteHomePopup` (firebase-api v57).
 - index.html: 켜져 있고 기간 안인 팝업을 카드로 겹쳐 띄움 — **카드를 누르면 그 카드가 사라지고** 다음 카드가 보임, 어두운 바깥을 누르면 전부 닫힘, "오늘 하루 보지 않기"(localStorage `mkmath_homepopup_hide`). 기존 시간표 팝업 위에 뜸(모바일 입장 화면보다는 아래).
-- **Firestore 규칙 필요:** `match /home_popups/{id} { allow read: if true; allow write: if isTeacher(); }` — 비로그인 방문자가 읽어야 하므로 읽기 공개. 전체 규칙 파일은 저장소 `firestore_rules_v11.txt`.
+- **Firestore 규칙 필요:** `match /home_popups/{id} { allow read: if true; allow write: if isTeacher(); }` — 비로그인 방문자가 읽어야 하므로 읽기 공개.
+- **학생 글쓰기 + 받은 글 쌓기 (같은 날 추가, 사용자: "팝업창에 학생들이 글 쓸 수 있게 해줘. 나한테 데이터가 쌓이게").** 팝업마다 "✍️ 학생이 이 팝업에 글을 쓸 수 있게 하기" 체크(`allowReply`) + 안내 문구(`replyPrompt`). 켜진 팝업은 카드에 글쓰기 칸·닫기·보내기가 붙고, **이 카드는 눌러도 안 닫힘**(닫기 버튼으로만; 쓰던 글이 있으면 바깥을 눌러도 안 닫힘). 보낸 글은 `home_popup_replies`(popupId, popupTitle, name, text, studentId, createdAt)에 저장 — API `submitHomePopupReply`/`getHomePopupReplies`/`deleteHomePopupReply` (firebase-api v58). 관리 화면 목록의 **"💬 받은 글 N"** 버튼으로 펼쳐 보고, 글별 🗑 삭제, **📥 엑셀로 받기**(CSV). 로그인한 학생은 이름 자동(학부모면 "OOO 학부모"), 비로그인 방문자는 이름 직접 입력.
+  - **팝업 그리는 코드는 공용 파일 `home-popup.js`**(`mkShowHomePopups({url, session})`)로 분리해서 index.html과 **mypage.html 둘 다**에서 씀 — 폰에서 로그인한 학생은 index.html head에서 바로 마이페이지로 넘어가 홈페이지 팝업을 못 보기 때문. mypage는 선생님 미리보기(`isPreviewMode`)에서는 안 띄움. home-popup.js를 고치면 두 파일의 `home-popup.js?v=N`도 올릴 것.
+  - **규칙(v12):** `home_popup_replies`는 비로그인도 create 가능하되 필드 목록·길이(내용 1000자, 이름 30자) 제한 + studentId를 붙이면 본인 아이디일 때만 허용(사칭 방지), read/delete는 교사만, update 불가. 전체 규칙 파일은 저장소 `firestore_rules_v12.txt`. 비로그인 쓰기를 열어둔 만큼 스팸 글이 들어올 수 있음 — 문제가 되면 글쓰기를 끄거나 로그인 필수로 바꿀 것.
 
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
