@@ -44,6 +44,8 @@ body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);min
 .sessions-scroll{display:flex;gap:8px;overflow-x:auto;flex:1;padding-bottom:2px;scrollbar-width:none;}
 .sessions-scroll::-webkit-scrollbar{display:none;}
 .session-chip{position:relative;flex-shrink:0;padding:8px 14px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;cursor:pointer;text-align:center;transition:.15s;}
+.sess-edit{position:absolute;top:1px;right:23px;width:20px;height:20px;line-height:18px;text-align:center;border-radius:50%;background:#fff;border:1.5px solid #c7d7fb;color:#3b6cf7;font-size:11px;cursor:pointer;z-index:2;}
+.sess-edit:hover{background:#e8efff;}
 .sess-del{position:absolute;top:1px;right:1px;width:20px;height:20px;line-height:18px;text-align:center;border-radius:50%;background:#fff;border:1.5px solid #fecaca;color:#dc2626;font-size:11px;cursor:pointer;z-index:2;}
 .sess-del:hover{background:#fee2e2;}
 .session-chip:hover{border-color:#3b6cf7;background:#eff4ff;}
@@ -223,6 +225,7 @@ tr:hover td{background:#fafbff;}
   .sessions-scroll{padding:10px 12px;}
   .session-chip{padding:11px 15px;min-height:52px;}
   .sess-del{width:26px;height:26px;line-height:24px;font-size:12px;top:1px;right:1px;}
+  .sess-edit{width:26px;height:26px;line-height:24px;font-size:12px;top:1px;right:29px;}
   .snum{font-size:14px;}
   /* 탭바 */
   .tabs-bar{overflow-x:auto;-webkit-overflow-scrolling:touch;}
@@ -816,11 +819,29 @@ function renderSessions(){
   scroll.innerHTML=sessions.map(function(s){
     var dateLabel=s.date?formatDate(s.date):'';
     var titleText=s.label?escHtml(s.label):(s.sessionNum+'차시');
+    var isStaffRole = (session.role==='teacher' || session.role==='assistant');
     var delBtn = (session.role==='teacher') ? '<span class="sess-del" title="이 차시 삭제" onclick="event.stopPropagation();delSessionChip(\''+s.id+'\')">🗑</span>' : '';
-    return '<div class="session-chip" onclick="goSession(\''+s.id+'\')" style="'+(session.role==='teacher'?'padding-right:28px;':'')+'">'
-      +delBtn
+    // 이름 수정은 조교도 가능(삭제는 교사만) — session.html 드롭다운의 ✏️와 같은 기준
+    var editBtn = isStaffRole ? '<span class="sess-edit" title="차시 이름 바꾸기" style="'+(session.role==='teacher'?'':'right:1px;')+'" onclick="event.stopPropagation();renameSessionChip(\''+s.id+'\')">✏️</span>' : '';
+    return '<div class="session-chip" onclick="goSession(\''+s.id+'\')" style="'+(session.role==='teacher'?'padding-right:50px;':(isStaffRole?'padding-right:28px;':''))+'">'
+      +editBtn+delBtn
       +'<div class="snum">'+titleText+'</div>'+(dateLabel?'<div class="sdate">'+dateLabel+'</div>':'')+'</div>';
   }).join('');
+}
+
+// 차시 이름 바꾸기 (교사·조교) — 비워두면 다시 "N차시"로 돌아감. session.html의 ✏️와 같은 동작.
+async function renameSessionChip(id){
+  var s=sessions.find(function(x){return x.id===id;});
+  if(!s)return;
+  var name=prompt('차시 이름을 입력하세요.\n(비워두면 "'+s.sessionNum+'차시"로 돌아갑니다)', s.label||'');
+  if(name===null)return;
+  name=name.trim();
+  try{
+    var r=await fetch(SU+'?action=updateSession&id='+encodeURIComponent(id)+'&label='+encodeURIComponent(name)).then(function(r){return r.json();});
+    if(!r||!r.success){alert('이름 변경에 실패했어요. 다시 시도해주세요.');return;}
+    s.label=name;
+    renderSessions();
+  }catch(e){alert('오류가 발생했습니다.');}
 }
 
 // 차시 삭제 (교사만) — 그 차시의 출석/성적/시험/과제 기록도 같이 지워짐(firebase-api api.deleteSession)
