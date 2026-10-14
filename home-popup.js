@@ -90,9 +90,11 @@
               var m = getMap(SENT_KEY); m[p.id] = true; setMap(SENT_KEY, m);
               msg.style.color = '#059669'; msg.textContent = '✅ 보냈어요! 고마워요.';
               setTimeout(function(){ removeCard(card); }, 1200);
-            }).catch(function(){
+            }).catch(function(err){
               btn.disabled = false; btn.textContent = '보내기';
-              msg.style.color = '#dc2626'; msg.textContent = '보내지 못했어요. 잠시 후 다시 시도해주세요.';
+              // 왜 안 갔는지 화면에 같이 보여줌 — "안 된다"는 신고만 받고 원인을 못 찾던 일을 줄이려고.
+              var why = (err && err.message) ? (' (' + String(err.message).slice(0, 60) + ')') : '';
+              msg.style.color = '#dc2626'; msg.textContent = '보내지 못했어요. 다시 시도해주세요.' + why;
             });
           };
         }

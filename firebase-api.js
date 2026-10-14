@@ -1539,7 +1539,17 @@ api.submitHomePopupReply = function(db, p){
     name:String(p.name||'').trim().slice(0,30), text:String(p.text||'').trim().slice(0,1000),
     studentId:String(p.studentId||''), createdAt:nowStr() };
   if(!data.popupId || !data.name || !data.text) return Promise.resolve({ success:false, error:'이름과 내용을 써주세요.' });
-  return db.collection('home_popup_replies').add(data).then(function(){ return { success:true }; });
+  // 🚨 "일부 학생만 전송이 안 되던" 문제(2026-10-14): 규칙의 isOwner(studentId) 비교는 로그인에 실제로 쓰인
+  // 아이디 형식과 정확히 같아야 통과하는데, 예전에 저장된 세션엔 authId가 없거나 형식이 달라서(하이픈 유무 등)
+  // 그 학생만 조용히 거부됐음. 거부되면 studentId를 빼고 한 번 더 저장함(글은 반드시 남게 — 이름은 그대로 들어감).
+  // **이 재시도를 빼지 말 것.**
+  return db.collection('home_popup_replies').add(data).then(function(){ return { success:true }; }, function(err){
+    if (!data.studentId) return { success:false, error:(err && err.message) || '저장이 거부됐어요.' };
+    var retry = { popupId:data.popupId, popupTitle:data.popupTitle, name:data.name, text:data.text, studentId:'', createdAt:data.createdAt };
+    return db.collection('home_popup_replies').add(retry).then(function(){ return { success:true }; }, function(e2){
+      return { success:false, error:(e2 && e2.message) || '저장이 거부됐어요.' };
+    });
+  });
 };
 api.getHomePopupReplies = function(db){
   return db.collection('home_popup_replies').get().then(function(snap){
