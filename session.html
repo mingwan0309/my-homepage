@@ -577,25 +577,14 @@ tr:hover td{background:#fafbff;}
       <div id="ak-code-tabs" style="display:flex;gap:5px;"></div>
       <span id="ak-code-hint" style="font-size:11.5px;color:#94a3b8;">시험지가 한 종류면 "공통" 그대로 두세요.</span>
     </div>
-    <!-- 한번에 넣기: 정답을 하나씩 안 누르고 붙여넣기 또는 정답표 사진/PDF로 채움 (2026-09-21 추가) -->
-    <details id="ak-quick" style="margin-bottom:12px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;">
-      <summary style="cursor:pointer;font-size:13px;font-weight:800;color:#1e293b;list-style:none;display:flex;align-items:center;gap:6px;">⚡ 한번에 넣기 <span style="font-size:11px;font-weight:600;color:#94a3b8;">(붙여넣기 · 정답표 사진/PDF)</span></summary>
-      <div style="margin-top:10px;">
-        <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:4px;">① 정답 붙여넣기</div>
-        <textarea id="ak-paste" rows="2" placeholder="예: ③ ① ④ ② ⑤ …  또는  3 1 4 2 5 …  또는  1.③ 2.① 3.④ …&#10;주관식은 '7. 12' '8. 1/2'처럼 번호와 함께 적으면 인식돼요" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
-        <button type="button" onclick="akApplyPaste()" style="margin-top:6px;width:100%;min-height:38px;background:#1e293b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">붙여넣은 정답으로 채우기</button>
-        <div style="font-size:12px;font-weight:700;color:#475569;margin:12px 0 4px;">② 정답표 사진/PDF로 채우기 <span style="font-weight:500;color:#94a3b8;">(AI가 읽어요 — 채워진 뒤 꼭 한번 확인)</span></div>
-        <input type="file" id="ak-file" accept="image/*,application/pdf" style="display:none;" onchange="akReadFromFile(this)">
-        <button type="button" id="ak-file-btn" onclick="document.getElementById('ak-file').click()" style="width:100%;min-height:38px;background:#fff;border:1.5px solid #3b6cf7;color:#3b6cf7;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">📷 정답표 사진/PDF 올리기</button>
-        <div style="font-size:12px;font-weight:700;color:#475569;margin:12px 0 4px;">③ 매쓰플랫 시험지 PDF로 유형 채우기 <span style="font-weight:500;color:#16a34a;">(시험지에 적힌 유형을 그대로 읽어요 — AI 안 씀, 공짜·정확)</span></div>
-        <input type="file" id="ak-mf-file" accept="application/pdf" style="display:none;" onchange="akReadMathflatTypes(this)">
-        <button type="button" id="ak-mf-btn" onclick="document.getElementById('ak-mf-file').click()" style="width:100%;min-height:38px;background:#fff;border:1.5px solid #16a34a;color:#15803d;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">🏷 매쓰플랫 PDF 올려서 유형 채우기</button>
-        <div style="font-size:12px;font-weight:700;color:#475569;margin:12px 0 4px;">④ 시험지로 문항별 유형 자동 분류 <span style="font-weight:500;color:#94a3b8;">(유형이 안 적힌 모의고사용 — 등록된 유형 목록 중에서 AI가 골라요)</span></div>
-        <input type="file" id="ak-cat-file" accept="image/*,application/pdf" style="display:none;" onchange="akClassifyFromFile(this)">
-        <button type="button" id="ak-cat-btn" onclick="document.getElementById('ak-cat-file').click()" style="width:100%;min-height:38px;background:#fff;border:1.5px solid #7c3aed;color:#6d28d9;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">🏷 시험지 사진/PDF 올려서 유형 붙이기</button>
-        <div id="ak-quick-msg" style="font-size:12px;color:#64748b;margin-top:6px;min-height:16px;"></div>
-      </div>
-    </details>
+    <!-- 파일 올리면 정답·유형이 알아서 채워짐 (2026-10-15 한 버튼으로 통합) -->
+    <div style="margin-bottom:12px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px;">
+      <input type="file" id="ak-file" accept="image/*,application/pdf" multiple style="display:none;" onchange="akSmartUpload(this)">
+      <button type="button" id="ak-file-btn" onclick="document.getElementById('ak-file').click()" style="width:100%;min-height:46px;background:#1e293b;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;">📄 시험지 · 정답표 올리기 (정답 · 유형 자동 입력)</button>
+      <div style="font-size:11.5px;color:#94a3b8;margin-top:6px;line-height:1.6;">시험지와 정답표를 한 번에 여러 개 올려도 돼요. 채워진 뒤 한 번 확인하고 저장을 눌러주세요.</div>
+      <div id="ak-quick-msg" style="font-size:12px;color:#64748b;margin-top:6px;min-height:16px;"></div>
+      <textarea id="ak-paste" style="display:none;"></textarea>
+    </div>
     <div id="answerkey-rows"></div>
     <div id="ak-keypad-panel" style="display:none;margin-top:10px;padding:12px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -3171,6 +3160,103 @@ function akApplyPaste(){
   if(!t.trim()){ akQuickMsg('붙여넣을 내용이 없어요.', true); return; }
   akApplyParsed(akParsePaste(t), '붙여넣기로');
 }
+// ── 파일 하나만 올리면 알아서 다 채우기 (2026-10-15) ──
+// 올린 파일마다 ①PDF면 글자를 먼저 읽어서 매쓰플랫 유형 / 정답표가 들어있는지 공짜로 확인 →
+// ②글자로 못 찾은 것만 AI에 보냄. 선생님은 버튼 하나만 누르면 됨.
+function akFileToB64(f){
+  return new Promise(function(res,rej){
+    var fr=new FileReader();
+    fr.onload=function(){ res(String(fr.result).split(',')[1]||''); };
+    fr.onerror=rej;
+    fr.readAsDataURL(f);
+  });
+}
+// 정답표가 글자로 들어있는 PDF면 AI 없이 바로 읽음. 확실할 때만 쓰려고 조건을 깐깐하게 둠
+// (문항번호+①~⑤가 3개 이상 짝지어 나와야 인정 — 아무 숫자나 주워 담아서 오답으로 채우면 반 전체 성적이 틀어지므로).
+function akParseAnswersFromLines(lines){
+  var re=/(\d{1,3})\s*[.)]?\s*([①②③④⑤])/g, found={}, n=0;
+  lines.forEach(function(ln){
+    var m;
+    re.lastIndex=0;
+    while((m=re.exec(ln))){
+      var q=Number(m[1]);
+      if(!q || found[q]) continue;
+      found[q]='①②③④⑤'.indexOf(m[2])+1;
+      n++;
+    }
+  });
+  if(n<3) return [];
+  return Object.keys(found).map(Number).sort(function(a,b){return a-b;})
+    .map(function(q){ return { q:q, answer:[found[q]] }; });
+}
+async function akSmartUpload(input){
+  var files=Array.prototype.slice.call(input.files||[]);
+  input.value='';
+  if(!files.length) return;
+  var btn=document.getElementById('ak-file-btn'), label=btn.textContent;
+  btn.disabled=true;
+  var typeMap=null, ansList=null, usedAi=false, newTypes=0;
+  try{
+    for(var i=0;i<files.length;i++){
+      var f=files[i];
+      btn.textContent='📄 읽는 중… ('+(i+1)+'/'+files.length+')';
+      akQuickMsg(f.name+' 읽는 중…');
+      var lines=null;
+      if(/pdf/i.test(f.type||'')||/\.pdf$/i.test(f.name)){
+        try{ lines=await akPdfTokens(await f.arrayBuffer()); }catch(e){ lines=null; }
+      }
+      if(lines){
+        if(!typeMap){
+          var tm=akParseMathflatTokens(lines);
+          if(Object.keys(tm).length) typeMap=tm;
+        }
+        if(!ansList){
+          var al=akParseAnswersFromLines(lines);
+          if(al.length) ansList=al;
+        }
+        if(typeMap && ansList) continue;
+        if(Object.keys(akParseMathflatTokens(lines)).length) continue; // 문제지는 정답이 없으니 AI에 안 보냄
+      }
+      if(ansList) continue;
+      if(f.size>8*1024*1024){ akQuickMsg('❌ '+f.name+'은(는) 8MB가 넘어서 건너뛰었어요.', true); continue; }
+      btn.textContent='🤖 AI가 정답표를 읽는 중… (10~30초)';
+      var r=await fetch(SU,{method:'POST',headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'aiReadAnswerKey', fileData:await akFileToB64(f), mimeType:f.type||'image/jpeg', qcount:akRows.length})
+      }).then(function(r){return r.json();});
+      if(r&&r.success&&(r.answers||[]).length){ ansList=r.answers; usedAi=true; }
+    }
+
+    var maxQ=0;
+    if(typeMap) Object.keys(typeMap).forEach(function(q){ maxQ=Math.max(maxQ,Number(q)); });
+    (ansList||[]).forEach(function(a){ maxQ=Math.max(maxQ,Number(a.q)||0); });
+    if(maxQ>akRows.length) changeAkQCount(maxQ);
+
+    if(typeMap){
+      var known={}; akTypes.forEach(function(t){ known[t.name]=1; });
+      var fresh=[];
+      Object.keys(typeMap).forEach(function(q){ var nm=typeMap[q]; if(!known[nm]){ known[nm]=1; fresh.push(nm); } });
+      for(var k=0;k<fresh.length;k++){
+        btn.textContent='🏷 새 유형 등록 중… ('+(k+1)+'/'+fresh.length+')';
+        try{ await fetch(SU+'?action=addProblemType&name='+encodeURIComponent(fresh[k])); }catch(e){}
+      }
+      newTypes=fresh.length;
+      if(newTypes) await loadAkTypes();
+      Object.keys(typeMap).forEach(function(q){
+        var row=akRows.find(function(x){return x.q===Number(q);});
+        if(row) row.category=typeMap[q];
+      });
+    }
+    if(ansList) akApplyParsed(ansList, usedAi?'AI가 읽어서':'정답표에서');
+    else renderAnswerKeyRows();
+
+    var msg=[];
+    if(ansList) msg.push('정답 '+ansList.length+'문항');
+    if(typeMap) msg.push('유형 '+Object.keys(typeMap).length+'문항'+(newTypes?'(새 유형 '+newTypes+'개 등록)':''));
+    if(!msg.length) akQuickMsg('❌ 정답도 유형도 못 찾았어요. 매쓰플랫 시험지/정답표 파일이 맞는지 확인해주세요.', true);
+    else akQuickMsg('✅ '+msg.join(' · ')+' 채웠어요. 확인하고 저장을 눌러주세요.');
+  }catch(e){ akQuickMsg('❌ 오류: '+e.message, true); }
+  finally{ btn.disabled=false; btn.textContent=label; }
+}
 async function akReadFromFile(input){
   var f=input.files&&input.files[0];
   if(!f) return;
@@ -3246,7 +3332,7 @@ async function akReadMathflatTypes(input){
   var f=input.files&&input.files[0];
   if(!f) return;
   input.value='';
-  var btn=document.getElementById('ak-mf-btn');
+  var btn=document.getElementById('ak-mf-btn')||{};
   btn.disabled=true; btn.textContent='📄 PDF에서 유형을 읽는 중…';
   akQuickMsg('시험지에 적힌 유형을 읽고 있어요…');
   try{
@@ -3280,7 +3366,7 @@ async function akClassifyFromFile(input){
   input.value='';
   if(!akTypes.length){ akQuickMsg('❌ 먼저 관리 페이지 → 문제 유형에서 유형을 등록해주세요.', true); return; }
   if(f.size>8*1024*1024){ akQuickMsg('❌ 8MB 이하로 올려주세요.', true); return; }
-  var btn=document.getElementById('ak-cat-btn');
+  var btn=document.getElementById('ak-cat-btn')||{};
   btn.disabled=true; btn.textContent='🤖 AI가 문항별 유형을 고르는 중… (20~60초)';
   akQuickMsg('시험지를 읽고 있어요…');
   try{
