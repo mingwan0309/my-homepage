@@ -587,7 +587,10 @@ tr:hover td{background:#fafbff;}
         <div style="font-size:12px;font-weight:700;color:#475569;margin:12px 0 4px;">② 정답표 사진/PDF로 채우기 <span style="font-weight:500;color:#94a3b8;">(AI가 읽어요 — 채워진 뒤 꼭 한번 확인)</span></div>
         <input type="file" id="ak-file" accept="image/*,application/pdf" style="display:none;" onchange="akReadFromFile(this)">
         <button type="button" id="ak-file-btn" onclick="document.getElementById('ak-file').click()" style="width:100%;min-height:38px;background:#fff;border:1.5px solid #3b6cf7;color:#3b6cf7;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">📷 정답표 사진/PDF 올리기</button>
-        <div style="font-size:12px;font-weight:700;color:#475569;margin:12px 0 4px;">③ 시험지로 문항별 유형 자동 분류 <span style="font-weight:500;color:#94a3b8;">(관리 페이지 "문제 유형"에 등록한 목록 중에서 AI가 골라요)</span></div>
+        <div style="font-size:12px;font-weight:700;color:#475569;margin:12px 0 4px;">③ 매쓰플랫 시험지 PDF로 유형 채우기 <span style="font-weight:500;color:#16a34a;">(시험지에 적힌 유형을 그대로 읽어요 — AI 안 씀, 공짜·정확)</span></div>
+        <input type="file" id="ak-mf-file" accept="application/pdf" style="display:none;" onchange="akReadMathflatTypes(this)">
+        <button type="button" id="ak-mf-btn" onclick="document.getElementById('ak-mf-file').click()" style="width:100%;min-height:38px;background:#fff;border:1.5px solid #16a34a;color:#15803d;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">🏷 매쓰플랫 PDF 올려서 유형 채우기</button>
+        <div style="font-size:12px;font-weight:700;color:#475569;margin:12px 0 4px;">④ 시험지로 문항별 유형 자동 분류 <span style="font-weight:500;color:#94a3b8;">(유형이 안 적힌 모의고사용 — 등록된 유형 목록 중에서 AI가 골라요)</span></div>
         <input type="file" id="ak-cat-file" accept="image/*,application/pdf" style="display:none;" onchange="akClassifyFromFile(this)">
         <button type="button" id="ak-cat-btn" onclick="document.getElementById('ak-cat-file').click()" style="width:100%;min-height:38px;background:#fff;border:1.5px solid #7c3aed;color:#6d28d9;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">🏷 시험지 사진/PDF 올려서 유형 붙이기</button>
         <div id="ak-quick-msg" style="font-size:12px;color:#64748b;margin-top:6px;min-height:16px;"></div>
@@ -3205,6 +3208,71 @@ function setAkCategory(q,val){
   r.category=String(val||'');
   renderAnswerKeyRows();
 }
+// ── 매쓰플랫 시험지 PDF에서 문항별 유형을 "글자 그대로" 읽어오기 (2026-10-15 추가, AI 안 씀) ──
+// 매쓰플랫 PDF는 문항마다 "| 유형이름 | 정답률 70%" 다음 줄에 문항번호("01")가 글자로 들어있음.
+// pdf.js의 textContent.items 순서(콘텐츠 스트림 순서)가 그 순서 그대로라, 토큰을 훑으며 짝지으면 됨.
+// ⚠ y좌표로 줄을 묶는 방식으로 바꾸지 말 것 — 2단 레이아웃이라 좌우 칸이 한 줄로 섞여서 절반이 날아감(실제 PDF로 확인).
+// pdf.js는 글자를 단어 단위로 쪼개서 주므로 it.hasEOL로 줄을 다시 만들어야 함(\u0001은 공백 대용으로 들어있음).
+function akParseMathflatTokens(toks){
+  var hdr=/^\|\s*(.+?)\s*\|(\s*정답률.*)?$/, num=/^(\d{1,3})$/, out={};
+  for(var i=0;i<toks.length;i++){
+    var m=toks[i].match(hdr);
+    if(!m) continue;
+    var name=String(m[1]||'').trim();
+    if(name.length<2) continue;
+    for(var j=i+1;j<Math.min(i+5,toks.length);j++){
+      var n=toks[j].match(num);
+      if(n){ var q=Number(n[1]); if(!out[q]) out[q]=name; break; }
+    }
+  }
+  return out;
+}
+async function akPdfTokens(buf){
+  if(!window.pdfjsLib) throw new Error('PDF 읽기 도구가 로드되지 않았어요. 새로고침(Ctrl+Shift+R) 후 다시 해주세요.');
+  var pdf=await pdfjsLib.getDocument({data:buf}).promise, lines=[];
+  for(var p=1;p<=pdf.numPages;p++){
+    var page=await pdf.getPage(p);
+    var tc=await page.getTextContent();
+    var cur='';
+    tc.items.forEach(function(it){
+      cur+=String(it.str||'').replace(/[\u0001 ]/g,' ');
+      if(it.hasEOL){ if(cur.trim()) lines.push(cur.trim()); cur=''; }
+    });
+    if(cur.trim()) lines.push(cur.trim());
+  }
+  return lines;
+}
+async function akReadMathflatTypes(input){
+  var f=input.files&&input.files[0];
+  if(!f) return;
+  input.value='';
+  var btn=document.getElementById('ak-mf-btn');
+  btn.disabled=true; btn.textContent='📄 PDF에서 유형을 읽는 중…';
+  akQuickMsg('시험지에 적힌 유형을 읽고 있어요…');
+  try{
+    var buf=await f.arrayBuffer();
+    var map=akParseMathflatTokens(await akPdfTokens(buf));
+    var nums=Object.keys(map).map(Number).sort(function(a,b){return a-b;});
+    if(!nums.length){ akQuickMsg('❌ 이 PDF에서는 유형을 못 찾았어요. 매쓰플랫에서 받은 시험지 PDF가 맞는지 확인해주세요.', true); return; }
+    if(nums[nums.length-1]>akRows.length) changeAkQCount(nums[nums.length-1]);
+    // 목록에 없는 유형은 자동으로 등록해서 다음부터 드롭다운에도 나오게 함
+    var known={}; akTypes.forEach(function(t){ known[t.name]=1; });
+    var fresh=[]; nums.forEach(function(q){ if(!known[map[q]]){ known[map[q]]=1; fresh.push(map[q]); } });
+    for(var k=0;k<fresh.length;k++){
+      try{ await fetch(SU+'?action=addProblemType&name='+encodeURIComponent(fresh[k])); }catch(e){}
+    }
+    if(fresh.length) await loadAkTypes();
+    var filled=0;
+    nums.forEach(function(q){
+      var row=akRows.find(function(x){return x.q===q;});
+      if(row){ row.category=map[q]; filled++; }
+    });
+    renderAnswerKeyRows();
+    akQuickMsg('✅ '+filled+'문항에 유형을 채웠어요'+(fresh.length?' (새 유형 '+fresh.length+'개는 유형 목록에 자동 등록)':'')+'. 저장을 눌러주세요.');
+  }catch(e){ akQuickMsg('❌ 오류: '+e.message, true); }
+  finally{ btn.disabled=false; btn.textContent='🏷 매쓰플랫 PDF 올려서 유형 채우기'; }
+}
+
 // 시험지 사진/PDF를 올리면 AI가 문항마다 등록된 유형 목록 중 하나를 골라줌 → 채워만 주고 선생님이 확인 후 저장
 async function akClassifyFromFile(input){
   var f=input.files&&input.files[0];
