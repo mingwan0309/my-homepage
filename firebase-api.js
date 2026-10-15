@@ -1035,9 +1035,10 @@ api.getMyOpenExams = function(db, p){
         // 예전엔 여기서 submitOpen===true인 것만 남겼는데, 그러면 선생님이 "응시 마감"을 누르는 순간
         // 시험이 이 목록에서 아예 사라져서 "하루 동안 결과 카드 유지"가 무의미해졌음(마감 즉시 결과도 같이 사라짐).
         // 그래서 일단 문항이 있는 시험은 전부 가져오고, 열려있는지/제출했는지는 아래에서 따로 판단한다.
-        return docsToArr(exSnap).filter(function(e){ return Number(e.questionCount||0)>0; })
+        return docsToArr(exSnap)
           .map(function(e){
             return { id:String(e.id), name:e.name||'시험', sessionId:String(s.id),
+              questionCountRaw:Number(e.questionCount||0),
               sessLabel:s.label||(s.sessionNum?s.sessionNum+'차시':''), date:s.date||'',
               questionCount:Number(e.questionCount||0), timeLimitMin:Number(e.timeLimitMin||0),
               questionTypes: Array.isArray(e.questionTypes) ? e.questionTypes : [],
@@ -1045,8 +1046,15 @@ api.getMyOpenExams = function(db, p){
           });
       });
     })).then(function(lists){
-      var all = [].concat.apply([], lists);
-      if (!all.length) return { exams: [] };
+      var every = [].concat.apply([], lists);
+      // 왜 학생 화면에 안 뜨는지 선생님이 바로 알 수 있게 이유를 같이 돌려줌(미리보기에서만 화면에 보임, 2026-10-15)
+      var diag = [];
+      var all = every.filter(function(e){
+        if (e.questionCountRaw > 0) return true;
+        diag.push({ name:e.name, sess:e.sessLabel, reason:'답안 등록이 안 돼 있어요(정답을 넣고 저장해야 응시 가능)' });
+        return false;
+      });
+      if (!all.length) return { exams: [], diag: diag };
       // 아직 없는 문서를 studentId로 하나씩 get()하면, 보안 규칙이 "그 문서의 studentId가 나인지" 확인하려다
       // 문서 자체가 없어서(resource==null) 오히려 권한거부로 막힌다(교사 계정은 전권이라 안 걸렸던 것).
       // 그래서 존재 확인은 doc()이 아니라 studentId로 쿼리해서 실제로 있는 것만 받아오는 방식으로 우회한다.
@@ -1103,14 +1111,17 @@ api.getMyOpenExams = function(db, p){
             // 단, 선생님이 "응시 마감"을 깜빡해서 submitOpen이 true로 남아있는 지난 차시 시험이
             // 제출 안 한 학생에게만 몇 주째 계속 뜨는 문제가 있어서(2026-09-24, 김나경 8차시 건),
             // 차시 날짜가 이틀 이상 지났으면 열려있어도 안 보여준다(다른 학생들과 화면 통일).
-            if (!e.submitOpen) return false;
+            if (!e.submitOpen) { diag.push({ name:e.name, sess:e.sessLabel, reason:'아직 "▶ 응시 시작"을 안 눌렀어요' }); return false; }
             if (e.date) {
               var dms = Date.parse(String(e.date).replace(/\./g,'-'));
-              if (!isNaN(dms) && dms < Date.now() - 2*24*60*60*1000) return false;
+              if (!isNaN(dms) && dms < Date.now() - 2*24*60*60*1000) {
+                diag.push({ name:e.name, sess:e.sessLabel, reason:'차시 날짜('+e.date+')가 이틀 넘게 지나서 숨겨졌어요 — 차시 날짜를 오늘로 바꾸면 떠요' });
+                return false;
+              }
             }
             return true;
           });
-          return { exams: result };
+          return { exams: result, diag: diag };
         });
       });
     });
