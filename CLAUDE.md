@@ -109,6 +109,11 @@
 - **표 맨 오른쪽 줄마다 🗑 삭제 버튼 (2026-10-01 추가).** 예전엔 삭제가 체크박스를 켜야만 나타나는 도구모음 안에만 있어서 "명단에서 지울 수가 없다"는 지적을 받음 — 이제 각 줄 끝의 🗑로 한 명씩 바로 지울 수 있음(`deleteOneStu`, 확인창 후 기존 `deleteStudentAccount` 호출). 체크박스 일괄 삭제는 그대로 유지.
 - 계정상태 토글(활성화/비활성화)은 `active` 필드를 바꿔서 **로그인 자체를 막는 방식**(완전 삭제 아님). 삭제는 Firestore 문서 자체를 지움 (남은 Firebase Auth 계정은 orphan으로 남지만 앱상 로그인 불가하므로 무해함).
 - "비밀번호 변경(선생님이 대신)"은 의도적으로 안 만듦 — 위 로그인 항목의 기술적 한계 때문.
+- **학생 전화번호(=로그인 아이디) 변경 (2026-10-17 추가).** 전화번호는 `students` 문서 ID 자체라서 필드 수정으로는 못 바꿈 → "정보 수정" 모달 맨 위에 번호(읽기전용) + **"번호 변경"** 버튼을 둠(`changeStuPhone`, admin.html). 새 번호와 새 비밀번호(기본 123456)를 물어본 뒤 `api.changeStudentId`(firebase-api v62)가 ①새 번호로 학생 문서 복사(`prevStudentId`/`idChangedAt` 기록) ②그 학생의 모든 기록을 새 번호로 이동 ③새 Auth 계정 생성 ④옛 학생 문서 삭제 순으로 처리. 옛 Auth 계정은 Admin SDK가 없어 못 지워 고아로 남지만 students 문서가 없으면 로그인이 안 되므로 무해함(학생 삭제와 동일).
+  - 옮기는 대상은 `SID_MIGRATE` 배열(firebase-api.js) + `chat_threads`(문서ID=아이디) + `assistants.studentIds` 배열. **studentId를 쓰는 컬렉션을 새로 만들면 이 배열에 반드시 추가할 것** — 빠뜨리면 그 기록만 옛 번호에 남아 학생 화면에서 조용히 사라짐.
+  - 문서 ID 치환은 `sidSwapDocId`가 **`__`로 나눈 한 조각이 통째로 일치할 때만** 바꿈(부분 문자열 치환 아님). `0101234567`과 `010123456789`처럼 번호가 서로 포함 관계일 때 엉뚱한 문서를 만들지 않기 위함 — **단순 `replace`로 되돌리지 말 것**(검증 케이스로 확인함).
+  - **Firestore 규칙 v13 필요**(`firestore_rules_v13.txt`): 기록을 옮기려면 선생님에게 `material_views`/`survey_responses`/`class_post_reads` **delete**, `exam_submissions` **create**, `game_scores` **create+delete** 권한이 있어야 함. 학생 쪽 권한은 그대로라 점수 조작 방지(game_scores update 금지)는 유지됨.
+  - 알려진 한계: 학부모 번호는 그대로 두므로 학부모 로그인에는 영향 없음. `activity_logs`·`home_popup_replies`의 옛 아이디는 과거 기록이라 안 옮김(규칙상 수정 불가).
 
 ## 자료 다운로드 워터마크 (2026-08-19 정리)
 - class.html/mypage.html 자료실 PDF 다운로드 시 워터마크는 **정중앙에 로고 하나만**(회전 없음, 불투명도 0.16, 페이지 폭의 35% 크기)로 단순화함(예전엔 3단계 위치 선택이 있었으나 사용자 요청으로 제거).

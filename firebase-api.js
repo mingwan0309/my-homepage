@@ -279,6 +279,153 @@ api.updateStudentInfo = function(db, p){
   return ref.update(data).then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
 
+/* === 학생 전화번호(=문서 ID=로그인 아이디) 변경 (2026-10-17 추가) ===
+   전화번호가 students 문서 ID 자체라서 필드 하나 고치는 식으로는 바꿀 수 없다.
+   그래서 ①새 번호로 학생 문서를 복사 ②그 학생의 모든 기록(출결/성적/숙제/클리닉/질문/설문/
+   응시/게임/채팅/퀴즈…)의 studentId와, 번호가 박혀 있는 문서 ID까지 전부 새 번호로 옮김
+   ③새 번호로 로그인 계정 생성 ④옛 학생 문서 삭제 순서로 처리한다.
+   옛 Firebase Auth 계정은 Admin SDK 없이 삭제가 불가능해서 고아로 남지만, students 문서가
+   없으면 로그인 자체가 안 되므로 무해함(학생 삭제와 동일한 처리).
+   ⚠ 아래 목록에서 컬렉션을 빼면 그 기록만 옛 번호에 남아 학생 화면에서 사라진다 — 새로
+   studentId를 쓰는 컬렉션을 만들면 여기에도 반드시 추가할 것. */
+var SID_MIGRATE = [
+  { c:'attendance',       f:'studentId' }, // 문서ID: sessionId__studentId
+  { c:'scores',           f:'studentId' }, // 문서ID: sessionId__studentId__examId
+  { c:'hw_status',        f:'studentId' }, // 문서ID: sessionId__studentId__hwId
+  { c:'material_views',   f:'studentId' }, // 문서ID: materialId__studentId
+  { c:'survey_responses', f:'studentId' }, // 문서ID: surveyId__studentId
+  { c:'exam_submissions', f:'studentId' }, // 문서ID: examId__studentId
+  { c:'game_scores',      f:'studentId' }, // 문서ID: 날짜__studentId__임의값
+  { c:'class_post_reads', f:'studentId' }, // 문서ID: postId__studentId
+  { c:'student_signals',  f:'studentId' }, // 문서ID: studentId
+  { c:'mandatory_clinic', f:'studentId' }, // 문서ID 임의 → 필드만 수정
+  { c:'clinic_bookings',  f:'studentId' },
+  { c:'qna',              f:'studentId' },
+  { c:'chat_messages',    f:'studentId' },
+  { c:'quiz_scores',      f:'id'        }  // 데일리 퀴즈 점수는 studentId가 아니라 id 필드에 아이디가 들어감
+];
+
+// 문서 ID 안에 옛 번호가 "__로 나뉜 한 조각"으로 들어있으면 그 조각만 새 번호로 바꿔준다.
+// (부분 문자열 치환이 아님 — 010123과 0101234처럼 번호가 서로 포함 관계일 때 엉뚱한 문서를 만들지 않도록)
+function sidSwapDocId(docId, oldId, newId){
+  var parts = String(docId).split('__');
+  var hit = false;
+  var out = parts.map(function(seg){ if (seg === oldId) { hit = true; return newId; } return seg; });
+  return hit ? out.join('__') : null;
+}
+
+api.changeStudentId = function(db, p){
+  var oldId = String(p.id || '');
+  var newId = String(p.newId || '').trim();
+  var newPw = String(p.newpw || '123456');
+  if (!oldId || !newId) return Promise.resolve({ success:false, msg:'번호가 비어 있습니다.' });
+  if (oldId === newId) return Promise.resolve({ success:false, msg:'지금 번호와 같습니다.' });
+  if (/[\/\s#?\[\]*]/.test(newId)) return Promise.resolve({ success:false, msg:'번호에 쓸 수 없는 문자가 있습니다.' });
+
+  var warnings = [];
+  var moved = {};
+  var oldRef = db.collection('students').doc(oldId);
+  var newRef = db.collection('students').doc(newId);
+
+  return Promise.all([oldRef.get(), newRef.get()]).then(function(res){
+    if (!res[0].exists) return { success:false, msg:'학생을 찾을 수 없습니다.' };
+    if (res[1].exists) return { success:false, msg:'그 번호를 이미 쓰고 있는 사람이 있습니다.' };
+    var data = res[0].data();
+    data.id = newId;
+    data.password = newPw;
+    data.prevStudentId = oldId;          // 나중에 "예전 번호가 뭐였는지" 확인용
+    data.idChangedAt = nowStr();
+
+    // ① 새 번호로 학생 문서 만들기
+    return newRef.set(data).then(function(){
+      // ② 기록 옮기기 — 컬렉션 하나씩 순서대로(한꺼번에 하면 요청이 몰려 실패하기 쉬움)
+      var chain = Promise.resolve();
+      SID_MIGRATE.forEach(function(m){
+        chain = chain.then(function(){
+          return db.collection(m.c).where(m.f, '==', oldId).get().then(function(snap){
+            var jobs = snap.docs.map(function(d){
+              var swapped = sidSwapDocId(d.id, oldId, newId);
+              if (!swapped) {
+                // 문서 ID에 번호가 안 들어있으면 필드만 고치면 끝
+                var upd = {}; upd[m.f] = newId;
+                return d.ref.update(upd);
+              }
+              // 문서 ID에 번호가 박혀 있으면 새 ID로 복사하고 옛 문서는 지운다
+              var nd = d.data();
+              nd[m.f] = newId;
+              if (nd.id === d.id) nd.id = swapped;
+              return db.collection(m.c).doc(swapped).set(nd).then(function(){ return d.ref.delete(); });
+            });
+            return Promise.all(jobs).then(function(){
+              if (snap.size) moved[m.c] = snap.size;
+            });
+          }).catch(function(err){
+            warnings.push(m.c + ' 기록을 옮기지 못했어요(' + ((err && err.code) || '오류') + ').');
+          });
+        });
+      });
+
+      // 1:1 채팅방은 문서 ID가 학생 아이디 하나뿐이라 따로 처리
+      chain = chain.then(function(){
+        return db.collection('chat_threads').doc(oldId).get().then(function(doc){
+          if (!doc.exists) return null;
+          var td = doc.data();
+          return db.collection('chat_threads').doc(newId).set(td).then(function(){
+            moved['chat_threads'] = 1;
+            return doc.ref.delete();
+          });
+        }).catch(function(){ warnings.push('채팅방을 옮기지 못했어요.'); });
+      });
+
+      // 조교의 "담당 학생" 목록에 옛 번호가 들어있으면 같이 바꿔줌
+      chain = chain.then(function(){
+        return db.collection('assistants').where('studentIds', 'array-contains', oldId).get().then(function(snap){
+          return Promise.all(snap.docs.map(function(d){
+            var ids = (d.data().studentIds || []).map(function(x){ return String(x) === oldId ? newId : x; });
+            return d.ref.update({ studentIds: ids });
+          })).then(function(){ if (snap.size) moved['assistants'] = snap.size; });
+        }).catch(function(){ warnings.push('조교 담당 학생 목록을 옮기지 못했어요.'); });
+      });
+
+      // ③ 새 번호로 로그인 계정 만들기 (선생님 세션이 끊기지 않게 보조 앱 사용)
+      chain = chain.then(function(){
+        var secondary;
+        try { secondary = firebase.app('mk-secondary'); }
+        catch(e) { secondary = firebase.initializeApp(firebase.app().options, 'mk-secondary'); }
+        var email = toAuthEmail(newId);
+        var pass = toAuthPassword(newPw);
+        return secondary.auth().createUserWithEmailAndPassword(email, pass)
+          .then(function(){ return secondary.auth().signOut(); })
+          .catch(function(err){
+            if (err && err.code === 'auth/email-already-in-use') {
+              // 예전에 쓰던 번호라 Auth 계정이 남아있는 경우 — 방금 정한 비밀번호로 실제 로그인되는지 확인
+              return secondary.auth().signInWithEmailAndPassword(email, pass)
+                .then(function(){ return secondary.auth().signOut(); })
+                .catch(function(){
+                  warnings.push('그 번호의 로그인 계정이 이미 있는데 지금 정한 비밀번호로는 로그인이 안 돼요(예전 계정이 남아있음). Firebase 콘솔 Authentication에서 ' + email + ' 계정을 삭제한 뒤, 학생 정보 수정에서 비밀번호를 다시 정해주세요.');
+                  return secondary.auth().signOut().catch(function(){});
+                });
+            }
+            warnings.push('로그인 계정 생성 실패(' + ((err && err.code) || '') + ')');
+          });
+      });
+
+      // ④ 옛 학생 문서 삭제 (이걸 지워야 옛 번호로는 로그인이 안 됨)
+      chain = chain.then(function(){
+        return oldRef.delete().catch(function(){ warnings.push('옛 학생 문서를 지우지 못했어요. 학생 목록에 두 번 보이면 옛 번호 줄을 직접 삭제해주세요.'); });
+      });
+
+      return chain.then(function(){
+        logActivity(db, newId, data.name || newId, 'teacher',
+          (data.name || '') + ' 학생 번호를 ' + oldId + ' → ' + newId + '로 변경했습니다.', 'CHANGE_SID');
+        return { success:true, moved:moved, warnings:warnings };
+      });
+    });
+  }, function(err){
+    return { success:false, msg:'조회 실패(' + ((err && err.code) || '') + ')' };
+  });
+};
+
 api.setStudentActive = function(db, p){
   var active = (p.active === 'true' || p.active === true);
   return db.collection('students').doc(String(p.id)).update({ active: active })
