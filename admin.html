@@ -2117,7 +2117,9 @@ function sdInfoField(label, field, value, type){
 }
 function renderSdInfoGrid(s){
   return sdInfoField('학부모 전화번호','parentPhone',s.parentPhone,'text')
-    +'<div class="sd-info-item"><div class="sd-info-label">학생 전화번호</div><div class="sd-info-val">'+escHtml(s.studentPhone||s.id||'-')+'</div></div>'
+    // 학생 전화번호는 문서 ID(로그인 아이디)라 다른 항목처럼 제자리 수정이 안 되고, 기록까지 옮기는 별도 처리를 탄다 (2026-10-17)
+    +'<div class="sd-info-item"><div class="sd-info-label">학생 전화번호</div><div class="sd-info-val">'+escHtml(s.studentPhone||s.id||'-')
+      +'<span class="sd-edit-ic" title="번호 변경 (기록도 같이 옮겨가요)" onclick="sdChangePhone()">✏️</span></div></div>'
     +sdInfoField('성별','gender',s.gender,'select')
     +sdInfoField('학교','school',s.school,'text')
     +sdInfoField('학년','grade',s.grade,'text')
@@ -2374,34 +2376,55 @@ async function saveEditStudent(){
 }
 // 학생 전화번호(=로그인 아이디) 변경 (2026-10-17 추가)
 // 번호는 students 문서 ID 자체라서, 기록까지 새 번호로 옮기는 별도 처리가 필요함(firebase-api의 changeStudentId).
-async function changeStuPhone(){
-  var oldId=document.getElementById('edit-stu-modal').dataset.id;
-  var name=document.getElementById('es-name').value.trim()||oldId;
+// 정보 수정 모달과 학생 상세 패널 두 곳에서 같이 쓰므로 실제 처리는 이 함수 하나로 모아둠.
+// 성공하면 새 번호를, 취소/실패하면 null을 돌려준다.
+async function runChangeStudentPhone(oldId, name){
+  name = name || oldId;
   var newId=prompt(name+' 학생의 새 전화번호를 입력하세요.\n(이 번호가 새 로그인 아이디가 돼요)', oldId);
-  if(newId===null) return;
+  if(newId===null) return null;
   newId=newId.trim();
-  if(!newId){ alert('번호를 입력해주세요.'); return; }
-  if(newId===oldId){ alert('지금 번호와 같아요.'); return; }
+  if(!newId){ alert('번호를 입력해주세요.'); return null; }
+  if(newId===oldId){ alert('지금 번호와 같아요.'); return null; }
   var pw=prompt('새 번호로 로그인할 비밀번호를 정해주세요.\n(학생에게 알려주셔야 해요)','123456');
-  if(pw===null) return;
+  if(pw===null) return null;
   pw=pw.trim()||'123456';
-  if(!confirm(name+' 학생의 번호를 바꿀까요?\n\n'+oldId+'  →  '+newId+'\n새 비밀번호: '+pw+'\n\n지금까지의 출결·성적·숙제·클리닉·질문 기록도 같이 옮겨가요.\n예전 번호로는 로그인이 안 되게 됩니다.')) return;
-  var btns=document.querySelectorAll('#edit-stu-modal button');
-  for(var i=0;i<btns.length;i++) btns[i].disabled=true;
+  if(!confirm(name+' 학생의 번호를 바꿀까요?\n\n'+oldId+'  →  '+newId+'\n새 비밀번호: '+pw+'\n\n지금까지의 출결·성적·숙제·클리닉·질문 기록도 같이 옮겨가요.\n예전 번호로는 로그인이 안 되게 됩니다.')) return null;
   try{
     var r=await fetch(SU+'?action=changeStudentId&id='+encodeURIComponent(oldId)
       +'&newId='+encodeURIComponent(newId)+'&newpw='+encodeURIComponent(pw)).then(function(r){return r.json();});
-    if(!r||!r.success){ alert('바꾸지 못했어요.\n'+((r&&r.msg)||'잠시 후 다시 시도해주세요.')); return; }
+    if(!r||!r.success){ alert('바꾸지 못했어요.\n'+((r&&r.msg)||'잠시 후 다시 시도해주세요.')); return null; }
     var movedTxt=Object.keys(r.moved||{}).map(function(k){ return k+' '+r.moved[k]+'건'; }).join(', ');
     var msg='✅ 번호를 바꿨어요.\n\n'+oldId+' → '+newId+'\n새 비밀번호: '+pw;
     if(movedTxt) msg+='\n\n옮긴 기록: '+movedTxt;
     if(r.warnings&&r.warnings.length) msg+='\n\n⚠️ 확인이 필요해요:\n- '+r.warnings.join('\n- ');
     alert(msg);
+    return newId;
+  }catch(e){ alert('바꾸는 중 오류가 발생했습니다.'); return null; }
+}
+// 정보 수정 모달의 "번호 변경" 버튼
+async function changeStuPhone(){
+  var oldId=document.getElementById('edit-stu-modal').dataset.id;
+  var name=document.getElementById('es-name').value.trim()||oldId;
+  var btns=document.querySelectorAll('#edit-stu-modal button');
+  for(var i=0;i<btns.length;i++) btns[i].disabled=true;
+  try{
+    var newId=await runChangeStudentPhone(oldId, name);
+    if(!newId) return;
     closeEditStudent();
     stuSelected={};
     loadStu();
-  }catch(e){ alert('바꾸는 중 오류가 발생했습니다.'); }
-  finally{ for(var j=0;j<btns.length;j++) btns[j].disabled=false; }
+  } finally { for(var j=0;j<btns.length;j++) btns[j].disabled=false; }
+}
+// 학생 상세 패널의 학생 전화번호 옆 ✏️
+async function sdChangePhone(){
+  if(!sdCurrentStu) return;
+  var oldId=sdCurrentStu.id;
+  var newId=await runChangeStudentPhone(oldId, sdCurrentStu.name);
+  if(!newId) return;
+  closeStuDetail();
+  stuSelected={};
+  await loadStu();
+  openStuDetail(newId); // 바뀐 번호로 상세를 다시 열어 기록이 그대로 있는지 바로 확인할 수 있게
 }
 
 // 공지 (Firestore 공유 — 학생 화면에도 실제로 뜸)
