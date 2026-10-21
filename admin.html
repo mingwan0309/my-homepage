@@ -2977,8 +2977,73 @@ async function delMclinic(id){
   await fetch(SU+'?action=deleteMandatoryClinic&id='+encodeURIComponent(id));
   loadMclinic();
 }
+// ── 의무클리닉 전체 일시중지(시험기간용) ──
+// ⚠ 이 mcp* 함수들이 하나라도 없으면 loadMclinic()이 맨 앞 loadMcPause()에서 바로 멈춰서
+//   반 목록·학생 목록·오늘 명단이 전부 "불러오는 중..."에서 안 넘어간다(2026-10-21에 실제로 겪음).
+var mcpCfg={paused:false,startDate:'',endDate:''};
+async function loadMcPause(){
+  try{
+    var r=await fetch(SU+'?action=getMclinicPause').then(function(r){return r.json();});
+    mcpCfg={paused:!!(r&&r.paused), startDate:(r&&r.startDate)||'', endDate:(r&&r.endDate)||''};
+  }catch(e){ mcpCfg={paused:false,startDate:'',endDate:''}; } // 못 읽으면 "안 쉬는 중"으로 — 명단이 조용히 사라지는 쪽보다 안전
+  renderMcPauseBar();
+  renderMcList();
+}
+// 지금이 쉬는 기간인가 — 기간이 지나면 해제를 깜빡해도 자동으로 평소대로 돌아옴
+function mcpActiveNow(){
+  if(!mcpCfg.paused) return false;
+  var today=mcTodayInfo().dateStr;
+  if(mcpCfg.startDate && today < mcpCfg.startDate) return false;
+  if(mcpCfg.endDate && today > mcpCfg.endDate) return false;
+  return true;
+}
+function renderMcPauseBar(){
+  var bar=document.getElementById('mc-pause-bar');
+  if(!bar) return;
+  var isTeacher=(cu&&cu.role==='teacher');
+  if(!isTeacher && !mcpActiveNow()){ bar.style.display='none'; return; } // 조교에겐 쉬는 중일 때만 안내가 보임
+  bar.style.display='block';
+  if(mcpActiveNow()){
+    var period=mcpCfg.startDate?(mcpCfg.startDate+' ~ '+(mcpCfg.endDate||'직접 해제할 때까지')):'직접 해제할 때까지';
+    bar.innerHTML='<div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:12px 14px;margin-bottom:12px;">'
+      +'<div style="font-weight:800;font-size:14px;color:#92400e;">⏸ 지금은 의무클리닉을 쉬는 기간이에요</div>'
+      +'<div style="font-size:12.5px;color:#a16207;margin-top:4px;">'+escHtml(period)+' · 명단과 1시간 전 알림톡이 멈춰요. 등록은 그대로 남아 있어요.</div>'
+      +(isTeacher?'<button class="btn-cl" style="margin-top:10px;min-height:44px;" onclick="mcpResume()">▶ 지금 바로 다시 시작</button>':'')
+      +'</div>';
+  }else{
+    bar.innerHTML='<button class="btn-cl" style="min-height:44px;margin-bottom:12px;" onclick="mcpOpenModal()">⏸ 시험기간 — 의무클리닉 전체 쉬기</button>';
+  }
+}
+function mcpOpenModal(){
+  var t=mcTodayInfo().dateStr;
+  document.getElementById('mcp-start').value=mcpCfg.startDate||t;
+  document.getElementById('mcp-end').value=mcpCfg.endDate||'';
+  document.getElementById('mcp-modal').classList.add('show');
+}
+function mcpCloseModal(){ document.getElementById('mcp-modal').classList.remove('show'); }
+async function mcpSave(){
+  var s=document.getElementById('mcp-start').value;
+  var e=document.getElementById('mcp-end').value;
+  if(s&&e&&e<s){ alert('다시 시작 날짜가 쉬기 시작보다 앞설 수 없어요.'); return; }
+  try{
+    var r=await fetch(SU+'?action=setMclinicPause&paused=true&startDate='+encodeURIComponent(s)
+      +'&endDate='+encodeURIComponent(e)+'&by='+encodeURIComponent((cu&&cu.name)||'')).then(function(r){return r.json();});
+    if(!r||!r.success){ alert('저장하지 못했어요. 잠시 후 다시 시도해주세요.'); return; }
+    mcpCloseModal();
+    await loadMcPause();
+  }catch(err){ alert('저장 중 오류가 발생했습니다.'); }
+}
+async function mcpResume(){
+  if(!confirm('의무클리닉을 다시 시작할까요?\n오늘부터 명단과 알림톡이 평소대로 돌아와요.')) return;
+  try{
+    var r=await fetch(SU+'?action=setMclinicPause&paused=false&startDate=&endDate=&by='+encodeURIComponent((cu&&cu.name)||'')).then(function(r){return r.json();});
+    if(!r||!r.success){ alert('해제하지 못했어요. 잠시 후 다시 시도해주세요.'); return; }
+    await loadMcPause();
+  }catch(err){ alert('해제 중 오류가 발생했습니다.'); }
+}
 function renderMcList(){
   var el=document.getElementById('mc-list');
+  if(!el) return;
   renderMcPauseBar();
   if(mcpActiveNow()){
     // 쉬는 기간엔 출결 체크를 아예 못 하게 명단을 안 그림(실수로 결석 처리되는 것 방지)
