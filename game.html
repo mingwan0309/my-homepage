@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>미니게임 — 김민관 수학</title>
 <script src="firebase-api.js?v=62"></script>
+<script src="mathterm-game.js?v=1"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;}
@@ -144,7 +145,7 @@ var SU='https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33Pi
 
 // 게임 목록 — 학생이 직접 골라서 플레이. 게임마다 하루 2번(테스트 계정은 무제한)씩 따로 도전 가능.
 // 새 게임을 추가하려면 이 배열에 키를 늘리고, 아래 GAME_META에 안내문구/그리기 방식을 추가하면 됨.
-var GAME_ROTATION = ['default','typing']; // '숫자 잡기'(numbercatch)는 나중에 다시 다듬어서 추가할 예정 — 코드는 GAME_META에 그대로 남겨둠
+var GAME_ROTATION = ['mathterm','default','typing']; // '숫자 잡기'(numbercatch)는 나중에 다시 다듬어서 추가할 예정 — 코드는 GAME_META에 그대로 남겨둠
 
 // 게임별 설정 — 제목/안내문구/장애물·보너스를 어떻게 그릴지를 여기서 갈라서 처리
 var GAME_META = {
@@ -161,6 +162,11 @@ var GAME_META = {
       ['🔴','홀수는 피하세요!','부딪히면 바로 게임 종료'],
       ['🟢','짝수를 잡으세요!','숫자만큼 점수를 얻어요']
     ]
+  },
+  mathterm: {
+    // 공통수학2 용어 타자 — 화면·로직 전부 mathterm-game.js 안에 있음(자체 시작 화면이 있어서 아래 공통 안내창은 안 씀)
+    title: '공수2 용어 타자', icon: '📐', isNew: true,
+    introRows: []
   },
   typing: {
     title: '문장 빨리 쓰기', icon: '✍️',
@@ -274,20 +280,43 @@ function renderStatus(r){
     var left = (max===-1) ? -1 : Math.max(0, max-(st.attemptsToday||0));
     var playedOut = left===0;
     var sub;
+    var canPractice = gk==='mathterm'; // 용어 타자는 도전을 다 써도 연습 모드는 계속 가능
     if (max===-1) sub = '무제한 도전 가능';
     else if (playedOut) sub = '오늘 다 도전했어요'+(st.todayScore!=null?' · 오늘 최고 '+st.todayScore+'점':'');
     else sub = '오늘 '+max+'번 중 '+left+'번 남음'+(st.todayScore!=null?' · 오늘 최고 '+st.todayScore+'점':'');
-    return '<div class="gs-row'+(playedOut?' disabled':'')+'" onclick="'+(playedOut?'':'pickGame(\''+gk+'\')')+'">'
+    var clickable = !playedOut || canPractice;
+    if (playedOut && canPractice) sub += ' · 연습은 가능';
+    return '<div class="gs-row'+(clickable?'':' disabled')+'" onclick="'+(clickable?'pickGame(\''+gk+'\')':'')+'">'
       +'<span class="gs-icon">'+meta.icon+'</span>'
-      +'<div class="gs-body"><div class="gs-title">'+meta.title+'</div><div class="gs-sub">'+sub+'</div></div>'
-      +'<span class="gs-arrow">'+(playedOut?'✔':'▶')+'</span>'
+      +'<div class="gs-body"><div class="gs-title">'+meta.title+(meta.isNew?' <span style="font-size:10.5px;font-weight:900;color:#0f172a;background:#67e8f9;border-radius:6px;padding:2px 6px;vertical-align:2px;">NEW</span>':'')+'</div><div class="gs-sub">'+sub+'</div></div>'
+      +'<span class="gs-arrow">'+(clickable?'▶':'✔')+'</span>'
       +'</div>';
   }).join('');
   document.getElementById('game-select-list').innerHTML = html;
 }
 function pickGame(gameKey){
   activeGameKey = gameKey;
+  if(gameKey==='mathterm'){ openMathTerm(); return; }
   showIntro();
+}
+// 공수2 용어 타자 열기 — 도전 가능 여부/오늘 최고점을 넘겨주고, 도전이 끝나면 점수를 저장
+function openMathTerm(){
+  var r = gameStatusCache || {};
+  var st = (r.perGame||{}).mathterm || { attemptsToday:0 };
+  var max = r.maxAttempts;
+  var left = (max===-1) ? -1 : Math.max(0, max-(st.attemptsToday||0));
+  MathTermGame.open({
+    canChallenge: left!==0,
+    todayBest: st.todayScore!=null ? st.todayScore : null,
+    attemptsLabel: left===-1 ? '도전 무제한' : '오늘 도전 '+max+'번 중 '+left+'번 남음',
+    onChallengeEnd: function(score){
+      return postGameScore(score,'mathterm').then(function(res){
+        if(res.ok && left>0) left--;
+        return { msg: res.msg, canChallengeMore: left!==0 };
+      });
+    },
+    onClose: function(){ loadStatus(); }
+  });
 }
 function backToStatus(){
   document.getElementById('result-box').style.display='none';
@@ -561,24 +590,26 @@ function endGame(score){
   submitScore(score);
 }
 async function submitScore(score){
+  var res=await postGameScore(score, activeGameKey);
+  document.getElementById('r-msg').textContent=res.msg;
+}
+// 점수 저장 공통 — {ok, msg}를 돌려줌(용어 타자처럼 자체 결과 화면이 있는 게임도 같이 씀)
+async function postGameScore(score, gameKey){
   try{
-    var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'submitGameScore',studentId:session.id,studentName:session.name||'',score:score,gameKey:activeGameKey})});
+    var res=await fetch(SU,{method:'POST',body:JSON.stringify({action:'submitGameScore',studentId:session.id,studentName:session.name||'',score:score,gameKey:gameKey})});
     var d=await res.json();
-    var msgEl=document.getElementById('r-msg');
     if(d&&d.success!==false){
-      msgEl.textContent='점수가 기록됐어요!';
       loadStatus(); // 순위표·남은 횟수 바로 갱신
-    } else {
-      var m=(d&&d.msg)||'';
-      if(/permission|insufficient/i.test(m)){
-        // Firestore 규칙에서 거부됨(로그인 계정과 학생 아이디 형식이 안 맞는 경우 등) — 선생님이 원인을 찾을 수 있게 아이디를 같이 보여줌
-        msgEl.textContent='점수 저장이 거부됐어요. 선생님께 이 화면을 보여주세요. (아이디: '+(session.id||'')+' / 로그인: '+(session.authId||'')+')';
-      } else {
-        msgEl.textContent=m||'이미 오늘 도전한 기록이 있어요.';
-      }
+      return {ok:true, msg:'점수가 기록됐어요!'};
     }
+    var m=(d&&d.msg)||'';
+    if(/permission|insufficient/i.test(m)){
+      // Firestore 규칙에서 거부됨(로그인 계정과 학생 아이디 형식이 안 맞는 경우 등) — 선생님이 원인을 찾을 수 있게 아이디를 같이 보여줌
+      return {ok:false, msg:'점수 저장이 거부됐어요. 선생님께 이 화면을 보여주세요. (아이디: '+(session.id||'')+' / 로그인: '+(session.authId||'')+')'};
+    }
+    return {ok:false, msg:m||'이미 오늘 도전한 기록이 있어요.'};
   }catch(e){
-    document.getElementById('r-msg').textContent='제출 중 오류가 발생했어요('+(e&&e.message||'')+'). 인터넷 연결을 확인하고 다시 시도해주세요.';
+    return {ok:false, msg:'제출 중 오류가 발생했어요('+(e&&e.message||'')+'). 인터넷 연결을 확인하고 다시 시도해주세요.'};
   }
 }
 </script>
