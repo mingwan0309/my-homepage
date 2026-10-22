@@ -66,15 +66,9 @@ a{text-decoration:none;}
 .btn-secondary{background:#334155;color:#e2e8f0;}
 .btn-primary2{background:#3b6cf7;color:#fff;}
 
-.tt-btns{display:flex;gap:8px;margin-top:10px;}
-.tt-btns button{flex:1;min-height:56px;border:none;border-radius:12px;background:#334155;color:#f1f5f9;font-size:22px;font-weight:900;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;}
-.tt-btns button:active{background:#475569;}
-.tt-btns button.tt-drop{background:#3b6cf7;}
-
 @media (max-width:480px){
   .container{padding:14px 12px 40px;}
   #game-wrap{padding:10px 12px;}
-  .tt-btns{gap:6px;}
 }
 </style>
 </head>
@@ -113,16 +107,6 @@ a{text-decoration:none;}
         <div class="game-hud"><span>점수 <b id="hud-score">0</b></span><span id="hud-timer"></span></div>
         <canvas id="game-canvas" width="360" height="480"></canvas>
         <div class="touch-hint" id="canvas-touch-hint">화면을 좌우로 드래그하거나 ←/→ 키로 피하세요</div>
-        <div id="tetris-controls" style="display:none;">
-          <div class="tt-btns">
-            <button type="button" data-tt="left" aria-label="왼쪽">◀</button>
-            <button type="button" data-tt="rotate" aria-label="돌리기">↻</button>
-            <button type="button" data-tt="right" aria-label="오른쪽">▶</button>
-            <button type="button" data-tt="down" aria-label="천천히 내리기">▼</button>
-            <button type="button" data-tt="drop" aria-label="바로 떨어뜨리기" class="tt-drop">⤓</button>
-          </div>
-          <div class="touch-hint">키보드: ←/→ 이동 · ↑ 돌리기 · ↓ 내리기 · 스페이스 바로 떨어뜨리기</div>
-        </div>
         <div id="typing-game-area" style="display:none;">
           <div id="typing-sentence" style="background:#1e2a45;border-radius:14px;padding:24px 18px;text-align:center;font-size:17px;font-weight:700;line-height:1.6;min-height:90px;display:flex;align-items:center;justify-content:center;"></div>
           <input id="typing-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="문장을 그대로 입력하세요" style="width:100%;box-sizing:border-box;margin-top:14px;padding:14px 16px;border-radius:12px;border:none;font-size:16px;">
@@ -160,7 +144,7 @@ var SU='https://script.google.com/macros/s/AKfycbxuC16lPtzh8jcU1dUC2TKUjF7AW33Pi
 
 // 게임 목록 — 학생이 직접 골라서 플레이. 게임마다 하루 2번(테스트 계정은 무제한)씩 따로 도전 가능.
 // 새 게임을 추가하려면 이 배열에 키를 늘리고, 아래 GAME_META에 안내문구/그리기 방식을 추가하면 됨.
-var GAME_ROTATION = ['default','typing','tetris']; // '숫자 잡기'(numbercatch)는 나중에 다시 다듬어서 추가할 예정 — 코드는 GAME_META에 그대로 남겨둠
+var GAME_ROTATION = ['default','typing']; // '숫자 잡기'(numbercatch)는 나중에 다시 다듬어서 추가할 예정 — 코드는 GAME_META에 그대로 남겨둠
 
 // 게임별 설정 — 제목/안내문구/장애물·보너스를 어떻게 그릴지를 여기서 갈라서 처리
 var GAME_META = {
@@ -183,14 +167,6 @@ var GAME_META = {
     introRows: [
       ['📖','문장이 나와요','화면의 문장을 그대로 똑같이 입력하세요'],
       ['✍️','빠르고 정확하게!','띄어쓰기·문장부호까지 완전히 같아야 정답']
-    ]
-  },
-  tetris: {
-    title: '민관쌤 테트리스', icon: '🧱',
-    introRows: [
-      ['🧱','줄을 꽉 채우세요!','가로 한 줄이 다 차면 사라지고 점수를 얻어요'],
-      ['🔥','한 번에 여러 줄!','4줄을 한 번에 지우면 점수가 크게 올라요'],
-      ['⚡','점점 빨라져요','10줄마다 레벨이 올라가고 블록이 빨라져요']
     ]
   }
 };
@@ -342,10 +318,7 @@ function renderIntroContent(){
   document.getElementById('intro-rows').innerHTML = rowsHtml;
   document.getElementById('intro-hint').textContent = activeGameKey==='typing'
     ? '화면의 문장을 그대로 입력하고 ✅ 제출 버튼을 누르세요'
-    : activeGameKey==='tetris'
-    ? '아래 버튼(◀ ↻ ▶ ▼ ⤓)이나 키보드 방향키로 조작해요'
     : '화면을 좌우로 드래그하거나 ←/→ 키로 이동해요';
-  if(activeGameKey==='tetris') ttLoadPhoto(); // 안내를 읽는 동안 사진을 미리 받아둠
 }
 function showIntro(){
   renderIntroContent();
@@ -357,8 +330,6 @@ function closeIntroAndStart(){
 }
 function startGame(){
   if(activeGameKey==='typing'){ startTypingGame(); return; }
-  if(activeGameKey==='tetris'){ startTetris(); return; }
-  document.getElementById('tetris-controls').style.display='none';
   document.getElementById('hud-timer').textContent='';
   document.getElementById('result-box').style.display='none';
   document.getElementById('game-wrap').style.display='block';
@@ -366,7 +337,6 @@ function startGame(){
   document.getElementById('canvas-touch-hint').style.display='';
   canvas=document.getElementById('game-canvas');
   canvas.style.display='';
-  canvas.style.width=''; canvas.style.margin='';
   ctx=canvas.getContext('2d');
   fitCanvas();
   player.x=canvas.width/2;
@@ -404,7 +374,6 @@ async function startTypingGame(){
   document.getElementById('result-box').style.display='none';
   document.getElementById('game-wrap').style.display='block';
   document.getElementById('canvas-touch-hint').style.display='none';
-  document.getElementById('tetris-controls').style.display='none';
   document.getElementById('game-canvas').style.display='none';
   document.getElementById('typing-game-area').style.display='block';
   typingGameScore=0;
@@ -581,273 +550,6 @@ function draw(py){
   });
   ctx.font='32px sans-serif';
   ctx.fillText('🙂', player.x, py);
-}
-/* ===== 민관쌤 테트리스 (2026-10-17) =====
-   블록 한 칸 한 칸에 선생님 사진 조각이 입혀져 있음. 사진은 가로 TT_PHOTO_COLS칸으로 나눠서,
-   블록이 새로 나올 때마다 사진의 무작위 위치를 블록 모양대로 잘라 붙임(돌리면 사진도 같이 돌아감).
-   사진을 바꾸려면 tetris_photo.jpg 파일만 교체하면 됨(사진을 못 불러오면 그냥 색 블록으로 나옴). */
-var TT_PHOTO_SRC='tetris_photo.jpg?v=1';
-var TT_PHOTO_COLS=6;
-var ttPhoto=null, ttPhotoReady=false, ttPhotoRows=0;
-function ttLoadPhoto(){
-  if(ttPhoto) return;
-  ttPhoto=new Image();
-  ttPhoto.onload=function(){
-    ttPhotoRows=Math.floor(ttPhoto.naturalHeight/(ttPhoto.naturalWidth/TT_PHOTO_COLS));
-    ttPhotoReady=ttPhotoRows>=4;
-  };
-  ttPhoto.src=TT_PHOTO_SRC;
-}
-var TT_W=10, TT_H=20;
-var TT_SHAPES={
-  I:{c:'#22d3ee',m:[[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]]},
-  O:{c:'#facc15',m:[[1,1],[1,1]]},
-  T:{c:'#a855f7',m:[[0,1,0],[1,1,1],[0,0,0]]},
-  S:{c:'#22c55e',m:[[0,1,1],[1,1,0],[0,0,0]]},
-  Z:{c:'#ef4444',m:[[1,1,0],[0,1,1],[0,0,0]]},
-  J:{c:'#3b82f6',m:[[1,0,0],[1,1,1],[0,0,0]]},
-  L:{c:'#f97316',m:[[0,0,1],[1,1,1],[0,0,0]]}
-};
-var TT_LINE_POINTS=[0,10,30,50,80]; // 한 번에 지운 줄 수별 점수(× 레벨)
-var ttBoard=[], ttCur=null, ttNext=null, ttBag=[], ttScore=0, ttLines=0, ttLevel=1;
-var ttRunning=false, ttRaf=null, ttLastFall=0, ttClearing=null, ttCell=20, ttCssW=0, ttCssH=0, ttHold=null;
-
-function ttNewPiece(){
-  if(!ttBag.length){
-    ttBag=Object.keys(TT_SHAPES);
-    for(var i=ttBag.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=ttBag[i]; ttBag[i]=ttBag[j]; ttBag[j]=t; }
-  }
-  var k=ttBag.pop(), sh=TT_SHAPES[k], n=sh.m.length;
-  var rows=Math.max(n, ttPhotoRows);
-  // 사람은 보통 사진 가운데에 있으니 가로 위치는 가운데 근처에서 고름(배경만 찍힌 조각이 덜 나오게)
-  var maxOx=TT_PHOTO_COLS-n, ox=Math.round(maxOx/2+(Math.random()*2-1));
-  ox=Math.max(0, Math.min(maxOx, ox));
-  var oy=Math.floor(Math.random()*(rows-n+1));
-  var cells=[];
-  for(var r=0;r<n;r++) for(var c=0;c<n;c++) if(sh.m[r][c]) cells.push({r:r,c:c,sx:ox+c,sy:oy+r,rot:0});
-  return {k:k,color:sh.c,n:n,cells:cells,x:Math.floor((TT_W-n)/2),y:(k==='I'?-1:0)};
-}
-function ttCollide(p,dx,dy,cells){
-  cells=cells||p.cells;
-  for(var i=0;i<cells.length;i++){
-    var x=p.x+cells[i].c+dx, y=p.y+cells[i].r+dy;
-    if(x<0||x>=TT_W||y>=TT_H) return true;
-    if(y>=0 && ttBoard[y][x]) return true;
-  }
-  return false;
-}
-function ttMove(dx){ if(ttCur && !ttClearing && !ttCollide(ttCur,dx,0)) ttCur.x+=dx; }
-function ttRotate(){
-  if(!ttCur || ttClearing || ttCur.k==='O') return;
-  var n=ttCur.n;
-  var rotated=ttCur.cells.map(function(c){ return {r:c.c, c:n-1-c.r, sx:c.sx, sy:c.sy, rot:(c.rot+1)%4}; });
-  var kicks=[0,-1,1,-2,2];
-  for(var i=0;i<kicks.length;i++){
-    if(!ttCollide(ttCur,kicks[i],0,rotated)){ ttCur.x+=kicks[i]; ttCur.cells=rotated; return; }
-  }
-}
-function ttSoftDrop(){
-  if(!ttCur || ttClearing) return;
-  if(!ttCollide(ttCur,0,1)){ ttCur.y++; ttLastFall=performance.now(); }
-  else ttLock();
-}
-function ttHardDrop(){
-  if(!ttCur || ttClearing) return;
-  while(!ttCollide(ttCur,0,1)) ttCur.y++;
-  ttLock();
-}
-function ttLock(){
-  var over=false;
-  ttCur.cells.forEach(function(c){
-    var x=ttCur.x+c.c, y=ttCur.y+c.r;
-    if(y<0){ over=true; return; }
-    ttBoard[y][x]={color:ttCur.color,sx:c.sx,sy:c.sy,rot:c.rot};
-  });
-  ttCur=null;
-  if(over){ ttGameOver(); return; }
-  var full=[];
-  for(var y=0;y<TT_H;y++){ if(ttBoard[y].every(function(v){ return !!v; })) full.push(y); }
-  if(full.length){ ttClearing={rows:full,until:performance.now()+220}; return; }
-  ttSpawn();
-}
-function ttFinishClear(){
-  var rows=ttClearing.rows; ttClearing=null;
-  ttBoard=ttBoard.filter(function(row,y){ return rows.indexOf(y)<0; });
-  while(ttBoard.length<TT_H) ttBoard.unshift(new Array(TT_W).fill(null));
-  ttScore+=TT_LINE_POINTS[Math.min(4,rows.length)]*ttLevel;
-  ttLines+=rows.length;
-  ttLevel=1+Math.floor(ttLines/10);
-  ttUpdateHud();
-  ttSpawn();
-}
-function ttSpawn(){
-  ttCur=ttNext||ttNewPiece();
-  ttNext=ttNewPiece();
-  ttLastFall=performance.now();
-  if(ttCollide(ttCur,0,0)) ttGameOver();
-}
-function ttInterval(){ return Math.max(90, 700-(ttLevel-1)*60); }
-function ttUpdateHud(){
-  document.getElementById('hud-score').textContent=ttScore;
-  document.getElementById('hud-timer').textContent='Lv.'+ttLevel+' · '+ttLines+'줄';
-}
-function ttFitCanvas(){
-  // 게임판(10×20) + 오른쪽 '다음 블록' 칸. 폭과 화면 높이 둘 다에 맞춰 칸 크기를 정함
-  var wrapW=document.getElementById('game-wrap-inner').clientWidth||340;
-  var byW=Math.floor(wrapW/(TT_W+4.2));
-  var byH=Math.floor((window.innerHeight-200)/TT_H);
-  ttCell=Math.max(14, Math.min(byW, byH, 34));
-  ttCssW=Math.round(ttCell*(TT_W+4.2)); ttCssH=ttCell*TT_H;
-  var dpr=Math.min(2, window.devicePixelRatio||1);
-  canvas.style.width=ttCssW+'px'; canvas.style.margin='0 auto';
-  canvas.width=Math.round(ttCssW*dpr); canvas.height=Math.round(ttCssH*dpr);
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-}
-function startTetris(){
-  ttLoadPhoto();
-  document.getElementById('result-box').style.display='none';
-  document.getElementById('game-wrap').style.display='block';
-  document.getElementById('typing-game-area').style.display='none';
-  document.getElementById('canvas-touch-hint').style.display='none';
-  document.getElementById('tetris-controls').style.display='';
-  canvas=document.getElementById('game-canvas');
-  canvas.style.display='';
-  ctx=canvas.getContext('2d');
-  ttFitCanvas();
-  ttBoard=[]; for(var y=0;y<TT_H;y++) ttBoard.push(new Array(TT_W).fill(null));
-  ttBag=[]; ttNext=null; ttCur=null; ttClearing=null;
-  ttScore=0; ttLines=0; ttLevel=1;
-  ttUpdateHud();
-  ttSpawn();
-  ttRunning=true;
-  ttBindControls();
-  ttRaf=requestAnimationFrame(ttLoop);
-}
-function ttLoop(now){
-  if(!ttRunning) return;
-  if(ttClearing){ if(now>=ttClearing.until) ttFinishClear(); }
-  else if(ttCur && now-ttLastFall>ttInterval()){
-    ttLastFall=now;
-    if(!ttCollide(ttCur,0,1)) ttCur.y++; else ttLock();
-  }
-  if(ttRunning) ttDraw(now);
-  if(ttRunning) ttRaf=requestAnimationFrame(ttLoop);
-}
-function ttDrawCell(x,y,s,cell,alpha){
-  ctx.save();
-  ctx.globalAlpha=alpha==null?1:alpha;
-  if(ttPhotoReady){
-    var cw=ttPhoto.naturalWidth/TT_PHOTO_COLS;
-    ctx.save();
-    ctx.translate(x+s/2,y+s/2);
-    ctx.rotate(cell.rot*Math.PI/2);
-    ctx.drawImage(ttPhoto, cell.sx*cw, cell.sy*cw, cw, cw, -s/2, -s/2, s, s);
-    ctx.restore();
-    ctx.globalAlpha*=0.18; ctx.fillStyle=cell.color; ctx.fillRect(x,y,s,s);
-    ctx.globalAlpha=alpha==null?1:alpha;
-  } else {
-    ctx.fillStyle=cell.color; ctx.fillRect(x,y,s,s);
-  }
-  ctx.lineWidth=Math.max(1.5, s*0.08);
-  ctx.strokeStyle=cell.color;
-  ctx.strokeRect(x+ctx.lineWidth/2, y+ctx.lineWidth/2, s-ctx.lineWidth, s-ctx.lineWidth);
-  ctx.restore();
-}
-function ttDraw(now){
-  var s=ttCell, bw=TT_W*s;
-  ctx.clearRect(0,0,ttCssW,ttCssH);
-  ctx.fillStyle='#16213a'; ctx.fillRect(0,0,bw,ttCssH);
-  ctx.strokeStyle='rgba(148,163,184,.08)'; ctx.lineWidth=1;
-  for(var gx=1;gx<TT_W;gx++){ ctx.beginPath(); ctx.moveTo(gx*s+.5,0); ctx.lineTo(gx*s+.5,ttCssH); ctx.stroke(); }
-  for(var gy=1;gy<TT_H;gy++){ ctx.beginPath(); ctx.moveTo(0,gy*s+.5); ctx.lineTo(bw,gy*s+.5); ctx.stroke(); }
-  for(var y=0;y<TT_H;y++) for(var x=0;x<TT_W;x++){
-    var v=ttBoard[y][x]; if(!v) continue;
-    ttDrawCell(x*s,y*s,s,v);
-  }
-  if(ttClearing){
-    var a=0.5+0.5*Math.sin(now/30);
-    ctx.fillStyle='rgba(255,255,255,'+a.toFixed(2)+')';
-    ttClearing.rows.forEach(function(r){ ctx.fillRect(0,r*s,bw,s); });
-  }
-  if(ttCur){
-    var gd=0; while(!ttCollide(ttCur,0,gd+1)) gd++;
-    ctx.strokeStyle=ttCur.color; ctx.globalAlpha=0.45; ctx.lineWidth=2;
-    ttCur.cells.forEach(function(c){
-      var yy=ttCur.y+c.r+gd; if(yy<0) return;
-      ctx.strokeRect((ttCur.x+c.c)*s+2, yy*s+2, s-4, s-4);
-    });
-    ctx.globalAlpha=1;
-    ttCur.cells.forEach(function(c){
-      var yy=ttCur.y+c.r; if(yy<0) return;
-      ttDrawCell((ttCur.x+c.c)*s, yy*s, s, {color:ttCur.color,sx:c.sx,sy:c.sy,rot:c.rot});
-    });
-  }
-  // 오른쪽 정보 칸
-  var px=bw+Math.round(s*0.4), pw=ttCssW-px;
-  ctx.fillStyle='#94a3b8'; ctx.font='800 '+Math.max(11,Math.round(s*0.5))+'px Pretendard,sans-serif';
-  ctx.textAlign='left'; ctx.textBaseline='top';
-  ctx.fillText('다음', px, 2);
-  if(ttNext){
-    var ns=Math.floor(Math.min(pw/4, s*0.9));
-    ctx.fillStyle='#1e2a45'; ctx.fillRect(px, s*0.9, ns*4, ns*4);
-    var minR=9,maxR=-1,minC=9,maxC=-1;
-    ttNext.cells.forEach(function(c){ minR=Math.min(minR,c.r); maxR=Math.max(maxR,c.r); minC=Math.min(minC,c.c); maxC=Math.max(maxC,c.c); });
-    var offX=px+(ns*4-(maxC-minC+1)*ns)/2, offY=s*0.9+(ns*4-(maxR-minR+1)*ns)/2;
-    ttNext.cells.forEach(function(c){ ttDrawCell(offX+(c.c-minC)*ns, offY+(c.r-minR)*ns, ns, {color:ttNext.color,sx:c.sx,sy:c.sy,rot:c.rot}); });
-  }
-  var iy=s*0.9+Math.floor(Math.min(pw/4, s*0.9))*4+s*0.8;
-  [['점수',ttScore],['레벨',ttLevel],['줄',ttLines]].forEach(function(it){
-    ctx.fillStyle='#94a3b8'; ctx.font='700 '+Math.max(11,Math.round(s*0.45))+'px Pretendard,sans-serif';
-    ctx.fillText(it[0], px, iy);
-    ctx.fillStyle='#f1f5f9'; ctx.font='900 '+Math.max(14,Math.round(s*0.7))+'px Pretendard,sans-serif';
-    ctx.fillText(String(it[1]), px, iy+s*0.6);
-    iy+=s*1.8;
-  });
-}
-function ttBindControls(){
-  var acts={left:function(){ttMove(-1);}, right:function(){ttMove(1);}, rotate:ttRotate, down:ttSoftDrop, drop:ttHardDrop};
-  var repeatable={left:1,right:1,down:1};
-  function stopHold(){ if(ttHold){ clearTimeout(ttHold.t); clearInterval(ttHold.i); ttHold=null; } }
-  document.querySelectorAll('#tetris-controls [data-tt]').forEach(function(btn){
-    var a=btn.getAttribute('data-tt');
-    btn.onpointerdown=function(e){
-      e.preventDefault(); if(!ttRunning) return;
-      stopHold(); acts[a]();
-      if(repeatable[a]) ttHold={t:setTimeout(function(){ if(ttHold) ttHold.i=setInterval(function(){ if(ttRunning) acts[a](); }, 55); },170)};
-    };
-    btn.onpointerup=btn.onpointerleave=btn.onpointercancel=stopHold;
-    btn.oncontextmenu=function(e){ e.preventDefault(); };
-  });
-  // 게임판을 톡 누르면 돌리기
-  canvas.onpointerdown=function(e){ e.preventDefault(); if(ttRunning) ttRotate(); };
-  canvas.onpointermove=null; canvas.onpointerup=null; canvas.onpointerleave=null;
-  document.onkeydown=function(e){
-    if(!ttRunning) return;
-    var k=e.key;
-    if(k==='ArrowLeft') ttMove(-1);
-    else if(k==='ArrowRight') ttMove(1);
-    else if(k==='ArrowUp'||k==='x'||k==='X') ttRotate();
-    else if(k==='ArrowDown') ttSoftDrop();
-    else if(k===' '||k==='Spacebar') ttHardDrop();
-    else return;
-    e.preventDefault();
-  };
-}
-function ttGameOver(){
-  ttRunning=false;
-  if(ttRaf) cancelAnimationFrame(ttRaf);
-  if(ttHold){ clearTimeout(ttHold.t); clearInterval(ttHold.i); ttHold=null; }
-  document.onkeydown=null;
-  ttDraw(performance.now());
-  ctx.fillStyle='rgba(15,23,42,.72)'; ctx.fillRect(0,0,TT_W*ttCell,ttCssH);
-  ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.font='900 '+Math.round(ttCell*1.1)+'px Pretendard,sans-serif';
-  ctx.fillText('게임 오버', TT_W*ttCell/2, ttCssH/2);
-  setTimeout(function(){
-    document.getElementById('tetris-controls').style.display='none';
-    canvas.style.width=''; canvas.style.margin='';
-    endGame(ttScore);
-  }, 900);
 }
 function endGame(score){
   running=false;
