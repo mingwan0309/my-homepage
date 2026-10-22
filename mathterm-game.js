@@ -790,8 +790,10 @@ function showTitle(){
   try{ ui.input.blur(); }catch(e){}
   clearItems();
   var chips=$('.mt-chips');
-  var counts=[TERMS.length,0,0,0]; TERMS.forEach(function(t){ counts[t.ch+1]++; });
+  var live=liveTerms(), counts=[live.length,0,0,0]; live.forEach(function(t){ counts[t.ch+1]++; });
+  if(chapter>=0 && !counts[chapter+1]) chapter=-1;
   chips.innerHTML=['전체'].concat(CH).map(function(n,i){
+    if(i>0 && !counts[i]) return '';
     return '<button class="mt-chip'+((i-1)===chapter?' on':'')+'" data-ch="'+(i-1)+'">'+n+' <b>'+counts[i]+'</b></button>';
   }).join('');
   chips.querySelectorAll('.mt-chip').forEach(function(b){
@@ -803,7 +805,11 @@ function showTitle(){
   $('.mt-note').innerHTML=(opts.attemptsLabel?opts.attemptsLabel+'<br>':'')+'점수는 도전 모드만 기록돼요 · 띄어쓰기는 안 쳐도 돼요';
   startShowcase();
 }
-function poolTerms(){ return TERMS.filter(function(t){ return chapter<0 || t.ch===chapter; }); }
+function liveTerms(){ var h=opts.hidden||[]; return TERMS.filter(function(t){ return h.indexOf(t.t)<0; }); }
+function poolTerms(){
+  var p=liveTerms().filter(function(t){ return chapter<0 || t.ch===chapter; });
+  return p.length?p:liveTerms().length?liveTerms():TERMS.slice(); // 다 빼버린 경우에도 게임이 멈추지 않게
+}
 function startShowcase(){
   clearInterval(showTimer);
   var box=$('.mt-show'), pool=poolTerms(), i=Math.floor(Math.random()*pool.length);
@@ -1084,7 +1090,7 @@ function loop(t){
   g.globalAlpha=1;
 }
 
-window.MathTermGame={ open:open, close:close, terms:TERMS,
+window.MathTermGame={ open:open, close:close, terms:TERMS, chapters:CH,
   _render:function(i){ var f=renderFig(TERMS[i]); setFigProgress(f,1); return f.el; },
   // 점검용: 지금 용어를 키 하나씩 입력했을 때 화면에 보일 글자들
   _typingSteps:function(){ if(!cur) return []; var tg=cur.target, out=[];

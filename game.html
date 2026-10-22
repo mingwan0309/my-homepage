@@ -5,8 +5,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>미니게임 — 김민관 수학</title>
-<script src="firebase-api.js?v=62"></script>
-<script src="mathterm-game.js?v=1"></script>
+<script src="firebase-api.js?v=63"></script>
+<script src="mathterm-game.js?v=2"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;}
@@ -208,6 +208,7 @@ document.addEventListener('DOMContentLoaded', async function(){
   }catch(e){}
   await loadStatus();
   loadBonusConfig();
+  loadMathtermHidden();
 });
 function showGameNotice(html){
   var el=document.getElementById('game-notice');
@@ -299,6 +300,11 @@ function pickGame(gameKey){
   if(gameKey==='mathterm'){ openMathTerm(); return; }
   showIntro();
 }
+// 선생님이 관리 페이지에서 뺀 용어 목록(게임에서 안 나옴)
+var mathtermHidden=[];
+async function loadMathtermHidden(){
+  try{ var r=await fetch(SU+'?action=getMathtermSettings').then(function(r){return r.json();}); if(Array.isArray(r.hidden)) mathtermHidden=r.hidden; }catch(e){}
+}
 // 공수2 용어 타자 열기 — 도전 가능 여부/오늘 최고점을 넘겨주고, 도전이 끝나면 점수를 저장
 function openMathTerm(){
   var r = gameStatusCache || {};
@@ -307,6 +313,7 @@ function openMathTerm(){
   var left = (max===-1) ? -1 : Math.max(0, max-(st.attemptsToday||0));
   MathTermGame.open({
     canChallenge: left!==0,
+    hidden: mathtermHidden,
     todayBest: st.todayScore!=null ? st.todayScore : null,
     attemptsLabel: left===-1 ? '도전 무제한' : '오늘 도전 '+max+'번 중 '+left+'번 남음',
     onChallengeEnd: function(score){

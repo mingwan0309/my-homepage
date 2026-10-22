@@ -1922,6 +1922,22 @@ api.setGameSettings = function(db, p){
     .then(function(){ return { success:true }; }, function(e){ return { success:false, msg:(e&&e.message)||String(e) }; });
 };
 
+/* === 공수2 용어 타자 — 선생님이 뺀 용어 목록 (2026-10-22) === */
+// 용어 자체는 mathterm-game.js에 들어있고, 여기엔 '게임에서 뺄 용어 이름'만 저장함(game_settings/mathterm.hidden)
+api.getMathtermSettings = function(db){
+  return db.collection('game_settings').doc('mathterm').get().then(function(doc){
+    var h = (doc.exists && Array.isArray(doc.data().hidden)) ? doc.data().hidden : [];
+    return { hidden: h };
+  });
+};
+api.setMathtermHidden = function(db, p){
+  var h = [];
+  try { h = typeof p.hidden==='string' ? JSON.parse(p.hidden) : (p.hidden||[]); } catch(e) { h = []; }
+  h = h.map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+  return db.collection('game_settings').doc('mathterm').set({ hidden:h, updatedAt:nowStr() })
+    .then(function(){ return { success:true, hidden:h }; }, function(e){ return { success:false, msg:(e&&e.message)||String(e) }; });
+};
+
 /* === 문장 빨리 쓰기 미니게임 — 문제(문장) 관리 === */
 // 화면에 나온 문장을 그대로 똑같이 타이핑해서 맞히는 게임. '단어 빨리치기'와는 별도의 문제은행 사용.
 api.addTypingSentence = function(db, p){

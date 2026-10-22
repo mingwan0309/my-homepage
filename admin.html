@@ -6,7 +6,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=62"></script>
+<script src="firebase-api.js?v=63"></script>
+<script src="mathterm-game.js?v=2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -306,6 +307,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           <div class="nav-item" onclick="showPage('gamerank',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🏆</span> 게임 순위표</div>
           <div class="nav-item" onclick="showPage('gamesettings',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">💩</span> 똥피하기 설정</div>
           <div class="nav-item" onclick="showPage('typinggame',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">✍️</span> 문장게임 문제관리</div>
+          <div class="nav-item" onclick="showPage('mathterm',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📐</span> 용어 타자 관리</div>
         </div>
       </div>
       <div class="nav-group">
@@ -378,6 +380,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
           <div class="nav-item" onclick="showPage('gamerank',this)"><span class="ni">🏆</span> 게임 순위표</div>
           <div class="nav-item" onclick="showPage('gamesettings',this)"><span class="ni">💩</span> 똥피하기 설정</div>
           <div class="nav-item" onclick="showPage('typinggame',this)"><span class="ni">✍️</span> 문장게임 문제관리</div>
+          <div class="nav-item" onclick="showPage('mathterm',this)"><span class="ni">📐</span> 용어 타자 관리</div>
         </div>
       </div>
       <div class="nav-group">
@@ -984,6 +987,38 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div class="card-title">등록된 문제 목록 (<span id="tg-count">0</span>개)</div>
         <div id="tg-list" style="margin-top:8px;"></div>
       </div>
+    </div>
+
+    <!-- 미니게임(공수2 용어 타자) 용어 관리 — 2026-10-22 -->
+    <div id="page-mathterm" class="page">
+      <div class="page-header"><div class="page-title">미니게임 — 공수2 용어 타자 용어 관리</div></div>
+      <div class="card">
+        <div class="card-title">게임에 나오는 용어 (<span id="mtm-count">0</span>개 사용 중 · 뺀 것 <span id="mtm-hcount">0</span>개)</div>
+        <p style="font-size:12.5px;color:#94a3b8;margin:-6px 0 12px;">학생 게임에 나오는 용어 후보예요. <b>🗑 빼기</b>를 누르면 그 용어는 게임에서 안 나오고, 아래로 흐리게 남아서 <b>↩ 다시 넣기</b>로 언제든 되살릴 수 있어요.</p>
+        <div class="mtm-tabs" id="mtm-tabs"></div>
+        <div id="mtm-list" class="mtm-grid"><div style="color:#94a3b8;font-size:13px;">불러오는 중...</div></div>
+        <div id="mtm-msg" style="margin-top:10px;font-size:13px;"></div>
+      </div>
+      <style>
+        .mtm-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+        .mtm-tab{min-height:38px;padding:0 14px;border-radius:999px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+        .mtm-tab.on{background:#1e293b;border-color:#1e293b;color:#fff;}
+        .mtm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;}
+        .mtm-card{border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;display:flex;flex-direction:column;}
+        .mtm-card.off{opacity:.45;}
+        .mtm-fig{background:#0b1120;aspect-ratio:1/1;max-height:190px;display:flex;align-items:center;justify-content:center;}
+        .mtm-fig .mt-fig{width:100%;height:100%;}
+        .mtm-fig svg{width:100%;height:100%;display:block;}
+        .mtm-body{padding:10px 12px;flex:1;display:flex;flex-direction:column;gap:4px;}
+        .mtm-term{font-size:15px;font-weight:800;color:#0f172a;}
+        .mtm-ch{font-size:11px;font-weight:700;color:#64748b;}
+        .mtm-desc{font-size:12.5px;color:#64748b;line-height:1.5;flex:1;}
+        .mtm-btn{margin-top:6px;min-height:38px;border-radius:9px;border:1.5px solid #fecaca;background:#fff5f5;color:#dc2626;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;}
+        .mtm-btn.back{border-color:#bfdbfe;background:#eff6ff;color:#2563eb;}
+        .mtm-sep{grid-column:1/-1;font-size:13px;font-weight:800;color:#94a3b8;margin-top:10px;border-top:1px dashed #e2e8f0;padding-top:12px;}
+        @media(max-width:768px){ .mtm-grid{grid-template-columns:repeat(2,1fr);gap:8px;} .mtm-fig{max-height:none;} .mtm-term{font-size:14px;} .mtm-desc{font-size:12px;} .mtm-btn{min-height:44px;} .mtm-tab{min-height:44px;} }
+        @media(max-width:330px){ .mtm-grid{grid-template-columns:1fr;} }
+      </style>
     </div>
 
     <!-- 영상 -->
@@ -1608,6 +1643,7 @@ function showPage(page,el){
   if(page==='gamerank') loadGameRank();
   if(page==='gamesettings') loadGameSettings();
   if(page==='typinggame') loadTypingSentenceList();
+  if(page==='mathterm') loadMtmList();
   if(page==='problemtypes') loadProblemTypes();
   location.hash = page;
 }
@@ -4530,6 +4566,66 @@ async function sendAstTaskAlert(){
     if(r.success){ msgEl.style.color='#16a34a'; msgEl.textContent=messages.length+'명에게 발송 완료!'; }
     else { msgEl.style.color='#dc2626'; msgEl.textContent=r.msg||'발송 실패했어요.'; }
   }catch(e){ msgEl.style.color='#dc2626'; msgEl.textContent='발송 중 오류가 발생했어요.'; }
+}
+
+// ── 미니게임 - 공수2 용어 타자 용어 관리 (2026-10-22) ──
+// 용어 목록·그림은 mathterm-game.js(MathTermGame.terms)에서 가져오고, 뺀 용어 이름만 game_settings/mathterm.hidden에 저장
+var mtmHidden=[], mtmTab=-1, mtmSaving=false;
+async function loadMtmList(){
+  var el=document.getElementById('mtm-list');
+  if(!window.MathTermGame){ el.innerHTML='<div style="color:#dc2626;font-size:13px;">게임 파일을 못 불러왔어요. 새로고침(Ctrl+Shift+R) 해주세요.</div>'; return; }
+  try{
+    var r=await fetch(SU+'?action=getMathtermSettings').then(function(x){return x.json();});
+    if(r.error) throw new Error(r.error);
+    mtmHidden=Array.isArray(r.hidden)?r.hidden:[];
+  }catch(e){ document.getElementById('mtm-msg').innerHTML='<span style="color:#dc2626;">뺀 용어 목록을 못 불러왔어요: '+escHtml(e.message||String(e))+'</span>'; }
+  renderMtmList();
+}
+function renderMtmList(){
+  var T=MathTermGame.terms, CH=MathTermGame.chapters;
+  var live=T.filter(function(t){ return mtmHidden.indexOf(t.t)<0; });
+  document.getElementById('mtm-count').textContent=live.length;
+  document.getElementById('mtm-hcount').textContent=T.length-live.length;
+  document.getElementById('mtm-tabs').innerHTML=['전체'].concat(CH).map(function(n,i){
+    var c=T.filter(function(t){ return (i===0||t.ch===i-1) && mtmHidden.indexOf(t.t)<0; }).length;
+    return '<button class="mtm-tab'+((i-1)===mtmTab?' on':'')+'" onclick="mtmTab='+(i-1)+';renderMtmList()">'+n+' '+c+'</button>';
+  }).join('');
+  var list=document.getElementById('mtm-list'); list.innerHTML='';
+  var idx=T.map(function(t,i){ return i; }).filter(function(i){ return mtmTab<0 || T[i].ch===mtmTab; });
+  var on=idx.filter(function(i){ return mtmHidden.indexOf(T[i].t)<0; }), off=idx.filter(function(i){ return mtmHidden.indexOf(T[i].t)>=0; });
+  function card(i,isOff){
+    var t=T[i], d=document.createElement('div');
+    d.className='mtm-card'+(isOff?' off':'');
+    var fig=document.createElement('div'); fig.className='mtm-fig'; fig.appendChild(MathTermGame._render(i)); d.appendChild(fig);
+    var b=document.createElement('div'); b.className='mtm-body';
+    b.innerHTML='<div class="mtm-ch">'+escHtml(CH[t.ch])+'</div><div class="mtm-term">'+escHtml(t.t)+'</div><div class="mtm-desc">'+escHtml(t.d)+'</div>'
+      +'<button class="mtm-btn'+(isOff?' back':'')+'">'+(isOff?'↩ 다시 넣기':'🗑 빼기')+'</button>';
+    b.querySelector('button').onclick=function(){ mtmToggle(t.t,!isOff); };
+    d.appendChild(b); return d;
+  }
+  on.forEach(function(i){ list.appendChild(card(i,false)); });
+  if(!on.length) list.insertAdjacentHTML('beforeend','<div class="mtm-sep" style="border:none;margin:0;padding:0;">이 단원에 게임에 나오는 용어가 없어요.</div>');
+  if(off.length){
+    list.insertAdjacentHTML('beforeend','<div class="mtm-sep">🗑 뺀 용어 ('+off.length+'개) — 게임에 안 나와요</div>');
+    off.forEach(function(i){ list.appendChild(card(i,true)); });
+  }
+}
+async function mtmToggle(name,hide){
+  if(mtmSaving) return;
+  var next=mtmHidden.filter(function(x){ return x!==name; });
+  if(hide) next.push(name);
+  var msg=document.getElementById('mtm-msg');
+  mtmSaving=true;
+  try{
+    var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'setMathtermHidden',hidden:JSON.stringify(next)})}).then(function(x){return x.json();});
+    if(!r || r.success===false) throw new Error((r&&r.msg)||'저장 실패');
+    mtmHidden=next;
+    msg.innerHTML='<span style="color:#16a34a;">「'+escHtml(name)+'」 '+(hide?'게임에서 뺐어요.':'다시 넣었어요.')+'</span>';
+    renderMtmList();
+  }catch(e){
+    msg.innerHTML='<span style="color:#dc2626;">저장 못 했어요: '+escHtml(e.message||String(e))+'</span>';
+  }
+  mtmSaving=false;
 }
 
 // ── 미니게임 - 똥피하기 설정(보너스 글자) ──
