@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>미니게임 — 김민관 수학</title>
-<script src="firebase-api.js?v=63"></script>
+<script src="firebase-api.js?v=64"></script>
 <script src="mathterm-game.js?v=2"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;}
@@ -29,6 +29,10 @@ a{text-decoration:none;}
 .lb-name{flex:1;font-weight:700;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .lb-score{font-weight:800;color:#60a5fa;}
 .lb-empty{color:#64748b;font-size:12.5px;padding:6px 0;}
+.gw-tabs{display:flex;gap:6px;overflow-x:auto;margin:0 -2px 8px;padding:0 2px 2px;-webkit-overflow-scrolling:touch;}
+.gw-tab{flex-shrink:0;min-height:38px;padding:0 13px;border-radius:999px;border:1px solid #334155;background:transparent;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.gw-tab.on{background:#f1f5f9;color:#0f172a;border-color:#f1f5f9;}
+.lb-sub{color:#64748b;font-weight:600;font-size:11px;}
 
 .btn-play{width:100%;min-height:52px;border:none;border-radius:12px;background:linear-gradient(135deg,#3b6cf7,#1d4ed8);color:#fff;font-size:16px;font-weight:800;cursor:pointer;}
 .btn-play:disabled{background:#334155;color:#64748b;cursor:default;}
@@ -94,7 +98,8 @@ a{text-decoration:none;}
     </div>
 
     <div class="lb-card">
-      <div class="lb-title">💩 똥피하기 주간 누적 순위</div>
+      <div class="lb-title">🏅 게임별 이번 주 기록</div>
+      <div class="gw-tabs" id="gw-tabs"></div>
       <div id="lb-default-list"><div class="lb-empty">불러오는 중...</div></div>
     </div>
 
@@ -234,7 +239,7 @@ async function loadStatus(){
     var r=await fetch(SU+'?action=getGameStatus&studentId='+encodeURIComponent(session.id)).then(function(r){return r.json();});
     gameStatusCache=r;
     renderLeaderboard(r.leaderboard||[]);
-    renderDefaultWeekly(r.defaultWeekly||[]);
+    renderGameWeekly();
     renderStatus(r);
   }catch(e){
     document.getElementById('lb-list').innerHTML='<div class="lb-empty">불러오기 실패</div>';
@@ -257,21 +262,35 @@ function renderLeaderboard(list){
       +'</div>';
   }).join('');
 }
-// 똥피하기 전용 순위표 — 이번 주에 낸 모든 점수를 다 더한 "누적점수"로 순위를 매김(다른 게임이랑 합산 안 됨, 최고점도 같이 보여줌)
-function renderDefaultWeekly(list){
+// 게임별 이번 주 기록 — 탭으로 게임을 골라 봄(2026-10-24, 예전엔 똥피하기 누적 순위만 있었음)
+// 똥피하기는 이번 주 점수를 다 더한 누적점수 순, 나머지 게임은 최고점 순
+var gwTab=null;
+try{ gwTab=localStorage.getItem('mkmath_game_lbtab'); }catch(e){}
+function renderGameWeekly(){
+  var r=gameStatusCache||{}, gw=r.gameWeekly||{};
+  if(!r.gameWeekly && r.defaultWeekly) gw={'default':r.defaultWeekly}; // 옛 버전 응답 대비
+  if(GAME_ROTATION.indexOf(gwTab)<0) gwTab=GAME_ROTATION[0];
+  document.getElementById('gw-tabs').innerHTML=GAME_ROTATION.map(function(gk){
+    var m=GAME_META[gk]||{};
+    return '<button class="gw-tab'+(gk===gwTab?' on':'')+'" onclick="gwPick(\''+gk+'\')">'+(m.icon||'')+' '+escHtml(m.title||gk)+'</button>';
+  }).join('');
+  var list=gw[gwTab]||[], byTotal=gwTab==='default';
   var el=document.getElementById('lb-default-list');
   if(!list.length){ el.innerHTML='<div class="lb-empty">아직 이번 주 기록이 없어요. 첫 도전자가 되어보세요!</div>'; return; }
-  el.innerHTML=list.map(function(l,i){
+  el.innerHTML='<div class="lb-empty" style="padding:0 0 4px;">'+(byTotal?'이번 주 점수를 모두 더한 누적점수 순':'이번 주 최고점 순')+'</div>'+list.map(function(l,i){
     var rank=l.rank||(i+1);
     var isMe=l.studentId===session.id;
+    var main=byTotal?'누적 '+l.total+'점':'최고 '+l.best+'점';
+    var sub=byTotal?' · 최고 '+l.best+'점':(l.plays?' · '+l.plays+'판':'');
     return (l.outsideTop?'<div class="lb-empty" style="padding:4px 0;">···</div>':'')
       +'<div class="lb-row">'
       +'<span class="lb-rank'+(rank===1?' gold':'')+'">'+(rank===1?'👑':rank)+'</span>'
       +'<span class="lb-name" style="'+(isMe?'color:#4ade80;':'')+'">'+escHtml(l.studentName)+(isMe?' (나)':'')+'</span>'
-      +'<span class="lb-score">누적 '+l.total+'점<span style="color:#64748b;font-weight:600;font-size:11px;"> · 최고 '+l.best+'점</span></span>'
+      +'<span class="lb-score">'+main+'<span class="lb-sub">'+sub+'</span></span>'
       +'</div>';
   }).join('');
 }
+function gwPick(gk){ gwTab=gk; try{ localStorage.setItem('mkmath_game_lbtab',gk); }catch(e){} renderGameWeekly(); }
 function renderStatus(r){
   var perGame = r.perGame || {};
   var max = r.maxAttempts;

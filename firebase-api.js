@@ -1805,6 +1805,8 @@ api.getGameStatus = function(db, p){
       var bestByStudentGame = {}; // studentId -> { gameKey -> {score, name} }
       // 똥피하기 전용 순위표: 이번 주 그 게임만 플레이한 점수를 전부 더한 누적점수 기준(따로 관리, 2026-09-08 추가)
       var defaultAgg = {}; // studentId -> { total, best, name }
+      // 게임별 이번 주 기록(모든 게임, 2026-10-24 추가) — gameKey -> studentId -> { total, best, plays, name }
+      var gameAgg = {};
       wsnap.forEach(function(d){
         var r = d.data();
         var gk = r.gameKey || 'default';
@@ -1813,6 +1815,9 @@ api.getGameStatus = function(db, p){
         if (!cur || (r.score||0) > cur.score) {
           bestByStudentGame[r.studentId][gk] = { score:r.score||0, studentName:r.studentName||'' };
         }
+        if (!gameAgg[gk]) gameAgg[gk] = {};
+        var ga = gameAgg[gk][r.studentId] || (gameAgg[gk][r.studentId] = { total:0, best:0, plays:0, studentName:r.studentName||'' });
+        ga.total += (r.score||0); ga.best = Math.max(ga.best, r.score||0); ga.plays++;
         if (gk === 'default') {
           if (!defaultAgg[r.studentId]) defaultAgg[r.studentId] = { total:0, best:0, studentName:r.studentName||'' };
           defaultAgg[r.studentId].total += (r.score||0);
@@ -1840,9 +1845,17 @@ api.getGameStatus = function(db, p){
         var a = defaultAgg[stuId];
         return { studentId: stuId, studentName: a.studentName, total: a.total, best: a.best };
       }).sort(function(a,b){ return b.total-a.total; }));
+      // 게임별 순위: 똥피하기는 누적점수, 나머지는 최고점 기준(관리자 순위표와 같은 기준)
+      var gameWeekly = {};
+      Object.keys(gameAgg).forEach(function(gk){
+        gameWeekly[gk] = withMyRank(Object.keys(gameAgg[gk]).map(function(stuId){
+          var a = gameAgg[gk][stuId];
+          return { studentId: stuId, studentName: a.studentName, total: a.total, best: a.best, plays: a.plays };
+        }).sort(function(a,b){ return gk==='default' ? (b.total-a.total) : (b.best-a.best || b.total-a.total); }));
+      });
       return {
         maxAttempts: (maxAttempts===Infinity ? -1 : maxAttempts),
-        perGame: perGame, leaderboard: list, defaultWeekly: defaultList, weekKey: wk,
+        perGame: perGame, leaderboard: list, defaultWeekly: defaultList, gameWeekly: gameWeekly, weekKey: wk,
         myWeekCount: (bestByStudentGame[sid] ? Object.keys(bestByStudentGame[sid]).length : 0)
       };
     });
