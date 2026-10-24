@@ -6,7 +6,7 @@
 <style>html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;}</style>
 <script>['gesturestart','gesturechange','gestureend'].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();},{passive:false});});</script>
 <title>반 정보 — 김민관 수학</title>
-<script src="firebase-api.js?v=65"></script>
+<script src="firebase-api.js?v=66"></script>
 <script src="chat-widget.js" defer></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
@@ -360,8 +360,16 @@ tr:hover td{background:#fafbff;}
           <div class="card-header">
             <div class="card-title">영상 자료</div>
             <div style="display:flex;gap:8px;">
+              <button class="btn-add-mat" id="btn-vid-order" onclick="voToggle()" style="display:none;background:#fff;color:#7c3aed;border:1.5px solid #ddd6fe;">↕ 순서 변경</button>
               <button class="btn-add-mat" id="btn-add-folder" onclick="startFolderPick('영상 자료')" style="display:none;background:#fff;color:#3b6cf7;border:1.5px solid #c7d2fe;">+ 폴더 만들기</button>
               <button class="btn-add-mat" id="btn-add-video" onclick="openVideoModal()" style="display:none;">+ 영상 추가</button>
+            </div>
+          </div>
+          <div id="vid-order-bar" style="display:none;background:#f5f3ff;border-bottom:1px solid #ddd6fe;padding:12px 20px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:700;color:#6d28d9;">카드를 끌어서 옮기거나, 카드의 ◀ ▶ 버튼으로 순서를 바꾸세요.</span>
+            <div style="display:flex;gap:8px;">
+              <button onclick="voCancel()" style="background:#fff;border:1.5px solid #e2e8f0;color:#475569;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;min-height:40px;">취소</button>
+              <button onclick="voSave()" id="vo-save-btn" style="background:#7c3aed;border:none;color:#fff;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;min-height:40px;">✓ 순서 저장</button>
             </div>
           </div>
           <div id="video-folder-pick-bar" style="display:none;background:#eff6ff;border-bottom:1px solid #dbeafe;padding:12px 20px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
@@ -810,6 +818,7 @@ function renderHeader(){
     document.getElementById('btn-add-matfolder').style.display='';
     document.getElementById('btn-add-video').style.display='';
     document.getElementById('btn-add-folder').style.display='';
+    var vob=document.getElementById('btn-vid-order'); if(vob) vob.style.display='';
   }
 }
 
@@ -1263,6 +1272,16 @@ function videoCardHtml(m){
     var vid=ytId(m.url);
     if(vid) thumb='<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg" onerror="this.style.display=\'none\'">';
   }
+  // 순서 변경 모드: 영상은 안 열리고, 끌어서 옮기거나 ◀ ▶ 버튼으로 이동 (2026-10-24 추가)
+  if(voMode){
+    return '<div class="video-card vo-card" draggable="true" data-mid="'+m.id+'" style="cursor:grab;position:relative;border:2px dashed #c4b5fd;">'
+      +'<div class="video-thumb" style="pointer-events:none;">'+thumb+'</div>'
+      +'<div class="video-info"><div class="video-title" style="pointer-events:none;">'+escHtml(m.name)+'</div>'
+      +'<div style="display:flex;gap:6px;justify-content:center;margin-top:6px;">'
+      +'<button onclick="event.stopPropagation();voMove(this,-1)" style="flex:1;min-height:38px;background:#f5f3ff;border:1.5px solid #ddd6fe;color:#6d28d9;border-radius:8px;font-size:15px;font-weight:800;cursor:pointer;">◀</button>'
+      +'<button onclick="event.stopPropagation();voMove(this,1)" style="flex:1;min-height:38px;background:#f5f3ff;border:1.5px solid #ddd6fe;color:#6d28d9;border-radius:8px;font-size:15px;font-weight:800;cursor:pointer;">▶</button>'
+      +'</div></div></div>';
+  }
   var badge='<span class="video-badge badge-drive">강의 영상</span>';
   var editBtn=isStaff?'<button class="video-del-btn" onclick="event.stopPropagation();renameMat(\''+m.id+'\')">이름수정</button>':'';
   var folderBtn=isStaff?'<button class="video-del-btn" onclick="event.stopPropagation();changeMatFolder(\''+m.id+'\')">폴더이동</button>':'';
@@ -1311,6 +1330,69 @@ function renderVideos(){
       +'<div class="vid-drop-body" style="display:'+(openNow?'block':'none')+';">'+(items.length?'<div class="video-grid">'+items.map(videoCardHtml).join('')+'</div>':'<div style="padding:16px 20px;color:#94a3b8;font-size:12.5px;">아직 이 폴더에 영상이 없어요. "+ 영상 추가" 또는 영상 카드의 "폴더이동"으로 넣어주세요.</div>')+'</div>';
   });
   wrap.innerHTML=html;
+}
+/* ── 영상 자료 순서 변경 (2026-10-24 추가, 교사 전용) ──
+   카드를 끌어서 옮기거나(PC) ◀ ▶ 버튼으로 옮기고(폰) "순서 저장"을 눌러야 저장됨.
+   저장은 폴더(또는 폴더없음) 묶음별로 따로 — 한 묶음 안의 순서만 sortOrder(0,1,2…)로 기록.
+   ⚠ 끌기(HTML5 drag)는 폰 터치에서 동작하지 않으므로 ◀ ▶ 버튼을 반드시 같이 둘 것. */
+var voMode=false;
+function voToggle(){ if(voMode) voCancel(); else { voMode=true; renderVideos(); voBindDrag(); voBar(true); } }
+function voCancel(){ voMode=false; renderVideos(); voBar(false); }
+function voBar(on){
+  var bar=document.getElementById('vid-order-bar');
+  if(bar) bar.style.display=on?'flex':'none';
+  var btn=document.getElementById('btn-vid-order');
+  if(btn){ btn.textContent=on?'✕ 순서 변경 끝내기':'↕ 순서 변경'; }
+}
+// 카드는 매번 다시 그려지므로 드래그 이벤트는 그리드마다 한 번씩만 위임해서 검
+function voBindDrag(){
+  document.querySelectorAll('#video-list-wrap .video-grid').forEach(function(grid){
+    if(grid.dataset.voBound) return;
+    grid.dataset.voBound='1';
+    grid.addEventListener('dragstart',function(e){
+      var card=e.target.closest('.vo-card'); if(!card) return;
+      grid._voDrag=card; card.style.opacity='.4';
+    });
+    grid.addEventListener('dragend',function(){
+      if(grid._voDrag) grid._voDrag.style.opacity='';
+      grid._voDrag=null;
+    });
+    grid.addEventListener('dragover',function(e){
+      if(!grid._voDrag) return;
+      e.preventDefault();
+      var over=e.target.closest('.vo-card');
+      if(!over || over===grid._voDrag) return;
+      var r=over.getBoundingClientRect();
+      var after=(e.clientX - r.left) > r.width/2;
+      grid.insertBefore(grid._voDrag, after ? over.nextSibling : over);
+    });
+    grid.addEventListener('drop',function(e){ e.preventDefault(); });
+  });
+}
+function voMove(btn, dir){
+  var card=btn.closest('.vo-card'), grid=card&&card.parentElement;
+  if(!card||!grid) return;
+  if(dir<0){ var prev=card.previousElementSibling; if(prev) grid.insertBefore(card, prev); }
+  else { var next=card.nextElementSibling; if(next) grid.insertBefore(next, card); }
+  card.scrollIntoView({block:'nearest',inline:'nearest'});
+}
+async function voSave(){
+  var btn=document.getElementById('vo-save-btn');
+  var grids=Array.prototype.slice.call(document.querySelectorAll('#video-list-wrap .video-grid'));
+  if(!grids.length){ voCancel(); return; }
+  btn.disabled=true; btn.textContent='저장 중…';
+  try{
+    for(var gi=0; gi<grids.length; gi++){
+      var ids=Array.prototype.slice.call(grids[gi].querySelectorAll('.vo-card')).map(function(c){ return c.dataset.mid; });
+      if(!ids.length) continue;
+      var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'setMaterialOrder', ids:JSON.stringify(ids), base: gi*1000})}).then(function(r){return r.json();});
+      if(!r||!r.success) throw new Error((r&&r.msg)||'저장 실패');
+    }
+    voMode=false; voBar(false);
+    await loadMaterials();
+    alert('순서를 저장했어요.');
+  }catch(e){ alert('순서 저장 실패: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='✓ 순서 저장'; }
 }
 function toggleVidFolder(btn){
   var body=btn.nextElementSibling;

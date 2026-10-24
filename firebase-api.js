@@ -2258,13 +2258,37 @@ api.getAllHwReminders = function(db){
 /* === 자료실 === */
 api.getMaterials = function(db, p){
   return db.collection('materials').where('classId','==',String(p.classId)).get().then(function(snap){
-    var mats = docsToArr(snap).sort(function(a,b){ return (a.uploadDate||'') < (b.uploadDate||'') ? -1 : 1; })
+    // 정렬: 선생님이 직접 정한 순서(sortOrder)가 있으면 그게 우선, 없는 자료는 그 뒤에 올린 순서대로.
+    // (순서를 한 번도 안 바꾼 자료실은 예전과 똑같이 "올린 순"으로 보임 — 2026-10-24 순서 변경 기능 추가)
+    var mats = docsToArr(snap).sort(function(a,b){
+        var ao = (typeof a.sortOrder==='number') ? a.sortOrder : null;
+        var bo = (typeof b.sortOrder==='number') ? b.sortOrder : null;
+        if (ao !== null && bo !== null && ao !== bo) return ao - bo;
+        if (ao !== null && bo === null) return -1;
+        if (ao === null && bo !== null) return 1;
+        return (a.uploadDate||'') < (b.uploadDate||'') ? -1 : 1;
+      })
       .map(function(r){
         return { id:String(r.id), classId:String(r.classId), category:r.category||'', name:r.name||'', url:r.url||'',
-                 size:r.size||'', uploadDate:r.uploadDate||'', downloadCount:Number(r.downloadCount||0), memo:r.memo||'', wmLevel:r.wmLevel||'0', folder:r.folder||'' };
+                 size:r.size||'', uploadDate:r.uploadDate||'', downloadCount:Number(r.downloadCount||0), memo:r.memo||'', wmLevel:r.wmLevel||'0', folder:r.folder||'',
+                 sortOrder:(typeof r.sortOrder==='number'?r.sortOrder:null) };
       });
     return { materials: mats };
   });
+};
+
+// 자료 순서 저장 — 화면에 보이는 순서대로 id 목록을 받아 sortOrder(0,1,2…)를 기록 (2026-10-24 추가)
+// 한 묶음(폴더 또는 폴더없음) 안의 순서만 넘기면 됨. 다른 묶음은 건드리지 않음.
+api.setMaterialOrder = function(db, p){
+  var ids=[];
+  try{ ids = JSON.parse(p.ids||'[]'); }catch(e){ ids=[]; }
+  if (!Array.isArray(ids) || !ids.length) return Promise.resolve({ success:false, msg:'순서 목록이 비어 있어요.' });
+  var base = Number(p.base||0);
+  var batch = db.batch();
+  ids.slice(0,300).forEach(function(id, i){
+    batch.set(db.collection('materials').doc(String(id)), { sortOrder: base + i }, { merge:true });
+  });
+  return batch.commit().then(function(){ return { success:true }; }, function(e){ return { success:false, msg:(e&&e.message)||String(e) }; });
 };
 
 api.addMaterial = function(db, p){
