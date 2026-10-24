@@ -1442,6 +1442,7 @@ api.submitHwProof = function(db, p){
     db.collection('students').doc(String(p.studentId)).get().then(function(d){
       var nm=d.exists?(d.data().name||p.studentId):p.studentId;
       logActivity(db, p.studentId, nm, 'student', nm+'(학생)님이 숙제 증빙 사진을 제출했습니다.', 'HW_SUBMIT');
+      if (urls.length) notifyTeacherProofUpload('hw', nm, p.hwName||'', urls.length);
     });
     return { success:true };
   });
@@ -2182,6 +2183,7 @@ api.submitExamProof = function(db, p){
     db.collection('students').doc(String(p.studentId)).get().then(function(d){
       var nm=d.exists?(d.data().name||p.studentId):p.studentId;
       logActivity(db, p.studentId, nm, 'student', nm+'(학생)님이 재시험 증빙 사진을 제출했습니다.', 'EXAM_SUBMIT');
+      if (urls.length) notifyTeacherProofUpload('exam', nm, p.examName||'', urls.length);
     });
     return { success:true };
   });
@@ -3182,6 +3184,32 @@ function notifyTeacherNewQuestion(studentName, title){
       action:'sendAlimtalk',
       appToken: APP_SHARED_TOKEN,
       messages:[{ phone:TEACHER_NOTIFY_PHONE, name:studentName||'', className:'질의응답 새 질문', sessionNum:dateStr+' '+timeStr, message:(studentName||'')+'님이 질문을 남겼습니다. ('+(title||'')+')' }]
+    };
+    return (typeof _origFetch==='function'?_origFetch:window.fetch)(TEACHER_APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify(body) }).catch(function(){});
+  }catch(e){}
+}
+// 학생이 숙제·재시험 증빙 사진을 올리면 선생님 번호로 알림톡 1통 (2026-10-24 추가)
+// ⚠ 사진을 "지운" 경우(urls가 0장)에는 부르지 않음 — 올렸을 때만.
+// 사진 여러 장을 한 번에 올려도 제출 1건이므로 1통(mypage가 목록 전체를 한 번에 저장하는 구조).
+function notifyTeacherProofUpload(kind, studentName, itemName, count){
+  try{
+    var now = new Date();
+    function p(n){ return (n<10?'0':'')+n; }
+    var dateStr = now.getFullYear()+'-'+p(now.getMonth()+1)+'-'+p(now.getDate());
+    var timeStr = p(now.getHours())+':'+p(now.getMinutes());
+    var body = {
+      action:'sendAlimtalk',
+      appToken: APP_SHARED_TOKEN,
+      messages:[{
+        phone: TEACHER_NOTIFY_PHONE,
+        name: studentName||'',
+        className: (kind==='exam' ? '재시험 사진 제출' : '숙제 사진 제출'),
+        sessionNum: dateStr+' '+timeStr,
+        message: (studentName||'')+'님이 '+(kind==='exam'?'재시험':'숙제')+' 사진을 올렸습니다.'
+                 + (itemName?' ('+itemName+')':'')
+                 + (count?' '+count+'장':'')
+                 + ' 6시간 안에 확인하지 않으면 자동으로 완료 처리됩니다.'
+      }]
     };
     return (typeof _origFetch==='function'?_origFetch:window.fetch)(TEACHER_APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify(body) }).catch(function(){});
   }catch(e){}

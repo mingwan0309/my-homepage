@@ -9,7 +9,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>마이페이지 — 김민관 수학</title>
-<script src="firebase-api.js?v=64"></script>
+<script src="firebase-api.js?v=65"></script>
 <script src="home-popup.js?v=4"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="chat-widget.js" defer></script>
@@ -1525,7 +1525,7 @@ function hwFileToBase64(file){
 async function submitHwProofUrls(item, urls){
   // 저장이 거부돼도(권한 등) 통신 자체는 성공으로 돌아오기 때문에, 응답의 success를 반드시 확인해야 함.
   // 이걸 안 보면 실제로는 저장이 안 됐는데 "제출했어요"라고 잘못 안내하게 됨(2026-09-16 재시험 쪽에서 실제로 발생).
-  var r=await fetch(SU+'?action=submitHwProof&sessionId='+encodeURIComponent(item.sessionId)+'&studentId='+encodeURIComponent(session.id)+'&hwId='+encodeURIComponent(item.hwId)+'&urls='+encodeURIComponent(JSON.stringify(urls))).then(function(r){return r.json();});
+  var r=await fetch(SU+'?action=submitHwProof&sessionId='+encodeURIComponent(item.sessionId)+'&studentId='+encodeURIComponent(session.id)+'&hwId='+encodeURIComponent(item.hwId)+'&hwName='+encodeURIComponent(item.hwName||item.name||'')+'&urls='+encodeURIComponent(JSON.stringify(urls))).then(function(r){return r.json();});
   if(!r || r.success===false) throw new Error('저장 거부: '+(r&&r.msg||''));
   await loadMyHomework();
   checkProofDeadlineGate(); // 사진을 올렸으면 잠금 화면이 바로 사라지도록(반대로 지우면 다시 뜸)
@@ -1626,7 +1626,7 @@ function triggerExamUpload(id){
   input.click();
 }
 async function submitExamProofUrls(item, urls){
-  var r=await fetch(SU+'?action=submitExamProof&id='+encodeURIComponent(item.id)+'&studentId='+encodeURIComponent(session.id)+'&urls='+encodeURIComponent(JSON.stringify(urls))).then(function(r){return r.json();});
+  var r=await fetch(SU+'?action=submitExamProof&id='+encodeURIComponent(item.id)+'&studentId='+encodeURIComponent(session.id)+'&examName='+encodeURIComponent(item.examName||item.name||'')+'&urls='+encodeURIComponent(JSON.stringify(urls))).then(function(r){return r.json();});
   if(!r || r.success===false) throw new Error('저장 거부: '+(r&&r.msg||''));
   await loadMyExamAlerts();
   checkProofDeadlineGate(); // 사진을 올렸으면 잠금 화면이 바로 사라지도록(반대로 지우면 다시 뜸)
