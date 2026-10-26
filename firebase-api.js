@@ -2638,9 +2638,15 @@ api.bookClinic = function(db, p){
     var id = genId('book');
     return db.collection('clinic_bookings').doc(id).set({
       id:id, clinicId:String(p.clinicId), clinicName:p.clinicName||'', studentId:String(p.studentId),
-      studentName:p.studentName||'', date:p.date||'', time:p.time||'', status:'예약', createdAt:nowStr()
+      studentName:p.studentName||'', date:p.date||'', time:p.time||'', status:'예약', createdAt:nowStr(),
+      // 선생님이 학생 대신 잡아준 예약이면 누가 잡았는지 남김(학생이 직접 신청하면 빈 값)
+      bookedBy: String(p.by||'')
     }).then(function(){
-      logActivity(db, p.studentId, p.studentName, 'student', (p.studentName||p.studentId)+'(학생)님이 클리닉을 신청했습니다. ('+(p.date||'')+' '+(p.time||'')+')', 'CLINIC_BOOK');
+      var who = String(p.by||'');
+      var log = who
+        ? (who+'님이 '+(p.studentName||p.studentId)+' 학생의 클리닉을 대신 신청했습니다. ('+(p.date||'')+' '+(p.time||'')+')')
+        : ((p.studentName||p.studentId)+'(학생)님이 클리닉을 신청했습니다. ('+(p.date||'')+' '+(p.time||'')+')');
+      logActivity(db, p.studentId, p.studentName, 'student', log, 'CLINIC_BOOK');
       return { success:true };
     });
   });
