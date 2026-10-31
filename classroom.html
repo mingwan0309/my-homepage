@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>민관이교실</title>
+<script src="firebase-api.js?v=67"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;-webkit-tap-highlight-color:transparent;}
 html,body{width:100%;height:100%;overflow:hidden;background:#0f172a;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none;}
@@ -51,13 +52,34 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0f172a;color:#fff;t
 #joy-knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.55);}
 
 /* 입장 화면 */
-#intro{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 30%,#1e3a8a 0%,#0f172a 70%);padding:20px;}
+#intro{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;overflow-y:auto;background:radial-gradient(circle at 50% 30%,#1e3a8a 0%,#0f172a 70%);padding:20px;}
 .intro-card{width:100%;max-width:420px;text-align:center;}
 .intro-face{width:120px;height:120px;border-radius:50%;margin:0 auto 16px;background:url('메인화면사진.jpg') 50% 18%/190% no-repeat;border:4px solid #fff;box-shadow:0 10px 30px rgba(0,0,0,.4);}
 .intro-card h1{font-size:30px;font-weight:900;margin-bottom:8px;}
 .intro-card p{font-size:15px;color:#cbd5e1;line-height:1.6;margin-bottom:6px;}
 .intro-keys{margin:16px 0 20px;background:rgba(255,255,255,.08);border-radius:14px;padding:12px 14px;font-size:13px;color:#e2e8f0;line-height:1.8;text-align:left;}
 .intro-keys b{color:#fff;}
+.name-row{margin:0 0 12px;text-align:left;}
+.name-row label{display:block;font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:6px;}
+#name-input{width:100%;min-height:50px;border-radius:12px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:16px;font-weight:700;padding:0 14px;outline:none;}
+#name-input:focus{border-color:#60a5fa;}
+#name-input::placeholder{color:#94a3b8;font-weight:500;}
+#name-err{font-size:12px;color:#fca5a5;margin-top:5px;min-height:14px;}
+
+/* 공부 누적 TOP 10 */
+#rank{position:fixed;right:12px;top:calc(66px + env(safe-area-inset-top));width:200px;background:rgba(15,23,42,.78);border-radius:12px;z-index:5;backdrop-filter:blur(6px);overflow:hidden;}
+#rank-head{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:40px;padding:0 10px;border:none;background:transparent;color:#fff;font-size:13px;font-weight:800;cursor:pointer;}
+#rank-head .tg{font-size:11px;color:#cbd5e1;}
+#rank-list{padding:0 8px 8px;}
+.rk{display:flex;align-items:center;gap:6px;padding:4px 4px;border-radius:7px;font-size:13px;}
+.rk .n{width:20px;text-align:center;font-weight:800;color:#cbd5e1;flex-shrink:0;}
+.rk .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;}
+.rk .tm{font-variant-numeric:tabular-nums;color:#e2e8f0;font-weight:700;flex-shrink:0;}
+.rk.me{background:rgba(59,108,247,.45);}
+.rk.r1 .n{color:#facc15;} .rk.r2 .n{color:#e5e7eb;} .rk.r3 .n{color:#f59e0b;}
+.rk-empty{font-size:12px;color:#94a3b8;padding:6px 4px;}
+.rk-mine{margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);}
+#rank.fold #rank-list{display:none;}
 #enter-btn{width:100%;min-height:54px;border:none;border-radius:14px;background:#3b6cf7;color:#fff;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 10px 30px rgba(59,108,247,.45);}
 #loading{font-size:13px;color:#94a3b8;margin-top:10px;}
 
@@ -73,6 +95,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0f172a;color:#fff;t
   #bubble{font-size:14px;max-width:220px;}
   .intro-card h1{font-size:26px;}
   #seat-timer .t{font-size:34px;}
+  #rank{width:158px;}
+  .rk{font-size:12px;padding:3px 2px;}
+  #seat-timer{top:calc(126px + env(safe-area-inset-top));left:12px;transform:none;text-align:left;}
 }
 </style>
 </head>
@@ -85,6 +110,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0f172a;color:#fff;t
   <div class="study-box"><div class="l">오늘 공부한 시간</div><div class="t" id="today-t">00:00:00</div></div>
 </div>
 <div class="gauge"><div class="l"><span>👀 선생님 눈치</span><span id="gauge-pct">0%</span></div><div class="bar"><div class="fill" id="gauge-fill"></div></div></div>
+<div id="rank"><button id="rank-head">🏆 공부 누적 TOP 10 <span class="tg" id="rank-tg">접기</span></button><div id="rank-list"><div class="rk-empty">불러오는 중...</div></div></div>
 <div id="bubble"></div>
 <div id="cross"></div>
 <div id="hint"></div>
@@ -100,6 +126,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0f172a;color:#fff;t
     <p>민관쌤이 교실 앞에서 감독하고 있어요.<br>교실을 둘러봐도 되지만, <b>너무 돌아다니면 혼나요!</b></p>
     <p>파랗게 빛나는 <b>내 자리</b>에 앉으면 공부 시간이 기록돼요.</p>
     <div class="intro-keys" id="intro-keys"></div>
+    <div class="name-row">
+      <label for="name-input">✏️ 이름을 적어주세요 (순위표에 나와요)</label>
+      <input id="name-input" maxlength="12" placeholder="예) 김민관" autocomplete="off">
+      <div id="name-err"></div>
+    </div>
     <button id="enter-btn" disabled>불러오는 중...</button>
     <div id="loading"></div>
   </div>
@@ -116,8 +147,11 @@ var MOBILE = IS_TOUCH && IS_COARSE;
 // ── 학생 이름 (말풍선용) ──
 var session = null;
 try { session = JSON.parse(localStorage.getItem('mkmath_session') || 'null'); } catch(e) {}
+var myName = '';
+try { myName = localStorage.getItem('mk_class_name') || ''; } catch(e) {}
+if (!myName && session && session.name && session.role === 'student') myName = String(session.name).trim();
 function callName(){
-  var n = session && session.name ? String(session.name).trim() : '';
+  var n = String(myName || '').trim();
   if (!n) return '';
   if (n.length === 3) n = n.slice(1);           // 김민관 → 민관
   var last = n.charCodeAt(n.length - 1);
@@ -387,8 +421,15 @@ var pencil = box(0.22, 0.015, 0.015, lam(0xfacc15), myDeskX + 0.32, 0.78, myDesk
 var tagTex = canvasTex(256, 96, function(g, w, h){
   g.fillStyle = '#3b6cf7'; g.fillRect(0, 0, w, h);
   g.fillStyle = '#fff'; g.font = '900 40px Pretendard, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(session && session.name ? session.name : '내 자리', w / 2, h / 2);
+  g.fillText('내 자리', w / 2, h / 2);
 });
+function drawNameTag(){
+  var c = tagTex.image, g = c.getContext('2d');
+  g.fillStyle = '#3b6cf7'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#fff'; g.font = '900 40px Pretendard, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(myName || '내 자리', c.width / 2, c.height / 2, c.width - 16);
+  tagTex.needsUpdate = true;
+}
 var tag = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.09), new THREE.MeshBasicMaterial({ map: tagTex }));
 tag.position.set(myDeskX, 0.83, myDeskZ - 0.24); tag.rotation.x = -0.4; scene.add(tag);
 var ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.75, 40), new THREE.MeshBasicMaterial({ color: 0x3b9cff, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
@@ -679,7 +720,7 @@ function update(dt){
 
   // 앉아서 공부 시간
   if (player.seated) {
-    seatSec += dt; todaySec += dt;
+    seatSec += dt; todaySec += dt; pendingSec += dt;
     idleTalkT -= dt;
     if (idleTalkT <= 0) { say(pick(LINES.cheer), false); idleTalkT = 150 + Math.random() * 90; }
     if (todaySec - lastSaved > 5) { lastSaved = todaySec; try { localStorage.setItem(todayKey(), String(Math.floor(todaySec))); } catch(e) {} }
@@ -793,7 +834,9 @@ function placeBubble(){
   var bw = bubble.offsetWidth, bh = bubble.offsetHeight;
   var edge = behind || x < bw / 2 + 10 || x > W - bw / 2 - 10 || y < bh + 80 || y > H - 20;
   x = Math.max(bw / 2 + 10, Math.min(W - bw / 2 - 10, x));
-  y = Math.max(bh + 120, Math.min(H - 170, y));
+  var minY = bh + 120;
+  if (W <= 768 && !rankFold) minY = Math.max(minY, rankEl.getBoundingClientRect().bottom + bh + 14);   // 폰: 순위표와 안 겹치게
+  y = Math.max(minY, Math.min(H - 170, y));
   bubble.style.left = x + 'px'; bubble.style.top = y + 'px';
   bubble.classList.toggle('edge', edge);
 }
@@ -815,8 +858,93 @@ function loop(now){
 }
 requestAnimationFrame(loop);
 
+// ═══════════════ 공부 누적 순위 (Firestore classroom_study) ═══════════════
+// 문서 하나 = 이름 하나 { name, totalSec, updatedAt(서버시각) }.
+// 규칙이 "지난 저장 이후 실제로 흐른 시간만큼만" 늘릴 수 있게 막아둠 → 30초마다 쌓인 만큼만 저장.
+var rankEl = document.getElementById('rank'), rankList = document.getElementById('rank-list');
+var rankTop = [], rankMine = null, rankErr = '';
+var pendingSec = 0, flushing = false;
+function nameKey(n){ return 'n_' + String(n).replace(/[\/.#\[\]\s]/g, '_'); }
+function getDb(){
+  return new Promise(function(res){
+    (function wait(){
+      if (window.firebase && firebase.apps && firebase.apps.length && firebase.firestore) res(firebase.firestore());
+      else setTimeout(wait, 200);
+    })();
+  });
+}
+function fmtRank(sec){
+  sec = Math.floor(sec || 0);
+  var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
+  return h ? h + '시간 ' + m + '분' : (m ? m + '분' : sec + '초');
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function rkRow(rank, name, sec, me){
+  return '<div class="rk' + (me ? ' me' : '') + (rank <= 3 ? ' r' + rank : '') + '"><span class="n">' + (rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : rank) +
+    '</span><span class="nm">' + esc(name) + '</span><span class="tm">' + fmtRank(sec) + '</span></div>';
+}
+function renderRank(){
+  if (rankErr) { rankList.innerHTML = '<div class="rk-empty">' + esc(rankErr) + '</div>'; return; }
+  var html = '', inTop = false;
+  rankTop.forEach(function(r, i){
+    var me = myName && r.name === myName; if (me) inTop = true;
+    html += rkRow(i + 1, r.name, r.totalSec + (me ? pendingSec : 0), me);
+  });
+  if (!rankTop.length) html = '<div class="rk-empty">아직 기록이 없어요.<br>자리에 앉아서 1등 해보세요!</div>';
+  if (myName && started && !inTop) {
+    var mySec = (rankMine ? rankMine.totalSec : 0) + pendingSec;
+    html += '<div class="rk-mine">' + rkRow(rankMine && rankMine.rank ? rankMine.rank : '-', myName + ' (나)', mySec, true) + '</div>';
+  }
+  rankList.innerHTML = html;
+}
+var rankFold = MOBILE && window.innerHeight < 700;
+function renderFold(){ rankEl.classList.toggle('fold', rankFold); document.getElementById('rank-tg').textContent = rankFold ? '펼치기' : '접기'; }
+renderFold();
+document.getElementById('rank-head').addEventListener('click', function(e){ e.stopPropagation(); rankFold = !rankFold; renderFold(); });
+
+getDb().then(function(db){
+  db.collection('classroom_study').orderBy('totalSec', 'desc').limit(10).onSnapshot(function(snap){
+    rankErr = '';
+    rankTop = []; snap.forEach(function(d){ var v = d.data(); rankTop.push({ name: v.name, totalSec: v.totalSec || 0 }); });
+    renderRank();
+    refreshMine();
+  }, function(err){
+    console.warn('[민관이교실] 순위 불러오기 실패', err);
+    rankErr = '순위를 불러오지 못했어요';
+    renderRank();
+  });
+});
+// 내가 10등 밖일 때 내 기록·등수
+function refreshMine(){
+  if (!myName) return;
+  getDb().then(function(db){
+    return db.collection('classroom_study').doc(nameKey(myName)).get().then(function(doc){
+      if (!doc.exists) { rankMine = null; renderRank(); return; }
+      var v = doc.data(); rankMine = { totalSec: v.totalSec || 0, rank: null };
+      var q = db.collection('classroom_study').where('totalSec', '>', rankMine.totalSec);
+      if (!q.count) { renderRank(); return; }
+      return q.count().get().then(function(c){ rankMine.rank = c.data().count + 1; renderRank(); });
+    });
+  }).catch(function(e){ console.warn('[민관이교실] 내 기록 불러오기 실패', e); });
+}
+function flushStudy(){
+  var add = Math.min(Math.floor(pendingSec), 60);   // 한 번에 최대 60초(규칙과 맞춤)
+  if (!myName || add < 1 || flushing) return;
+  flushing = true;
+  getDb().then(function(db){
+    var FV = firebase.firestore.FieldValue;
+    return db.collection('classroom_study').doc(nameKey(myName)).set({
+      name: myName, totalSec: FV.increment(add), updatedAt: FV.serverTimestamp()
+    }, { merge: true }).then(function(){ pendingSec -= add; });
+  }).catch(function(e){
+    console.warn('[민관이교실] 공부 시간 저장 실패', e);
+  }).then(function(){ flushing = false; refreshMine(); });
+}
+setInterval(function(){ if (pendingSec >= 30) flushStudy(); }, 5000);
+setInterval(renderRank, 5000);
+
 // 저장 (나갈 때)
-function saveNow(){ try { localStorage.setItem(todayKey(), String(Math.floor(todaySec))); } catch(e) {} }
+function saveNow(){ try { localStorage.setItem(todayKey(), String(Math.floor(todaySec))); } catch(e) {} flushStudy(); }
 window.addEventListener('pagehide', saveNow);
 document.addEventListener('visibilitychange', function(){ if (document.hidden) { saveNow(); keys = {}; } });
 
@@ -825,9 +953,20 @@ var faceReady = false;
 var enterBtn = document.getElementById('enter-btn');
 function checkReady(){ if (faceReady) { enterBtn.disabled = false; enterBtn.textContent = '교실 들어가기'; } }
 setTimeout(function(){ faceReady = true; checkReady(); }, 5000);
+var nameInput = document.getElementById('name-input'), nameErr = document.getElementById('name-err');
+nameInput.value = myName;
+nameInput.addEventListener('keydown', function(e){ e.stopPropagation(); if (e.key === 'Enter') enterBtn.click(); });
+nameInput.addEventListener('keyup', function(e){ e.stopPropagation(); });
 enterBtn.addEventListener('click', function(){
+  var nm = nameInput.value.replace(/\s+/g, ' ').trim().slice(0, 12);
+  if (!nm) { nameErr.textContent = '이름을 먼저 적어주세요!'; nameInput.focus(); return; }
+  myName = nm; CALL = callName();
+  try { localStorage.setItem('mk_class_name', nm); } catch(e) {}
+  drawNameTag();
+  nameInput.blur();
   document.getElementById('intro').style.display = 'none';
   started = true;
+  renderRank();
   if (window.speechSynthesis) { pickVoice(); }
   requestLock();
   setTimeout(function(){ say(pick(LINES.welcome), false, 4); }, 600);
