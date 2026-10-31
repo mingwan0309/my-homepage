@@ -715,19 +715,35 @@ function firestoreDocToObj(doc) {
   return obj;
 }
 // 컬렉션 전체를 읽어옴 (이 프로젝트 컬렉션들은 크지 않아서 한 페이지로 충분)
+// ⚠️ 2026-10-29 수정 — 예전엔 pageSize=1000으로 "한 번만" 읽고 nextPageToken을 무시했음.
+// Firestore는 한 번에 최대 한 페이지만 주므로, 기록이 1000개를 넘으면 그 뒤 문서는 조용히 안 보였고
+// 그 결과 **증빙 사진 자동완료가 안 되는 사고**가 났음(박지수 학생 숙제 사진, 3일이 지나도 그대로).
+// 같은 이유로 주간 요약·결석자 안내·기한 초과 안내도 일부 기록을 못 보고 있었음.
+// 앞으로 nextPageToken을 끝까지 따라가야 하니 이 반복문을 절대 제거하지 말 것.
 function firestoreListAll(collection) {
   var token = ScriptApp.getOAuthToken();
-  var res = UrlFetchApp.fetch(firestoreBaseUrl() + '/' + collection + '?pageSize=1000', {
-    method: 'GET',
-    headers: { Authorization: 'Bearer ' + token },
-    muteHttpExceptions: true
-  });
-  if (res.getResponseCode() !== 200) {
-    Logger.log('[firestoreListAll] ' + collection + ' 조회 실패: ' + res.getContentText());
-    return [];
-  }
-  var data = JSON.parse(res.getContentText());
-  return (data.documents || []).map(firestoreDocToObj);
+  var out = [];
+  var pageToken = '';
+  var pages = 0;
+  do {
+    var url = firestoreBaseUrl() + '/' + collection + '?pageSize=1000';
+    if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
+    var res = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() !== 200) {
+      Logger.log('[firestoreListAll] ' + collection + ' 조회 실패(' + (pages + 1) + '번째 페이지): ' + res.getContentText());
+      break;
+    }
+    var data = JSON.parse(res.getContentText());
+    (data.documents || []).forEach(function(d){ out.push(firestoreDocToObj(d)); });
+    pageToken = data.nextPageToken || '';
+    pages++;
+  } while (pageToken && pages < 50); // 안전장치: 5만 건까지만(무한 반복·실행시간 초과 방지)
+  if (pageToken && pages >= 50) Logger.log('[firestoreListAll] ' + collection + ' 이 50페이지(5만 건)를 넘어서 일부를 못 읽었습니다. 페이지 상한을 올리거나 조건 조회로 바꿔야 합니다.');
+  return out;
 }
 // 최상위(중첩 아닌) 문자열 필드 하나만 갱신 — 중첩 맵 필드는 REST 경로 이스케이프가 까다로워서
 // 일부러 단순한 최상위 필드만 씀(하루 1번 표시하는 용도라 날짜 문자열 하나면 충분)
