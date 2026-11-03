@@ -945,9 +945,16 @@ function runMcHourRemindersOnly() {
       Logger.log('[의무클리닉] 중지 상태 — 1시간 전 알림 건너뜀');
       return;
     }
-    var list = firestoreListAll('mandatory_clinic');
-    var todays = list.filter(function(m){
-      return m.type === 'temp' ? m.date === today.dateStr : m.day === today.dayName;
+    // ⚠ 5분마다 도는 함수라 컬렉션을 통째로 읽으면 안 됨 — 하루 288번이라 Firestore 읽기 한도(5만/일)를
+    //   순식간에 태움(2026-11-03에 실제로 한도 초과로 모든 자동작업이 멈췄음).
+    //   오늘 해당되는 것만 두 번의 조건 조회로 가져온다: 매주 반복(day=오늘 요일) + 이번 주만(date=오늘).
+    var byDay = firestoreQueryEq('mandatory_clinic', 'day', today.dayName) || [];
+    var byDate = firestoreQueryEq('mandatory_clinic', 'date', today.dateStr) || [];
+    var seen = {}, todays = [];
+    byDay.concat(byDate).forEach(function(m){
+      if (!m || seen[m.id]) return;
+      seen[m.id] = true;
+      if (m.type === 'temp' ? m.date === today.dateStr : m.day === today.dayName) todays.push(m);
     });
     if (!todays.length) return;
 
@@ -960,8 +967,11 @@ function runMcHourRemindersOnly() {
     });
     if (!candidates.length) return;
 
+    // 대상 학생만 1건씩 읽음(보통 0~3명) — students 전체를 읽으면 5분마다 수십 건씩 낭비됨
     var studentsById = {};
-    firestoreListAll('students').forEach(function(s){ studentsById[s.id] = s; });
+    candidates.forEach(function(m){
+      if (m.studentId && !studentsById[m.studentId]) studentsById[m.studentId] = firestoreGetDoc('students', m.studentId) || null;
+    });
 
     candidates.forEach(function(m){
       var student = studentsById[m.studentId];
@@ -1360,9 +1370,11 @@ function runAutoCompleteNow() {
 function sendClinicHourReminders() {
   try {
     var today = mcTodayInfoSeoul();
-    var all = firestoreListAll('clinic_bookings');
+    // ⚠ 예약은 계속 쌓이는 컬렉션이라 전체를 읽으면 안 됨(5분마다 수천 건 → 읽기 한도 초과).
+    //   오늘 날짜 예약만 조건 조회로 가져온다.
+    var all = firestoreQueryEq('clinic_bookings', 'date', today.dateStr) || [];
     var todays = all.filter(function(b){
-      return b.date === today.dateStr && b.status !== '취소' && b.status !== 'cancelled';
+      return b.status !== '취소' && b.status !== 'cancelled';
     });
     if (!todays.length) return;
 
@@ -1378,7 +1390,9 @@ function sendClinicHourReminders() {
     if (!candidates.length) return;
 
     var studentsById = {};
-    firestoreListAll('students').forEach(function(s){ studentsById[s.id] = s; });
+    candidates.forEach(function(b){
+      if (b.studentId && !studentsById[b.studentId]) studentsById[b.studentId] = firestoreGetDoc('students', b.studentId) || null;
+    });
 
     candidates.forEach(function(b){
       var student = studentsById[b.studentId];
