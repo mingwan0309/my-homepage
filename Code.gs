@@ -797,6 +797,43 @@ function firestoreQueryEq(collection, field, value) {
   rows.forEach(function(r){ if (r.document) out.push(firestoreDocToObj(r.document)); });
   return out;
 }
+// 특정 문자열 필드가 기준값 "이하"인 문서만 읽기 (2026-11-03 추가)
+// 제출 시각("YYYY.MM.DD HH:MM")은 글자순 정렬 = 시간순 정렬이라, 이 조회 하나로
+// "기한이 지난 제출"만 바로 골라올 수 있음. 게다가 그 필드가 아예 없는 문서는
+// 범위 조회에서 자동으로 빠지므로, 사진을 안 낸 수천 건을 읽지 않아도 됨.
+// ⚠ 컬렉션을 통째로 읽는 firestoreListAll로 되돌리지 말 것 — 문서가 쌓이면
+//   읽기 한도·실행시간에 걸려 자동완료가 통째로 멈춤(2026-10-29, 2026-11-03 두 번 사고).
+function firestoreQueryLte(collection, field, value, limit) {
+  var token = ScriptApp.getOAuthToken();
+  var body = {
+    structuredQuery: {
+      from: [{ collectionId: collection }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: field },
+          op: 'LESS_THAN_OR_EQUAL',
+          value: { stringValue: String(value) }
+        }
+      },
+      orderBy: [{ field: { fieldPath: field }, direction: 'ASCENDING' }],
+      limit: limit || 300
+    }
+  };
+  var res = UrlFetchApp.fetch(firestoreBaseUrl() + ':runQuery', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) {
+    Logger.log('[firestoreQueryLte] ' + collection + '.' + field + ' 조회 실패: ' + res.getContentText());
+    return null;   // null = 조회 실패(빈 결과와 구분해야 "성공했다"고 잘못 표시하지 않음)
+  }
+  var out = [];
+  var rows = JSON.parse(res.getContentText()) || [];
+  rows.forEach(function(r){ if (r.document) out.push(firestoreDocToObj(r.document)); });
+  return out;
+}
 // 문서 1개만 읽기
 function firestoreGetDoc(collection, docId) {
   var token = ScriptApp.getOAuthToken();
@@ -1306,8 +1343,16 @@ function runAutoCompleteHourly() {
   var kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
   var hourKey = mcTodayInfoSeoul().dateStr + ' ' + kstNow.getUTCHours();
   if (props.getProperty('autoCompleteLastHour') === hourKey) return;
-  props.setProperty('autoCompleteLastHour', hourKey);
+  // ⚠ "이번 시간 했음" 표시는 실제로 끝난 뒤에만 남긴다.
+  //   예전엔 실행 "전"에 표시해서, 조회가 실패하거나 시간 초과로 죽으면 그 시간은 통째로 건너뛰어졌고
+  //   매번 같은 자리에서 죽으면 자동완료가 영영 안 됐음(2026-11-03 김하음 학생 숙제 사진 건).
   autoCompleteOldSubmissions();
+  props.setProperty('autoCompleteLastHour', hourKey);
+}
+// 편집기에서 직접 실행해서 밀린 것을 지금 바로 처리할 때 쓰는 버튼 (시간 제한 무시)
+function runAutoCompleteNow() {
+  autoCompleteOldSubmissions();
+  Logger.log('[자동완료] 수동 실행 끝 — 위 로그에서 처리 건수를 확인하세요.');
 }
 
 // 클리닉(추가클리닉 등, clinic_bookings) "오기 1시간 전" 자동 알림 — 의무클리닉과 동일한 패턴.
@@ -1363,20 +1408,30 @@ function sendClinicHourReminders() {
 // 1시간마다 실행시키는 함수(의무클리닉 1시간 전 알림 트리거와는 별개로 새로 등록 필요).
 var WEEKLY_SUMMARY_HOUR = 12; // 주간 요약을 보낼 시각(한국시간 12시대). 화요일 낮 = 사용자 쉬는 날
 var HW_AUTO_COMPLETE_HOURS = 6;
+// 한쪽이 실패해도 다른 쪽은 돌리되, 실패했으면 마지막에 오류를 다시 던져서
+// runAutoCompleteHourly가 "이번 시간 했음" 표시를 남기지 않게 함(= 5분 뒤 다시 시도).
 function autoCompleteOldSubmissions() {
-  try { autoCompleteOldHwProofs(); } catch (err) { Logger.log('[autoCompleteOldHwProofs] 오류: ' + err); }
-  try { autoCompleteOldExamProofs(); } catch (err) { Logger.log('[autoCompleteOldExamProofs] 오류: ' + err); }
+  var failed = [];
+  try { autoCompleteOldHwProofs(); } catch (err) { failed.push('숙제: ' + err); Logger.log('[autoCompleteOldHwProofs] 오류: ' + err); }
+  try { autoCompleteOldExamProofs(); } catch (err) { failed.push('재시험: ' + err); Logger.log('[autoCompleteOldExamProofs] 오류: ' + err); }
+  if (failed.length) throw new Error(failed.join(' / '));
+}
+// 지금(한국시각)에서 HW_AUTO_COMPLETE_HOURS시간 전 시각을 "YYYY.MM.DD HH:MM"로 — 조회 기준값
+function autoCompleteCutoffStr() {
+  var d = new Date(Date.now() + 9 * 60 * 60 * 1000 - HW_AUTO_COMPLETE_HOURS * 60 * 60 * 1000);
+  function p(n){ return (n < 10 ? '0' : '') + n; }
+  return d.getUTCFullYear() + '.' + p(d.getUTCMonth() + 1) + '.' + p(d.getUTCDate())
+       + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes());
 }
 function autoCompleteOldHwProofs() {
-  var kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  var list = firestoreListAll('hw_status');
+  // 제출 시각이 기준보다 이른(=기한 지난) 것만 조회 — 사진 없는 문서는 아예 안 읽힘
+  var list = firestoreQueryLte('hw_status', 'submittedAt', autoCompleteCutoffStr());
+  if (list === null) throw new Error('hw_status 조회 실패');   // 다음 실행에서 다시 시도하게 함
   var targets = list.filter(function(r){
-    if (!r.submittedAt) return false;
-    if (r.pass === 'complete' || r.pass === 'na') return false;
-    var subDate = parseKstTimestamp(r.submittedAt);
-    if (!subDate) return false;
-    return (kstNow.getTime() - subDate.getTime()) >= HW_AUTO_COMPLETE_HOURS * 60 * 60 * 1000;
+    if (!parseKstTimestamp(r.submittedAt)) return false;   // 빈 값·형식 이상은 건드리지 않음
+    return r.pass !== 'complete' && r.pass !== 'na';
   });
+  Logger.log('[자동완료] 숙제 대상 ' + targets.length + '건 (조회 ' + list.length + '건)');
   targets.forEach(function(r){
     // autoCompleted(불리언)는 화면에서 "6시간 지나 자동완료됐지만 아직 12시간(제출 후) 안 지난 것"을
     // 수동완료와 구분해서 계속 보여주는 용도 — pass는 그대로 'complete'로 둬서 급여/리더보드 등
@@ -1387,15 +1442,13 @@ function autoCompleteOldHwProofs() {
   });
 }
 function autoCompleteOldExamProofs() {
-  var kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  var list = firestoreListAll('scores');
+  var list = firestoreQueryLte('scores', 'examSubmittedAt', autoCompleteCutoffStr());
+  if (list === null) throw new Error('scores 조회 실패');
   var targets = list.filter(function(r){
-    if (!r.examSubmittedAt) return false;
-    if (r.alertResolved) return false;
-    var subDate = parseKstTimestamp(r.examSubmittedAt);
-    if (!subDate) return false;
-    return (kstNow.getTime() - subDate.getTime()) >= HW_AUTO_COMPLETE_HOURS * 60 * 60 * 1000;
+    if (!parseKstTimestamp(r.examSubmittedAt)) return false;
+    return !r.alertResolved;
   });
+  Logger.log('[자동완료] 재시험 대상 ' + targets.length + '건 (조회 ' + list.length + '건)');
   targets.forEach(function(r){
     var fields = { alertResolved: true, autoCompleted: true, autoCompletedAt: mcTodayInfoSeoul().dateStr };
     if (!r.feedback) fields.feedback = '제출하신 증빙이 ' + HW_AUTO_COMPLETE_HOURS + '시간 동안 확인되지 않아 자동으로 완료 처리되었습니다.';
