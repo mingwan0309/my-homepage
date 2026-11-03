@@ -1952,7 +1952,9 @@ var AI_DRAFT_MAX_IMAGES = 4;
 var AI_DRAFT_SYSTEM = '당신은 한국 고등학교 수학 학원의 보조 선생님입니다. 학생이 올린 수학 질문(글과 사진)을 읽고 풀이 초안을 작성하세요.\n'
   + '규칙:\n'
   + '- 한국어로, 학생이 그대로 읽을 수 있는 친절한 말투로 씁니다.\n'
-  + '- 풀이는 단계별로 번호를 붙여 차근차근 씁니다. 왜 그렇게 하는지 한 줄씩 이유를 붙입니다.\n'
+  + '- ★ 짧고 간결하게 씁니다. 노트 한 장에 손글씨로 들어가야 하므로 전체 15줄 이내, 한 줄은 25자 이내로 씁니다.\n'
+  + '- 핵심 단계만 번호를 붙여 3~5단계로 씁니다. 각 단계는 식 한두 줄이면 충분하고, 이유는 꼭 필요할 때만 아주 짧게(반 줄) 덧붙입니다.\n'
+  + '- 당연한 계산 과정, 개념 설명, 검산, 다른 풀이법은 쓰지 않습니다. 설명보다 식을 보여주는 쪽을 택합니다.\n'
   + '- 마크다운·LaTeX를 쓰지 마세요. 수식은 일반 텍스트로 쓰되 √, ², ³, ×, ÷, ≤, ≥, π 같은 유니코드 기호와 분수는 a/b 형태를 씁니다.\n'
   + '- 마지막 줄에 "답: ..." 형태로 최종 답을 씁니다.\n'
   + '- 사진이 흐리거나 문제를 확실히 읽을 수 없으면 추측하지 말고 "문제를 정확히 읽기 어려워요. (어느 부분)" 이라고 먼저 밝히고, 읽을 수 있는 범위에서만 풀이합니다.\n'
@@ -1984,7 +1986,9 @@ var AI_NOTE_IMAGE_PROMPT = 'A realistic top-down photo of a math solution handwr
   + 'Reproduce that clipping EXACTLY as it is (it is a printed capture — do not retype, redraw or alter it). '
   + 'To the right of the clipping, starting with "풀이)", and continuing below it across the full width, the solution is handwritten in neat, tidy, rounded Korean handwriting with a black gel pen (not a font look, real pen strokes, consistent size). '
   + 'Numbered step titles like "1.", "2." with the lines under each step slightly indented. Fractions are written stacked (numerator over denominator with a bar), exponents as small raised digits. '
-  + 'The final answer line starts with a check mark and is double-underlined. Natural soft daylight, slight paper texture, no watermark, no hands, no other objects. 16:9 landscape.\n\n'
+  + 'The final answer line starts with a check mark and is double-underlined. Natural soft daylight, slight paper texture, no watermark, no hands, no other objects. 16:9 landscape.\n'
+  + 'Write everything on this ONE single page: do not split the solution across two pages or show a second sheet. '
+  + 'Keep the handwriting comfortably large and well spaced so it stays easy to read on a phone; the text is short, so do not shrink it to fill the page.\n\n'
   + 'IMPORTANT: The handwritten solution on the page must be EXACTLY the following Korean text, in this order, with every number, symbol, variable and formula copied precisely. Do not add, omit, translate or paraphrase anything:\n\n';
 
 function aiNoteImage(data) {
