@@ -3139,9 +3139,13 @@ function akApplyParsed(list, sourceLabel){
     if(!row) return;
     var ans=r.answer.map(akNormAns);
     var allMc=ans.every(function(a){return /^[1-5]$/.test(a);});
-    // 답이 1~5 한 자리면 객관식으로 보되, 이미 주관식으로 토글해둔 문항은 주관식 유지
-    // (예: 7번이 주관식인데 정답이 "3"인 경우 — 먼저 주관식으로 바꿔놓고 붙여넣으면 됨)
-    if(allMc && row.type!=='short'){ row.type='mc'; row.correct=ans.map(Number); }
+    // r.type이 오면 그걸 그대로 믿는다 — 정답표에 동그라미(①②③④⑤)였는지 맨숫자였는지는
+    // 원본을 본 쪽(AI·PDF 글자 읽기)만 알 수 있기 때문.
+    // ⚠️ 2026-11-04: 예전엔 "답이 1~5 한 자리면 무조건 객관식"으로만 판단해서, 정답표의
+    //   주관식 답 "4"·"1"이 객관식 ④·①로 들어가 채점이 통째로 틀어졌음(사용자 신고).
+    //   type이 없을 때만(붙여넣기처럼 동그라미 정보가 없는 경우) 옛 추측을 쓴다.
+    var isMc = (r.type==='mc') || (r.type!=='short' && allMc && row.type!=='short');
+    if(isMc && allMc){ row.type='mc'; row.correct=ans.map(Number); }
     else { row.type='short'; row.correct=ans; shortN++; }
     if(r.points!=null && !akIsCount) row.points=Number(r.points);
     filled++;
@@ -3173,6 +3177,11 @@ function akFileToB64(f){
 }
 // 정답표가 글자로 들어있는 PDF면 AI 없이 바로 읽음. 확실할 때만 쓰려고 조건을 깐깐하게 둠
 // (문항번호+①~⑤가 3개 이상 짝지어 나와야 인정 — 아무 숫자나 주워 담아서 오답으로 채우면 반 전체 성적이 틀어지므로).
+// 정답표 PDF에서 글자로 정답 뽑기.
+// 1차: "01 ③"처럼 동그라미 → 객관식(mc)
+// 2차: 1차가 3개 이상 잡혔을 때만, 비어 있는 문항 번호를 "04 4"/"03 −12"처럼 맨숫자로 채움 → 주관식(short)
+//   ⚠️ 2026-11-04 추가: 예전엔 동그라미만 잡아서 주관식 문항이 통째로 비어 있었음.
+//   맨숫자를 객관식으로 넣으면 안 되므로 type을 꼭 같이 돌려준다(akApplyParsed가 이 값을 그대로 믿음).
 function akParseAnswersFromLines(lines){
   var re=/(\d{1,3})\s*[.)]?\s*([①②③④⑤])/g, found={}, n=0;
   lines.forEach(function(ln){
@@ -3181,13 +3190,26 @@ function akParseAnswersFromLines(lines){
     while((m=re.exec(ln))){
       var q=Number(m[1]);
       if(!q || found[q]) continue;
-      found[q]='①②③④⑤'.indexOf(m[2])+1;
+      found[q]={ a:String('①②③④⑤'.indexOf(m[2])+1), type:'mc' };
       n++;
     }
   });
-  if(n<3) return [];
+  if(n<3) return [];  // 아무 숫자나 주워 담아 정답을 잘못 채우지 않도록 일부러 깐깐하게
+  // 2차: 빈 번호만 채움. 번호 범위를 벗어나거나 이미 찬 번호는 건드리지 않으므로
+  // 날짜("2026.11.04")·쪽번호 같은 숫자가 섞여 들어올 여지가 거의 없다.
+  var maxQ=Math.max.apply(null, Object.keys(found).map(Number));
+  var re2=/(\d{1,3})\s*[.)]?\s*([-−]?\d{1,3}(?:\s*\/\s*\d{1,3})?)(?![\d.\/])/g;
+  lines.forEach(function(ln){
+    var m;
+    re2.lastIndex=0;
+    while((m=re2.exec(ln))){
+      var q=Number(m[1]);
+      if(!q || q>maxQ || found[q]) continue;
+      found[q]={ a:String(m[2]).replace(/\s+/g,'').replace(/−/g,'-'), type:'short' };
+    }
+  });
   return Object.keys(found).map(Number).sort(function(a,b){return a-b;})
-    .map(function(q){ return { q:q, answer:[found[q]] }; });
+    .map(function(q){ return { q:q, answer:[found[q].a], type:found[q].type }; });
 }
 async function akSmartUpload(input){
   var files=Array.prototype.slice.call(input.files||[]);
