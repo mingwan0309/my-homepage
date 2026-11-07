@@ -301,16 +301,29 @@ function selectBook(book){
   renderVideoArea();
 }
 
+var tbLoadError = '';   // 마지막 불러오기 실패 사유 (화면에 그대로 보여줘서 원인을 바로 알 수 있게)
+var tbLoadCount = -1;   // 실제로 읽어온 영상 문서 수 (-1 = 아직 안 읽음)
 async function loadVideos(){
   try{
     var db = await window.mkdbReady;
     var snap = await db.collection('textbook_videos').get();
     allVideos = [];
-    snap.forEach(function(doc){ allVideos.push(doc.data()); });
+    snap.forEach(function(doc){
+      var d = doc.data() || {};
+      if (!d.id) d.id = doc.id;        // id 필드가 없는 문서도 삭제·재생이 되게
+      allVideos.push(d);
+    });
+    tbLoadError = '';
+    tbLoadCount = allVideos.length;
     renderBookGrid();
     renderVideoArea();
   }catch(e){
-    document.getElementById('video-area').innerHTML = '<div class="video-empty"><div class="video-empty-text">불러오기 실패</div></div>';
+    // 예전엔 "불러오기 실패"만 띄우고 사유를 감춰서, 권한 거부인지 네트워크인지 알 수 없었음.
+    // 게다가 이 문구는 이후 다른 렌더가 덮어써서 "영상이 없습니다"처럼 보였음 (2026-11-07 수정)
+    tbLoadError = (e && (e.code || e.message)) ? String(e.code || e.message) : String(e);
+    tbLoadCount = -1;
+    renderBookGrid();
+    renderVideoArea();
   }
 }
 
@@ -386,9 +399,18 @@ function renderVideoArea(){
   if (!list.length){
     // 지금 칸이 비어 있어도 다른 학년·과목·교재에 영상이 있으면 어디에 몇 개 있는지 알려주고
     // 눌러서 바로 이동하게 함 — 탭을 하나씩 눌러보며 찾는 일을 없애기 위함 (2026-11-07 추가)
+    // 불러오기 자체가 실패했으면 "영상이 없다"가 아니라 실패 사유를 그대로 보여준다
+    var diag = '';
+    if (tbLoadError){
+      diag = '<div style="margin-top:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:11px 13px;font-size:12.5px;color:#b91c1c;text-align:left;">'
+        + '⚠ 영상 목록을 불러오지 못했어요.<br>사유: ' + escHtml(tbLoadError)
+        + '<br><span style="color:#7f1d1d;">이 문구를 선생님께 그대로 보여주세요.</span></div>';
+    } else if (session.role==='teacher'){
+      diag = '<div style="margin-top:10px;font-size:12px;color:#94a3b8;">전체 영상 '+(tbLoadCount<0?'?':tbLoadCount)+'개를 불러왔어요.</div>';
+    }
     area.innerHTML = '<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">등록된 영상이 없습니다.</div>'
       + (session.role==='teacher' ? '<button class="btn-add" onclick="openAddModal()">영상 추가하기</button>' : '')
-      + tbOtherSpotsHtml() + '</div>';
+      + diag + tbOtherSpotsHtml() + '</div>';
     tbFillSpots();
     return;
   }
@@ -408,29 +430,67 @@ function renderVideoArea(){
       + '</div>';
   }
 
-  // 전체 보기일 때는 단원 소제목으로 나눠서, 단원을 골랐으면 그 단원만 쭉
-  var bodyHtml;
+  area.innerHTML = chips;   // 칩만 먼저 (값은 escHtml로 막아둠), 카드들은 아래에서 DOM으로 붙임
   if (!currentUnit && units.length > 1){
-    bodyHtml = units.map(function(u){
+    units.forEach(function(u){
       var g = shown.filter(function(v){ return tbUnitKey(v)===u; });
-      if (!g.length) return '';
-      return '<div class="unit-group"><div class="unit-head">'+escHtml(tbUnitLabel(u))+' <span>'+g.length+'개</span></div>'
-        + '<div class="video-grid">' + g.map(tbVideoCardHtml).join('') + '</div></div>';
-    }).join('');
+      if (!g.length) return;
+      var group = document.createElement('div'); group.className = 'unit-group';
+      var head = document.createElement('div'); head.className = 'unit-head';
+      head.textContent = tbUnitLabel(u) + ' ';
+      var cnt = document.createElement('span'); cnt.textContent = g.length + '개';
+      head.appendChild(cnt);
+      group.appendChild(head);
+      group.appendChild(tbVideoGridEl(g));
+      area.appendChild(group);
+    });
   } else {
-    bodyHtml = '<div class="video-grid">' + shown.map(tbVideoCardHtml).join('') + '</div>';
+    area.appendChild(tbVideoGridEl(shown));
   }
-  area.innerHTML = chips + bodyHtml;
 }
-// 영상 카드 한 장
-function tbVideoCardHtml(v){
+// 영상 카드 한 장 — 주소·id를 onclick 문자열에 끼워넣지 않고 DOM으로 만들어 addEventListener로 붙임
+// (Firestore에서 온 값이라 문자열 조립은 주입 위험. 2026-11-07 보안 점검 반영)
+function tbVideoCardEl(v){
+  var card = document.createElement('div');
+  card.className = 'video-card';
   var vid = ytId(v.url);
-  var thumb = vid ? '<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg">' : '';
-  var delBtn = session.role==='teacher' ? '<button class="video-del-btn" onclick="event.stopPropagation();delVideo(\''+v.id+'\')">삭제</button>' : '<span></span>';
-  return '<div class="video-card" onclick="openVideo(\''+v.url+'\')">'
-    +'<div class="video-thumb">'+thumb+'<div class="video-play-icon">▶</div></div>'
-    +'<div class="video-info"><div class="video-title">'+escHtml(v.name)+'</div>'
-    +'<div class="video-meta"><span>'+escHtml(v.memo||'')+'</span>'+delBtn+'</div></div></div>';
+  var thumbWrap = document.createElement('div');
+  thumbWrap.className = 'video-thumb';
+  if (vid){
+    var img = document.createElement('img');
+    img.src = 'https://img.youtube.com/vi/' + encodeURIComponent(vid) + '/mqdefault.jpg';
+    thumbWrap.appendChild(img);
+  }
+  var play = document.createElement('div');
+  play.className = 'video-play-icon'; play.textContent = '▶';
+  thumbWrap.appendChild(play);
+
+  var info = document.createElement('div'); info.className = 'video-info';
+  var title = document.createElement('div'); title.className = 'video-title'; title.textContent = v.name || '';
+  var meta = document.createElement('div'); meta.className = 'video-meta';
+  var memo = document.createElement('span'); memo.textContent = v.memo || '';
+  meta.appendChild(memo);
+  if (session.role === 'teacher'){
+    var del = document.createElement('button');
+    del.className = 'video-del-btn'; del.textContent = '삭제';
+    del.addEventListener('click', function(ev){ ev.stopPropagation(); delVideo(v.id); });
+    meta.appendChild(del);
+  } else {
+    meta.appendChild(document.createElement('span'));
+  }
+  info.appendChild(title); info.appendChild(meta);
+  card.appendChild(thumbWrap); card.appendChild(info);
+
+  var safe = tbSafeUrl(v.url);
+  if (safe) card.addEventListener('click', function(){ openVideo(safe); });
+  return card;
+}
+// 영상 카드 여러 장을 담은 그리드
+function tbVideoGridEl(list){
+  var grid = document.createElement('div');
+  grid.className = 'video-grid';
+  list.forEach(function(v){ grid.appendChild(tbVideoCardEl(v)); });
+  return grid;
 }
 // 단원 이름 읽기 — unit 필드가 비었으면 영상 이름에서 "]7.유리함수와무리함수_" 꼴을 자동 추출.
 // 그래서 예전에 등록한 영상도 다시 올리지 않고 단원별로 묶임. admin.html의 tbvUnitOf와 같은 규칙.
@@ -455,7 +515,10 @@ function tbUnitsOf(list){
 function selectUnit(u){ currentUnit=u; renderVideoArea(); }
 function selectUnitFrom(el){ selectUnit(el.getAttribute('data-unit')||''); }
 
-function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// 따옴표까지 막아야 data-*·value 같은 속성 안에 값을 넣을 때 속성 탈출이 안 됨 (2026-11-07 보강)
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// 영상 주소는 유튜브 http(s) 링크만 재생 — 저장된 값에 javascript: 같은 게 들어와도 실행되지 않게
+function tbSafeUrl(u){ return /^https?:\/\//i.test(String(u||'')) ? String(u) : ''; }
 function ytId(url){
   if(!url) return '';
   var m = url.match(/[?&]v=([^&]+)/) || url.match(/youtu\.be\/([^?&]+)/) || url.match(/embed\/([^?&]+)/)
