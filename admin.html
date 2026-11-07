@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=67"></script>
+<script src="firebase-api.js?v=68"></script>
 <script src="mathterm-game.js?v=2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -2279,8 +2279,13 @@ async function loadSdWeakTypes(){
       +'<table style="width:100%;border-collapse:collapse;font-size:12.5px;">'
       +'<thead><tr style="color:#64748b;text-align:left;"><th style="padding:4px 6px;">유형</th><th style="padding:4px 6px;text-align:right;white-space:nowrap;">틀림/전체</th><th style="padding:4px 6px;text-align:right;">오답률</th></tr></thead><tbody>'
       +types.map(function(t){
-          var color=t.rate>=60?'#dc2626':(t.rate>=35?'#f59e0b':'#3b6cf7');
-          return '<tr style="border-top:1px solid #ede9fe;"><td style="padding:5px 6px;font-weight:700;color:#1e293b;">'+escHtml(t.name)+'</td><td style="padding:5px 6px;text-align:right;white-space:nowrap;">'+t.wrong+'/'+t.total+'</td><td style="padding:5px 6px;text-align:right;font-weight:800;color:'+color+';">'+t.rate+'%</td></tr>';
+          // 색은 틀린 "개수" 기준, 오답률은 출제 3문항 이상일 때만 강조
+          // (1문항 출제 1개 틀림=100%가 제일 심각해 보이던 문제 — 2026-11-07 수정)
+          var color=t.wrong>=3?'#dc2626':(t.wrong===2?'#f59e0b':'#3b6cf7');
+          var rateCell = t.total>=3
+            ? '<span style="font-weight:800;color:'+color+';">'+t.rate+'%</span>'
+            : '<span style="color:#94a3b8;font-size:11.5px;">표본 '+t.total+'문항</span>';
+          return '<tr style="border-top:1px solid #ede9fe;"><td style="padding:5px 6px;font-weight:700;color:#1e293b;">'+escHtml(t.name)+'</td><td style="padding:5px 6px;text-align:right;white-space:nowrap;font-weight:800;color:'+color+';">'+t.wrong+'/'+t.total+'</td><td style="padding:5px 6px;text-align:right;">'+rateCell+'</td></tr>';
         }).join('')
       +'</tbody></table>'
       +(r.exams&&r.exams.length?'<details style="margin-top:8px;"><summary style="font-size:12px;color:#7c3aed;cursor:pointer;">시험별 틀린 유형 보기</summary>'

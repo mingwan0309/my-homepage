@@ -9,7 +9,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>마이페이지 — 김민관 수학</title>
-<script src="firebase-api.js?v=67"></script>
+<script src="firebase-api.js?v=68"></script>
 <script src="home-popup.js?v=4"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="chat-widget.js" defer></script>
@@ -572,15 +572,21 @@ async function loadWeakTypes(){
     var types=(r.types||[]).filter(function(t){return t.wrong>0;});
     if(!types.length){ card.style.display='none'; return; }
     var top=types.slice(0,6);
-    var maxRate=Math.max.apply(null, top.map(function(t){return t.rate;}))||1;
-    body.innerHTML='<div style="font-size:12.5px;color:#64748b;margin-bottom:10px;">지금까지 본 시험에서 틀린 문항을 유형별로 모았어요. 빨간색일수록 자주 틀린 유형이에요.</div>'
+    // 막대·색은 "틀린 개수" 기준 (비율 기준이면 1문항 출제 1개 틀림=100%가 항상 꽉 찬 빨간 막대로 떠서
+    //  정말 자주 틀리는 유형과 구분이 안 됨 — 2026-11-07 수정)
+    var maxWrong=Math.max.apply(null, top.map(function(t){return t.wrong;}))||1;
+    body.innerHTML='<div style="font-size:12.5px;color:#64748b;margin-bottom:10px;">지금까지 본 시험에서 틀린 문항을 유형별로 모았어요. 막대가 길수록 많이 틀린 유형이에요.</div>'
       + top.map(function(t){
-          var color = t.rate>=60?'#dc2626':(t.rate>=35?'#f59e0b':'#3b6cf7');
+          var color = t.wrong>=3?'#dc2626':(t.wrong===2?'#f59e0b':'#3b6cf7');
+          // 출제가 3문항 미만이면 비율은 아직 믿을 수 없으니 작게 회색으로만 (100%·50%가 과장되어 보이는 것 방지)
+          var rateTxt = t.total>=3
+            ? '<span style="color:'+color+';">'+t.rate+'%</span>'
+            : '<span style="color:#94a3b8;font-weight:600;">아직 '+t.total+'문항만 나왔어요</span>';
           return '<div style="margin-bottom:9px;">'
             +'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13.5px;">'
             +'<span style="font-weight:800;color:#1e293b;">'+escHtml(t.name)+'</span>'
-            +'<span style="font-size:12px;color:'+color+';font-weight:800;white-space:nowrap;">'+t.wrong+'/'+t.total+'문항 틀림 · '+t.rate+'%</span></div>'
-            +'<div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;margin-top:4px;"><div style="width:'+Math.max(4,Math.round(t.rate/maxRate*100))+'%;height:100%;background:'+color+';border-radius:4px;"></div></div>'
+            +'<span style="font-size:12px;font-weight:800;white-space:nowrap;"><span style="color:'+color+';">'+t.wrong+'문항 틀림</span> <span style="color:#cbd5e1;">·</span> '+rateTxt+'</span></div>'
+            +'<div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;margin-top:4px;"><div style="width:'+Math.max(8,Math.round(t.wrong/maxWrong*100))+'%;height:100%;background:'+color+';border-radius:4px;"></div></div>'
             +'</div>';
         }).join('')
       + (types.length>6?'<div style="font-size:12px;color:#94a3b8;">외 '+(types.length-6)+'개 유형</div>':'')

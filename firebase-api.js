@@ -2038,8 +2038,10 @@ api.getWeakTypes = function(db, p){
           });
           examRows.push({ examId:s.examId, examName:ex.name||'시험', date:ses.date||'', sessLabel:ses.label||(ses.sessionNum?ses.sessionNum+'차시':''), score:s.score, wrongCount:wrong.length, wrongCats:wrongCats });
         });
+        // 정렬은 "많이 틀린 순"이 먼저 — 비율로 먼저 줄 세우면 1문항 나와서 1개 틀린 유형(100%)이
+        // 10문항 중 6개 틀린 유형(60%)보다 위로 올라와서 "자주 틀리는 유형"이라는 뜻과 어긋남(2026-11-07 수정)
         var types = Object.keys(tally).map(function(k){ var t=tally[k]; t.rate = t.total ? Math.round(t.wrong/t.total*100) : 0; return t; })
-          .sort(function(a,b){ return b.rate-a.rate || b.wrong-a.wrong; });
+          .sort(function(a,b){ return b.wrong-a.wrong || b.rate-a.rate || b.total-a.total; });
         examRows.sort(function(a,b){ return (a.date||'')<(b.date||'') ? 1 : -1; });
         return { types:types, exams:examRows };
       });
@@ -2079,7 +2081,9 @@ api.getIncompleteHomeworks = function(db){
       Object.keys(sesMap).forEach(function(k){ var cid=String(sesMap[k].classId||''); if(cid && classIds.indexOf(cid)<0) classIds.push(cid); });
       return Promise.all(classIds.map(function(id){ return db.collection('classes').doc(id).get(); })).then(function(classDocs){
         var clsMap={}; classDocs.forEach(function(d){ if(d.exists) clsMap[d.id]=d.data(); });
-        var items = rows.filter(function(r){ return hwMap[r.hwId]; }).map(function(r){
+        // 지운 학생(students 문서가 없는 사람)의 기록은 목록에 안 띄움 (2026-11-05)
+        // — 기록 자체는 Firestore에 그대로 남아있고, 화면·배지 숫자에서만 빠짐
+        var items = rows.filter(function(r){ return hwMap[r.hwId] && stuMap[r.studentId]; }).map(function(r){
           var hw=hwMap[r.hwId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{}, stu=stuMap[r.studentId]||{};
           return {
             id:r.id, sessionId:String(r.sessionId), hwId:String(r.hwId), studentId:String(r.studentId),
@@ -2136,7 +2140,8 @@ api.getExamAlerts = function(db){
       Object.keys(sesMap).forEach(function(k){ var cid=String(sesMap[k].classId||''); if(cid && classIds.indexOf(cid)<0) classIds.push(cid); });
       return Promise.all(classIds.map(function(id){ return db.collection('classes').doc(id).get(); })).then(function(classDocs){
         var clsMap={}; classDocs.forEach(function(d){ if(d.exists) clsMap[d.id]=d.data(); });
-        var items = rows.map(function(r){
+        // 지운 학생의 기록은 목록에 안 띄움 (2026-11-05, 숙제관리와 동일)
+        var items = rows.filter(function(r){ return stuMap[r.studentId]; }).map(function(r){
           var ex=examMap[r.examId]||{}, ses=sesMap[r.sessionId]||{}, cls=clsMap[String(ses.classId||'')]||{}, stu=stuMap[r.studentId]||{};
           return {
             id:r.id, sessionId:String(r.sessionId), examId:String(r.examId), studentId:String(r.studentId),
