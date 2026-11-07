@@ -72,6 +72,7 @@ body { font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothi
    번호는 줄바꿈에 쪼개지지 않도록 따로 배지로 빼서 크게 표시한다. */
 .video-title { font-size:13px; font-weight:700; color:#1e293b; white-space:normal; overflow-wrap:anywhere; line-height:1.45; }
 .video-no { display:inline-block; background:#eff6ff; color:#1d4ed8; font-size:13px; font-weight:900; padding:2px 9px; border-radius:7px; margin-bottom:5px; white-space:nowrap; }
+.video-no.short { background:#fef3c7; color:#b45309; }   /* 서술형(서3번 등)은 주황으로 구분 */
 .video-meta { font-size:11px; color:#94a3b8; margin-top:4px; display:flex; justify-content:space-between; align-items:center; }
 .video-del-btn { background:none; border:none; color:#dc2626; cursor:pointer; font-size:11px; padding:0; }
 
@@ -534,13 +535,15 @@ function tbVideoCardEl(v){
   thumbWrap.appendChild(play);
 
   var info = document.createElement('div'); info.className = 'video-info';
-  // 이름 끝의 문항 번호(_75번)는 줄바꿈에 쪼개지면 못 읽으므로 배지로 따로 빼서 먼저 보여줌
+  // 이름 끝의 문항 번호(_75번, _서3번)는 줄바꿈에 쪼개지면 못 읽으므로 배지로 따로 빼서 먼저 보여줌.
+  // "서"처럼 앞에 붙는 한글(서술형)도 같이 인식하고, 서술형은 색을 달리해서 한눈에 구분되게 함.
   var nm = String(v.name || '');
-  var noMatch = nm.match(/_\s*(\d+)\s*번\s*$/);
+  var noMatch = nm.match(/_\s*([가-힣]{0,3})\s*(\d+)\s*번\s*$/);
   if (noMatch){
+    var pre = (noMatch[1] || '').trim();
     var badge = document.createElement('div');
-    badge.className = 'video-no';
-    badge.textContent = noMatch[1] + '번';
+    badge.className = 'video-no' + (pre ? ' short' : '');
+    badge.textContent = pre + noMatch[2] + '번';
     info.appendChild(badge);
     nm = nm.slice(0, noMatch.index);   // 제목에서는 번호 부분을 뺌
   }
