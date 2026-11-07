@@ -242,11 +242,19 @@ window.addEventListener('DOMContentLoaded', async function(){
   document.getElementById('page-main').style.display='block';
   document.getElementById('student-nav').style.display='flex';
   document.getElementById('topbar-user').textContent = (session.name||session.id) + '님';
+  // 🚨 'snav-myclass' 링크는 지금 이 페이지 HTML에 없음. 예전엔 null 검사 없이 .style을 건드려서
+  // 여기서 TypeError가 나고 아래 렌더가 전부 멈췄음 → 교재 탭·영상이 영영 안 그려지고
+  // "불러오는 중..."에서 멈춰 있었음(= "영상 올렸는데 안 보인다"의 진짜 원인, 2026-11-07).
+  // 요소가 없어도 넘어가게 하고, 아래 렌더는 어떤 경우에도 돌도록 try로 감쌈.
   var mc = document.getElementById('snav-myclass');
-  if (session.role==='student' && session.classId) mc.href = 'class.html?id='+encodeURIComponent(session.classId);
-  else mc.style.display='none';
-  renderSubjectTabs();
-  renderBookGrid();
+  if (mc){
+    if (session.role==='student' && session.classId) mc.href = 'class.html?id='+encodeURIComponent(session.classId);
+    else mc.style.display='none';
+  }
+  try{
+    renderSubjectTabs();
+    renderBookGrid();
+  }catch(e){ /* 탭 그리기가 실패해도 영상 목록은 불러온다 */ }
   await loadVideos();
 
   // 목록을 처음 한 번만 읽으면, 이 탭을 열어둔 채 관리 페이지에서 영상을 등록했을 때
