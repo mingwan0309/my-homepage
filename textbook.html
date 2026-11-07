@@ -300,10 +300,25 @@ async function loadVideos(){
   }
 }
 
+// 이름 가나다순 정렬 (2026-11-07 추가) — 숫자가 섞인 이름은 숫자를 숫자로 비교함.
+// 그냥 글자순으로 하면 "_100번"이 "_75번"보다 앞에 와서 순서가 엉킴.
+function tbNameCompare(a, b){
+  var ra = String(a||'').match(/(\d+|\D+)/g) || [];
+  var rb = String(b||'').match(/(\d+|\D+)/g) || [];
+  for (var i=0; i<Math.min(ra.length, rb.length); i++){
+    var x=ra[i], y=rb[i];
+    var nx=/^\d/.test(x), ny=/^\d/.test(y);
+    if (nx && ny){ var d=parseInt(x,10)-parseInt(y,10); if (d) return d; }
+    else { var c=x.localeCompare(y,'ko'); if (c) return c; }
+  }
+  return ra.length - rb.length;
+}
+
 function renderVideoArea(){
   document.getElementById('book-title').textContent = currentGrade + ' · ' + currentSubject + ' · ' + currentBook;
   document.getElementById('btn-add-video').style.display = session.role==='teacher' ? '' : 'none';
-  var list = allVideos.filter(function(v){return v.grade===currentGrade && v.subject===currentSubject && v.book===currentBook;});
+  var list = allVideos.filter(function(v){return v.grade===currentGrade && v.subject===currentSubject && v.book===currentBook;})
+    .sort(function(a,b){ return tbNameCompare(a.name, b.name); });
   var area = document.getElementById('video-area');
   if (!list.length){
     area.innerHTML = '<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">등록된 영상이 없습니다.</div>'

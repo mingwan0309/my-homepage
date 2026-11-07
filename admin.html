@@ -5248,9 +5248,28 @@ function filterTbv(){
   var list=tbvAll.filter(function(v){ return (!grade||v.grade===grade)&&(!book||v.book===book); });
   renderTbv(list);
 }
+// 이름 가나다순 정렬 (2026-11-07 추가) — 숫자가 섞인 이름은 숫자를 숫자로 비교.
+// 글자순으로만 하면 "_100번"이 "_75번"보다 앞에 와서 순서가 엉킴. textbook.html의 tbNameCompare와 같은 규칙.
+function tbvNameCompare(a, b){
+  var ra = String(a||'').match(/(\d+|\D+)/g) || [];
+  var rb = String(b||'').match(/(\d+|\D+)/g) || [];
+  for (var i=0; i<Math.min(ra.length, rb.length); i++){
+    var x=ra[i], y=rb[i];
+    var nx=/^\d/.test(x), ny=/^\d/.test(y);
+    if (nx && ny){ var d=parseInt(x,10)-parseInt(y,10); if (d) return d; }
+    else { var c=x.localeCompare(y,'ko'); if (c) return c; }
+  }
+  return ra.length - rb.length;
+}
 function renderTbv(videos){
   var el=document.getElementById('tbv-list');
   if(!videos.length){el.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:10px 0;">해당하는 강의가 없습니다.</div>';return;}
+  videos = videos.slice().sort(function(a,b){
+    return (a.grade||'').localeCompare(b.grade||'','ko')
+        || (a.subject||'').localeCompare(b.subject||'','ko')
+        || (a.book||'').localeCompare(b.book||'','ko')
+        || tbvNameCompare(a.name, b.name);
+  });
   el.innerHTML=videos.map(function(v){
     var vid=v.url&&(v.url.match(/[?&]v=([^&]+)/)||v.url.match(/youtu\.be\/([^?]+)/));
     var thumb=vid?'<img src="https://img.youtube.com/vi/'+vid[1]+'/mqdefault.jpg" style="width:90px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0;">':'<div style="width:90px;height:50px;background:#e2e8f0;border-radius:6px;flex-shrink:0;"></div>';
