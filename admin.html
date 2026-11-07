@@ -5277,6 +5277,9 @@ async function addTbv(){
   var memo=document.getElementById('tbv-memo').value.trim();
   var msg=document.getElementById('tbv-msg');
   if(!name||!url){msg.textContent='이름과 링크를 입력해주세요.';msg.style.color='#dc2626';return;}
+  // 과목/교재가 빈 채로 저장되면 학생 화면이 grade·subject·book을 글자까지 정확히 비교하므로
+  // 영원히 "영상 0개"로 보임(2026-11-07 안전장치) — 저장 전에 막는다
+  if(!grade||!subject||!book){msg.textContent='학년·과목·교재를 먼저 선택해주세요.';msg.style.color='#dc2626';return;}
   await fetch(SU+'?action=addTextbookVideo&grade='+encodeURIComponent(grade)+'&subject='+encodeURIComponent(subject)+'&book='+encodeURIComponent(book)+'&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&memo='+encodeURIComponent(memo));
   document.getElementById('tbv-name').value='';document.getElementById('tbv-url').value='';document.getElementById('tbv-memo').value='';
   msg.textContent='등록됐어요!';msg.style.color='#16a34a';
@@ -5322,6 +5325,7 @@ async function tbvBulkAdd(){
   var subject=document.getElementById('tbv-subject').value;
   var book=document.getElementById('tbv-book').value;
   var memo=document.getElementById('tbv-memo').value.trim();
+  if(!grade||!subject||!book){ box.innerHTML='<span style="color:#dc2626;">학년·과목·교재를 먼저 선택해주세요.</span>'; return; }
   if(!confirm(p.rows.length+'개를 ['+grade+' · '+subject+' · '+book+']에 등록할까요?'))return;
   btn.disabled=true; var ok=0, fail=0;
   for(var i=0;i<p.rows.length;i++){
@@ -5334,7 +5338,8 @@ async function tbvBulkAdd(){
   }
   btn.disabled=false;
   document.getElementById('tbv-bulk-text').value='';
-  box.innerHTML='<span style="color:#16a34a;font-weight:700;">✅ '+ok+'개 등록 완료'+(fail?' (실패 '+fail+'개)':'')+(p.bad.length?' · 건너뜀 '+p.bad.length+'줄':'')+'</span>';
+  box.innerHTML='<span style="color:#16a34a;font-weight:700;">✅ '+ok+'개 등록 완료'+(fail?' (실패 '+fail+'개)':'')+(p.bad.length?' · 건너뜀 '+p.bad.length+'줄':'')+'</span>'
+    +'<div style="font-size:12.5px;color:#64748b;margin-top:4px;">['+escHtml(grade)+' · '+escHtml(subject)+' · '+escHtml(book)+']에 들어갔어요. 학생 화면에서 이 칸을 보세요.</div>';
   loadTbv();
 }
 async function delTbv(id){
