@@ -311,10 +311,25 @@ function selectBook(book){
 
 var tbLoadError = '';   // 마지막 불러오기 실패 사유 (화면에 그대로 보여줘서 원인을 바로 알 수 있게)
 var tbLoadCount = -1;   // 실제로 읽어온 영상 문서 수 (-1 = 아직 안 읽음)
-async function loadVideos(){
+var tbLoadStage = '';   // 지금 어느 단계에서 기다리는 중인지 ('db' | 'query' | '')
+// 약속이 영원히 안 끝나는 것을 막는 제한시간.
+// 예전엔 window.mkdbReady나 조회가 매달리면 화면이 "불러오는 중"에서 영영 멈춰서
+// 실패인지 느린 건지 구분조차 안 됐음 (2026-11-07 추가)
+function tbWithTimeout(p, ms, label){
+  return Promise.race([
+    Promise.resolve(p),
+    new Promise(function(_, rej){ setTimeout(function(){ rej(new Error(label)); }, ms); })
+  ]);
+}
+var tbRetried = false;
+async function loadVideos(manual){
+  if (manual) tbRetried = false;   // 사용자가 직접 누른 경우엔 자동 재시도 기회를 다시 줌
+  tbLoadStage = 'db';
   try{
-    var db = await window.mkdbReady;
-    var snap = await db.collection('textbook_videos').get();
+    if (!window.mkdbReady) throw new Error('firebase-api.js가 로드되지 않았어요');
+    var db = await tbWithTimeout(window.mkdbReady, 12000, '서버 연결 준비가 12초 안에 안 끝났어요 (인터넷/보안 프로그램이 구글 서버를 막고 있을 수 있어요)');
+    tbLoadStage = 'query';
+    var snap = await tbWithTimeout(db.collection('textbook_videos').get(), 15000, '영상 목록 조회가 15초 안에 안 끝났어요');
     allVideos = [];
     snap.forEach(function(doc){
       var d = doc.data() || {};
@@ -323,6 +338,7 @@ async function loadVideos(){
     });
     tbLoadError = '';
     tbLoadCount = allVideos.length;
+    tbLoadStage = '';
     renderBookGrid();
     renderVideoArea();
   }catch(e){
@@ -330,8 +346,14 @@ async function loadVideos(){
     // 게다가 이 문구는 이후 다른 렌더가 덮어써서 "영상이 없습니다"처럼 보였음 (2026-11-07 수정)
     tbLoadError = (e && (e.code || e.message)) ? String(e.code || e.message) : String(e);
     tbLoadCount = -1;
+    tbLoadStage = '';
     renderBookGrid();
     renderVideoArea();
+    // 일시적인 네트워크 문제면 사용자가 아무것도 안 해도 복구되게 1회 자동 재시도
+    if (!tbRetried){
+      tbRetried = true;
+      setTimeout(function(){ loadVideos(); }, 1500);
+    }
   }
 }
 
@@ -408,13 +430,20 @@ function renderVideoArea(){
     // 지금 칸이 비어 있어도 다른 학년·과목·교재에 영상이 있으면 어디에 몇 개 있는지 알려주고
     // 눌러서 바로 이동하게 함 — 탭을 하나씩 눌러보며 찾는 일을 없애기 위함 (2026-11-07 추가)
     // 불러오기 자체가 실패했으면 "영상이 없다"가 아니라 실패 사유를 그대로 보여준다
+    var retryBtn = '<button onclick="loadVideos(true)" style="margin-top:10px;padding:10px 16px;background:#fff;border:1.5px solid #3b6cf7;border-radius:9px;color:#3b6cf7;font-weight:700;font-size:13px;font-family:inherit;cursor:pointer;min-height:44px;">🔄 다시 불러오기</button>';
     var diag = '';
     if (tbLoadError){
       diag = '<div style="margin-top:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:11px 13px;font-size:12.5px;color:#b91c1c;text-align:left;">'
         + '⚠ 영상 목록을 불러오지 못했어요.<br>사유: ' + escHtml(tbLoadError)
-        + '<br><span style="color:#7f1d1d;">이 문구를 선생님께 그대로 보여주세요.</span></div>';
+        + '<br><span style="color:#7f1d1d;">이 문구를 선생님께 그대로 보여주세요.</span></div>' + retryBtn;
+    } else if (tbLoadCount < 0){
+      // 아직 끝나지 않음 — "영상이 없다"가 아니라 "기다리는 중"임을 분명히
+      diag = '<div style="margin-top:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:11px 13px;font-size:12.5px;color:#1d4ed8;text-align:left;">'
+        + '⏳ 아직 영상 목록을 불러오는 중이에요'
+        + (tbLoadStage==='db' ? ' (서버 연결 준비 중)' : (tbLoadStage==='query' ? ' (목록 조회 중)' : ''))
+        + '.</div>' + retryBtn;
     } else if (session.role==='teacher'){
-      diag = '<div style="margin-top:10px;font-size:12px;color:#94a3b8;">전체 영상 '+(tbLoadCount<0?'?':tbLoadCount)+'개를 불러왔어요.</div>';
+      diag = '<div style="margin-top:10px;font-size:12px;color:#94a3b8;">전체 영상 '+tbLoadCount+'개를 불러왔어요.</div>';
     }
     area.innerHTML = '<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">등록된 영상이 없습니다.</div>'
       + (session.role==='teacher' ? '<button class="btn-add" onclick="openAddModal()">영상 추가하기</button>' : '')
