@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=68"></script>
+<script src="firebase-api.js?v=69"></script>
 <script src="mathterm-game.js?v=2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -1119,17 +1119,22 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
             </select>
           </div>
           <div class="fg"><label>과목</label>
-            <select id="tbv-subject" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;"></select>
+            <select id="tbv-subject" onchange="refreshTbvUnitList()" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;"></select>
           </div>
           <div class="fg"><label>교재</label>
-            <select id="tbv-book" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
+            <select id="tbv-book" onchange="refreshTbvUnitList()" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;background:#fff;">
               <option>올림포스</option>
               <option>올림포스 유형편</option>
               <option>올림포스 전국연합</option>
             </select>
           </div>
         </div>
-        <div class="fg"><label>영상 이름</label><input type="text" id="tbv-name" placeholder="예) 1단원 다항식 해설" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
+        <!-- 단원 (2026-11-07 추가) — 비워두면 영상 이름에서 "7.유리함수와무리함수" 꼴을 자동으로 읽어서 묶음 -->
+        <div class="fg"><label>단원 (선택)</label>
+          <input type="text" id="tbv-unit" list="tbv-unit-list" placeholder="예) 7.유리함수와무리함수 — 비우면 영상 이름에서 자동으로 읽어요" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;">
+          <datalist id="tbv-unit-list"></datalist>
+        </div>
+        <div class="fg" style="margin-top:10px;"><label>영상 이름</label><input type="text" id="tbv-name" placeholder="예) 1단원 다항식 해설" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         <div class="fg" style="margin-top:10px;"><label>YouTube 링크</label><input type="url" id="tbv-url" placeholder="https://www.youtube.com/watch?v=..." style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         <div class="fg" style="margin-top:10px;"><label>메모 (선택)</label><input type="text" id="tbv-memo" placeholder="간단한 설명" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;"></div>
         <button class="btn-primary" style="margin-top:14px;" onclick="addTbv()">+ 강의 등록</button>
@@ -5234,12 +5239,14 @@ function initTbvPage(){
 function onTbvGradeChange(){
   var grade=document.getElementById('tbv-grade').value;
   document.getElementById('tbv-subject').innerHTML=(TBV_SUBJECTS[grade]||[]).map(function(s){return '<option>'+s+'</option>';}).join('');
+  if(typeof refreshTbvUnitList==='function') refreshTbvUnitList();
 }
 async function loadTbv(){
   var r=await fetch(SU+'?action=getTextbookVideos').then(function(r){return r.json();});
   tbvAll=r.videos||[];
   document.getElementById('tbv-filter-grade').value='';
   document.getElementById('tbv-filter-book').value='';
+  refreshTbvUnitList();
   renderTbv(tbvAll);
 }
 function filterTbv(){
@@ -5247,6 +5254,25 @@ function filterTbv(){
   var book=document.getElementById('tbv-filter-book').value;
   var list=tbvAll.filter(function(v){ return (!grade||v.grade===grade)&&(!book||v.book===book); });
   renderTbv(list);
+}
+// 단원 읽기 (2026-11-07 추가) — unit 필드가 비어 있으면 영상 이름에서 "]7.유리함수와무리함수_" 꼴을 자동 추출.
+// 덕분에 예전에 등록한 영상도 다시 올리지 않고 단원별로 묶임. textbook.html의 tbUnitOf와 같은 규칙.
+function tbvUnitOf(v){
+  if (v.unit) return String(v.unit).trim();
+  var m = String(v.name||'').match(/\]\s*(\d+\s*\.\s*[^_\]]+?)\s*(?:_|$)/);
+  return m ? m[1].replace(/\s+/g,'') : '';
+}
+// 지금 고른 학년·과목·교재에 이미 쓰인 단원 이름을 입력칸 자동완성 목록에 채움
+function refreshTbvUnitList(){
+  var g=document.getElementById('tbv-grade').value, s=document.getElementById('tbv-subject').value, b=document.getElementById('tbv-book').value;
+  var seen={}, out=[];
+  (tbvAll||[]).forEach(function(v){
+    if(v.grade!==g||v.subject!==s||v.book!==b) return;
+    var u=tbvUnitOf(v); if(!u||seen[u]) return; seen[u]=1; out.push(u);
+  });
+  out.sort(tbvNameCompare);
+  var dl=document.getElementById('tbv-unit-list');
+  if(dl) dl.innerHTML=out.map(function(u){return '<option value="'+escHtml(u)+'">';}).join('');
 }
 // 이름 가나다순 정렬 (2026-11-07 추가) — 숫자가 섞인 이름은 숫자를 숫자로 비교.
 // 글자순으로만 하면 "_100번"이 "_75번"보다 앞에 와서 순서가 엉킴. textbook.html의 tbNameCompare와 같은 규칙.
@@ -5274,7 +5300,8 @@ function renderTbv(videos){
     var vid=v.url&&(v.url.match(/[?&]v=([^&]+)/)||v.url.match(/youtu\.be\/([^?]+)/));
     var thumb=vid?'<img src="https://img.youtube.com/vi/'+vid[1]+'/mqdefault.jpg" style="width:90px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0;">':'<div style="width:90px;height:50px;background:#e2e8f0;border-radius:6px;flex-shrink:0;"></div>';
     var tags='<span style="display:inline-block;background:#eff6ff;color:#3b6cf7;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-right:4px;">'+escHtml(v.grade)+' · '+escHtml(v.subject)+'</span>'
-      +'<span style="display:inline-block;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">'+escHtml(v.book)+'</span>';
+      +'<span style="display:inline-block;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">'+escHtml(v.book)+'</span>'
+      +(tbvUnitOf(v)?'<span style="display:inline-block;background:#fef3c7;color:#b45309;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:4px;">'+escHtml(tbvUnitOf(v))+'</span>':'');
     return '<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #f1f5f9;">'
       +thumb
       +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px;">'+escHtml(v.name)+'</div>'
@@ -5291,6 +5318,7 @@ async function addTbv(){
   var grade=document.getElementById('tbv-grade').value;
   var subject=document.getElementById('tbv-subject').value;
   var book=document.getElementById('tbv-book').value;
+  var unit=document.getElementById('tbv-unit').value.trim();
   var name=document.getElementById('tbv-name').value.trim();
   var url=document.getElementById('tbv-url').value.trim();
   var memo=document.getElementById('tbv-memo').value.trim();
@@ -5299,7 +5327,7 @@ async function addTbv(){
   // 과목/교재가 빈 채로 저장되면 학생 화면이 grade·subject·book을 글자까지 정확히 비교하므로
   // 영원히 "영상 0개"로 보임(2026-11-07 안전장치) — 저장 전에 막는다
   if(!grade||!subject||!book){msg.textContent='학년·과목·교재를 먼저 선택해주세요.';msg.style.color='#dc2626';return;}
-  await fetch(SU+'?action=addTextbookVideo&grade='+encodeURIComponent(grade)+'&subject='+encodeURIComponent(subject)+'&book='+encodeURIComponent(book)+'&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&memo='+encodeURIComponent(memo));
+  await fetch(SU+'?action=addTextbookVideo&grade='+encodeURIComponent(grade)+'&subject='+encodeURIComponent(subject)+'&book='+encodeURIComponent(book)+'&unit='+encodeURIComponent(unit)+'&name='+encodeURIComponent(name)+'&url='+encodeURIComponent(url)+'&memo='+encodeURIComponent(memo));
   document.getElementById('tbv-name').value='';document.getElementById('tbv-url').value='';document.getElementById('tbv-memo').value='';
   msg.textContent='등록됐어요!';msg.style.color='#16a34a';
   setTimeout(function(){msg.textContent='';},2000);
@@ -5344,6 +5372,7 @@ async function tbvBulkAdd(){
   var subject=document.getElementById('tbv-subject').value;
   var book=document.getElementById('tbv-book').value;
   var memo=document.getElementById('tbv-memo').value.trim();
+  var unit=document.getElementById('tbv-unit').value.trim();
   if(!grade||!subject||!book){ box.innerHTML='<span style="color:#dc2626;">학년·과목·교재를 먼저 선택해주세요.</span>'; return; }
   if(!confirm(p.rows.length+'개를 ['+grade+' · '+subject+' · '+book+']에 등록할까요?'))return;
   btn.disabled=true; var ok=0, fail=0;
@@ -5351,7 +5380,7 @@ async function tbvBulkAdd(){
     var r=p.rows[i];
     box.innerHTML='<span style="color:#1e3a8a;">등록하는 중... ('+(i+1)+'/'+p.rows.length+')</span>';
     try{
-      await fetch(SU+'?action=addTextbookVideo&grade='+encodeURIComponent(grade)+'&subject='+encodeURIComponent(subject)+'&book='+encodeURIComponent(book)+'&name='+encodeURIComponent(r.name)+'&url='+encodeURIComponent(r.url)+'&memo='+encodeURIComponent(memo));
+      await fetch(SU+'?action=addTextbookVideo&grade='+encodeURIComponent(grade)+'&subject='+encodeURIComponent(subject)+'&book='+encodeURIComponent(book)+'&unit='+encodeURIComponent(unit)+'&name='+encodeURIComponent(r.name)+'&url='+encodeURIComponent(r.url)+'&memo='+encodeURIComponent(memo));
       ok++;
     }catch(e){ fail++; }
   }

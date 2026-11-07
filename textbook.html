@@ -8,7 +8,7 @@
 <style>html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;}</style>
 <script>['gesturestart','gesturechange','gestureend'].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();},{passive:false});});</script>
 <title>부교재 해설 강의 | 김민관 수학</title>
-<script src="firebase-api.js?v=68"></script>
+<script src="firebase-api.js?v=69"></script>
 <script src="chat-widget.js" defer></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -36,6 +36,14 @@ body { font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothi
 .subject-tabs { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
 .subject-tab { padding:8px 20px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; color:#475569; font-weight:700; cursor:pointer; font-size:13px; }
 .subject-tab.active { background:#16a34a; border-color:#16a34a; color:#fff; }
+
+/* 단원 칩·구분 (2026-11-07 추가) */
+.unit-chips { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:18px; }
+.unit-chip { padding:7px 14px; border-radius:18px; border:1.5px solid #e2e8f0; background:#fff; color:#475569; font-weight:700; cursor:pointer; font-size:12.5px; font-family:inherit; }
+.unit-chip.active { background:#f59e0b; border-color:#f59e0b; color:#fff; }
+.unit-group { margin-bottom:26px; }
+.unit-head { font-size:14px; font-weight:800; color:#1e293b; padding:0 0 9px; margin-bottom:12px; border-bottom:2px solid #f1f5f9; }
+.unit-head span { color:#94a3b8; font-size:12px; font-weight:700; margin-left:4px; }
 
 .book-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px; }
 .book-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; padding:26px 18px; text-align:center; cursor:pointer; transition:.15s; }
@@ -91,6 +99,10 @@ body { font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothi
   .grade-tab{padding:13px 24px;font-size:15px;min-height:48px;}
   .subject-tabs{gap:8px;}
   .subject-tab{padding:12px 18px;font-size:14px;min-height:46px;}
+  /* 단원 칩 — 터치 타깃 44px 확보, 줄바꿈 허용 */
+  .unit-chips{gap:7px;}
+  .unit-chip{padding:11px 15px;font-size:13px;min-height:44px;}
+  .unit-head{font-size:14.5px;}
   /* 교재 카드 */
   .book-grid{grid-template-columns:repeat(2,1fr);gap:11px;}
   .book-card{padding:20px 10px;}
@@ -174,6 +186,7 @@ body { font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothi
 <div class="modal-bg" id="add-modal">
   <div class="modal">
     <h3 style="font-size:16px;font-weight:900;margin-bottom:18px;">영상 추가</h3>
+    <div class="fg"><label>단원 (선택)</label><input type="text" id="v-unit" list="v-unit-list" placeholder="비우면 영상 이름에서 자동으로 읽어요"><datalist id="v-unit-list"></datalist></div>
     <div class="fg"><label>영상 이름</label><input type="text" id="v-name" placeholder="예) 1강 다항식 해설"></div>
     <div class="fg"><label>YouTube 링크</label><input type="url" id="v-url" placeholder="https://www.youtube.com/watch?v=..."></div>
     <div class="fg"><label>메모 (선택)</label><input type="text" id="v-memo" placeholder="간단한 설명"></div>
@@ -221,6 +234,7 @@ var BOOKS = ['올림포스', '올림포스 유형편', '올림포스 전국연�
 var currentGrade = '고1';
 var currentSubject = SUBJECTS['고1'][0];
 var currentBook = '올림포스';
+var currentUnit = '';   // '' 이면 전체 단원
 var allVideos = [];
 
 window.addEventListener('DOMContentLoaded', async function(){
@@ -327,16 +341,29 @@ function tbOtherSpotsHtml(){
   var keys = Object.keys(map);
   if (!keys.length) return '';
   keys.sort(function(a,b){ return map[b]-map[a]; });
-  return '<div style="margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:left;max-width:460px;margin-left:auto;margin-right:auto;">'
-    + '<div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:8px;">📍 영상은 여기에 있어요 — 눌러서 바로 이동</div>'
-    + keys.map(function(k){
-        var p = k.split('|');
-        return '<button onclick="tbGoSpot(\''+p[0]+'\',\''+p[1].replace(/'/g,"\\'")+'\',\''+p[2].replace(/'/g,"\\'")+'\')" '
-          + 'style="display:block;width:100%;text-align:left;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:9px;padding:11px 13px;margin-bottom:7px;font-size:13.5px;font-family:inherit;cursor:pointer;color:#1e293b;font-weight:700;min-height:44px;">'
-          + p[0]+' · '+p[1]+' · '+p[2]
-          + ' <span style="color:#3b6cf7;font-weight:800;">'+map[k]+'개</span></button>';
-      }).join('')
-    + '</div>';
+  // 값이 Firestore에서 온 문자열이라 HTML/onclick 문자열에 그대로 끼워넣지 않는다.
+  // 버튼은 DOM API로 만들고(textContent), 클릭은 addEventListener로 붙임 — 주입 여지 없음.
+  tbPendingSpots = keys.map(function(k){ var p=k.split('|'); return { grade:p[0], subject:p[1], book:p[2], count:map[k] }; });
+  return '<div id="tb-spots" style="margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:left;max-width:460px;margin-left:auto;margin-right:auto;">'
+    + '<div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:8px;">📍 영상은 여기에 있어요 — 눌러서 바로 이동</div></div>';
+}
+var tbPendingSpots = [];
+// 위 안내 HTML이 화면에 들어간 뒤 호출 — 버튼을 DOM으로 만들어 붙인다.
+function tbFillSpots(){
+  var host = document.getElementById('tb-spots');
+  if (!host || !tbPendingSpots.length) return;
+  tbPendingSpots.forEach(function(s){
+    var btn = document.createElement('button');
+    btn.style.cssText = 'display:block;width:100%;text-align:left;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:9px;padding:11px 13px;margin-bottom:7px;font-size:13.5px;font-family:inherit;cursor:pointer;color:#1e293b;font-weight:700;min-height:44px;';
+    btn.textContent = s.grade + ' · ' + s.subject + ' · ' + s.book + ' ';
+    var cnt = document.createElement('span');
+    cnt.style.cssText = 'color:#3b6cf7;font-weight:800;';
+    cnt.textContent = s.count + '개';
+    btn.appendChild(cnt);
+    btn.addEventListener('click', function(){ tbGoSpot(s.grade, s.subject, s.book); });
+    host.appendChild(btn);
+  });
+  tbPendingSpots = [];
 }
 // 안내에서 고른 칸으로 이동 (학년 탭 → 과목 탭 → 교재 카드를 한 번에 맞춰줌)
 function tbGoSpot(grade, subject, book){
@@ -362,18 +389,71 @@ function renderVideoArea(){
     area.innerHTML = '<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">등록된 영상이 없습니다.</div>'
       + (session.role==='teacher' ? '<button class="btn-add" onclick="openAddModal()">영상 추가하기</button>' : '')
       + tbOtherSpotsHtml() + '</div>';
+    tbFillSpots();
     return;
   }
-  area.innerHTML = '<div class="video-grid">' + list.map(function(v){
-    var vid = ytId(v.url);
-    var thumb = vid ? '<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg">' : '';
-    var delBtn = session.role==='teacher' ? '<button class="video-del-btn" onclick="event.stopPropagation();delVideo(\''+v.id+'\')">삭제</button>' : '<span></span>';
-    return '<div class="video-card" onclick="openVideo(\''+v.url+'\')">'
-      +'<div class="video-thumb">'+thumb+'<div class="video-play-icon">▶</div></div>'
-      +'<div class="video-info"><div class="video-title">'+escHtml(v.name)+'</div>'
-      +'<div class="video-meta"><span>'+escHtml(v.memo||'')+'</span>'+delBtn+'</div></div></div>';
-  }).join('') + '</div>';
+  // 단원별로 묶어서 보여줌 (2026-11-07 추가) — 단원 칩으로 하나만 골라 볼 수도 있음
+  var units = tbUnitsOf(list);
+  if (currentUnit && units.indexOf(currentUnit) < 0) currentUnit = '';   // 교재를 바꾸면 선택 해제
+  var shown = currentUnit ? list.filter(function(v){ return tbUnitKey(v)===currentUnit; }) : list;
+
+  var chips = '';
+  if (units.length > 1){
+    chips = '<div class="unit-chips">'
+      + '<button class="unit-chip'+(currentUnit?'':' active')+'" onclick="selectUnit(\'\')">전체 '+list.length+'</button>'
+      + units.map(function(u){
+          var n = list.filter(function(v){ return tbUnitKey(v)===u; }).length;
+          return '<button class="unit-chip'+(currentUnit===u?' active':'')+'" data-unit="'+escHtml(u)+'" onclick="selectUnitFrom(this)">'+escHtml(tbUnitLabel(u))+' '+n+'</button>';
+        }).join('')
+      + '</div>';
+  }
+
+  // 전체 보기일 때는 단원 소제목으로 나눠서, 단원을 골랐으면 그 단원만 쭉
+  var bodyHtml;
+  if (!currentUnit && units.length > 1){
+    bodyHtml = units.map(function(u){
+      var g = shown.filter(function(v){ return tbUnitKey(v)===u; });
+      if (!g.length) return '';
+      return '<div class="unit-group"><div class="unit-head">'+escHtml(tbUnitLabel(u))+' <span>'+g.length+'개</span></div>'
+        + '<div class="video-grid">' + g.map(tbVideoCardHtml).join('') + '</div></div>';
+    }).join('');
+  } else {
+    bodyHtml = '<div class="video-grid">' + shown.map(tbVideoCardHtml).join('') + '</div>';
+  }
+  area.innerHTML = chips + bodyHtml;
 }
+// 영상 카드 한 장
+function tbVideoCardHtml(v){
+  var vid = ytId(v.url);
+  var thumb = vid ? '<img src="https://img.youtube.com/vi/'+vid+'/mqdefault.jpg">' : '';
+  var delBtn = session.role==='teacher' ? '<button class="video-del-btn" onclick="event.stopPropagation();delVideo(\''+v.id+'\')">삭제</button>' : '<span></span>';
+  return '<div class="video-card" onclick="openVideo(\''+v.url+'\')">'
+    +'<div class="video-thumb">'+thumb+'<div class="video-play-icon">▶</div></div>'
+    +'<div class="video-info"><div class="video-title">'+escHtml(v.name)+'</div>'
+    +'<div class="video-meta"><span>'+escHtml(v.memo||'')+'</span>'+delBtn+'</div></div></div>';
+}
+// 단원 이름 읽기 — unit 필드가 비었으면 영상 이름에서 "]7.유리함수와무리함수_" 꼴을 자동 추출.
+// 그래서 예전에 등록한 영상도 다시 올리지 않고 단원별로 묶임. admin.html의 tbvUnitOf와 같은 규칙.
+function tbUnitOf(v){
+  if (v.unit) return String(v.unit).trim();
+  var m = String(v.name||'').match(/\]\s*(\d+\s*\.\s*[^_\]]+?)\s*(?:_|$)/);
+  return m ? m[1].replace(/\s+/g,'') : '';
+}
+// 단원 없는 영상을 담는 칸. 빈 문자열('')은 "전체 보기"에 이미 쓰고 있어서
+// 같은 값으로 두면 전체 칩과 기타 칩이 동시에 켜진 것처럼 보임 — 그래서 따로 이름을 둠.
+var TB_NO_UNIT = '__none__';
+function tbUnitKey(v){ return tbUnitOf(v) || TB_NO_UNIT; }
+function tbUnitLabel(u){ return u===TB_NO_UNIT ? '기타' : u; }
+// 목록에 들어있는 단원들을 번호순으로
+function tbUnitsOf(list){
+  var seen={}, out=[];
+  list.forEach(function(v){ var u=tbUnitOf(v); if(!u||seen[u])return; seen[u]=1; out.push(u); });
+  out.sort(tbNameCompare);
+  if (list.some(function(v){ return !tbUnitOf(v); })) out.push(TB_NO_UNIT);  // 단원 없는 것은 맨 뒤 "기타"
+  return out;
+}
+function selectUnit(u){ currentUnit=u; renderVideoArea(); }
+function selectUnitFrom(el){ selectUnit(el.getAttribute('data-unit')||''); }
 
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function ytId(url){
@@ -383,21 +463,33 @@ function ytId(url){
   return m ? m[1] : '';
 }
 
-function openAddModal(){ document.getElementById('add-modal').classList.add('show'); }
+function openAddModal(){
+  // 지금 교재에 이미 쓰인 단원을 자동완성 목록으로 (새 단원을 직접 쳐도 됨)
+  var dl = document.getElementById('v-unit-list');
+  if (dl){
+    var here = allVideos.filter(function(v){return v.grade===currentGrade && v.subject===currentSubject && v.book===currentBook;});
+    dl.innerHTML = tbUnitsOf(here).filter(function(u){return u && u!==TB_NO_UNIT;})
+      .map(function(u){ return '<option value="'+escHtml(u)+'">'; }).join('');
+  }
+  if (currentUnit) document.getElementById('v-unit').value = currentUnit;  // 단원을 골라둔 상태면 미리 채움
+  document.getElementById('add-modal').classList.add('show');
+}
 function closeAddModal(){
   document.getElementById('add-modal').classList.remove('show');
   document.getElementById('v-name').value=''; document.getElementById('v-url').value=''; document.getElementById('v-memo').value='';
+  document.getElementById('v-unit').value='';
 }
 
 async function saveVideo(){
   var name = document.getElementById('v-name').value.trim();
   var url = document.getElementById('v-url').value.trim();
   var memo = document.getElementById('v-memo').value.trim();
+  var unit = document.getElementById('v-unit').value.trim();
   if (!name || !url) { alert('이름과 링크를 입력해주세요.'); return; }
   var db = await window.mkdbReady;
   var id = window.mkGenId('tbv');
   await db.collection('textbook_videos').doc(id).set({
-    id: id, grade: currentGrade, subject: currentSubject, book: currentBook, name: name, url: url, memo: memo, createdAt: window.mkNowStr()
+    id: id, grade: currentGrade, subject: currentSubject, book: currentBook, unit: unit, name: name, url: url, memo: memo, createdAt: window.mkNowStr()
   });
   closeAddModal();
   await loadVideos();

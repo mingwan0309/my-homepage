@@ -2391,7 +2391,7 @@ api.getTextbookVideos = function(db){
   return db.collection('textbook_videos').get().then(function(snap){
     var videos = docsToArr(snap).sort(function(a,b){ return (a.createdAt||'') < (b.createdAt||'') ? -1 : 1; })
       .map(function(r){
-        return { id:String(r.id), grade:r.grade||'', subject:r.subject||'', book:r.book||'', name:r.name||'', url:r.url||'', memo:r.memo||'', createdAt:r.createdAt||'' };
+        return { id:String(r.id), grade:r.grade||'', subject:r.subject||'', book:r.book||'', unit:r.unit||'', name:r.name||'', url:r.url||'', memo:r.memo||'', createdAt:r.createdAt||'' };
       });
     return { videos: videos };
   });
@@ -2399,12 +2399,12 @@ api.getTextbookVideos = function(db){
 api.addTextbookVideo = function(db, p){
   var id = genId('tbv');
   return db.collection('textbook_videos').doc(id).set({
-    id:id, grade:p.grade||'', subject:p.subject||'', book:p.book||'', name:p.name||'', url:p.url||'', memo:p.memo||'', createdAt:nowStr()
+    id:id, grade:p.grade||'', subject:p.subject||'', book:p.book||'', unit:p.unit||'', name:p.name||'', url:p.url||'', memo:p.memo||'', createdAt:nowStr()
   }).then(function(){ return { success:true, id:id }; });
 };
 api.updateTextbookVideo = function(db, p){
   var data = {};
-  ['grade','subject','book','name','url','memo'].forEach(function(k){ if (p[k] !== undefined) data[k] = p[k]; });
+  ['grade','subject','book','unit','name','url','memo'].forEach(function(k){ if (p[k] !== undefined) data[k] = p[k]; });
   return db.collection('textbook_videos').doc(String(p.id)).update(data)
     .then(function(){ return { success:true }; }, function(){ return { success:false }; });
 };
