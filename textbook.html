@@ -314,6 +314,42 @@ function tbNameCompare(a, b){
   return ra.length - rb.length;
 }
 
+// 영상이 실제로 들어있는 칸(학년·과목·교재) 목록을 만들어 "여기 있어요" 안내로 보여줌.
+// 지금 보고 있는 칸은 빼고, 누르면 그 칸으로 바로 이동.
+function tbOtherSpotsHtml(){
+  var map = {};
+  allVideos.forEach(function(v){
+    if (!v.grade || !v.subject || !v.book) return;
+    if (v.grade===currentGrade && v.subject===currentSubject && v.book===currentBook) return;
+    var k = v.grade+'|'+v.subject+'|'+v.book;
+    map[k] = (map[k]||0) + 1;
+  });
+  var keys = Object.keys(map);
+  if (!keys.length) return '';
+  keys.sort(function(a,b){ return map[b]-map[a]; });
+  return '<div style="margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:left;max-width:460px;margin-left:auto;margin-right:auto;">'
+    + '<div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:8px;">📍 영상은 여기에 있어요 — 눌러서 바로 이동</div>'
+    + keys.map(function(k){
+        var p = k.split('|');
+        return '<button onclick="tbGoSpot(\''+p[0]+'\',\''+p[1].replace(/'/g,"\\'")+'\',\''+p[2].replace(/'/g,"\\'")+'\')" '
+          + 'style="display:block;width:100%;text-align:left;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:9px;padding:11px 13px;margin-bottom:7px;font-size:13.5px;font-family:inherit;cursor:pointer;color:#1e293b;font-weight:700;min-height:44px;">'
+          + p[0]+' · '+p[1]+' · '+p[2]
+          + ' <span style="color:#3b6cf7;font-weight:800;">'+map[k]+'개</span></button>';
+      }).join('')
+    + '</div>';
+}
+// 안내에서 고른 칸으로 이동 (학년 탭 → 과목 탭 → 교재 카드를 한 번에 맞춰줌)
+function tbGoSpot(grade, subject, book){
+  currentGrade = grade; currentSubject = subject; currentBook = book;
+  document.querySelectorAll('.grade-tab').forEach(function(el){
+    el.classList.toggle('active', (el.textContent||'').trim()===grade);
+  });
+  renderSubjectTabs();
+  renderBookGrid();
+  renderVideoArea();
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
 function renderVideoArea(){
   document.getElementById('book-title').textContent = currentGrade + ' · ' + currentSubject + ' · ' + currentBook;
   document.getElementById('btn-add-video').style.display = session.role==='teacher' ? '' : 'none';
@@ -321,8 +357,11 @@ function renderVideoArea(){
     .sort(function(a,b){ return tbNameCompare(a.name, b.name); });
   var area = document.getElementById('video-area');
   if (!list.length){
+    // 지금 칸이 비어 있어도 다른 학년·과목·교재에 영상이 있으면 어디에 몇 개 있는지 알려주고
+    // 눌러서 바로 이동하게 함 — 탭을 하나씩 눌러보며 찾는 일을 없애기 위함 (2026-11-07 추가)
     area.innerHTML = '<div class="video-empty"><div class="video-empty-icon">📹</div><div class="video-empty-text">등록된 영상이 없습니다.</div>'
-      + (session.role==='teacher' ? '<button class="btn-add" onclick="openAddModal()">영상 추가하기</button>' : '') + '</div>';
+      + (session.role==='teacher' ? '<button class="btn-add" onclick="openAddModal()">영상 추가하기</button>' : '')
+      + tbOtherSpotsHtml() + '</div>';
     return;
   }
   area.innerHTML = '<div class="video-grid">' + list.map(function(v){
