@@ -1,6 +1,6 @@
 import json, numpy as np, cv2, collections
 from PIL import Image, ImageDraw, ImageFont
-S=json.load(open('hwfont/samples/index.json',encoding='utf-8'))
+S=json.load(open('hwfont/samples/index.json',encoding='utf-8'))['s']
 def vec(f):
     m=255-cv2.imread(f,0); h,w=m.shape; s=max(h,w)
     c=np.zeros((s,s),np.uint8); c[(s-h)//2:(s-h)//2+h,(s-w)//2:(s-w)//2+w]=m
@@ -14,7 +14,8 @@ for ch,L in S.items():
         X0,Y0,X1,Y1=x['ink']; w=X1-X0; h=Y1-Y0; bh=x['box'][3]-x['box'][1]; lh=x['line'][3]-x['line'][1]
         if x['sat']>60: return False
         if not (MEDL*0.75<=lh<=MEDL*1.3): return False
-        if '가'<=ch<='힣': return 0.6*bh<=w<=1.3*bh and h>=0.6*bh
+        bw=x['box'][2]-x['box'][0]
+        if '가'<=ch<='힣': return 0.6*bh<=w<=1.3*bh and h>=0.6*bh and 0.8*bw<=w<=1.35*bw
         return True
     G=[x for x in L if good(x)]
     L=(G or L)[:150]
