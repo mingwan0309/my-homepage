@@ -157,7 +157,11 @@ gl={'.notdef':e.glyph(),'space':TTGlyphPen(None).glyph(),**{k:v[1] for k,v in ou
 fb.setupGlyf(gl)
 fb.setupHorizontalMetrics({'.notdef':(500,0),'space':(330,0),**{k:(v[2],50) for k,v in out.items()}})
 fb.setupHorizontalHeader(ascent=900,descent=-200)
-fb.setupNameTable({'familyName':'민관손글씨','styleName':'Regular'})
-fb.setupOS2(sTypoAscender=900,sTypoDescender=-200,usWinAscent=1000,usWinDescent=250)
+# Windows는 영어 이름(0x409)과 ASCII psName이 꼭 있어야 글꼴로 인정함 — 한글 이름만 넣으면 "올바른 글꼴 파일이 아닙니다"
+fb.setupNameTable({'familyName':{'en':'MinkwanSonGeulssi','ko':'민관손글씨'},'styleName':{'en':'Regular','ko':'Regular'},
+                   'uniqueFontIdentifier':'MinkwanSonGeulssi-Regular-1.0','fullName':{'en':'MinkwanSonGeulssi','ko':'민관손글씨'},
+                   'psName':'MinkwanSonGeulssi-Regular','version':'Version 1.000'})
+fb.setupOS2(sTypoAscender=900,sTypoDescender=-200,usWinAscent=1000,usWinDescent=250,fsType=0,
+            ulCodePageRange1=(1<<0)|(1<<19),ulUnicodeRange1=(1<<0)|(1<<28),ulUnicodeRange2=(1<<24))
 fb.setupPost(); fb.save(OUTTTF)
 print('glyphs',len(out)); print(''.join(sorted(v[0] for v in out.values())))
