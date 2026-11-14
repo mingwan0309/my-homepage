@@ -3,10 +3,10 @@ from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 OUTTTF=sys.argv[1]
 best=json.load(open('hwfont/best.json',encoding='utf-8'))
-ACCEPT=set('''수 1 a 을 의 n 이 . 다 , 가 ( = ) 0 는 x 로 + A 를 o y 지 - 그 기 3 에 b 한 함 대 2 O 일 정 고 은 m t C 서 B 해 하 > 행 식 사 성 < 위 값 밍 g 점 각 인 선 두 건 l 으 4 P 실 π 과 근 래 있 주 최 라 곱 계 어 프 갈 방 반 동 부 나 도 K 진 등 면 만 경 T 6 시 렬 음 제 자 c 단 9 개 표 질 원 모 므 관 리 중 할 d 상 우 E 치 댓 용 미 직 증 교 분 든 밑 때 범 호 립 7 구 적 차 합 와 른 소 크 삼 공 조 8 거 없 또
-현 된 e 환 통 측 칭 집 려 결 야 게 않 D 평 갖 되 말 것 포 입 억 J 드 산 확 법 문 체 q 꼴 칙 즉 세 록 키 재 항 유 셈 외 길 허 k 작 아 내 향 층 ! 듭 히 전 익 임 옮 특 복 생 ? 니 들 비 변 운 화 배 큼 p 터 절 풀 본 찰 택 학 여 며 w 경 장 명 육 처 감 깝 석 저 했 역 순 낸 군 쓰 덧 곳 짐 먼 신 바 던 혀
-난 져 끼 황 채 접 받 번 네 연 홀 닌 써 담 뜻 십 빈 누 쳐 디 균 친 색 읽 떤 편 많 암 참 묶 겁 낼 잘 졌 높 꽂 숫
-회 영 쓴 겹 엄 득 놓 숙 첨 테 칠 앞 잇 못 끝 책'''.split())
+ACCEPT=set('''같 식 대 의 그 다 수 는 으 로 한 고 이 함 3 정 서 가 에 하 은 를 지 O 1 b + t A B C . = ( ) 2 - 0 일 x 기 , m a 을 P 두 n o y 선 점 집 원 해 인 밍 위 라 각 면 > < 직 4 분 과 c 방 반 g 동 나 소 실 성 값 만 d 있 계 K 도 사 어 행 부 합 근 래 시 제 모 프 중 건 적 리 자 진 교 미 9 호 최 D 치 것 차 등 표 e 거 관 경 무 때 주 음 단 π 공 므 6 칭 할 삼 개 T 든 q 우 곱 5 구 질 형 상 내 와 산 립 된 유
+길 문 7 통 법 R 않 용 변 응 U 조 외 k 세 크 되 증 게 결 p 접 측 평 렬 포 짓 터 명 아 록 없 체 역 갖 또 칙 전 임 야 입 복 범 려 댓 심 현 환 z Z 허 울 작 들 즉 S 향 밑 8 석 르 h 꼭 히 비 말 u 보 층 키 큼 참 특 순 준 ! 넓 ? 확 재 꼴 램 W 벤 족 여 새 셈 속 생 듭 절 활 장 w 알 묶 화 찰 바 눈 누 양 풀 될 니 닌 마 낸 난 까 후 본 처 옮 배 러 연
+네 능 찾 필 쪽 혀 택 웃 설 학 j 써 불 편 쌍 육 앞 쳐 뿐 뺀 균 갑 덧 V 읽 했 느 뜻 져 별 큰 트 끼 감 받 많 신 던 쓰 짐 곳 먼 저 황 줄 훈 겹 군 채 답 당 란 잡 태 첫 핵 춰 씩 놓 빈 달 남 색 온 십 취 뤄 량 님 좋 잘 친 충 번
+홀 높 떤 빠 묶 볼 좁 폭 못 푼 늪 험 잇 끝 칠 영 책 암 엄 득 낼 벡 첨 테 턴 념 귀 돌 곡 둠 짜 몇 맨 엔 넘 째 겁 쓴'''.split())
 REJECT=set("""G F K 무 v 감 양 Y s L 행 여 며 나 평 자 칭 f C 판 π r 항 예 민 징 5 권 얇 증 른 히 연 출 매 재 h 검 닌 법 결 향 년 셔 존 능 ① 군 타 익 분 림 먹 런 멈 침 김 율 망 던 발 요 메 더 보 루 란 추 축 족 d 저 틈 틀 름 목 순 좌 R 차 됨 많 잡 명 당 련 찾 꾸 먼 신 D 글 릴 춤 형 태 u 디 뤄 퀴 피 솟 온 ⑤ 속 불 ! 술 창 령 첫 학 했 딩 급 끈 옷 둔 ② 뜻 맨 경 쓰 엔 스 설 뚜 밸 레 백 공 훈 완 벽 병 략 알 ③ 밀 탈 릿 남 길 맞 힘 철 욱 긴 헌 품 밤 손 Q 숨 눈 초 월 헷 간 파 악 줏 코 쉽 천 마 몽 뀌 류 z 몇 찔 황""".split())
 # 개수 2 이하 중 눈으로 확인한 좋은 글자만 허용
 LOWOK=set("떤 번 즉 키 역 국 짝 편 담 트 갔 i 줄 곳 육 처 W 짓 난 균 끼 꼴 네 허 낸 써 암 넘 끔 빠 십 빈 혀 빨 째 머 짐 누 묶 져 겁 낼 석 잘 임 높 안 절 졌 둥 될 꽂 늦".split())
@@ -29,6 +29,10 @@ def contours_to_glyph(mask,box,Zs):
         yield pts,a
     return
 out={}; raw={}
+# 아이패드가 다른 글자로 읽었지만 모양이 분명한 것: 표본 이름 → 실제 글자
+REMAP={}
+for _a,_b in REMAP.items():
+    if _a in best: best[_b]=best.pop(_a); ACCEPT.add(_b)
 import statistics as _st
 _H=[x for c,L in IDX['s'].items() if '가'<=c<='힣' for x in L if x['sat']<=60]
 TOP=_st.median((x['box'][1]-x['line'][1])/(x['line'][3]-x['line'][1]) for x in _H)
@@ -153,7 +157,7 @@ gl={'.notdef':e.glyph(),'space':TTGlyphPen(None).glyph(),**{k:v[1] for k,v in ou
 fb.setupGlyf(gl)
 fb.setupHorizontalMetrics({'.notdef':(500,0),'space':(330,0),**{k:(v[2],50) for k,v in out.items()}})
 fb.setupHorizontalHeader(ascent=900,descent=-200)
-fb.setupNameTable({'familyName':'MinkwanHand','styleName':'Regular'})
+fb.setupNameTable({'familyName':'민관손글씨','styleName':'Regular'})
 fb.setupOS2(sTypoAscender=900,sTypoDescender=-200,usWinAscent=1000,usWinDescent=250)
 fb.setupPost(); fb.save(OUTTTF)
 print('glyphs',len(out)); print(''.join(sorted(v[0] for v in out.values())))
