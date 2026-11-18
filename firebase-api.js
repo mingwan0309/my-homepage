@@ -1722,6 +1722,43 @@ api.deleteHomePopupReply = function(db, p){
 };
 
 // ── 공지사항 (Firestore 공유, 전 기기에서 동일하게 보임) ──
+/* ===== 수업 결과 알림톡 발송 이력 (2026-11-18 추가) =====
+   예전엔 session.html이 localStorage에만 쌓아서 "보낸 컴퓨터"에서만 보였음.
+   Firestore에 남겨서 어느 기기에서 보내든 어느 기기에서든 보이게 함. */
+api.addSendLog = function(db, p){
+  var id = (window.mkGenId ? window.mkGenId('slog') : ('slog_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)));
+  var recipients = [];
+  try { recipients = JSON.parse(p.recipients || '[]'); } catch(e){ recipients = []; }
+  return db.collection('send_logs').doc(id).set({
+    id: id,
+    sentAt: nowStr(),                       // "YYYY.MM.DD HH:MM" — 글자순 = 시간순
+    sentAtIso: p.sentAtIso || '',
+    classId: p.classId || '',
+    className: p.className || '',
+    sessionId: p.sessionId || '',
+    sessionNum: p.sessionNum || '',
+    success: String(p.success) === 'true',
+    errorMsg: p.errorMsg || '',
+    count: recipients.length,
+    sentBy: p.sentBy || '',
+    recipients: recipients
+  }).then(function(){ return { success:true, id:id }; },
+          function(e){ return { success:false, msg:(e && e.message) || '저장 실패' }; });
+};
+api.getSendLogs = function(db, p){
+  var limit = parseInt(p && p.limit, 10) || 100;
+  // sentAt 문자열이 시간순이라 그대로 내림차순 정렬하면 최신순이 됨
+  return db.collection('send_logs').orderBy('sentAt','desc').limit(limit).get().then(function(snap){
+    return { items: docsToArr(snap) };
+  }, function(){
+    // 색인이 없거나 조회가 막히면 전체를 읽어 직접 정렬 (건수가 많지 않은 컬렉션)
+    return db.collection('send_logs').get().then(function(snap){
+      var items = docsToArr(snap).sort(function(a,b){ return (b.sentAt||'') < (a.sentAt||'') ? -1 : 1; });
+      return { items: items.slice(0, limit) };
+    });
+  });
+};
+
 api.getNotices = function(db){
   return db.collection('notices').get().then(function(snap){
     var items = docsToArr(snap);
@@ -2020,9 +2057,12 @@ api.getWeakTypes = function(db, p){
       return Promise.all(sessIds.map(function(id){ return db.collection('sessions').doc(String(id)).get(); })).then(function(sesDocs){
         var sesMap = {};
         sesDocs.forEach(function(d){ if (d.exists) sesMap[d.id]=d.data(); });
-        var tally = {}, examRows = [];
+        // 일일테스트(daily)와 실전 모의고사(mock)는 난이도·출제범위가 달라서 따로 집계함 (2026-11-15)
+        var tally = {}, tallyBy = { daily:{}, mock:{} }, examRows = [];
         scores.forEach(function(s){
           var ex = exMap[s.examId]; if (!ex) return;
+          var kind = (ex.examType==='mock') ? 'mock' : 'daily';
+          var sub = tallyBy[kind];
           var cats = Array.isArray(ex.questionCategories) ? ex.questionCategories : [];
           if (!cats.some(function(c){ return c; })) return;
           var wrong = Array.isArray(s.wrongQuestions) ? s.wrongQuestions : (subWrong[s.examId] || null);
@@ -2033,17 +2073,21 @@ api.getWeakTypes = function(db, p){
             if (!c) return;
             var q = i+1;
             if (!tally[c]) tally[c] = { name:c, total:0, wrong:0 };
-            tally[c].total++;
-            if (wrong.indexOf(q)>=0) { tally[c].wrong++; wrongCats.push(c+'('+q+'번)'); }
+            if (!sub[c]) sub[c] = { name:c, total:0, wrong:0 };
+            tally[c].total++; sub[c].total++;
+            if (wrong.indexOf(q)>=0) { tally[c].wrong++; sub[c].wrong++; wrongCats.push(c+'('+q+'번)'); }
           });
-          examRows.push({ examId:s.examId, examName:ex.name||'시험', date:ses.date||'', sessLabel:ses.label||(ses.sessionNum?ses.sessionNum+'차시':''), score:s.score, wrongCount:wrong.length, wrongCats:wrongCats });
+          examRows.push({ examId:s.examId, examName:ex.name||'시험', examType:kind, date:ses.date||'', sessLabel:ses.label||(ses.sessionNum?ses.sessionNum+'차시':''), score:s.score, wrongCount:wrong.length, wrongCats:wrongCats });
         });
         // 정렬은 "많이 틀린 순"이 먼저 — 비율로 먼저 줄 세우면 1문항 나와서 1개 틀린 유형(100%)이
         // 10문항 중 6개 틀린 유형(60%)보다 위로 올라와서 "자주 틀리는 유형"이라는 뜻과 어긋남(2026-11-07 수정)
-        var types = Object.keys(tally).map(function(k){ var t=tally[k]; t.rate = t.total ? Math.round(t.wrong/t.total*100) : 0; return t; })
-          .sort(function(a,b){ return b.wrong-a.wrong || b.rate-a.rate || b.total-a.total; });
+        function toList(obj){
+          return Object.keys(obj).map(function(k){ var t=obj[k]; t.rate = t.total ? Math.round(t.wrong/t.total*100) : 0; return t; })
+            .sort(function(a,b){ return b.wrong-a.wrong || b.rate-a.rate || b.total-a.total; });
+        }
+        var types = toList(tally);
         examRows.sort(function(a,b){ return (a.date||'')<(b.date||'') ? 1 : -1; });
-        return { types:types, exams:examRows };
+        return { types:types, typesDaily:toList(tallyBy.daily), typesMock:toList(tallyBy.mock), exams:examRows };
       });
     });
   });

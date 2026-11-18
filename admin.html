@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=69"></script>
+<script src="firebase-api.js?v=71"></script>
 <script src="mathterm-game.js?v=2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -2420,6 +2420,21 @@ function switchSdTab(tab,el){
   renderSdTabBody();
 }
 // 성적 이력 탭 위에 "자주 틀리는 유형" 표 (2026-09-21 추가) — 마이페이지 카드와 같은 API(getWeakTypes)
+// 유형 표 한 덩어리 (일일테스트/실전 모의고사/전체 공통)
+function sdWeakBlock(title, types){
+  return '<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:10px 12px;margin-bottom:12px;">'
+    +'<div style="font-size:13px;font-weight:800;color:#6d28d9;margin-bottom:6px;">'+title+'</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12.5px;">'
+    +'<thead><tr style="color:#64748b;text-align:left;"><th style="padding:4px 6px;">유형</th><th style="padding:4px 6px;text-align:right;white-space:nowrap;">틀림/전체</th><th style="padding:4px 6px;text-align:right;">오답률</th></tr></thead><tbody>'
+    +types.map(function(t){
+        var color=t.wrong>=3?'#dc2626':(t.wrong===2?'#f59e0b':'#3b6cf7');
+        var rateCell = t.total>=3
+          ? '<span style="font-weight:800;color:'+color+';">'+t.rate+'%</span>'
+          : '<span style="color:#94a3b8;font-size:11.5px;">표본 '+t.total+'문항</span>';
+        return '<tr style="border-top:1px solid #ede9fe;"><td style="padding:5px 6px;font-weight:700;color:#1e293b;">'+escHtml(t.name)+'</td><td style="padding:5px 6px;text-align:right;white-space:nowrap;font-weight:800;color:'+color+';">'+t.wrong+'/'+t.total+'</td><td style="padding:5px 6px;text-align:right;">'+rateCell+'</td></tr>';
+      }).join('')
+    +'</tbody></table></div>';
+}
 async function loadSdWeakTypes(){
   var el=document.getElementById('sd-weak-types');
   if(!el||!sdCurrentStu) return;
@@ -2428,8 +2443,12 @@ async function loadSdWeakTypes(){
     var r=await fetch(SU+'?action=getWeakTypes&studentId='+encodeURIComponent(sdCurrentStu.id)).then(function(x){return x.json();});
     var types=r.types||[];
     if(!types.length){ el.innerHTML='<div style="font-size:12px;color:#94a3b8;margin-bottom:10px;">📉 유형이 붙은 시험 채점 결과가 아직 없어요. (답안 등록에서 문항 유형을 붙이면 여기 집계돼요)</div>'; return; }
-    el.innerHTML='<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:10px 12px;margin-bottom:12px;">'
-      +'<div style="font-size:13px;font-weight:800;color:#6d28d9;margin-bottom:6px;">📉 자주 틀리는 유형</div>'
+    // 일일테스트 / 실전 모의고사를 나눠서 표 2개로 (2026-11-15) — 전체 합산 표는 그 아래에 접어둠
+    var dly=(r.typesDaily||[]), mk=(r.typesMock||[]);
+    el.innerHTML=(dly.length?sdWeakBlock('📝 일일테스트에서 자주 틀리는 유형', dly):'')
+      +(mk.length?sdWeakBlock('🎯 실전 모의고사에서 자주 틀리는 유형', mk):'')
+      +'<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:10px 12px;margin-bottom:12px;">'
+      +'<div style="font-size:13px;font-weight:800;color:#6d28d9;margin-bottom:6px;">📉 전체 합산</div>'
       +'<table style="width:100%;border-collapse:collapse;font-size:12.5px;">'
       +'<thead><tr style="color:#64748b;text-align:left;"><th style="padding:4px 6px;">유형</th><th style="padding:4px 6px;text-align:right;white-space:nowrap;">틀림/전체</th><th style="padding:4px 6px;text-align:right;">오답률</th></tr></thead><tbody>'
       +types.map(function(t){
@@ -2443,7 +2462,7 @@ async function loadSdWeakTypes(){
         }).join('')
       +'</tbody></table>'
       +(r.exams&&r.exams.length?'<details style="margin-top:8px;"><summary style="font-size:12px;color:#7c3aed;cursor:pointer;">시험별 틀린 유형 보기</summary>'
-        +r.exams.map(function(e){ return '<div style="font-size:12px;color:#475569;padding:4px 0;border-top:1px solid #f1f5f9;"><b>'+escHtml(e.examName)+'</b> <span style="color:#94a3b8;">'+escHtml(e.date||'')+(e.sessLabel?' · '+escHtml(e.sessLabel):'')+'</span><br>'+(e.wrongCats.length?escHtml(e.wrongCats.join(', ')):'<span style="color:#16a34a;">전부 맞음</span>')+'</div>'; }).join('')
+        +r.exams.map(function(e){ return '<div style="font-size:12px;color:#475569;padding:4px 0;border-top:1px solid #f1f5f9;">'+(e.examType==='mock'?'<span style="display:inline-block;padding:1px 6px;border-radius:999px;background:#eef3ff;color:#1d4ed8;font-size:11px;font-weight:800;margin-right:4px;">모의</span>':'')+'<b>'+escHtml(e.examName)+'</b> <span style="color:#94a3b8;">'+escHtml(e.date||'')+(e.sessLabel?' · '+escHtml(e.sessLabel):'')+'</span><br>'+(e.wrongCats.length?escHtml(e.wrongCats.join(', ')):'<span style="color:#16a34a;">전부 맞음</span>')+'</div>'; }).join('')
         +'</details>':'')
       +'</div>';
   }catch(e){ el.innerHTML=''; }

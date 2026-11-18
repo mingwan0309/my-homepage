@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>차시 — 김민관 수학</title>
-<script src="firebase-api.js?v=69"></script>
+<script src="firebase-api.js?v=71"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -1496,20 +1496,77 @@ function restoreMsgDraft(){
 function clearMsgDraft(){ localStorage.removeItem(msgDraftKey()); }
 var MSG_SEND_HISTORY_KEY='mkmath_msg_send_history';
 function saveMsgSendHistory(messages,success,errorMsg){
-  var list=JSON.parse(localStorage.getItem(MSG_SEND_HISTORY_KEY)||'[]');
-  list.unshift({
+  var recips=messages.map(function(m){return {name:m.name,label:m.label||'',phone:m.phone,message:m.message};});
+  var entry={
     sentAt:new Date().toISOString(),
     className:classInfo?classInfo.name:'',
     sessionNum:sessionInfo?(sessLabel(sessionInfo)):'',
     success:success,
     errorMsg:errorMsg||'',
-    recipients:messages.map(function(m){return {name:m.name,label:m.label||'',phone:m.phone,message:m.message};})
-  });
+    recipients:recips
+  };
+  // ① 이 기기에도 남김 (서버 저장이 실패해도 최소한 보이게)
+  var list=JSON.parse(localStorage.getItem(MSG_SEND_HISTORY_KEY)||'[]');
+  list.unshift(entry);
   if(list.length>50)list=list.slice(0,50);
   localStorage.setItem(MSG_SEND_HISTORY_KEY,JSON.stringify(list));
+  // ② 서버에도 남김 — 다른 컴퓨터·폰에서도 보이게 (2026-11-18 추가)
+  try{
+    fetch(SU+'?action=addSendLog'
+      +'&classId='+encodeURIComponent(classInfo?classInfo.id:'')
+      +'&className='+encodeURIComponent(classInfo?classInfo.name:'')
+      +'&sessionId='+encodeURIComponent(sessionInfo?sessionInfo.id:'')
+      +'&sessionNum='+encodeURIComponent(sessionInfo?sessLabel(sessionInfo):'')
+      +'&success='+(success?'true':'false')
+      +'&errorMsg='+encodeURIComponent(errorMsg||'')
+      +'&sentAtIso='+encodeURIComponent(entry.sentAt)
+      +'&sentBy='+encodeURIComponent(session?(session.name||session.id):'')
+      +'&recipients='+encodeURIComponent(JSON.stringify(recips)))
+      .catch(function(){});   // 저장 실패해도 발송 자체엔 영향 없음
+  }catch(e){}
 }
-function openMsgSendHistoryModal(){
-  var list=JSON.parse(localStorage.getItem(MSG_SEND_HISTORY_KEY)||'[]');
+// 서버 기록 + 이 기기 기록을 합쳐서 최신순으로 (2026-11-18)
+// 같은 발송이 양쪽에 있을 수 있으므로 "보낸 시각(분)+건수"로 중복 제거
+var msgHistoryList=[];
+function mergeMsgHistory(serverItems){
+  var local=JSON.parse(localStorage.getItem(MSG_SEND_HISTORY_KEY)||'[]');
+  var out=[],seen={};
+  function keyOf(it){
+    var d=new Date(it.sentAt);
+    var t=isNaN(d.getTime())?String(it.sentAt||''):d.toISOString().slice(0,16);
+    return t+'|'+((it.recipients||[]).length);
+  }
+  (serverItems||[]).forEach(function(s){
+    var item={
+      sentAt:s.sentAtIso||isoFromNowStr(s.sentAt),
+      className:s.className||'', sessionNum:s.sessionNum||'',
+      success:s.success===true||s.success==='true',
+      errorMsg:s.errorMsg||'', recipients:s.recipients||[], sentBy:s.sentBy||''
+    };
+    var k=keyOf(item); if(seen[k])return; seen[k]=1; out.push(item);
+  });
+  local.forEach(function(l){ var k=keyOf(l); if(seen[k])return; seen[k]=1; out.push(l); });
+  out.sort(function(a,b){ return new Date(b.sentAt)-new Date(a.sentAt); });
+  return out;
+}
+// "YYYY.MM.DD HH:MM"(서버 저장 형식) → Date가 읽을 수 있는 문자열
+function isoFromNowStr(s){
+  var m=String(s||'').match(/^(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})$/);
+  return m? (m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':00') : String(s||'');
+}
+async function openMsgSendHistoryModal(){
+  var el=document.getElementById('msg-send-history-list');
+  document.getElementById('msg-send-history-modal').classList.add('show');
+  el.innerHTML='<div style="color:#94a3b8;text-align:center;padding:40px;font-size:14px;">불러오는 중...</div>';
+  var serverItems=[];
+  try{
+    var r=await fetch(SU+'?action=getSendLogs&limit=100').then(function(x){return x.json();});
+    serverItems=(r&&r.items)||[];
+  }catch(e){ /* 서버를 못 읽어도 이 기기 기록은 보여줌 */ }
+  renderMsgSendHistory(mergeMsgHistory(serverItems));
+}
+function renderMsgSendHistory(list){
+  msgHistoryList=list;
   var el=document.getElementById('msg-send-history-list');
   if(!list.length){
     el.innerHTML='<div style="color:#94a3b8;text-align:center;padding:40px;font-size:14px;">발송 이력이 없습니다.</div>';
@@ -1530,7 +1587,7 @@ function openMsgSendHistoryModal(){
       html+='<div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;background:#fff;">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">'
         +'<div style="display:flex;align-items:center;gap:8px;min-width:0;">'+badge+'<span style="color:#94a3b8;font-size:12px;">'+ctx+'</span></div>'
-        +'<span style="font-size:12px;color:#94a3b8;flex-shrink:0;">'+timeStr+' · '+item.recipients.length+'건</span>'
+        +'<span style="font-size:12px;color:#94a3b8;flex-shrink:0;">'+timeStr+' · '+item.recipients.length+'건'+(item.sentBy?' · '+escHtml(item.sentBy):'')+'</span>'
         +'</div>'
         +(item.success?'':'<div style="font-size:12px;color:#ef4444;margin-bottom:8px;">오류: '+escHtml(item.errorMsg)+'</div>')
         +'<div style="cursor:pointer;color:#3b6cf7;font-size:12px;font-weight:600;" onclick="toggleMsgHistoryDetail('+i+')">받는 사람·내용 보기 ▾</div>'
