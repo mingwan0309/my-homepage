@@ -691,6 +691,50 @@ var TEACHER_NOTIFY_PHONE = '01062519244';
 function firestoreBaseUrl() {
   return 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT_ID + '/databases/(default)/documents';
 }
+
+// 🔎 점검용 (2026-11-21) — Apps Script에서 Firestore를 못 읽을 때 "어디서 막히는지" 알아내려고 만듦.
+// 아무것도 바꾸지 않고 읽기만 해봄. 편집기에서 이 함수를 골라 ▶ 실행하고 실행 로그를 보면 됨.
+function 진단_Firestore() {
+  var token = ScriptApp.getOAuthToken();
+  Logger.log('프로젝트: ' + FIRESTORE_PROJECT_ID + ' / 토큰 길이: ' + (token ? token.length : 0));
+
+  function 시도(이름, url, payload) {
+    var opt = { headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, muteHttpExceptions: true };
+    if (payload) { opt.method = 'POST'; opt.payload = JSON.stringify(payload); } else { opt.method = 'GET'; }
+    try {
+      var res = UrlFetchApp.fetch(url, opt);
+      var code = res.getResponseCode();
+      var body = String(res.getContentText() || '').replace(/\s+/g, ' ').slice(0, 220);
+      Logger.log('[' + 이름 + '] HTTP ' + code + ' → ' + (code === 200 ? '성공' : body));
+      return code;
+    } catch (e) {
+      Logger.log('[' + 이름 + '] 예외: ' + e);
+      return -1;
+    }
+  }
+
+  // ① 문서 1개만 단순 읽기 (쿼리 아님)
+  시도('①문서1개', firestoreBaseUrl() + '/app_settings/mclinic');
+  // ② 목록 1건만 (쿼리 아님)
+  시도('②목록1건', firestoreBaseUrl() + '/hw_status?pageSize=1');
+  // ③ 조건 1개짜리 쿼리
+  시도('③단순쿼리', firestoreBaseUrl() + ':runQuery', {
+    structuredQuery: { from: [{ collectionId: 'hw_status' }], limit: 1 }
+  });
+  // ④ 지금 자동완료가 쓰는 범위 쿼리
+  시도('④범위쿼리', firestoreBaseUrl() + ':runQuery', {
+    structuredQuery: {
+      from: [{ collectionId: 'hw_status' }],
+      where: { compositeFilter: { op: 'AND', filters: [
+        { fieldFilter: { field: { fieldPath: 'submittedAt' }, op: 'GREATER_THAN_OR_EQUAL', value: { stringValue: '2000.01.01 00:00' } } },
+        { fieldFilter: { field: { fieldPath: 'submittedAt' }, op: 'LESS_THAN_OR_EQUAL',    value: { stringValue: '2099.01.01 00:00' } } }
+      ] } },
+      orderBy: [{ field: { fieldPath: 'submittedAt' }, direction: 'ASCENDING' }],
+      limit: 1
+    }
+  });
+  Logger.log('— 점검 끝. 위 네 줄의 HTTP 번호를 알려주세요 —');
+}
 function firestoreValueToJs(v) {
   if (!v) return null;
   if (v.stringValue !== undefined) return v.stringValue;
