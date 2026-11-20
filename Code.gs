@@ -834,6 +834,40 @@ function firestoreQueryLte(collection, field, value, limit) {
   rows.forEach(function(r){ if (r.document) out.push(firestoreDocToObj(r.document)); });
   return out;
 }
+// 🚨 같은 필드의 "범위"(시작~끝)로 조회 (2026-11-21 추가)
+// firestoreQueryLte는 "기준보다 이른 것 전부"를 오래된 순 300건만 가져와서,
+// 이미 처리된 옛날 기록이 300칸을 다 채우면 **최근 제출이 조회에 아예 안 들어오는** 사고가 있었음.
+// (실제로 11/20 제출이 자동완료 안 됨 — 조회된 최신 기록이 5월이었음)
+// 그래서 "최근 N일 안 + 기한 지난 것"처럼 양쪽을 다 막아 창을 좁게 유지함.
+// 같은 필드에 대한 범위 조건 2개라 복합 색인이 필요 없음.
+function firestoreQueryRange(collection, field, gte, lte, limit) {
+  var token = ScriptApp.getOAuthToken();
+  var body = {
+    structuredQuery: {
+      from: [{ collectionId: collection }],
+      where: { compositeFilter: { op: 'AND', filters: [
+        { fieldFilter: { field: { fieldPath: field }, op: 'GREATER_THAN_OR_EQUAL', value: { stringValue: String(gte) } } },
+        { fieldFilter: { field: { fieldPath: field }, op: 'LESS_THAN_OR_EQUAL',    value: { stringValue: String(lte) } } }
+      ] } },
+      orderBy: [{ field: { fieldPath: field }, direction: 'ASCENDING' }],
+      limit: limit || 500
+    }
+  };
+  var res = UrlFetchApp.fetch(firestoreBaseUrl() + ':runQuery', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) {
+    Logger.log('[firestoreQueryRange] ' + collection + '.' + field + ' 조회 실패: ' + res.getContentText());
+    return null;
+  }
+  var out = [];
+  var rows = JSON.parse(res.getContentText()) || [];
+  rows.forEach(function(r){ if (r.document) out.push(firestoreDocToObj(r.document)); });
+  return out;
+}
 // 문서 1개만 읽기
 function firestoreGetDoc(collection, docId) {
   var token = ScriptApp.getOAuthToken();
@@ -1437,9 +1471,18 @@ function autoCompleteCutoffStr() {
   return d.getUTCFullYear() + '.' + p(d.getUTCMonth() + 1) + '.' + p(d.getUTCDate())
        + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes());
 }
+// 자동완료 검사를 "최근 며칠 치"로만 제한 — 이 창 밖(아주 오래된)은 어차피 이미 처리됐거나
+// 화면 노출 기간(12시간)도 한참 지난 것들이라 볼 필요가 없음 (2026-11-21)
+var AUTO_COMPLETE_WINDOW_DAYS = 30;
+function autoCompleteWindowStartStr() {
+  var d = new Date(Date.now() + 9 * 60 * 60 * 1000 - AUTO_COMPLETE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  function p(n){ return (n < 10 ? '0' : '') + n; }
+  return d.getUTCFullYear() + '.' + p(d.getUTCMonth() + 1) + '.' + p(d.getUTCDate()) + ' 00:00';
+}
 function autoCompleteOldHwProofs() {
-  // 제출 시각이 기준보다 이른(=기한 지난) 것만 조회 — 사진 없는 문서는 아예 안 읽힘
-  var list = firestoreQueryLte('hw_status', 'submittedAt', autoCompleteCutoffStr());
+  // 🚨 "기준보다 이른 것 전부"(firestoreQueryLte)로 하면 오래된 기록이 300칸을 채워서
+  //    최근 제출이 조회에 안 들어옴 — 반드시 최근 N일 창으로 양쪽을 막을 것 (2026-11-21 사고)
+  var list = firestoreQueryRange('hw_status', 'submittedAt', autoCompleteWindowStartStr(), autoCompleteCutoffStr());
   if (list === null) throw new Error('hw_status 조회 실패');   // 다음 실행에서 다시 시도하게 함
   var targets = list.filter(function(r){
     if (!parseKstTimestamp(r.submittedAt)) return false;   // 빈 값·형식 이상은 건드리지 않음
@@ -1456,7 +1499,7 @@ function autoCompleteOldHwProofs() {
   });
 }
 function autoCompleteOldExamProofs() {
-  var list = firestoreQueryLte('scores', 'examSubmittedAt', autoCompleteCutoffStr());
+  var list = firestoreQueryRange('scores', 'examSubmittedAt', autoCompleteWindowStartStr(), autoCompleteCutoffStr());
   if (list === null) throw new Error('scores 조회 실패');
   var targets = list.filter(function(r){
     if (!parseKstTimestamp(r.examSubmittedAt)) return false;
