@@ -80,6 +80,10 @@ tr:hover td{background:#fafbff;}
 /* 성적 */
 .score-layout{display:block;}
 .score-table-wrap{overflow-x:auto;}
+/* 시험·과제 열이 많아지면 표가 이름 칸을 눌러서 "김 나 경"처럼 한 글자씩 세로로 쪼개짐 (2026-11-20 수정).
+   이름·출석 칸은 줄바꿈 금지 + 최소 폭을 줘서 항상 한 줄로 보이게 함. */
+#score-thead-row th:nth-child(3), #score-tbody td:nth-child(3){white-space:nowrap;min-width:78px;}
+#score-thead-row th:nth-child(4), #score-tbody td:nth-child(4){white-space:nowrap;}
 .score-panel{position:fixed;top:0;right:-380px;width:360px;height:100vh;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,0.12);padding:24px 20px;overflow-y:auto;z-index:400;transition:right .25s ease;box-sizing:border-box;}
 .score-panel.open{right:0;}
 .score-panel h3{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:4px;}
