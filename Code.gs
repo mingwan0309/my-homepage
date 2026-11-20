@@ -1840,6 +1840,9 @@ function sendAbsentVideoNotices() {
 // ⚠️ PROOF_DUE_DAYS는 mypage.html의 같은 이름 상수와 반드시 같아야 함 — 마이페이지 팝업에
 //    "D-2"라고 뜬 게 실제로는 기한이 지나지 않은 걸로 처리되는 일이 없도록 값을 맞춰서 고칠 것.
 var PROOF_DUE_DAYS = 2;
+// 증빙 기한 안내에서 거슬러 확인할 기간 — 이보다 오래된 차시는 이미 안내가 나갔으므로 안 읽음
+// (예전엔 hw_status·scores를 통째로 읽어 읽기 한도를 태웠음, 2026-11-21)
+var PROOF_OVERDUE_SCAN_DAYS = 21;
 var PROOF_OVERDUE_NOTICE_START_MIN = 21 * 60; // 밤 9시
 var PROOF_OVERDUE_NOTICE_WINDOW_MIN = 30;
 // 수업일(YYYY-MM-DD) + PROOF_DUE_DAYS가 오늘보다 전이면(=오늘이 더 나중이면) 기한이 지난 것
@@ -1887,8 +1890,27 @@ function sendProofOverdueNotices() {
       byStudent[studentId].push(label);
     }
 
+    // 🚨 예전엔 hw_status·scores를 통째로(firestoreListAll) 읽었는데, 이 둘이 가장 큰 컬렉션이라
+    //    하루 읽기 한도(5만)를 태우는 주범이었음 (2026-11-21 사고). 이제 "기한이 지난 최근 차시"의
+    //    기록만 차시별로 조회함 — 아주 오래된 차시는 이미 안내가 나갔으므로 볼 필요가 없음.
+    var scanSessIds = Object.keys(sessById).filter(function(sid){
+      var ses = sessById[sid];
+      return ses && ses.date
+        && isProofOverdue(ses.date, today.dateStr)          // 기한(수업일+2일)이 지난 차시만
+        && ses.date >= kstDateStrOffset(-PROOF_OVERDUE_SCAN_DAYS); // 너무 오래된 차시는 제외
+    });
+    Logger.log('[증빙 기한 안내] 확인할 차시 ' + scanSessIds.length + '개');
+    var hwAll = [], scoresAll = [];
+    for (var si = 0; si < scanSessIds.length; si++) {
+      var hwRows = firestoreQueryEq('hw_status', 'sessionId', scanSessIds[si]);
+      if (hwRows === null) throw new Error('hw_status 조회 실패');
+      hwAll = hwAll.concat(hwRows);
+      var scRows = firestoreQueryEq('scores', 'sessionId', scanSessIds[si]);
+      if (scRows === null) throw new Error('scores 조회 실패');
+      scoresAll = scoresAll.concat(scRows);
+    }
+
     // 숙제 증빙 — mypage.html의 collectPendingProofs()와 같은 기준(완료/해당없음 제외, 사진 없음, 기한 지남)
-    var hwAll = firestoreListAll('hw_status');
     var hwOverdue = hwAll.filter(function(r){
       if (r.overdueNotifySent) return false;
       if (r.pass === 'complete' || r.pass === 'na') return false;
@@ -1904,7 +1926,6 @@ function sendProofOverdueNotices() {
     });
 
     // 재시험 증빙 — getMyExamAlerts와 같은 기준(미통과/미응시, 해결 안 됨, 사진 없음, 기한 지남)
-    var scoresAll = firestoreListAll('scores');
     var scOverdue = scoresAll.filter(function(r){
       if (r.examOverdueNotifySent) return false;
       if (r.pass !== 'nosub' && r.pass !== 'absent') return false;
@@ -1933,16 +1954,20 @@ function sendProofOverdueNotices() {
       msgs.push({ phone: TEACHER_NOTIFY_PHONE, name: nm, className: '증빙 기한 초과', sessionNum: today.dateStr, message: text });
     });
 
-    var result = sendAlimtalkMessages(msgs);
+    // 🚨 예전엔 "발송 성공"일 때만 표시를 남겨서, 보낼 게 없거나 발송이 실패하면
+    //    5분 뒤 큰 컬렉션들을 처음부터 다시 읽었음(30분 창에서 최대 6번) → 읽기 한도 초과의 주범.
+    //    이제 무거운 조회를 한 번 끝냈으면 결과와 상관없이 그날은 다시 안 돌게 표시함 (2026-11-21).
+    var result = msgs.length ? sendAlimtalkMessages(msgs) : { success: true, msg: '보낼 대상 없음' };
+    props.setProperty(doneKey, today.dateStr);
     if (result.success) {
       hwOverdue.forEach(function(r){ firestorePatchFields('hw_status', r.id, { overdueNotifySent: true }); });
       scOverdue.forEach(function(r){ firestorePatchFields('scores', r.id, { examOverdueNotifySent: true }); });
-      props.setProperty(doneKey, today.dateStr);
+      Logger.log('[증빙 기한 안내] ' + msgs.length + '건 발송(또는 대상 없음)');
     } else {
-      // ScriptProperties 표시를 안 남기므로 발송 시간대(30분) 안이면 5분 뒤 다시 시도됨
-      Logger.log('[sendProofOverdueNotices] 발송 실패: ' + result.msg);
+      Logger.log('[sendProofOverdueNotices] 발송 실패(오늘은 다시 시도 안 함): ' + result.msg);
     }
   } catch (err) {
+    // 조회 자체가 실패(예: 읽기 한도 초과)하면 표시를 안 남겨서 다음 날 정상적으로 다시 시도됨
     Logger.log('[sendProofOverdueNotices] 오류: ' + err);
   }
 }
