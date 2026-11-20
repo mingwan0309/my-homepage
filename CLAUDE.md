@@ -527,6 +527,14 @@ admin.html 사이드바 "🗓 일정 달력" 메뉴(교사 전용, `mcAllowedPag
 - 함수: `todayDateValue`/`dateValueToTitle`/`postTitleToDateValue`/`setPostTitleToday`/`setPostTitleFromDate`(class.html). 제목 형식을 바꾸려면 `dateValueToTitle` 하나만 고치면 됨.
 - 브라우저로 5가지 경우(새 글·날짜 변경·오늘 버튼·날짜 제목 수정·날짜 없는 제목 수정) 확인함.
 
+## 공부모드 (2026-11-20 추가)
+사용자: "학생 핸드폰을 공부모드로 바꾸고 싶다, 허락 누르면 내가 관리". **웹으로는 폰 잠금·앱 차단이 불가능**하다고 설명했고(진짜 잠금은 패밀리링크/스크린타임 또는 별도 네이티브 앱 필요), 사용자가 **"감시·기록형" 공부모드**를 고름.
+- 학생: mypage.html **"📚 공부모드" 카드**(오늘/이번 주 집중 시간, 최근 기록) → "▶ 공부 시작" → 전체화면 타이머(`#study-ov`, z-index 최상단 — 채팅 버블보다 위). 공부 중 `visibilitychange`/`pagehide`로 **화면이 안 보이게 되면(다른 앱·홈·화면 끄기) 나감으로 기록**, 돌아오면 "N분 동안 벗어났어요, 선생님 화면에 기록됐어요" 빨간 안내. 집중 시간 = 경과 − 나가 있던 시간. 지원 폰에선 Wake Lock으로 화면 자동 꺼짐을 막음(전원 버튼으로 끄면 나감으로 잡힘). 상태는 localStorage `mkmath_study_{id}`에도 즉시 저장 → 앱이 강제 종료돼도 다시 열면 이어서 계산. 끝내기를 안 누르고 **4시간 넘게 신호가 없던 기록은 다음 접속 때 마지막 신호 시각으로 자동 종료**. JS는 `study*` 접두사. **학부모 계정(authId≠id)에는 카드 안 보임**, 선생님 미리보기에선 카드만 보이고 시작은 막음(선생님 계정으로 기록 생기는 것 방지).
+- 선생님: admin.html "관리 → 📚 공부모드 현황"(교사 전용, `sty*` 접두사, 15초 자동 새로고침). 날짜별 카드: 🔴지금 나가 있음(N분째) / 🟢공부 중 / ⚪신호 끊김(화면 켜짐 상태인데 3분 넘게 신호 없음) / ✔끝남 + 나간 기록 시각 목록, "■ 종료시키기"·🗑 삭제. 아래에 그 주 집중 시간 순위표. 카드는 DOM API로 만듦(XSS 방지).
+- `study_sessions` 컬렉션: id, studentId, **authId**(실제 로그인 아이디), studentName, classId, date, startAt/endAt/lastPing(ms), status(active/done), leaveCount, awayMs, away, awaySince, leaves[{out,back}], focusMs, endedBy. API `startStudy`/`studyUpdate`/`endStudy`/`getMyStudy`/`getStudyBoard`/`deleteStudySession`(firebase-api v72). `SID_MIGRATE`에 추가(`f2:'authId'`로 authId도 같이 바꿈).
+- **Firestore 규칙 v16 필요**(`firestore_rules_v16.txt`): 본인 확인을 studentId가 아니라 **`authId == loginId()`**로 함(세션 id와 로그인 아이디 형식이 다른 학생 대비 — 홈페이지 팝업 글쓰기 사고 참고). 읽기 교사/조교/본인, 생성 본인, 수정 교사 또는 본인(authId·studentId 변경 금지), 삭제 교사.
+- 알려진 한계: 진짜 잠금이 아님(나간 걸 기록할 뿐). 학생이 아예 공부모드를 안 켜면 아무것도 안 남음. 폰 시계 기준 시각.
+
 ## 하지 말 것
 - Code.gs(파일 업로드용) 스니펫만 제공하기 (항상 전체 파일)
 - Apps Script 재배포 시 "새 버전" 안내 빼먹기

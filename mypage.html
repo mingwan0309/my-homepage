@@ -9,7 +9,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>마이페이지 — 김민관 수학</title>
-<script src="firebase-api.js?v=71"></script>
+<script src="firebase-api.js?v=72"></script>
 <script src="home-popup.js?v=4"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="chat-widget.js" defer></script>
@@ -274,6 +274,23 @@ a{text-decoration:none;}
 .msg-error{background:#fee2e2;color:#dc2626;}
 /* 정식 전체화면 API가 안 먹는 기기(아이폰 인앱 브라우저 등)용 CSS 가짜 전체화면 */
 .yt-fake-fullscreen{position:fixed!important;left:0!important;right:0!important;top:50%!important;bottom:auto!important;transform:translateY(-50%)!important;width:100vw!important;height:calc(100vw*9/16)!important;max-height:100vh!important;max-width:none!important;border-radius:0!important;aspect-ratio:auto!important;z-index:99999!important;}
+/* 공부모드 (2026-11-20) */
+.study-stat{display:flex;gap:8px;margin-bottom:12px;}
+.study-stat div{flex:1;background:#f1f5f9;border-radius:12px;padding:10px 6px;text-align:center;}
+.study-stat b{display:block;font-size:18px;color:#1e293b;}
+.study-stat span{font-size:12px;color:#64748b;font-weight:700;}
+.study-start-btn{display:block;width:100%;min-height:50px;border:none;border-radius:12px;background:linear-gradient(135deg,#4f46e5,#3b6cf7);color:#fff;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;}
+#study-ov{display:none;position:fixed;inset:0;z-index:2147483000;background:#0f172a;color:#fff;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;box-sizing:border-box;text-align:center;}
+#study-ov.show{display:flex;}
+#study-ov .st-label{font-size:14px;color:#94a3b8;font-weight:700;margin-bottom:6px;}
+#study-ov .st-timer{font-size:64px;font-weight:800;letter-spacing:1px;font-variant-numeric:tabular-nums;line-height:1.1;}
+#study-ov .st-sub{margin-top:14px;font-size:14px;color:#cbd5e1;line-height:1.7;}
+#study-ov .st-leave{display:inline-block;margin-top:14px;padding:6px 14px;border-radius:20px;background:#1e293b;font-size:14px;font-weight:800;}
+#study-ov .st-leave.bad{background:#7f1d1d;color:#fecaca;}
+#study-ov .st-warn{display:none;margin-top:18px;background:#dc2626;color:#fff;border-radius:12px;padding:12px 16px;font-size:14px;font-weight:700;max-width:420px;line-height:1.6;}
+#study-ov .st-end{margin-top:34px;min-height:50px;min-width:200px;border:1.5px solid #475569;background:transparent;color:#e2e8f0;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;}
+#study-ov .st-note{position:absolute;bottom:18px;left:16px;right:16px;font-size:12px;color:#64748b;line-height:1.6;}
+@media (max-width:768px){ #study-ov .st-timer{font-size:52px;} }
 </style>
 </head>
 <body>
@@ -365,6 +382,18 @@ a{text-decoration:none;}
     <div class="card" id="mc-status-card" style="display:none;">
       <div class="card-title"><span>⏰</span> 의무클리닉</div>
       <div id="mc-status-area"></div>
+    </div>
+
+    <!-- 공부모드 (2026-11-20) — 학부모 계정에는 안 보임 -->
+    <div class="card" id="study-card" style="display:none;">
+      <div class="card-title"><span>📚</span> 공부모드</div>
+      <div class="study-stat">
+        <div><b id="study-today">0분</b><span>오늘 집중</span></div>
+        <div><b id="study-week">0분</b><span>이번 주</span></div>
+      </div>
+      <div id="study-last" style="font-size:13px;color:#475569;margin-bottom:10px;display:none;"></div>
+      <button class="study-start-btn" onclick="studyStart()">▶ 공부 시작</button>
+      <div style="font-size:12px;color:#94a3b8;margin-top:8px;line-height:1.6;">공부하는 동안 이 화면을 켜 두세요. 다른 앱으로 나가거나 화면을 끄면 <b style="color:#dc2626;">나간 시간이 선생님께 기록</b>돼요.</div>
     </div>
 
     <!-- 예약 / 채팅 -->
@@ -828,6 +857,7 @@ loadInfo();
   // 선생님 미리보기에서도 보이게 함(보내기만 막음) — 2026-10-12 사용자가 미리보기로 확인하다 "안 뜬다"고 함
   if(window.mkShowHomePopups) mkShowHomePopups({ url: SU, session: session, preview: isPreviewMode });
   loadAssignmentCard();
+  loadStudyCard();
   loadGameCard();
   loadLiveExams();
   startLiveExamPolling();
@@ -2505,6 +2535,174 @@ function cpsClose(){
 }
 
 </script>
+<!-- 공부모드 화면 (2026-11-20) -->
+<div id="study-ov">
+  <div class="st-label">집중 시간</div>
+  <div class="st-timer" id="st-timer">00:00</div>
+  <div class="st-sub" id="st-sub"></div>
+  <div class="st-leave" id="st-leave">나간 횟수 0번</div>
+  <div class="st-warn" id="st-warn"></div>
+  <button class="st-end" onclick="studyEnd()">■ 공부 끝내기</button>
+  <div class="st-note">이 화면을 켜 둔 채로 공부하세요 · 다른 앱으로 나가거나 화면을 끄면 선생님께 기록돼요</div>
+</div>
+<script>
+/* ===== 공부모드 (2026-11-20) =====
+   폰을 잠그는 게 아니라(웹은 불가능), 공부 중 화면이 안 보이게 되는 순간(다른 앱·홈 화면·화면 끄기)을
+   visibilitychange로 잡아서 나간 시각/돌아온 시각을 study_sessions에 기록함. 상태는 localStorage에도
+   바로 저장해서, 앱이 강제로 꺼져도 다시 들어오면 이어서 계산됨. */
+var studyS = null;           // {id,startAt,leaveCount,awayMs,away,awaySince,leaves[]}
+var studyTick = null, studyPingT = null, studyWake = null, studyBusy = false;
+var STUDY_STALE_MS = 4*60*60*1000; // 마지막 신호 후 4시간 넘게 끊긴 기록은 그때 끝난 것으로 정리
+function studyKey(){ return 'mkmath_study_'+(session&&session.id||''); }
+function studySaveLocal(){ try{ if(studyS) localStorage.setItem(studyKey(), JSON.stringify(studyS)); else localStorage.removeItem(studyKey()); }catch(e){} }
+function studyLoadLocal(){ try{ return JSON.parse(localStorage.getItem(studyKey())||'null'); }catch(e){ return null; } }
+function studyFmtMin(ms){ var m=Math.floor((ms||0)/60000); return m>=60 ? Math.floor(m/60)+'시간 '+(m%60)+'분' : m+'분'; }
+function studyFmtClock(ms){
+  var t=Math.max(0,Math.floor(ms/1000)), h=Math.floor(t/3600), m=Math.floor(t%3600/60), s=t%60;
+  function p(n){return (n<10?'0':'')+n;}
+  return (h? h+':'+p(m) : p(m))+':'+p(s);
+}
+function studyHM(ms){ var d=new Date(ms); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function studyFocusNow(){
+  if(!studyS) return 0;
+  var now=Date.now(), away=studyS.awayMs + (studyS.away&&studyS.awaySince ? now-studyS.awaySince : 0);
+  return Math.max(0, now-studyS.startAt-away);
+}
+function studyPayload(extra){
+  var o={ id:studyS.id, leaveCount:studyS.leaveCount, awayMs:studyS.awayMs, away:studyS.away, awaySince:studyS.awaySince, leaves:studyS.leaves, at:Date.now() };
+  if(extra) for(var k in extra) o[k]=extra[k];
+  return o;
+}
+function studyPost(action, body){
+  body.action=action;
+  return fetch(SU,{method:'POST',body:JSON.stringify(body)}).then(function(r){return r.json();});
+}
+function studySync(){ if(studyS) studyPost('studyUpdate', studyPayload()).catch(function(){}); }
+
+async function loadStudyCard(){
+  var card=document.getElementById('study-card');
+  if(!card || !session) return;
+  // 학부모 로그인(authId가 학생 번호와 다름)에는 안 보여줌
+  if(!isPreviewMode && session.authId && session.authId!==session.id) return;
+  card.style.display='block';
+  if(isPreviewMode) return; // 미리보기는 선생님 계정이라 기록을 만들면 안 됨 — 카드 모양만 보여줌
+  try{
+    var r=await fetch(SU+'?action=getMyStudy').then(function(x){return x.json();});
+    if(!r||!r.success) return;
+    document.getElementById('study-today').textContent=studyFmtMin(r.todayMs);
+    document.getElementById('study-week').textContent=studyFmtMin(r.weekMs);
+    if(r.recent&&r.recent[0]){
+      var l=r.recent[0], el=document.getElementById('study-last');
+      el.style.display='block';
+      el.innerHTML='최근 공부: '+escHtml((l.date||'').slice(5).replace('-','/'))+' '+studyHM(l.startAt)+'~'+studyHM(l.endAt)+' · 집중 <b>'+studyFmtMin(l.focusMs)+'</b> · 나감 <b>'+(l.leaveCount||0)+'번</b>';
+    }
+    if(r.active) studyResume(r.active);
+  }catch(e){ console.warn('[공부모드] 불러오기 실패', e); }
+}
+function studyResume(a){
+  var loc=studyLoadLocal();
+  var st = (loc && loc.id===a.id) ? loc : {
+    id:a.id, startAt:a.startAt, leaveCount:a.leaveCount||0, awayMs:a.awayMs||0,
+    away:!!a.away, awaySince:a.awaySince||0, leaves:a.leaves||[]
+  };
+  var last = Math.max(a.lastPing||0, st.awaySince||0, a.startAt||0);
+  if(Date.now()-last > STUDY_STALE_MS){
+    // 끝내기를 안 누르고 오래 방치된 기록 — 마지막 신호 시각에 끝난 것으로 정리
+    studyS=st;
+    var endAt = st.away && st.awaySince ? st.awaySince : last;
+    st.away=false; st.awaySince=0;
+    studyPost('endStudy', studyPayload({endAt:endAt})).then(function(){ studyS=null; studySaveLocal(); loadStudyCard(); }).catch(function(){});
+    return;
+  }
+  studyS=st;
+  studyOpen();
+  if(document.visibilityState==='visible') studyOnVisible();
+}
+async function studyStart(){
+  if(isPreviewMode){ alert('미리보기에서는 공부모드를 시작할 수 없어요. (선생님 계정으로 기록이 생기는 걸 막기 위해서예요)'); return; }
+  if(studyBusy || studyS) return;
+  studyBusy=true;
+  try{
+    var r=await studyPost('startStudy',{ studentId:session.id, studentName:session.name||'', classId:session.classId||'' });
+    if(!r||!r.success) throw new Error((r&&r.msg)||'저장 실패');
+    var a=r.item;
+    studyS={ id:a.id, startAt:a.startAt, leaveCount:0, awayMs:0, away:false, awaySince:0, leaves:[] };
+    studySaveLocal();
+    studyOpen();
+  }catch(e){ alert('공부모드를 시작하지 못했어요. 잠시 후 다시 해주세요.\n('+(e.message||e)+')'); }
+  studyBusy=false;
+}
+function studyOpen(){
+  document.getElementById('study-ov').classList.add('show');
+  document.body.style.overflow='hidden';
+  document.getElementById('st-warn').style.display='none';
+  studyRender();
+  if(studyTick) clearInterval(studyTick);
+  studyTick=setInterval(studyRender, 1000);
+  if(studyPingT) clearInterval(studyPingT);
+  studyPingT=setInterval(function(){ if(document.visibilityState==='visible') studySync(); }, 60000);
+  studyKeepAwake();
+}
+function studyClose(){
+  document.getElementById('study-ov').classList.remove('show');
+  document.body.style.overflow='';
+  if(studyTick){ clearInterval(studyTick); studyTick=null; }
+  if(studyPingT){ clearInterval(studyPingT); studyPingT=null; }
+  try{ if(studyWake){ studyWake.release(); studyWake=null; } }catch(e){}
+}
+// 공부하는 동안 화면이 저절로 꺼지면 "나감"으로 잡히므로, 지원하는 폰에서는 화면 꺼짐을 막음
+function studyKeepAwake(){
+  try{
+    if(!studyS || !navigator.wakeLock || document.visibilityState!=='visible') return;
+    navigator.wakeLock.request('screen').then(function(w){ studyWake=w; }).catch(function(){});
+  }catch(e){}
+}
+function studyRender(){
+  if(!studyS) return;
+  document.getElementById('st-timer').textContent=studyFmtClock(studyFocusNow());
+  document.getElementById('st-sub').textContent=studyHM(studyS.startAt)+'에 시작했어요';
+  var lv=document.getElementById('st-leave');
+  lv.textContent='나간 횟수 '+studyS.leaveCount+'번'+(studyS.awayMs>=60000?' · 나가 있던 시간 '+studyFmtMin(studyS.awayMs):'');
+  lv.className='st-leave'+(studyS.leaveCount?' bad':'');
+}
+function studyOnHidden(){
+  if(!studyS || studyS.away) return;
+  studyS.away=true; studyS.awaySince=Date.now(); studyS.leaveCount++;
+  studySaveLocal(); studySync();
+}
+function studyOnVisible(){
+  if(!studyS) return;
+  if(studyS.away && studyS.awaySince){
+    var now=Date.now(), gone=now-studyS.awaySince;
+    studyS.leaves.push({out:studyS.awaySince, back:now});
+    studyS.awayMs+=gone; studyS.away=false; studyS.awaySince=0;
+    studySaveLocal(); studySync();
+    var w=document.getElementById('st-warn');
+    w.innerHTML='📵 '+(gone>=60000? studyFmtMin(gone) : Math.max(1,Math.round(gone/1000))+'초')+' 동안 공부 화면을 벗어났어요.<br>선생님 화면에 기록됐어요.';
+    w.style.display='block';
+  }
+  studyRender(); studyKeepAwake();
+}
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='hidden') studyOnHidden(); else studyOnVisible();
+});
+window.addEventListener('pagehide', studyOnHidden);
+async function studyEnd(){
+  if(!studyS || studyBusy) return;
+  var mins=Math.floor(studyFocusNow()/60000);
+  if(!confirm('공부를 끝낼까요?\n집중 시간 '+studyFmtMin(studyFocusNow())+' · 나간 횟수 '+studyS.leaveCount+'번')) return;
+  studyBusy=true;
+  try{
+    var r=await studyPost('endStudy', studyPayload({endAt:Date.now()}));
+    if(!r||!r.success) throw new Error((r&&r.msg)||'저장 실패');
+    studyS=null; studySaveLocal(); studyClose();
+    alert('수고했어요! 👏\n이번 공부: 집중 '+studyFmtMin(r.item.focusMs)+' · 나간 횟수 '+(r.item.leaveCount||0)+'번');
+    loadStudyCard();
+  }catch(e){ alert('저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.\n('+(e.message||e)+')'); }
+  studyBusy=false;
+}
+</script>
+
 </body>
 </html>
 

@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=71"></script>
+<script src="firebase-api.js?v=72"></script>
 <script src="mathterm-game.js?v=2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -253,6 +253,26 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
   .cal-ev{font-size:9px;}
   #page-calendar .card{padding:12px!important;}
 }
+/* 공부모드 현황 (2026-11-20) */
+.sty-sum{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.sty-sum div{flex:1;min-width:100px;border-radius:12px;padding:12px;text-align:center;}
+.sty-sum b{display:block;font-size:22px;font-weight:800;}
+.sty-sum span{font-size:12px;font-weight:700;}
+.sty-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:10px;}
+.sty-card.on{border-color:#6ee7b7;}
+.sty-card.away{border-color:#fca5a5;background:#fff7f7;}
+.sty-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.sty-name{font-weight:800;font-size:15px;color:#1e293b;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+.sty-badge{font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;}
+.sty-meta{font-size:13px;color:#475569;margin-top:6px;line-height:1.6;}
+.sty-leaves{font-size:12px;color:#b91c1c;margin-top:4px;line-height:1.7;}
+.sty-btns{margin-left:auto;display:flex;gap:6px;}
+.sty-btns button{min-height:38px;padding:0 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid #e2e8f0;background:#fff;color:#475569;}
+.sty-tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:420px;}
+.sty-tbl th,.sty-tbl td{padding:9px 8px;border-bottom:1px solid #f1f5f9;text-align:center;}
+.sty-tbl th{background:#f8fafc;color:#64748b;font-weight:700;}
+@media (max-width:768px){ .sty-btns{margin-left:0;width:100%;} .sty-btns button{flex:1;min-height:42px;} .sty-btns button:last-child{flex:0 0 56px;} }
+
 </style>
 </head>
 <body>
@@ -292,6 +312,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">📝</span> 관리 <span class="nav-group-arrow">▾</span></div>
         <div class="nav-group-body">
           <div class="nav-item" onclick="showPage('signals',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
+          <div class="nav-item" onclick="showPage('study',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📚</span> 공부모드 현황</div>
           <div class="nav-item" onclick="showPage('hwmanage',this);document.getElementById('mob-drawer').classList.remove('open')"><span class="ni">📝</span> 숙제/테스트 관리 <span id="hw-nav-badge-m" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
         </div>
       </div>
@@ -365,6 +386,7 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
         <div class="nav-item nav-group-head" onclick="toggleNavGroup(this)"><span class="ni">📝</span> 관리 <span class="nav-group-arrow">▾</span></div>
         <div class="nav-group-body">
           <div class="nav-item" onclick="showPage('signals',this)"><span class="ni">🚨</span> 신호판 <span id="signal-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
+          <div class="nav-item" onclick="showPage('study',this)"><span class="ni">📚</span> 공부모드 현황</div>
           <div class="nav-item" onclick="showPage('hwmanage',this)"><span class="ni">📝</span> 숙제/테스트 관리 <span id="hw-nav-badge" style="display:none;background:#ef4444;color:#fff;font-size:11px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;align-items:center;justify-content:center;margin-left:8px;"></span></div>
         </div>
       </div>
@@ -446,6 +468,26 @@ inp { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9
     </div>
 
     <!-- 신호판 -->
+    <!-- 공부모드 현황 (2026-11-20, 교사 전용) -->
+    <div id="page-study" class="page">
+      <div class="page-header"><div class="page-title">📚 공부모드 현황</div></div>
+      <p style="font-size:12px;color:#94a3b8;margin:-10px 0 14px;line-height:1.6;">학생이 마이페이지에서 "공부 시작"을 누르면 여기에 실시간으로 떠요(15초마다 새로고침). 공부 중에 다른 앱으로 나가거나 화면을 끄면 나간 시각이 기록돼요. 폰을 잠그는 기능은 아니에요.</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+        <input type="date" id="sty-date" onchange="loadStudyBoard()" style="min-height:42px;padding:0 10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;">
+        <button onclick="styToday()" style="min-height:42px;padding:0 14px;border:1.5px solid #e2e8f0;background:#fff;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">오늘</button>
+        <button onclick="loadStudyBoard()" style="min-height:42px;padding:0 14px;border:none;background:#3b6cf7;color:#fff;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">🔄 새로고침</button>
+        <span id="sty-updated" style="font-size:12px;color:#94a3b8;"></span>
+      </div>
+      <div class="sty-sum">
+        <div style="background:#ecfdf5;"><b id="sty-n-on" style="color:#059669;">0</b><span style="color:#047857;">지금 공부 중</span></div>
+        <div style="background:#fef2f2;"><b id="sty-n-away" style="color:#dc2626;">0</b><span style="color:#b91c1c;">지금 나가 있음</span></div>
+        <div style="background:#eff6ff;"><b id="sty-n-total" style="color:#2563eb;">0</b><span style="color:#1d4ed8;">이 날 공부한 학생</span></div>
+      </div>
+      <div id="sty-list" style="margin-bottom:22px;"></div>
+      <div style="font-size:15px;font-weight:800;color:#1e293b;margin-bottom:8px;">🏆 이 주 집중 시간 순위 <span id="sty-week-label" style="font-size:12px;color:#94a3b8;font-weight:600;"></span></div>
+      <div style="overflow-x:auto;"><table class="sty-tbl"><thead><tr><th>순위</th><th>이름</th><th>집중 시간</th><th>공부 횟수</th><th>나간 횟수</th></tr></thead><tbody id="sty-week"></tbody></table></div>
+    </div>
+
     <div id="page-signals" class="page">
       <div class="page-header"><div class="page-title">신호판</div></div>
       <p style="font-size:12px;color:#94a3b8;margin:-10px 0 14px;">연속 결석 또는 과제 미제출이 쌓인 학생을 자동으로 찾아서 보여줘요. "해제" 누르면 처리 완료로 접어두고, 다시 신호가 쌓이면 새로 나타나요.</p>
@@ -1647,7 +1689,7 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('dashboard').style.display='flex';
     document.getElementById('sb-user').textContent=s.name||s.id;
     var hash = location.hash.replace('#','');
-    var validPages = ['classes','signals','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','problemtypes','astguide','astcheck','asttask','gamerank','calendar','classpopup','homepopup'];
+    var validPages = ['classes','signals','study','students','quiz','clinic','mclinic','hwmanage','activitylog','notice','survey','qna','chat','videos','textbookvideos','assistants','pwchange','reviewmanage','problemtypes','astguide','astcheck','asttask','gamerank','calendar','classpopup','homepopup'];
     if(hash && validPages.includes(hash)) { showPage(hash); }
     else { loadClasses(); }
     initChatPage();
@@ -1680,6 +1722,7 @@ function showPage(page,el){
   });
   if(page==='classes') loadClasses();
   if(page==='signals') loadSignalBoard();
+  if(page==='study') initStudyPage();
   if(page==='students') loadStu();
   if(page==='calendar') loadSchedule();
   if(page==='classpopup') loadClassPopups();
@@ -1885,6 +1928,121 @@ function classTab(t,el){
 }
 // ── 신호판 (연속 결석 + 과제 미제출 자동 감지) ──
 var signalList=[], signalClassMap={};
+/* ===== 공부모드 현황 (2026-11-20) — 접두사 sty* (admin.html 전역 이름 충돌 방지) ===== */
+var styTimer=null, styClassMap=null, styItems=[];
+var STY_LOST_MS=3*60*1000; // 화면은 켜져 있다고 돼 있는데 3분 넘게 신호가 없으면 "연결 끊김"
+function styToday(){ var d=new Date(); document.getElementById('sty-date').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); loadStudyBoard(); }
+function styMin(ms){ var m=Math.floor((ms||0)/60000); return m>=60? Math.floor(m/60)+'시간 '+(m%60)+'분' : m+'분'; }
+function styHM(ms){ if(!ms) return '-'; var d=new Date(ms); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function initStudyPage(){
+  var el=document.getElementById('sty-date');
+  if(!el.value){ styToday(); } else loadStudyBoard();
+  if(styTimer) clearInterval(styTimer);
+  styTimer=setInterval(function(){
+    var pg=document.getElementById('page-study');
+    if(!pg || !pg.classList.contains('active')){ clearInterval(styTimer); styTimer=null; return; }
+    if(document.visibilityState==='visible') loadStudyBoard(true);
+  },15000);
+}
+async function loadStudyBoard(quiet){
+  var list=document.getElementById('sty-list');
+  if(!quiet) list.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
+  try{
+    if(!styClassMap){
+      styClassMap={};
+      var cr=await fetch(SU+'?action=getClasses').then(function(r){return r.json();});
+      (cr.classes||[]).forEach(function(c){ styClassMap[c.id]=c.name; });
+    }
+    var date=document.getElementById('sty-date').value;
+    var r=await fetch(SU+'?action=getStudyBoard&date='+encodeURIComponent(date)).then(function(x){return x.json();});
+    if(!r||!r.success) throw new Error((r&&(r.msg||r.error))||'불러오기 실패');
+    styItems=r.items||[];
+    styRender(r.now||Date.now());
+    styRenderWeek(r.week||[], r.weekKey);
+    document.getElementById('sty-updated').textContent=styHM(Date.now())+' 기준';
+  }catch(e){
+    list.innerHTML='<div style="color:#dc2626;font-size:13px;">⚠ 불러오지 못했어요 · '+escHtml(e.message||String(e))+'<br><span style="color:#94a3b8;">처음이라면 Firestore 규칙 v16(study_sessions 조항)을 게시했는지 확인해주세요.</span></div>';
+  }
+}
+function styState(s, now){
+  if(s.status!=='active') return 'done';
+  if(s.away) return 'away';
+  if(now-(s.lastPing||s.startAt) > STY_LOST_MS) return 'lost';
+  return 'on';
+}
+function styRender(now){
+  var list=document.getElementById('sty-list');
+  var nOn=0,nAway=0,stu={};
+  styItems.forEach(function(s){ stu[s.studentId]=1; var st=styState(s,now); if(st==='on') nOn++; if(st==='away') nAway++; });
+  document.getElementById('sty-n-on').textContent=nOn;
+  document.getElementById('sty-n-away').textContent=nAway;
+  document.getElementById('sty-n-total').textContent=Object.keys(stu).length;
+  if(!styItems.length){ list.innerHTML='<div style="color:#94a3b8;font-size:13px;padding:14px 0;">이 날 공부모드를 쓴 학생이 없어요.</div>'; return; }
+  var order={away:0,on:1,lost:2,done:3};
+  var arr=styItems.slice().sort(function(a,b){ var d=order[styState(a,now)]-order[styState(b,now)]; return d||((b.startAt||0)-(a.startAt||0)); });
+  list.innerHTML='';
+  arr.forEach(function(s){
+    var st=styState(s,now);
+    var end = st==='done'? s.endAt : (st==='lost'? (s.lastPing||s.startAt) : now);
+    var away=(s.awayMs||0)+(s.away&&s.awaySince? end-s.awaySince : 0);
+    var focus = st==='done'? (s.focusMs||0) : Math.max(0,end-s.startAt-away);
+    var badge={
+      on:['🟢 공부 중','#d1fae5','#047857'],
+      away:['🔴 지금 나가 있음 · '+styMin(now-s.awaySince)+'째','#fee2e2','#b91c1c'],
+      lost:['⚪ 신호 끊김 ('+styHM(s.lastPing)+' 마지막)','#f1f5f9','#64748b'],
+      done:['✔ 끝남'+(s.endedBy?' (선생님이 종료)':''),'#f1f5f9','#475569']
+    }[st];
+    var card=document.createElement('div');
+    card.className='sty-card'+(st==='on'?' on':st==='away'?' away':'');
+    var head=document.createElement('div'); head.className='sty-head';
+    var nm=document.createElement('span'); nm.className='sty-name'; nm.textContent=s.studentName||s.studentId;
+    nm.addEventListener('click',function(){ if(window.openStuDetailFromList) openStuDetailFromList(s.studentId); });
+    var cls=document.createElement('span'); cls.style.cssText='font-size:12px;color:#94a3b8;'; cls.textContent=styClassMap[s.classId]||'';
+    var bd=document.createElement('span'); bd.className='sty-badge'; bd.style.background=badge[1]; bd.style.color=badge[2]; bd.textContent=badge[0];
+    head.appendChild(nm); head.appendChild(cls); head.appendChild(bd);
+    var btns=document.createElement('div'); btns.className='sty-btns';
+    if(st!=='done'){
+      var b1=document.createElement('button'); b1.textContent='■ 종료시키기';
+      b1.addEventListener('click',function(){ styForceEnd(s); }); btns.appendChild(b1);
+    }
+    var b2=document.createElement('button'); b2.textContent='🗑'; b2.title='기록 삭제';
+    b2.addEventListener('click',function(){ styDelete(s); }); btns.appendChild(b2);
+    head.appendChild(btns);
+    card.appendChild(head);
+    var meta=document.createElement('div'); meta.className='sty-meta';
+    meta.textContent=styHM(s.startAt)+' ~ '+(st==='done'?styHM(s.endAt):'진행 중')+'  ·  집중 '+styMin(focus)+'  ·  나간 횟수 '+(s.leaveCount||0)+'번'+(away>=60000?' (총 '+styMin(away)+')':'');
+    card.appendChild(meta);
+    var lv=(s.leaves||[]).map(function(x){ var g=Math.max(0,x.back-x.out); return styHM(x.out)+'~'+styHM(x.back)+' ('+(g>=60000?styMin(g):Math.max(1,Math.round(g/1000))+'초')+')'; });
+    if(s.away&&s.awaySince) lv.push(styHM(s.awaySince)+'~ (아직 안 돌아옴)');
+    if(lv.length){ var le=document.createElement('div'); le.className='sty-leaves'; le.textContent='📵 나간 기록: '+lv.join(' · '); card.appendChild(le); }
+    list.appendChild(card);
+  });
+}
+function styRenderWeek(week, wk){
+  document.getElementById('sty-week-label').textContent=wk? '('+wk.slice(5).replace('-','/')+' 월요일부터, 끝낸 공부만)':'';
+  var tb=document.getElementById('sty-week'); tb.innerHTML='';
+  if(!week.length){ tb.innerHTML='<tr><td colspan="5" style="color:#94a3b8;">아직 기록이 없어요</td></tr>'; return; }
+  week.forEach(function(w,i){
+    var tr=document.createElement('tr');
+    [ (i<3?['🥇','🥈','🥉'][i]:String(i+1)), w.studentName, styMin(w.focusMs), w.count+'번', w.leaveCount+'번' ].forEach(function(v){ var td=document.createElement('td'); td.textContent=v; tr.appendChild(td); });
+    tb.appendChild(tr);
+  });
+}
+async function styForceEnd(s){
+  if(!confirm((s.studentName||'')+' 학생의 공부모드를 지금 종료할까요?\n(끝내기를 안 누르고 간 경우에 쓰세요)')) return;
+  var endAt = s.away&&s.awaySince ? s.awaySince : Math.max(s.lastPing||0, s.startAt||0);
+  if(styState(s,Date.now())==='on') endAt=Date.now();
+  var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'endStudy',id:s.id,endAt:endAt,endedBy:(cu&&cu.name)||'선생님'})}).then(function(x){return x.json();}).catch(function(e){return {success:false,msg:String(e)};});
+  if(!r.success) alert('종료하지 못했어요: '+(r.msg||''));
+  loadStudyBoard(true);
+}
+async function styDelete(s){
+  if(!confirm((s.studentName||'')+' 학생의 이 공부 기록을 삭제할까요? 되돌릴 수 없어요.')) return;
+  var r=await fetch(SU,{method:'POST',body:JSON.stringify({action:'deleteStudySession',id:s.id})}).then(function(x){return x.json();}).catch(function(e){return {success:false,msg:String(e)};});
+  if(!r.success) alert('삭제하지 못했어요: '+(r.msg||''));
+  loadStudyBoard(true);
+}
+
 async function loadSignalBoard(){
   var el=document.getElementById('signal-list');
   el.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';

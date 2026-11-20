@@ -302,6 +302,7 @@ var SID_MIGRATE = [
   { c:'clinic_bookings',  f:'studentId' },
   { c:'qna',              f:'studentId' },
   { c:'chat_messages',    f:'studentId' },
+  { c:'study_sessions',   f:'studentId', f2:'authId' }, // 공부모드 — 규칙이 authId로 본인 확인하므로 같이 바꿔야 함
   { c:'quiz_scores',      f:'id'        }  // 데일리 퀴즈 점수는 studentId가 아니라 id 필드에 아이디가 들어감
 ];
 
@@ -347,7 +348,7 @@ api.changeStudentId = function(db, p){
               var swapped = sidSwapDocId(d.id, oldId, newId);
               if (!swapped) {
                 // 문서 ID에 번호가 안 들어있으면 필드만 고치면 끝
-                var upd = {}; upd[m.f] = newId;
+                var upd = {}; upd[m.f] = newId; if (m.f2) upd[m.f2] = newId;
                 return d.ref.update(upd);
               }
               // 문서 ID에 번호가 박혀 있으면 새 ID로 복사하고 옛 문서는 지운다
@@ -3218,6 +3219,122 @@ api.submitSurveyResponse = function(db, p){
 };
 
 // 활동 로그 (교사 전용) — 최신순 최대 300건
+/* ---------- 공부모드 (2026-11-20) ----------
+   학생이 마이페이지에서 "공부 시작"을 누르면 study_sessions 문서가 생기고, 공부 중에 다른 앱으로
+   나가면(화면이 안 보이게 되면) 나간 시각·돌아온 시각을 기록한다. 폰을 잠그는 기능은 아님(웹은 불가)
+   — "나가면 선생님 화면에 보인다"는 감시·기록용.
+   규칙은 studentId가 아니라 authId(실제 로그인 아이디)로 본인 확인을 함 — 세션 id와 로그인 아이디의
+   하이픈 형식이 다른 학생이 있어서(홈페이지 팝업 글쓰기 때 겪음) 그쪽이 안전함. */
+function studyAuthId(){
+  var u = firebase.auth().currentUser;
+  return (u && u.email) ? u.email.split('@')[0] : '';
+}
+// 화면에서 보내는 상태값 중 저장할 것만 골라 숫자/문자로 정리
+function studyCleanState(p){
+  var leaves = [];
+  try { leaves = typeof p.leaves === 'string' ? JSON.parse(p.leaves||'[]') : (p.leaves||[]); } catch(e){ leaves = []; }
+  if (!Array.isArray(leaves)) leaves = [];
+  leaves = leaves.slice(-200).map(function(x){
+    return { out:Number(x.out)||0, back:Number(x.back)||0 };
+  });
+  return {
+    leaveCount: Number(p.leaveCount)||0,
+    awayMs: Number(p.awayMs)||0,
+    away: String(p.away) === 'true' || p.away === true,
+    awaySince: Number(p.awaySince)||0,
+    leaves: leaves,
+    lastPing: Number(p.at)||Date.now()
+  };
+}
+api.startStudy = function(db, p){
+  var authId = studyAuthId();
+  if (!authId) return Promise.resolve({ success:false, msg:'로그인이 필요해요.' });
+  var now = Date.now();
+  var id = genId('study');
+  var doc = {
+    id:id, studentId:String(p.studentId||authId), authId:authId,
+    studentName:String(p.studentName||''), classId:String(p.classId||''),
+    date:localDateStr(), startAt:now, endAt:0, status:'active',
+    goalMin:Number(p.goalMin)||0,
+    leaveCount:0, awayMs:0, away:false, awaySince:0, leaves:[], lastPing:now, focusMs:0
+  };
+  return db.collection('study_sessions').doc(id).set(doc).then(function(){
+    logActivity(db, doc.studentId, doc.studentName, 'student', (doc.studentName||doc.studentId)+'(학생)님이 공부모드를 시작했습니다.', 'STUDY_START');
+    return { success:true, item:doc };
+  });
+};
+// 공부 중 상태 갱신(나감/돌아옴/1분마다 살아있음 표시) — 화면이 들고 있는 전체 상태를 그대로 덮어씀
+api.studyUpdate = function(db, p){
+  var st = studyCleanState(p);
+  return db.collection('study_sessions').doc(String(p.id)).update(st).then(function(){ return { success:true }; });
+};
+// 공부 끝내기 — 학생 본인 또는 선생님(강제 종료, endedBy에 이름)
+api.endStudy = function(db, p){
+  var ref = db.collection('study_sessions').doc(String(p.id));
+  return ref.get().then(function(d){
+    if (!d.exists) return { success:false, msg:'기록을 찾을 수 없어요.' };
+    var cur = d.data();
+    if (cur.status !== 'active') return { success:true, item:cur };
+    var upd = (p.leaveCount !== undefined) ? studyCleanState(p) : {};
+    var awayMs = upd.awayMs !== undefined ? upd.awayMs : (cur.awayMs||0);
+    var away = upd.away !== undefined ? upd.away : cur.away;
+    var awaySince = upd.awaySince !== undefined ? upd.awaySince : cur.awaySince;
+    var endAt = Number(p.endAt) || Date.now();
+    if (away && awaySince && endAt > awaySince) awayMs += endAt - awaySince; // 나가 있던 채로 끝나면 그 시간도 나간 시간으로
+    upd.away = false; upd.awaySince = 0; upd.awayMs = awayMs;
+    upd.endAt = endAt; upd.status = 'done';
+    upd.endedBy = String(p.endedBy||'');
+    upd.focusMs = Math.max(0, endAt - (cur.startAt||endAt) - awayMs);
+    return ref.update(upd).then(function(){
+      var item = Object.assign({}, cur, upd);
+      if (!p.endedBy) logActivity(db, cur.studentId, cur.studentName, 'student', (cur.studentName||cur.studentId)+'(학생)님이 공부모드를 끝냈습니다. (집중 '+Math.round(upd.focusMs/60000)+'분, 나감 '+(item.leaveCount||0)+'번)', 'STUDY_END');
+      return { success:true, item:item };
+    });
+  });
+};
+// 내 공부 기록 — 진행 중인 것 + 오늘/이번 주 합계
+api.getMyStudy = function(db, p){
+  var authId = studyAuthId();
+  if (!authId) return Promise.resolve({ success:false, msg:'로그인이 필요해요.' });
+  return db.collection('study_sessions').where('authId','==',authId).get().then(function(snap){
+    var arr = docsToArr(snap);
+    var today = localDateStr(), wk = weekKeyOf();
+    var active = null, todayMs = 0, weekMs = 0, todayCount = 0;
+    arr.forEach(function(s){
+      if (s.status === 'active') { if (!active || s.startAt > active.startAt) active = s; return; }
+      if (s.date === today) { todayMs += s.focusMs||0; todayCount++; }
+      if (s.date >= wk) weekMs += s.focusMs||0;
+    });
+    var recent = arr.filter(function(s){ return s.status==='done'; })
+      .sort(function(a,b){ return (b.startAt||0)-(a.startAt||0); }).slice(0,5);
+    return { success:true, active:active, todayMs:todayMs, weekMs:weekMs, todayCount:todayCount, recent:recent };
+  });
+};
+// 선생님 화면 — 그날 기록 전부 + 그 주 학생별 합계
+api.getStudyBoard = function(db, p){
+  var date = String(p.date || localDateStr());
+  var wk = weekKeyOf(new Date(date+'T12:00:00'));
+  var wkEnd = localDateStr(new Date(new Date(wk+'T12:00:00').getTime()+6*86400000));
+  return db.collection('study_sessions').where('date','>=',wk).get().then(function(snap){
+    var arr = docsToArr(snap).filter(function(s){ return s.date <= wkEnd; });
+    var day = arr.filter(function(s){ return s.date === date; })
+      .sort(function(a,b){ return (b.startAt||0)-(a.startAt||0); });
+    var byStu = {};
+    arr.forEach(function(s){
+      if (s.status !== 'done') return;
+      var k = s.studentId;
+      if (!byStu[k]) byStu[k] = { studentId:k, studentName:s.studentName||k, focusMs:0, count:0, leaveCount:0 };
+      byStu[k].focusMs += s.focusMs||0; byStu[k].count++; byStu[k].leaveCount += s.leaveCount||0;
+    });
+    var week = Object.keys(byStu).map(function(k){ return byStu[k]; })
+      .sort(function(a,b){ return b.focusMs - a.focusMs; });
+    return { success:true, date:date, weekKey:wk, items:day, week:week, now:Date.now() };
+  });
+};
+api.deleteStudySession = function(db, p){
+  return db.collection('study_sessions').doc(String(p.id)).delete().then(function(){ return { success:true }; });
+};
+
 api.getActivityLogs = function(db){
   return db.collection('activity_logs').get().then(function(snap){
     var list = docsToArr(snap);
