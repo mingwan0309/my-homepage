@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리 페이지 | 김민관 수학</title>
-<script src="firebase-api.js?v=72"></script>
+<script src="firebase-api.js?v=73"></script>
 <script src="mathterm-game.js?v=2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -4017,6 +4017,7 @@ async function loadHwManage(){
   if(mineWrap) mineWrap.style.display=astHasMyStudents()?'flex':'none';
   el.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
   try{
+    await runAutoCompleteHere();
     var r=await fetch(SU+'?action=getIncompleteHomeworks').then(function(r){return r.json();});
     hwmanageList=r.items||[];
     var stillExist={};
@@ -4581,10 +4582,24 @@ async function bulkOverdueResolve(){
   if(testmanageLoaded) await loadTestManage();
   renderOverdueList();
 }
+// 증빙 자동완료를 이 화면에서도 한 번 돌림 (2026-11-23)
+// — Apps Script 쪽 Firestore 호출이 할당량(429)으로 막혀도 관리 페이지를 열면 처리되게 하기 위함.
+// 한 번 열 때 한 번만 돌리고(acRanAt), 실패해도 목록 표시는 그대로 진행함.
+var acRanAt = 0;
+async function runAutoCompleteHere(){
+  if (Date.now() - acRanAt < 60*1000) return;
+  acRanAt = Date.now();
+  try{
+    var r = await fetch(SU+'?action=runAutoCompleteLocal').then(function(r){return r.json();});
+    if (r && r.success && r.count) console.log('[자동완료] ' + r.count + '건 처리됨');
+    else if (r && !r.success) console.warn('[자동완료] 실패: ' + r.msg);
+  }catch(e){ console.warn('[자동완료] 실패: ' + e); }
+}
 async function loadTestManage(){
   var el=document.getElementById('testmanage-list');
   el.innerHTML='<div style="color:#94a3b8;font-size:13px;">불러오는 중...</div>';
   try{
+    await runAutoCompleteHere();
     var r=await fetch(SU+'?action=getExamAlerts').then(function(r){return r.json();});
     testmanageList=r.items||[];
     testmanageLoaded=true;

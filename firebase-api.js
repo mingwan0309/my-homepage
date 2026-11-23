@@ -2094,6 +2094,50 @@ api.getWeakTypes = function(db, p){
   });
 };
 
+/* ── 증빙 자동완료를 브라우저에서도 실행 (2026-11-23 추가) ──
+   원래는 Apps Script 5분 트리거만 하던 일인데, Apps Script 쪽 Firestore 호출이
+   할당량(429)으로 통째로 막히면 자동완료가 영영 안 되는 사고가 반복됨.
+   그래서 선생님/조교가 관리 페이지(숙제관리·재시험 관리)를 열 때 브라우저에서도
+   같은 처리를 한 번 돌림 — Apps Script가 죽어 있어도 화면을 열면 처리됨.
+   Apps Script 쪽과 겹쳐도 안전함(이미 완료된 건은 대상에서 빠짐). */
+var AUTO_COMPLETE_HOURS = 6;
+var AUTO_COMPLETE_DAYS = 30;
+function acStampStr(msAgo){
+  var d = new Date(Date.now() - msAgo);
+  function p(n){ return (n<10?'0':'')+n; }
+  return d.getFullYear()+'.'+p(d.getMonth()+1)+'.'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+api.runAutoCompleteLocal = function(db){
+  var start  = acStampStr(AUTO_COMPLETE_DAYS*24*60*60*1000);
+  var cutoff = acStampStr(AUTO_COMPLETE_HOURS*60*60*1000);
+  var today  = localDateStr();
+  var note = '제출하신 증빙이 ' + AUTO_COMPLETE_HOURS + '시간 동안 확인되지 않아 자동으로 완료 처리되었습니다.';
+  // 같은 필드에 범위 조건 2개 → 복합 색인 불필요 (한쪽만 막으면 오래된 기록이 앞을 다 채움)
+  return Promise.all([
+    db.collection('hw_status').where('submittedAt','>=',start).where('submittedAt','<=',cutoff).get(),
+    db.collection('scores').where('examSubmittedAt','>=',start).where('examSubmittedAt','<=',cutoff).get()
+  ]).then(function(snaps){
+    var jobs = [], done = 0;
+    docsToArr(snaps[0]).forEach(function(r){
+      if (parseNowStrMs(r.submittedAt) === null) return;
+      if (r.pass === 'complete' || r.pass === 'na') return;
+      var f = { pass:'complete', autoCompleted:true, autoCompletedAt:today };
+      if (!r.feedback) f.feedback = note;
+      done++;
+      jobs.push(db.collection('hw_status').doc(r._docId || r.id).set(f, {merge:true}));
+    });
+    docsToArr(snaps[1]).forEach(function(r){
+      if (parseNowStrMs(r.examSubmittedAt) === null) return;
+      if (r.alertResolved) return;
+      var f = { alertResolved:true, autoCompleted:true, autoCompletedAt:today };
+      if (!r.feedback) f.feedback = note;
+      done++;
+      jobs.push(db.collection('scores').doc(r._docId || r.id).set(f, {merge:true}));
+    });
+    return Promise.all(jobs).then(function(){ return { success:true, count:done }; });
+  }).catch(function(e){ return { success:false, msg:String(e && e.message || e) }; });
+};
+
 api.getIncompleteHomeworks = function(db){
   return Promise.all([
     db.collection('hw_status').where('pass','in',['incomplete','partial','notsub']).get(),
