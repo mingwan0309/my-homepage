@@ -545,7 +545,7 @@ tr:hover td{background:#fafbff;}
     </div>
     <p style="font-size:12px;color:#94a3b8;margin:0 0 10px;">복사기로 스캔한 OMR 파일(PDF/JPG/PNG, 여러 장 가능)을 올려주세요. 자동으로 학부모 번호로 학생을 찾고 채점해요.</p>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#1e40af;">
-      <span>🆕 <b>새 답안지</b>: 학생이 서답형 정답 숫자를 직접 마킹 → 스캔하면 서답형까지 자동채점(조교 채점 필요 없음). 예전 답안지·대치온 답안지도 그대로 됨.</span>
+      <span>🆕 <b>새 답안지</b>(서술형 점수를 소수점까지 마킹 → 자동 입력)도 같이 읽혀요. 대치온 답안지도 그대로 됨.</span>
       <a href="omr_sheet.html" target="_blank" rel="noopener" style="background:#1d4ed8;color:#fff;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;">🖨 새 답안지 인쇄</a>
     </div>
     <div id="omr-drop-zone" style="border:2px dashed #cbd5e1;border-radius:12px;padding:24px;text-align:center;color:#94a3b8;font-size:14px;cursor:pointer;margin-bottom:14px;">
@@ -3614,18 +3614,6 @@ var OMR_CAL_V2 = {
   codeCol0:0.274368, codeColStep:0.022383, codeRow:0.116842, codeLabels:['A','B','C'],
   idBar:{ u:0.5, v:0.035526, halfW:0.048736 }
 };
-// 새 답안지 v3(2026-11-28) — v2와 같은데 서술형 "점수입력"(채점자 마킹) 대신 **학생이 정답 숫자를 마킹**하는 칸이 있음
-// (조교가 일일이 채점·점수입력하기 어렵다고 해서 바꿈). 줄: 부호(− 한 칸) / 백 / 십 / 일(각 0~9).
-// 판별: idBar 옆의 짧은 막대(idBar2)까지 진하면 v3. omr_sheet.html 하단 #cal 출력값을 그대로 복사한 것.
-var OMR_CAL_V3 = {
-  acol0:0.267148, acolStep:0.022383, arow0:0.189474, arowStep:0.038947,
-  pcolA0:0.031588, pcolAStep:0.019856, pcolB0:0.132671, pcolBStep:0.019856,
-  prow0:0.431579, prowStep:0.029474,
-  ncol0:0.854874, ncolStep:0.01444, nLines:[0.201053,0.229474,0.257895,0.286316], nRowStep:0.131579, nCount:6,
-  codeCol0:0.274368, codeColStep:0.022383, codeRow:0.116842, codeLabels:['A','B','C'],
-  idBar:{ u:0.5, v:0.035526, halfW:0.048736 },
-  idBar2:{ u:0.581227, v:0.035526, halfW:0.018051 }
-};
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 function openOmrUploadModal(){
@@ -3896,16 +3884,7 @@ function readOmrSheetWithCorners(canvas, corners, allowWide){
     var idDarks=[-0.5,0,0.5].map(function(k){ var p0=pt(ib.u+ib.halfW*k, ib.v); return sampleDarkness(ctx,p0.x,p0.y,r); });
     isV2 = idDarks.every(function(v){ return v>100; });
   }catch(e){ isV2=false; }
-  // v3(정답 숫자 마킹 답안지): idBar 오른쪽 짧은 막대까지 진하면 v3. v2는 그 자리가 빈 종이.
-  var isV3=false;
-  if(isV2){
-    try{
-      var ib2=OMR_CAL_V3.idBar2;
-      var id2=[-0.5,0,0.5].map(function(k){ var p0=pt(ib2.u+ib2.halfW*k, ib2.v); return sampleDarkness(ctx,p0.x,p0.y,r); });
-      isV3 = id2.every(function(v){ return v>100; });
-    }catch(e){ isV3=false; }
-  }
-  var CAL = isV3 ? OMR_CAL_V3 : (isV2 ? OMR_CAL_V2 : OMR_CAL);
+  var CAL = isV2 ? OMR_CAL_V2 : OMR_CAL;
   var answers={};
   for(var q=1;q<=20;q++){
     var pts=[];
@@ -3921,7 +3900,7 @@ function readOmrSheetWithCorners(canvas, corners, allowWide){
     digits.push(pick!=null ? String(pick-1) : '?');
   }
   var phone=digits.slice(0,4).join('')+'-'+digits.slice(4).join('');
-  var out={ phone:phone, answers:answers, sheetVersion:(isV3?3:(isV2?2:1)) };
+  var out={ phone:phone, answers:answers, sheetVersion:(isV2?2:1) };
   // 새 답안지: 서술형 점수입력(정수 줄 + 소수 줄) 읽기 → shortScores[행번호]=점수(0.0~9.9)
   // 정수 줄만 마킹 → x.0 / 둘 다 안 마킹 → 미채점(null, 기존 값 유지) / 소수만 마킹 → 0.x
   if(isV2){
@@ -3932,30 +3911,6 @@ function readOmrSheetWithCorners(canvas, corners, allowWide){
       var cpick=pickMarkAt(ctx,codePts,r,allowWide);
       out.paperCode = cpick!=null ? CAL.codeLabels[cpick-1] : null;
     }catch(e){ out.paperCode=null; }
-    if(isV3){
-      // 학생이 마킹한 서답형 정답 숫자 읽기 → shortAnswers[행번호]='−12' 같은 문자열, 아무것도 안 찍었으면 null
-      var shortAnswers={};
-      for(var s3=1;s3<=CAL.nCount;s3++){
-        var off=CAL.nRowStep*(s3-1), val=0, anyDigit=false, digitDarks=[];
-        for(var ln3=1;ln3<=3;ln3++){
-          var dpts=[];
-          for(var k3=0;k3<10;k3++) dpts.push(pt(CAL.ncol0+CAL.ncolStep*k3, CAL.nLines[ln3]+off));
-          digitDarks=digitDarks.concat(dpts.map(function(p){ return sampleDarkness(ctx,p.x,p.y,r); }));
-          var dk=pickMarkAt(ctx,dpts,r,allowWide);
-          if(dk!=null){ anyDigit=true; val=val*10+(dk-1); } else { val=val*10; }
-        }
-        // 부호(−)는 한 칸뿐이라 옆 칸과 비교할 수 없음 → 같은 문항 숫자 칸들의 바탕(중간값)보다 확실히 진하면 마킹으로 봄
-        var sp=pt(CAL.ncol0, CAL.nLines[0]+off);
-        var sd=sampleDarkness(ctx,sp.x,sp.y,r);
-        var sorted=digitDarks.slice().sort(function(a,b){return a-b;});
-        var base=sorted[Math.floor(sorted.length/2)]||0;
-        var neg = sd>100 || sd>=Math.max(45, base*2+15);
-        if(!anyDigit){ shortAnswers[s3]=null; continue; }
-        shortAnswers[s3]=String(neg && val!==0 ? -val : val);
-      }
-      out.shortAnswers=shortAnswers;
-      return out;
-    }
     var shortScores={};
     for(var s=1;s<=CAL.sCount;s++){
       // 정수: sLines[0](0~4)+sLines[1](5~9) / 소수: sLines[2](0~4)+sLines[3](5~9) — 각 줄 5칸
@@ -4117,25 +4072,6 @@ function gradeWithAnswerKey(answers, answerKey, manualScores){
   return { score:Math.round(score*10)/10, total:Math.round(total*10)/10, wrong:wrong };
 }
 
-// v3 답안지: 학생이 마킹한 서답형 숫자를 정답과 비교해 문항별 점수를 만든다(2026-11-28).
-// 답안지 행 i번 = 답안 등록의 i번째 주관식 문항(v2 점수입력과 같은 규칙).
-// 정답이 -999~999 정수인 문항만 자동채점(마킹으로 표현 가능한 것). 분수·소수·글자 정답은 건너뜀 → 예전처럼 성적 패널에서 직접 입력.
-// 결과는 manualScores 자리에 점수로 넣어서 저장 — 성적 패널의 "주관식 점수 입력"·합산 로직을 그대로 재사용하기 위함.
-function omrShortAuto(shortAnswers, key){
-  var shortQs=(key||[]).filter(function(x){return x.correct!=null && x.type==='short';});
-  var byQ={}, sum=0, skipped=[];
-  shortQs.forEach(function(q,i){
-    var arr=akToArr(q.correct);
-    var markable=arr.length && arr.every(function(c){ var n=akParseMathValue(c); return !isNaN(n) && Math.round(n)===n && Math.abs(n)<=999; });
-    if(!markable){ skipped.push(q.q); return; }
-    var given=shortAnswers?shortAnswers[i+1]:null;
-    var pts=Number(q.points)||0;
-    var ok = given!=null && akAnswerMatches(given, q.correct, 'short');
-    byQ[q.q]={ given:given, ok:ok, pts:ok?pts:0 };
-    sum+=ok?pts:0;
-  });
-  return { byQ:byQ, sum:Math.round(sum*10)/10, skipped:skipped, rowsUsed:shortQs.length };
-}
 var omrResultList=[];
 async function handleOmrFiles(fileList){
   var files=Array.from(fileList);
@@ -4185,21 +4121,13 @@ async function handleOmrFiles(fileList){
       }
       var student=findStudentByPhone(sheet.phone);
       // 학생이 마킹한 시험지 코드(A/B/C)가 있으면 그 코드 답안으로 채점 — 없으면 공통 답안
-      var keyUsed=pickKeyForCode(omrFull, sheet.paperCode);
-      var graded=gradeWithAnswerKey(sheet.answers, keyUsed);
-      // v3: 서답형 숫자 마킹 자동채점 — 맞은 문항은 오답 목록에서 빼고, 화면 점수에 더해서 보여줌
-      var shortAuto=null, wrongList=graded.wrong||[];
-      if(sheet.sheetVersion===3){
-        shortAuto=omrShortAuto(sheet.shortAnswers, keyUsed);
-        wrongList=wrongList.filter(function(q){ return !(shortAuto.byQ[q] && shortAuto.byQ[q].ok); });
-      }
+      var graded=gradeWithAnswerKey(sheet.answers, pickKeyForCode(omrFull, sheet.paperCode));
       omrResultList.push({
         ok:true, fileName:files[fi2].name, pageNum:pi+1,
         phone:sheet.phone, answers:sheet.answers, paperCode:sheet.paperCode||'',
         studentId: student?student.id:null, studentName: student?student.name:null,
-        score:graded.score, total:graded.total, wrong:wrongList,
-        sheetVersion:sheet.sheetVersion||1, shortScores:sheet.shortScores||null,
-        shortAnswers:sheet.shortAnswers||null, shortAuto:shortAuto
+        score:graded.score, total:graded.total, wrong:graded.wrong||[],
+        sheetVersion:sheet.sheetVersion||1, shortScores:sheet.shortScores||null
       });
     }
   }
@@ -4227,20 +4155,13 @@ function renderOmrResults(){
       var parts=[]; Object.keys(r.shortScores).forEach(function(k){ var v=r.shortScores[k]; parts.push(k+'번 '+(v==null?'—':v)); });
       shortLine='<div style="font-size:12px;color:#334155;margin-top:6px;"><span style="background:#dbeafe;color:#1d4ed8;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:10px;margin-right:6px;">새 답안지</span>서술형 점수입력: '+parts.join(' · ')+'</div>';
     }
-    if(r.sheetVersion===3 && r.shortAuto){
-      var p3=Object.keys(r.shortAuto.byQ).map(function(q){ var b=r.shortAuto.byQ[q];
-        return '<span style="color:'+(b.ok?'#15803d':'#b91c1c')+';">'+q+'번 '+(b.given==null?'미마킹':escHtml(b.given))+(b.ok?' ✓':' ✗')+'</span>'; });
-      shortLine='<div style="font-size:12px;color:#334155;margin-top:6px;line-height:1.6;"><span style="background:#dcfce7;color:#15803d;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:10px;margin-right:6px;">정답 마킹 답안지</span>'
-        +(p3.length?'서답형 자동채점: '+p3.join(' · '):'<span style="color:#94a3b8;">답안 등록에 숫자 정답 주관식 문항이 없어서 서답형은 채점 안 함</span>')
-        +(r.shortAuto.skipped.length?'<br><span style="color:#b45309;">'+r.shortAuto.skipped.join(', ')+'번은 정답이 정수가 아니라 직접 입력 필요</span>':'')+'</div>';
-    }
     return '<div style="border:1.5px solid '+(matched?'#bbf7d0':'#fde68a')+';background:'+(matched?'#f0fdf4':'#fffbeb')+';border-radius:10px;padding:10px 14px;margin-bottom:8px;">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
       +'<div style="font-size:13px;">'
       +(matched?('<b>'+r.studentName+'</b>'):'<span style="color:#b45309;font-weight:700;">매칭 필요</span>')
       +' <span style="color:#94a3b8;">(학부모 마킹: '+r.phone+')</span>'
       +'</div>'
-      +'<div style="font-weight:800;font-size:14px;">'+(r.shortAuto?Math.round((r.score+r.shortAuto.sum)*10)/10:r.score)+' / '+r.total+'점</div>'
+      +'<div style="font-weight:800;font-size:14px;">'+r.score+' / '+r.total+'점</div>'
       +'</div>'
       +shortLine
       +(matched?'':'<select onchange="setOmrMatch('+idx+',this.value)" style="margin-top:8px;width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;">'+stuOptions+'</select>')
@@ -4274,11 +4195,6 @@ async function saveOmrResults(){
     // 새 답안지(점수입력 마킹)에서 읽은 서술형 점수를 합침 — 답안지 행 i번 = 답안 등록의 i번째 주관식/서술형 문항.
     // 마킹이 없는 행(null)은 기존 값을 그대로 둠. 배점보다 크게 마킹한 건 배점으로 자름.
     var readCount=0, clipped=[];
-    // v3: 학생 숫자 마킹을 자동채점한 점수를 서답형 점수 자리에 넣음(맞으면 배점, 틀리거나 미마킹이면 0).
-    // 정답이 정수가 아닌 문항(skipped)은 손대지 않아서 예전에 넣어둔 값이 그대로 유지됨.
-    if(r.sheetVersion===3 && r.shortAuto){
-      Object.keys(r.shortAuto.byQ).forEach(function(q){ prevManual[q]=r.shortAuto.byQ[q].pts; readCount++; });
-    }
     if(r.sheetVersion===2 && r.shortScores){
       shortQs.forEach(function(q,i){
         var v=r.shortScores[i+1];
@@ -4301,9 +4217,7 @@ async function saveOmrResults(){
   }
   await loadScores();
   var msg='저장 완료! '+toSave.length+'명 성적이 반영됐어요.';
-  var v3Count=toSave.filter(function(x){return x.sheetVersion===3;}).length;
-  if(readTotal && v3Count) msg+='\n\n학생이 마킹한 서답형 정답 '+readTotal+'건을 자동채점해서 같이 넣었어요.';
-  else if(readTotal) msg+='\n\n새 답안지 점수입력에서 서술형 점수 '+readTotal+'건을 읽어서 같이 넣었어요.';
+  if(readTotal) msg+='\n\n새 답안지 점수입력에서 서술형 점수 '+readTotal+'건을 읽어서 같이 넣었어요.';
   else if(shortQs.length) msg+='\n\n주관식/서술형 '+shortQs.length+'문항은 자동채점되지 않았어요. 성적 표에서 학생 칸을 눌러 "주관식/서술형 점수 입력"에 점수를 넣으면 합산돼요.';
   if(clipNotes.length) msg+='\n\n⚠️ 배점보다 크게 마킹된 게 있어서 배점으로 맞췄어요:\n'+clipNotes.join('\n');
   alert(msg);

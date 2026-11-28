@@ -44,8 +44,6 @@ var L = {
   page:{ w:297, h:210 },
   marker:{ size:8, inset:10 },             // 마커 중심이 (10,10),(287,10),(10,200),(287,200)
   idbar:{ x:135, y:15.5, w:27, h:2.5 },    // 시트 종류 막대 (중심 148.5, 16.75)
-  // v3(2026-11-28) 표시 막대 — 이게 있으면 "서답형 정답을 학생이 숫자로 마킹하는 답안지"(점수입력 칸 없음)
-  idbar2:{ x:166, y:15.5, w:10, h:2.5 },
   // 왼쪽 열: 정보 + 부모님 전화번호
   info:{ x:16, w:50, y:52, rowH:6 },       // 학교/시험/성명 3줄
   phone:{ labelY:74, writeY:81, writeH:7, cellW:5.5, gA:16, gB:44, row0:92, rowStep:5.6, bub:3.6 },
@@ -54,10 +52,9 @@ var L = {
   code:{ x:72, y:24.5, w:40, hdH:4.5, col0:86, colStep:6.2, rowY:32.2, bub:3.8, labels:['A','B','C'] },
   // 가운데 열: 객관식 1~20
   ans:{ hdY:38, hdH:5, qnX:74, qnW:6, col0:84, colStep:6.2, row0:46, rowStep:7.4, bub:3.8, boxX:72, boxW:40 },
-  // 오른쪽: 서답형 6문항 (풀이 칸 + 학생이 정답 숫자를 마킹하는 칸)
-  // 정답 마킹(2026-11-28, v3): 부호(−) 1칸 + 백·십·일 자리 줄마다 0~9 — 스캔하면 정답과 비교해 자동 채점(조교 채점 불필요)
-  // 예전 v2는 여기에 채점자가 점수를 마킹하는 "점수입력" 칸이 있었음(조교가 일일이 채점해야 해서 바꿈)
-  essay:{ hdY:38, hdH:5, boxX:116, boxW:170, rowTop0:44, rowH:25, n:6, qnW:7, ansX:238, lblW:6.5, acol0:246.8, acolStep:4.0, abub:3.3, lineOff:[4.2,9.6,15.0,20.4], lineLbl:['부호','백','십','일'] }
+  // 오른쪽: 서술형 6문항 (풀이 칸 + 점수입력 정수줄/소수줄)
+  // 점수입력: 정수 2줄(0~4 / 5~9) + 소수 2줄(0~4 / 5~9) — 칸을 좁게 해서 풀이 칸을 넓힘
+  essay:{ hdY:38, hdH:5, boxX:116, boxW:170, rowTop0:44, rowH:25, n:6, qnW:7, scoreX:258, scoreLblW:7, scol0:266.8, scolStep:4.0, sbub:3.3, lineOff:[4.2,9.2,15.6,20.6] }
 };
 var P=document.getElementById('page');
 function el(cls, style, html){ var d=document.createElement('div'); d.className=cls; d.style.cssText=style; if(html!=null) d.innerHTML=html; P.appendChild(d); return d; }
@@ -70,7 +67,6 @@ var mi=L.marker.inset, ms=L.marker.size, pw=L.page.w, ph=L.page.h;
 });
 // 시트 종류 막대
 el('idbar','left:'+mm(L.idbar.x)+';top:'+mm(L.idbar.y)+';width:'+mm(L.idbar.w)+';height:'+mm(L.idbar.h)+';');
-el('idbar','left:'+mm(L.idbar2.x)+';top:'+mm(L.idbar2.y)+';width:'+mm(L.idbar2.w)+';height:'+mm(L.idbar2.h)+';');
 
 // 상단: 로고 + 제목 + 안내
 el('abs','left:16mm;top:14mm;height:13mm;', '<img src="logo.png" style="height:13mm;display:block;">');
@@ -145,32 +141,29 @@ var E=L.essay;
 var essayH=E.rowH*E.n;
 el('box','left:'+mm(E.boxX)+';top:'+mm(E.hdY)+';width:'+mm(E.boxW)+';height:'+mm(E.rowTop0+essayH-E.hdY)+';border-radius:1.5mm;');
 el('hd','left:'+mm(E.boxX)+';top:'+mm(E.hdY)+';width:'+mm(E.qnW)+';height:'+mm(E.hdH)+';font-size:2.8mm;border-radius:1.5mm 0 0 0;', '문번');
-el('hd','left:'+mm(E.boxX+E.qnW)+';top:'+mm(E.hdY)+';width:'+mm(E.ansX-(E.boxX+E.qnW))+';height:'+mm(E.hdH)+';', '서답형 풀이');
-el('hd','left:'+mm(E.ansX)+';top:'+mm(E.hdY)+';width:'+mm(E.boxX+E.boxW-E.ansX)+';height:'+mm(E.hdH)+';font-size:2.8mm;border-radius:0 1.5mm 0 0;', '정답 마킹');
+el('hd','left:'+mm(E.boxX+E.qnW)+';top:'+mm(E.hdY)+';width:'+mm(E.scoreX-(E.boxX+E.qnW))+';height:'+mm(E.hdH)+';', '서답형 답란');
+el('hd','left:'+mm(E.scoreX)+';top:'+mm(E.hdY)+';width:'+mm(E.boxX+E.boxW-E.scoreX)+';height:'+mm(E.hdH)+';font-size:2.8mm;border-radius:0 1.5mm 0 0;', '점수입력');
 // 세로 구분선
 el('thin','left:'+mm(E.boxX+E.qnW)+';top:'+mm(E.hdY)+';width:0.3mm;height:'+mm(E.rowTop0+essayH-E.hdY)+';');
-el('thin','left:'+mm(E.ansX)+';top:'+mm(E.hdY)+';width:0.3mm;height:'+mm(E.rowTop0+essayH-E.hdY)+';');
+el('thin','left:'+mm(E.scoreX)+';top:'+mm(E.hdY)+';width:0.3mm;height:'+mm(E.rowTop0+essayH-E.hdY)+';');
 for(var i=1;i<=E.n;i++){
   var rowTop=E.rowTop0+(i-1)*E.rowH;
   if(i>1) el('thin','left:'+mm(E.boxX)+';top:'+mm(rowTop)+';width:'+mm(E.boxW)+';height:0.3mm;');
   el('qn','left:'+mm(E.boxX)+';top:'+mm(rowTop)+';width:'+mm(E.qnW)+';height:'+mm(E.rowH)+';font-size:3.4mm;', String(i));
-  // 정답 마킹: 부호 줄(− 한 칸) + 백·십·일 줄(0~9)
+  // 점수입력: 정수(0~4 / 5~9 두 줄) + 소수(0~4 / 5~9 두 줄)
   var lines=E.lineOff;
+  el('lbl','left:'+mm(E.scoreX+0.8)+';top:'+mm(rowTop+lines[0]-2.5)+';width:'+mm(E.scoreLblW)+';height:'+mm(lines[1]-lines[0]+5)+';font-size:2.3mm;color:#444;', '정수');
+  el('lbl','left:'+mm(E.scoreX+0.8)+';top:'+mm(rowTop+lines[2]-2.5)+';width:'+mm(E.scoreLblW)+';height:'+mm(lines[3]-lines[2]+5)+';font-size:2.3mm;color:#444;', '소수');
+  el('thin','left:'+mm(E.scoreX+1.5)+';top:'+mm(rowTop+(lines[1]+lines[2])/2)+';width:'+mm(E.boxX+E.boxW-E.scoreX-3)+';height:0.15mm;background:#bbb;');
   for(var ln=0;ln<4;ln++){
-    var yl=rowTop+lines[ln];
-    el('lbl','left:'+mm(E.ansX+0.8)+';top:'+mm(yl-2)+';width:'+mm(E.lblW)+';height:4mm;font-size:2.3mm;color:#444;', E.lineLbl[ln]);
-    if(ln===0){
-      el('bub','left:'+mm(E.acol0-E.abub/2)+';top:'+mm(yl-E.abub/2)+';width:'+mm(E.abub)+';height:'+mm(E.abub)+';font-size:2.4mm;', '−');
-      el('txt','left:'+mm(E.acol0+2.6)+';top:'+mm(yl-1.6)+';width:30mm;font-size:2.1mm;color:#777;line-height:1.5;', '← 답이 음수일 때만');
-      continue;
-    }
-    for(var s=0;s<10;s++){
-      var sx=E.acol0+s*E.acolStep;
-      el('bub','left:'+mm(sx-E.abub/2)+';top:'+mm(yl-E.abub/2)+';width:'+mm(E.abub)+';height:'+mm(E.abub)+';font-size:2mm;', String(s));
+    var yl=rowTop+lines[ln], base=(ln%2)*5;
+    for(var s=0;s<5;s++){
+      var sx=E.scol0+s*E.scolStep;
+      el('bub','left:'+mm(sx-E.sbub/2)+';top:'+mm(yl-E.sbub/2)+';width:'+mm(E.sbub)+';height:'+mm(E.sbub)+';font-size:2mm;', String(base+s));
     }
   }
 }
-el('txt','left:'+mm(E.boxX)+';top:'+mm(E.rowTop0+essayH+1)+';width:150mm;font-size:2.2mm;color:#555;', '※ 정답 마킹: 자리마다 하나씩, 안 쓰는 자리는 비우기 · 예) 7 → 일 7 &nbsp;/&nbsp; 125 → 백 1·십 2·일 5 &nbsp;/&nbsp; −12 → 부호 −·십 1·일 2');
+el('txt','left:'+mm(E.boxX)+';top:'+mm(E.rowTop0+essayH+1)+';width:120mm;font-size:2.2mm;color:#555;', '※ 점수입력은 채점자 기록용 · 예) 3.5점 → 정수 3, 소수 5');
 
 // 하단: 로고(왼쪽) + 문구(오른쪽)
 el('abs','right:16mm;top:202.5mm;font-size:3mm;font-weight:700;color:#222;', '못하는 건 키즈모델뿐');
@@ -185,13 +178,12 @@ var CAL={
   acol0:u(A.col0), acolStep:du(A.colStep), arow0:v(A.row0), arowStep:dv(A.rowStep),
   pcolA0:u(Pn.gA+Pn.cellW/2), pcolAStep:du(Pn.cellW), pcolB0:u(Pn.gB+Pn.cellW/2), pcolBStep:du(Pn.cellW),
   prow0:v(Pn.row0), prowStep:dv(Pn.rowStep),
-  ncol0:u(E.acol0), ncolStep:du(E.acolStep), nLines:E.lineOff.map(function(o){ return v(E.rowTop0+o); }), nRowStep:dv(E.rowH), nCount:E.n,
+  scol0:u(E.scol0), scolStep:du(E.scolStep), sLines:E.lineOff.map(function(o){ return v(E.rowTop0+o); }), sRowStep:dv(E.rowH), sCount:E.n,
   codeCol0:u(C.col0), codeColStep:du(C.colStep), codeRow:v(C.rowY), codeLabels:C.labels,
   idBar:{ u:u(L.idbar.x+L.idbar.w/2), v:v(L.idbar.y+L.idbar.h/2), halfW:du(L.idbar.w/2) },
-  idBar2:{ u:u(L.idbar2.x+L.idbar2.w/2), v:v(L.idbar2.y+L.idbar2.h/2), halfW:du(L.idbar2.w/2) },
   sampleR:du(1.2)
 };
-document.getElementById('cal').textContent='// session.html 에 넣을 OMR_CAL_V3 (마커 중심 간 거리 '+SU+'×'+SV+'mm 기준)\nvar OMR_CAL_V3 = '+JSON.stringify(CAL,null,2)+';';
+document.getElementById('cal').textContent='// session.html 에 넣을 OMR_CAL_V2 (마커 중심 간 거리 '+SU+'×'+SV+'mm 기준)\nvar OMR_CAL_V2 = '+JSON.stringify(CAL,null,2)+';';
 </script>
 </body>
 </html>
